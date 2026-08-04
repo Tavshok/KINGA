@@ -37,7 +37,8 @@ export async function generateForensicDecisionReport(
               a.narrative_analysis_json, a.physics_analysis, a.physics_truth_json,
               a.forensic_audit_validation_json, a.claim_quality_json,
               a.created_at AS assessment_date, a.model_version,
-              a.enriched_photos_json, a.cross_validation_json
+              a.enriched_photos_json, a.cross_validation_json,
+              a.claim_truth_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
        WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""}
@@ -142,6 +143,9 @@ export async function generateForensicDecisionReport(
     const xvRiskFactors: string[] = xvRisk?.factors ?? [];
     const xvImpactDir: string | null = xv?.impactDirection ?? pt?.geometry?.impactDirection ?? null;
     const claimQuality  = safeJson(c.claim_quality_json);
+    // ARCH-01: Canonical resolver call-site — read CTL decision from claim_truth_json.
+    // This is the single authoritative source for reviewTriggers, costVerdict, and recommendation.
+    const claimTruth    = safeJson(c.claim_truth_json) as any;
     // Bug #1/#12: enriched_photos_json is the canonical photo source (14 photos for VOLTRON)
     // claim_documents may be empty for pipeline-only claims; enriched_photos_json is always populated
     type EnrichedPhoto = {
@@ -462,9 +466,43 @@ export async function generateForensicDecisionReport(
     // Narrative
     const narrativeText = String(narrative?.summary ?? narrative?.narrativeText ?? c.incident_description ?? "No narrative available.");
     const narrativeFlag = String(narrative?.flag ?? narrative?.consistencyNote ?? "");
-    const physicsVsNarrative = String(narrative?.physicsConsistency ?? "Consistent");
-    const damageVsNarrative  = String(narrative?.damageConsistency ?? "Consistent");
-    const crossEngineAgreement = Number(narrative?.crossEngineAgreement ?? 100);
+    // DIRECTION-FIX: Default to "Not assessed" rather than "Consistent" so missing data is visible.
+    // "Consistent" should only appear when the narrative engine explicitly sets it.
+    const physicsVsNarrative = String(narrative?.physicsConsistency ?? "Not assessed");
+    // DIRECTION-FIX: Programmatic direction cross-check.
+    // If the narrative engine did not assess damage consistency, derive it from enriched photo zones vs impactDirection.
+    const damageVsNarrativeRaw = narrative?.damageConsistency;
+    const damageVsNarrative: string = (() => {
+      if (damageVsNarrativeRaw) return String(damageVsNarrativeRaw);
+      // Derive from enriched photos: compare the majority severe-damage zone against impactDirection
+      if (enrichedPhotos.length > 0) {
+        const zoneCounts: Record<string, number> = {};
+        for (const ph of enrichedPhotos) {
+          if (ph.severity === "severe" || ph.severity === "high") {
+            const z = String(ph.impactZone ?? "").toLowerCase();
+            if (z) zoneCounts[z] = (zoneCounts[z] ?? 0) + 1;
+          }
+        }
+        const majorityZone = Object.entries(zoneCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+        if (majorityZone) {
+          const dir = impactDirection; // e.g. "front", "rear", "left", "right"
+          const zoneMatchesDir = majorityZone.includes(dir) || dir.includes(majorityZone.split(" ")[0]);
+          // Cross-check: rear-impact narrative with front-zone damage = Inconsistent
+          const rearNarrative = dir.includes("rear") || dir.includes("back");
+          const frontDamage = majorityZone.includes("front") || majorityZone.includes("hood") || majorityZone.includes("bumper front");
+          const frontNarrative = dir.includes("front") || dir.includes("head");
+          const rearDamage = majorityZone.includes("rear") || majorityZone.includes("boot") || majorityZone.includes("bumper rear");
+          if ((rearNarrative && frontDamage) || (frontNarrative && rearDamage)) {
+            return "Inconsistent — damage zone contradicts stated impact direction";
+          }
+          return zoneMatchesDir ? "Consistent (photo-derived)" : "Partial — damage zone partially matches stated direction";
+        }
+      }
+      return "Not assessed";
+    })();
+    // DIRECTION-FIX: Default crossEngineAgreement to null (not 100) so missing data is visible
+    const crossEngineAgreementRaw = narrative?.crossEngineAgreement;
+    const crossEngineAgreement = crossEngineAgreementRaw != null ? Number(crossEngineAgreementRaw) : null;
     const policeAlignment = String(narrative?.policeAlignment ?? "Partial");
 
     // Vehicle structural intel
@@ -701,6 +739,30 @@ export async function generateForensicDecisionReport(
       <div class="box">
         <h4>Decision Rationale</h4>
         <p style="margin:0 0 6px 0;">${esc(String(forensicAudit?.executiveSummary ?? narrative?.executiveSummary ?? "Physics evidence and data completeness require clarification before a final cost decision. Forensic confidence sits below policy threshold."))}</p>
+        ${(() => {
+          const costVerdictDB = String(c.cost_verdict ?? (claimTruth as any)?.costBasis?.costVerdict ?? "").toUpperCase();
+          const isReview = recommendation.includes("review");
+          const costIsFair = costVerdictDB === "FAIR" || costVerdictDB === "UNDERPRICED";
+          if (isReview && costIsFair) {
+            // ARCH-01: Use CTL decision.reviewTriggers as the canonical source when available.
+            // Fall back to reconstructed triggers from DB fields for backwards-compatibility.
+            const ctlTriggers: string[] = Array.isArray((claimTruth as any)?.decision?.reviewTriggers)
+              ? ((claimTruth as any).decision.reviewTriggers as string[])
+              : [];
+            const fallbackTriggers: string[] = [];
+            if (ctlTriggers.length === 0) {
+              if (fraudScoreAdjusted >= 50) fallbackTriggers.push(`fraud score ${fraudScoreAdjusted}/100 (threshold: 50)`);
+              if (physicsScore < 70) fallbackTriggers.push(`physics consistency ${physicsScore}% (below 70% threshold)`);
+              if (Number(ife?.completenessScore ?? ife?.overallScore ?? 100) < 90) fallbackTriggers.push(`data completeness ${Number(ife?.completenessScore ?? ife?.overallScore ?? 0)}% (below 90% threshold)`);
+              if (auditScore < 60) fallbackTriggers.push(`forensic audit score ${auditScore}/100 (below 60 threshold)`);
+            }
+            const triggers = ctlTriggers.length > 0 ? ctlTriggers : fallbackTriggers;
+            const triggerText = triggers.length > 0 ? triggers.join("; ") : "one or more non-cost forensic indicators";
+            const sourceNote = ctlTriggers.length > 0 ? " (Claim Truth Layer)" : " (reconstructed)";
+            return `<div style="margin-bottom:8px;padding:6px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#4a4a4a;"><b>Review trigger note${sourceNote}:</b> The cost assessment is <b>${costVerdictDB}</b> — the submitted quote is within the acceptable benchmark range. The REVIEW recommendation was triggered by <b>${triggerText}</b>, not by the cost assessment. Adjuster review of the non-cost factors is required before settlement can proceed.</div>`;
+          }
+          return '';
+        })()}
         <ul class="tight">
           ${highIssues.length > 0
             ? highIssues.map(i => `<li>${esc(i.title)}</li>`).join("")
@@ -778,9 +840,17 @@ export async function generateForensicDecisionReport(
       <div class="box">
         <h4>Engine Cross-Validation</h4>
         <table class="kv">
-          ${kvRow("Physics vs. narrative", p(physicsVsNarrative, physicsVsNarrative === "Consistent" ? "green" : physicsVsNarrative === "Partial" ? "amber" : "red"))}
-          ${kvRow("Damage vs. narrative", p(damageVsNarrative, damageVsNarrative === "Consistent" ? "green" : damageVsNarrative === "Partial" ? "amber" : "red"))}
-          ${kvRow("Cross-engine agreement", `${crossEngineAgreement}/100`)}
+          ${kvRow("Physics vs. narrative", p(physicsVsNarrative,
+            physicsVsNarrative.startsWith("Consistent") ? "green" :
+            physicsVsNarrative === "Not assessed" ? "amber" :
+            physicsVsNarrative.startsWith("Partial") ? "amber" : "red"
+          ))}
+          ${kvRow("Damage vs. narrative", p(damageVsNarrative,
+            damageVsNarrative.startsWith("Consistent") ? "green" :
+            damageVsNarrative === "Not assessed" ? "amber" :
+            damageVsNarrative.startsWith("Partial") ? "amber" : "red"
+          ))}
+          ${kvRow("Cross-engine agreement", crossEngineAgreement != null ? `${crossEngineAgreement}/100` : `<span style="color:var(--ink-soft);">Not assessed</span>`)}
           ${kvRow("Police alignment", p(policeAlignment, policeAlignment === "Consistent" ? "green" : policeAlignment === "Partial" ? "amber" : "red"))}
         </table>
         <p class="small" style="margin-top:8px;">${esc(String(narrative?.crossValidationNote ?? "Damage pattern and narrative are cross-validated against physics engine output."))}</p>

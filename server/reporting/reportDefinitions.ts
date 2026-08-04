@@ -251,7 +251,13 @@ async function generateClaimAssessmentReport(
       labour_hours: Number(c.labourHours ?? c.labour_hours ?? 0),
     })).sort((a, b) => b.estimated_cost - a.estimated_cost);
 
-    const fraudScore = Number(claim.fraud_score ?? 0);
+    // FRAUD-RECONCILE: Use fraud_score_breakdown_json.overallScore as canonical when available.
+    // This ensures the header scorecard and the Appendix A fraud section show the same number.
+    // a.fraud_score (the stored column) may differ if it was set by a different pipeline stage.
+    const fraudScoreRaw = Number(claim.fraud_score ?? 0);
+    const fraudBreakOverall = (fraud as any)?.overallScore ?? (fraud as any)?.compositeScore ?? null;
+    const fraudScore = fraudBreakOverall != null ? Number(fraudBreakOverall) : fraudScoreRaw;
+    const fraudScoreMismatch = fraudBreakOverall != null && Math.abs(Number(fraudBreakOverall) - fraudScoreRaw) >= 5;
     const confidenceScore = Number(claim.confidence_score ?? 0);
     const estimatedCost = Number(claim.estimated_cost ?? 0);
     const kingaOptimised = Number((costIntel as Record<string,unknown> | null)?.compositeOptimisation
@@ -369,6 +375,10 @@ async function generateClaimAssessmentReport(
       </td>
     </tr>
   </table>
+  ${fraudScoreMismatch ? `
+  <div style="margin-top:8px;padding:6px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#4a4a4a;">
+    <b>Score reconciliation note:</b> The fraud breakdown engine computed a score of <b>${fraudScore}</b> (from ${fraudIndicators.length} indicator${fraudIndicators.length !== 1 ? 's' : ''}). The pipeline stored a score of <b>${fraudScoreRaw}</b> in the assessment record (set by a separate stage). This report uses the breakdown engine score as the authoritative value. If these differ significantly, re-run the assessment to synchronise.
+  </div>` : ""}
   ${fraudIndicators.length > 0 ? `
   <div style="margin-top:12px">
     <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Triggered Fraud Indicators</div>
