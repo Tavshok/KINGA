@@ -15,4 +15,15 @@ export const ENV = {
   devEmailOverride: process.env.DEV_EMAIL_OVERRIDE ?? "",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+  /**
+   * Comma-separated list of Heartbeat task UIDs allowed to trigger
+   * /api/scheduled/intake-escalation and /api/scheduled/stuck-recovery.
+   *
+   * Default "*" = allow any authenticated cron identity (permissive).
+   * Set to the exact task UIDs returned by `manus-heartbeat create` after deploy
+   * to lock down these endpoints to only the registered crons.
+   *
+   * Example: "f3Y36QWnFCQ6dmvd5C5xQ6,aB1cD2eF3gH4iJ5kL6mN7o"
+   */
+  heartbeatAllowedTaskUids: process.env.HEARTBEAT_ALLOWED_TASK_UIDS ?? "*",
 };

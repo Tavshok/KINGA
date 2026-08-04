@@ -92,9 +92,12 @@ jobs:
         run: pnpm install --frozen-lockfile
       
       - name: Run unit tests
-        run: pnpm test || true
+        # HARD GATE: test failures block the pipeline.
+        # The || true soft-fail was removed in Batch 1 remediation (Ticket 1.2).
+        run: pnpm test
       
       - name: Generate coverage report
+        # Coverage report generation is non-blocking (informational artifact only).
         run: pnpm test:coverage || true
       
       - name: Upload coverage to Codecov
@@ -123,9 +126,11 @@ jobs:
         run: mkdir -p logs
       
       - name: G1 - Regression Testing Gate
+        # HARD GATE: test failures block the release-candidate build.
+        # The soft-fail echo was removed in Batch 1 remediation (Ticket 1.2).
         run: |
           echo "Running G1: Regression Testing Gate"
-          pnpm test || echo "Tests failed but continuing for now"
+          pnpm test
       
       - name: G4 - Database Integrity Gate
         run: |

@@ -52,6 +52,7 @@ import { runIntakeEscalationJob, startIntakeEscalationJob } from "../intake-esca
 import { runStuckAssessmentRecoveryJob, startStuckAssessmentRecoveryJob } from "../stuck-assessment-recovery-job";
 import { checkRecoveryDeadlines } from "../recovery/recoveryDeadlineAlerts";
 import { sdk } from "./sdk";
+import { ENV } from "./env";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -201,17 +202,26 @@ async function startServer() {
   // The setInterval remains as a fallback until Heartbeat registration is confirmed.
   app.post("/api/scheduled/intake-escalation", async (req: express.Request, res: express.Response) => {
     try {
-      let isCronCaller = false;
+      let cronUser: any = null;
       try {
         const user = await sdk.authenticateRequest(req);
-        isCronCaller = !!(user as any).isCron;
+        if ((user as any).isCron) cronUser = user;
       } catch {
         return res.status(401).json({ error: 'Unauthorized — valid session cookie required' });
       }
-      if (!isCronCaller) {
+      if (!cronUser) {
         return res.status(403).json({ error: 'Forbidden — Heartbeat cron callers only' });
       }
-      console.log('[Heartbeat] intake-escalation triggered');
+      // Allowlist check: when HEARTBEAT_ALLOWED_TASK_UIDS is set (not "*"),
+      // only the registered task UIDs may trigger this endpoint.
+      if (ENV.heartbeatAllowedTaskUids !== "*") {
+        const allowed = ENV.heartbeatAllowedTaskUids.split(',').map((s: string) => s.trim()).filter(Boolean);
+        if (!cronUser.taskUid || !allowed.includes(cronUser.taskUid)) {
+          console.warn(`[Security] intake-escalation: rejected taskUid "${cronUser.taskUid}" — not in allowlist`);
+          return res.status(403).json({ error: 'Forbidden — task UID not in allowlist' });
+        }
+      }
+      console.log(`[Heartbeat] intake-escalation triggered (taskUid: ${cronUser.taskUid ?? 'wildcard'})`);
       await runIntakeEscalationJob();
       console.log('[Heartbeat] intake-escalation complete');
       return res.status(200).json({ ok: true, job: 'intake-escalation', ts: Date.now() });
@@ -231,17 +241,26 @@ async function startServer() {
   // The setInterval remains as a fallback until Heartbeat registration is confirmed.
   app.post("/api/scheduled/stuck-recovery", async (req: express.Request, res: express.Response) => {
     try {
-      let isCronCaller = false;
+      let cronUser: any = null;
       try {
         const user = await sdk.authenticateRequest(req);
-        isCronCaller = !!(user as any).isCron;
+        if ((user as any).isCron) cronUser = user;
       } catch {
         return res.status(401).json({ error: 'Unauthorized — valid session cookie required' });
       }
-      if (!isCronCaller) {
+      if (!cronUser) {
         return res.status(403).json({ error: 'Forbidden — Heartbeat cron callers only' });
       }
-      console.log('[Heartbeat] stuck-recovery triggered');
+      // Allowlist check: when HEARTBEAT_ALLOWED_TASK_UIDS is set (not "*"),
+      // only the registered task UIDs may trigger this endpoint.
+      if (ENV.heartbeatAllowedTaskUids !== "*") {
+        const allowed = ENV.heartbeatAllowedTaskUids.split(',').map((s: string) => s.trim()).filter(Boolean);
+        if (!cronUser.taskUid || !allowed.includes(cronUser.taskUid)) {
+          console.warn(`[Security] stuck-recovery: rejected taskUid "${cronUser.taskUid}" — not in allowlist`);
+          return res.status(403).json({ error: 'Forbidden — task UID not in allowlist' });
+        }
+      }
+      console.log(`[Heartbeat] stuck-recovery triggered (taskUid: ${cronUser.taskUid ?? 'wildcard'})`);
       await runStuckAssessmentRecoveryJob();
       console.log('[Heartbeat] stuck-recovery complete');
       return res.status(200).json({ ok: true, job: 'stuck-recovery', ts: Date.now() });
@@ -313,6 +332,22 @@ async function startServer() {
       });
     }).catch(() => {});
     
+    // ── Heartbeat task UID allowlist security check ──────────────────────────
+    // HEARTBEAT_ALLOWED_TASK_UIDS defaults to "*" (permissive) until the two
+    // Heartbeat crons are registered post-deploy and their task UIDs are set.
+    // Log a visible warning so this is discoverable if step 4 of the post-deploy
+    // runbook is skipped.
+    if (ENV.heartbeatAllowedTaskUids === "*") {
+      console.warn('[Security] ⚠️  HEARTBEAT_ALLOWED_TASK_UIDS is not set (wildcard "*" active).');
+      console.warn('[Security] ⚠️  /api/scheduled/intake-escalation and /api/scheduled/stuck-recovery');
+      console.warn('[Security] ⚠️  will accept any authenticated Heartbeat cron identity.');
+      console.warn('[Security] ⚠️  After registering Heartbeat crons, set HEARTBEAT_ALLOWED_TASK_UIDS');
+      console.warn('[Security] ⚠️  to the comma-separated task UIDs and redeploy (post-deploy runbook step 4).');
+    } else {
+      const uids = ENV.heartbeatAllowedTaskUids.split(',').map(s => s.trim()).filter(Boolean);
+      console.log(`[Security] ✅ HEARTBEAT_ALLOWED_TASK_UIDS locked to ${uids.length} task UID(s): ${uids.join(', ')}`);
+    }
+
     // Start intake escalation cron job
     startIntakeEscalationJob();
     // Start stuck assessment recovery job (clears claims stuck in assessment_in_progress)
