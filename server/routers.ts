@@ -538,7 +538,7 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) return [];
       const { assessorSubscriptions: asSubs } = await import("../drizzle/schema");
-      return await db.select().from(asSubs).orderBy(asSubs.tier);
+      return await db.select().from(asSubs).orderBy(asSubs.tier).limit(200); // M-01: cap subscription tier list
     }),
   }),
 
@@ -9394,7 +9394,8 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         
         const pendingQuotes = await db.select()
           .from(insuranceQuotes)
-          .where(eq(insuranceQuotes.status, 'payment_submitted'));
+          .where(eq(insuranceQuotes.status, 'payment_submitted'))
+          .limit(500); // M-01: cap pending quotes list
         
         return pendingQuotes;
       }),
@@ -9477,7 +9478,8 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         
         return await db.select()
           .from(insuranceQuotes)
-          .where(eq(insuranceQuotes.customerId, ctx.user.id));
+          .where(eq(insuranceQuotes.customerId, ctx.user.id))
+          .limit(100); // M-01: cap per-user quote history
       }),
 
     // Download policy PDF

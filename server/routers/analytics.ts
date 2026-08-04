@@ -103,8 +103,9 @@ export const analyticsRouter = router({
           );
         }
 
-        const searchTerm = `%${input.query}%`;      // free-text columns
-        const searchPrefix = `${input.query}%`;     // M-05: identifier columns (uses B-tree index)
+        const searchTerm = `%${input.query}%`;  // Substring search — supports mid-string matches (e.g. last digits of VIN/plate)
+        // NOTE (M-05): TiDB FULLTEXT not supported; substring LIKE cannot use B-tree index at scale.
+        // Carried forward: KINGA-SEARCH-01.
         const tenantId = resolveAnalyticsTenant(ctx);
 
         // Build where clause with tenant filtering if applicable
@@ -112,16 +113,16 @@ export const analyticsRouter = router({
           ? and(
               eq(claims.tenantId, tenantId),
               or(
-                sql`${claims.vehicleRegistration} LIKE ${searchPrefix}` /* M-05 */,
-                sql`${claims.claimNumber} LIKE ${searchPrefix}` /* M-05 */,
-                sql`${claims.policyNumber} LIKE ${searchPrefix}` /* M-05 */,
+                sql`${claims.vehicleRegistration} LIKE ${searchTerm}` /* M-05 */,
+                sql`${claims.claimNumber} LIKE ${searchTerm}` /* M-05 */,
+                sql`${claims.policyNumber} LIKE ${searchTerm}` /* M-05 */,
                 sql`${users.name} LIKE ${searchTerm}`
               )
             )
           : or(
-              sql`${claims.vehicleRegistration} LIKE ${searchPrefix}` /* M-05 */,
-              sql`${claims.claimNumber} LIKE ${searchPrefix}` /* M-05 */,
-              sql`${claims.policyNumber} LIKE ${searchPrefix}` /* M-05 */,
+              sql`${claims.vehicleRegistration} LIKE ${searchTerm}` /* M-05 */,
+              sql`${claims.claimNumber} LIKE ${searchTerm}` /* M-05 */,
+              sql`${claims.policyNumber} LIKE ${searchTerm}` /* M-05 */,
               sql`${users.name} LIKE ${searchTerm}`
             );
 
