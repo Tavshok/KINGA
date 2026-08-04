@@ -349,6 +349,17 @@ class SDKServer {
       throw ForbiddenError("User not found");
     }
 
+    // ── Revocation check ──────────────────────────────────────────────────────
+    // isActive=0 means the account has been explicitly deactivated by an admin.
+    // A valid JWT for a deactivated account must be rejected immediately.
+    // NOTE: Hard-deleting a user row (vs. deactivating via admin.deactivateUser)
+    // bypasses this check — always use the deactivateUser procedure, never raw
+    // SQL DELETE on the users table, to ensure JWT revocation takes effect.
+    if (user.isActive === 0) {
+      console.warn(`[Auth] Rejected deactivated user id=${user.id} openId=${user.openId}`);
+      throw ForbiddenError("Account has been deactivated");
+    }
+
     await db.upsertUser({
       openId: user.openId,
       lastSignedIn: signedInAt,

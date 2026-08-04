@@ -202,9 +202,32 @@ const requireInsurerDomain = t.middleware(async opts => {
     });
   }
 
-  // ── 2. Tenant isolation check ─────────────────────────────────────────────
-  // A missing tenantId on an authenticated user IS a tenant isolation violation:
-  // the user has a valid session but is not scoped to any insurer tenant.
+  // ── 2. Admin / platform_super_admin bypass ─────────────────────────────────
+  // Admins are cross-tenant by design and must be able to access insurer
+  // procedures for support, auditing, and platform administration.
+  // Cross-tenant admin access is logged (informational, not a violation).
+  const role = ctx.user.role;
+  if (role === 'admin' || role === 'platform_super_admin') {
+    // Use the user's own tenantId if they have one; otherwise null (cross-tenant).
+    const adminTenantId = ctx.user.tenantId ?? null;
+    if (!adminTenantId) {
+      console.info(
+        `[TenantMiddleware] Cross-tenant admin access: user=${ctx.user.id} role=${role} ` +
+        `procedure=${extractProcedureName(opts as any)}`
+      );
+    }
+    return next({
+      ctx: {
+        ...ctx,
+        user: ctx.user,
+        insurerTenantId: adminTenantId,
+      },
+    });
+  }
+
+  // ── 3. Tenant isolation check ─────────────────────────────────────────────
+  // A missing tenantId on an authenticated non-admin user IS a tenant isolation
+  // violation: the user has a valid session but is not scoped to any insurer tenant.
   const tenantId = ctx.user.tenantId;
   if (!tenantId) {
     // Log asynchronously — do not await
@@ -223,7 +246,7 @@ const requireInsurerDomain = t.middleware(async opts => {
     });
   }
 
-  // ── 3. Proceed — inject insurerTenantId ──────────────────────────────────
+  // ── 4. Proceed — inject insurerTenantId ──────────────────────────────────
   return next({
     ctx: {
       ...ctx,
