@@ -86,11 +86,14 @@ function deriveChecklistItems(aiAssessment: any, claim?: any, quotesOverride?: a
       impactDelta: "+12–18 confidence points",
     });
   } else if (photoUrls.length < 3 || photosDetected < 3) {
+    // CONSIST-07 fix: prefer photoUrls.length (actual processed damage photos) over photosDetected
+    // (which counts all images/pages in source documents, not just damage photos).
+    const displayedPhotoCount = photoUrls.length > 0 ? photoUrls.length : photosDetected;
     items.push({
       id: "photos-insufficient",
       priority: "RECOMMENDED",
       category: "evidence",
-      title: `Only ${Math.max(photoUrls.length, photosDetected)} damage photograph(s) detected — 3+ recommended`,
+      title: `Only ${displayedPhotoCount} damage photograph(s) detected — 3+ recommended`,
       description:
         "Additional photographs from multiple angles (front, rear, driver side, passenger side, interior if applicable) significantly improve KINGA's ability to cross-validate the damage pattern against the reported impact vector.",
       impact: "Damage Zone Validation, Physics Consistency Score",

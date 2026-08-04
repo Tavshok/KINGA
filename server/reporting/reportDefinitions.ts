@@ -195,13 +195,14 @@ async function generateClaimAssessmentReport(
       `SELECT c.id, c.claim_reference, c.incident_type, c.incident_date, c.incident_location,
               c.lodger_name, c.policy_number, c.vehicle_make, c.vehicle_model, c.vehicle_year,
               c.vehicle_registration, c.vehicle_market_value, c.insurer_name, c.status,
-              c.created_at, c.confidence_score,
+              c.created_at, c.confidence_score, c.vehicle_vin,
+              c.excess_amount_cents, c.policy_excess, c.deductible,
               CONCAT(c.vehicle_make,' ',c.vehicle_model,' ',c.vehicle_year) AS vehicle_description,
               a.fraud_score, a.fraud_risk_level, a.recommendation,
               a.estimated_cost, a.parts_cost, a.labor_cost,
               a.damage_description, a.total_loss_indicated, a.repair_to_value_ratio,
               a.model_version, a.created_at AS assessment_date,
-              a.decision_authority_json, a.physics_analysis,
+              a.decision_authority_json, a.physics_analysis, a.physics_truth_json,
               a.fraud_score_breakdown_json, a.cost_intelligence_json,
               a.cross_validation_json
        FROM claims c
@@ -214,6 +215,11 @@ async function generateClaimAssessmentReport(
     if (!claim) throw new Error(`Claim ${claimId} not found`);
 
     const physics = safeJson(claim.physics_analysis);
+    // ARCH-02: Parse physics_truth_json (PTL) as primary source; fall back to legacy physics_analysis
+    const physicsTruthCL = safeJson(claim.physics_truth_json) as any;
+    const ptCL = physicsTruthCL ?? null;
+    const ptlSpeedCL   = ptCL?.speed?.canonical ?? ptCL?.speed?.deltaVKmh ?? (physics as any)?.deltaVKmh ?? (physics as any)?.velocityKmh ?? null;
+    const ptlDeltaVCL  = ptCL?.speed?.deltaVKmh ?? (physics as any)?.deltaVKmh ?? null;
     const fraud = safeJson(claim.fraud_score_breakdown_json);
     const costIntel = safeJson(claim.cost_intelligence_json);
     const decisionAuth = safeJson(claim.decision_authority_json);
@@ -253,6 +259,10 @@ async function generateClaimAssessmentReport(
       : 0);
     const repairToValue = Number(claim.repair_to_value_ratio ?? 0);
     const isTotalLoss = Boolean(claim.total_loss_indicated);
+    // BUG-02 fix: prefer excess_amount_cents (canonical cents column) over legacy policy_excess
+    const excessCL = claim.excess_amount_cents != null
+      ? Number(claim.excess_amount_cents) / 100
+      : Number(claim.policy_excess ?? claim.deductible ?? 0);
 
     // Physics anomaly signal for the light indicator
     const physicsConsistency = Number(physics?.damageConsistencyScore ?? 100);
@@ -283,6 +293,15 @@ async function generateClaimAssessmentReport(
     const decisionLabel = String(claim.recommendation ?? "REVIEW").toUpperCase();
     const decisionChipCls2 = decisionLabel.includes("APPROVE") || decisionLabel.includes("ACCEPT") ? "approve" : decisionLabel.includes("REJECT") ? "reject" : "review";
     const decisionIcon2 = decisionChipCls2 === "approve" ? "✓" : decisionChipCls2 === "reject" ? "✗" : "⚠";
+    // ARCH-04: Generate a stable machine-readable report reference for the CL tier.
+    // Uses claim submission date (not today) so re-generation produces the same ref.
+    const clSubmittedAt = claim.created_at ? new Date(String(claim.created_at)) : new Date();
+    const clDatePart = isNaN(clSubmittedAt.getTime())
+      ? new Date().toISOString().slice(0,10).replace(/-/g,"")
+      : clSubmittedAt.toISOString().slice(0,10).replace(/-/g,"");
+    const clReportRef = (String(claim.claim_reference ?? "").startsWith("DOC-"))
+      ? esc(String(claim.claim_reference))
+      : `DOC-${clDatePart}-${String(claim.claim_reference ?? claim.id).replace(/[^A-Z0-9]/gi,"").slice(0,8).toUpperCase()}-CL`;
 
     const body = `
 <div class="page">
@@ -296,6 +315,7 @@ async function generateClaimAssessmentReport(
   <div class="meta sans">
     <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:28px;display:block;margin-bottom:6px;margin-left:auto">
     <div class="claimno mono">${claimRef2}</div>
+    <div class="mono" style="font-size:9px;color:#8a8a8a;margin-top:2px;">${clReportRef}</div>
     <div>Generated ${genDate2} &middot; Insurer: ${insurer2}</div>
     <div class="decision-chip ${decisionChipCls2}">${decisionIcon2} ${decisionLabel}</div>
   </div>
@@ -315,11 +335,11 @@ async function generateClaimAssessmentReport(
     </tr>
     <tr>
       <td style="padding:4px 8px 4px 0;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Registration</div><div style="font-weight:600;font-family:monospace">${esc(String(claim.vehicle_registration ?? "—"))}</div></td>
+      <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">VIN</div><div style="font-weight:600;font-family:monospace">${esc(String(claim.vehicle_vin ?? claim.vin ?? "—"))}</div></td>
       <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Market Value</div><div style="font-weight:600">${fmtUSD(claim.vehicle_market_value != null ? Number(claim.vehicle_market_value) / 100 : null)}</div></td>
       <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Submitted</div><div style="font-weight:600">${fmtD(claim.created_at)}</div></td>
       <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Assessment Date</div><div style="font-weight:600">${fmtD(claim.assessment_date)}</div></td>
       <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Location</div><div style="font-weight:600">${esc(String(claim.incident_location ?? "—"))}</div></td>
-      <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Pipeline</div><div style="font-weight:600;font-family:monospace">${esc(String(claim.model_version ?? "v2"))}</div></td>
     </tr>
   </table>
 </div>
@@ -339,8 +359,8 @@ async function generateClaimAssessmentReport(
         <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Recommendation</div>
         <div style="font-size:13px;font-weight:700;color:#171717">${esc(String(claim.recommendation ?? "—").toUpperCase())}</div>
       </td>
-      <td style="padding:8px 12px;border-right:1px solid #e8e8e8;vertical-align:top">
-        <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">KINGA Estimate</div>
+      <td style="padding:8px 12px;border-right:1px solid #e8e8e8;vertical-align:top;min-width:90px">
+        <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;white-space:nowrap">KINGA Optimised</div>
         <div style="font-size:13px;font-weight:700;color:#3C7844">${fmtUSD(kingaOptimised > 0 ? kingaOptimised : estimatedCost)}</div>
       </td>
       <td style="padding:8px 12px;vertical-align:top">
@@ -413,25 +433,42 @@ ${comps.length > 0 ? `
       ${isTotalLoss ? `<span style="font-size:11px;color:#a83232;margin-left:12px">Repair cost exceeds vehicle market value threshold.</span>` : ""}
     </td>
   </tr></table>
+  ${kingaOptimised > 0 ? `<p style="font-size:10px;color:#4a4a4a;margin-top:8px;">
+    KINGA Optimised estimate: <strong>${fmtUSD(kingaOptimised)}</strong> — derived from per-component L2 composite pricing across all submitted quotes.
+    Component sub-total in §3 above (${fmtUSD(compTotal)}) reflects damage-assessment costs only and may differ where quote line items include additional labour, consumables, or scope items not captured in the component list.
+    Full line-item breakdown and quote comparison available at Protect tier.
+  </p>` : ""}
 </div>
 
 <!-- ── §5 PHYSICS / FRAUD ── -->
 <div class="section">
   <div class="section-tab sans"><span class="num">05</span> Fraud &amp; Physics</div>
   ${physicsIndicator(physicsAnomalyScore, String(claim.claim_reference ?? claim.id))}
+  ${ptlSpeedCL != null ? `<div style="font-size:10px;color:#4a4a4a;margin-top:6px;padding:6px 10px;background:#f5f5f5;border-left:3px solid #d9d9d9;border-radius:2px;">Impact speed estimate: <strong>${Math.round(Number(ptlSpeedCL) * 10) / 10} km/h</strong> — full physics reconstruction, causation classification, and evidence-chain analysis available at Protect / Prove tier.</div>` : ""}
   ${(() => {
     const qs = (fraud as any)?.quoteSimilarity;
     if (!qs) return '';
     const verdict = qs.overall_verdict ?? qs.verdict;
-    const pairSim = qs.highestPairSimilarity ?? qs.maxSimilarity;
-    if (verdict === 'confirmed' || verdict === 'high_risk') {
-      return `<div style="margin-top:8px;padding:8px 12px;border:1px solid #a83232;background:#fbe9e7;border-radius:3px;font-size:11px;"><strong>Copy-Quotation Detected.</strong> Quote similarity analysis flagged a potential copy-quotation pattern (highest pair similarity: ${pairSim != null ? Math.round(Number(pairSim) * 100) + '%' : 'N/A'}). Two or more repair quotes may share a common origin. Refer to the Forensic Report for full analysis.</div>`;
-    } else if (verdict === 'possible' || verdict === 'moderate_risk') {
-      return `<div style="margin-top:8px;padding:8px 12px;border:1px solid #b8720b;background:#fbf1de;border-radius:3px;font-size:11px;"><strong>Copy-Quotation — Possible.</strong> Moderate quote similarity detected (highest pair: ${pairSim != null ? Math.round(Number(pairSim) * 100) + '%' : 'N/A'}). Further review recommended.</div>`;
+    // CONSIST-01 fix: structural_similarity is a 0-1 decimal stored in pairs[0].
+    // The old code read qs.highestPairSimilarity (undefined) and multiplied by 100,
+    // producing NaN which rendered as 0%. Use the same source as the FR report.
+    const rawPairSim = qs.pairs?.[0]?.structural_similarity ?? qs.highestPairSimilarity ?? qs.maxSimilarity ?? null;
+    const pairSimPct = rawPairSim != null ? Math.round(Number(rawPairSim) <= 1 ? Number(rawPairSim) * 100 : Number(rawPairSim)) : null;
+    // Sanity check: suppress 'confirmed' if similarity is 0 (contradictory signal)
+    const effectiveVerdict = (verdict === 'confirmed' || verdict === 'high_risk') && pairSimPct === 0 ? 'possible' : verdict;
+    if (effectiveVerdict === 'confirmed' || effectiveVerdict === 'high_risk') {
+      return `<div style="margin-top:8px;padding:8px 12px;border:1px solid #a83232;background:#fbe9e7;border-radius:3px;font-size:11px;"><strong>Copy-Quotation Detected.</strong> Quote similarity analysis flagged a potential copy-quotation pattern (highest pair similarity: ${pairSimPct != null ? pairSimPct + '%' : 'N/A'}). Two or more repair quotes may share a common origin. Refer to the Forensic Report for full analysis.</div>`;
+    } else if (effectiveVerdict === 'possible' || effectiveVerdict === 'moderate_risk' || effectiveVerdict === 'suspected') {
+      return `<div style="margin-top:8px;padding:8px 12px;border:1px solid #b8720b;background:#fbf1de;border-radius:3px;font-size:11px;"><strong>Copy-Quotation — Possible.</strong> Moderate quote similarity detected (highest pair: ${pairSimPct != null ? pairSimPct + '%' : 'N/A'}). Further review recommended.</div>`;
     }
     return '';
   })()}
   <div style="font-size:10px;color:#8a8a8a;margin-top:8px">Full physics methodology, impact force analysis, and ΔV calculations are available in the Forensic Report (Prove Tier).</div>
+</div>
+
+<!-- TIER-03: Explicit tier-boundary badge -->
+<div style="margin-top:10px;padding:8px 14px;background:#f0f0f0;border:1px solid #d9d9d9;border-radius:3px;font-size:10px;color:#4a4a4a;">
+  <strong>Process Tier — scope boundary:</strong> Physics reconstruction, causation classification, evidence-chain analysis, copy-quotation forensics, and structural gap assessment are not included at this tier. These analyses are available at Protect tier (Claims Intelligence) and Prove tier (Forensic Decision).
 </div>
 
 <!-- ── §6 DECISION AUTHORITY ── -->
@@ -552,11 +589,11 @@ async function generateForensicReport(
       <div class="section">
         <div class="section-title">3. Physics &amp; Biomechanical Analysis</div>
         <div class="kv-grid cols-3">
-          ${physics.deltaV != null ? `<div class="kv-item"><div class="kv-label">Delta-V (km/h)</div><div class="kv-value">${physics.deltaV}</div></div>` : ""}
+          ${physics.deltaV != null ? `<div class="kv-item"><div class="kv-label">Delta-V (km/h)</div><div class="kv-value">${Number(physics.deltaV).toFixed(1)}</div></div>` : ""}
           ${physics.impactForceN != null ? `<div class="kv-item"><div class="kv-label">Impact Force (N)</div><div class="kv-value">${Number(physics.impactForceN).toLocaleString()}</div></div>` : ""}
           ${physics.airbagDeploymentExpected != null ? `<div class="kv-item"><div class="kv-label">Airbag Deployment</div><div class="kv-value">${physics.airbagDeploymentExpected ? "Expected" : "Not Expected"}</div></div>` : ""}
           ${physics.impactAngle != null ? `<div class="kv-item"><div class="kv-label">Impact Angle</div><div class="kv-value">${physics.impactAngle}°</div></div>` : ""}
-          ${physics.vehicleSpeedEstimate != null ? `<div class="kv-item"><div class="kv-label">Speed Estimate</div><div class="kv-value">${physics.vehicleSpeedEstimate} km/h</div></div>` : ""}
+          ${physics.vehicleSpeedEstimate != null ? `<div class="kv-item"><div class="kv-label">Speed Estimate</div><div class="kv-value">${Number(physics.vehicleSpeedEstimate).toFixed(1)} km/h</div></div>` : ""}
           ${physics.physicsConsistency != null ? `<div class="kv-item"><div class="kv-label">Physics Consistency</div><div class="kv-value">${riskBadge(physics.physicsConsistency)}</div></div>` : ""}
         </div>
         ${physics.summary ? `<div class="finding-box"><strong>Summary:</strong> ${escHtml(physics.summary)}</div>` : ""}
@@ -568,8 +605,8 @@ async function generateForensicReport(
         <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;">
           <thead><tr style="background:#f5f5f5;"><th style="padding:4px 8px;text-align:left;">Source</th><th style="padding:4px 8px;text-align:right;">Speed</th><th style="padding:4px 8px;text-align:left;">Basis</th></tr></thead>
           <tbody>
-            ${claimedSpdCA != null ? `<tr><td style="padding:3px 8px;">Claimant-stated</td><td style="padding:3px 8px;text-align:right;">${claimedSpdCA} km/h</td><td style="padding:3px 8px;color:#666;">Claimant declaration</td></tr>` : ''}
-            ${consensusSpdCA != null ? `<tr><td style="padding:3px 8px;">Physics consensus</td><td style="padding:3px 8px;text-align:right;font-weight:700;">${consensusSpdCA} km/h</td><td style="padding:3px 8px;color:#666;">Multi-method ensemble</td></tr>` : ''}
+            ${claimedSpdCA != null ? `<tr><td style="padding:3px 8px;">Claimant-stated</td><td style="padding:3px 8px;text-align:right;">${Number(claimedSpdCA).toFixed(1)} km/h</td><td style="padding:3px 8px;color:#666;">Claimant declaration</td></tr>` : ''}
+            ${consensusSpdCA != null ? `<tr><td style="padding:3px 8px;">Physics consensus</td><td style="padding:3px 8px;text-align:right;font-weight:700;">${Number(consensusSpdCA).toFixed(1)} km/h</td><td style="padding:3px 8px;color:#666;">Multi-method ensemble</td></tr>` : ''}
             ${severitySpdCA ? `<tr><td style="padding:3px 8px;">Severity-implied</td><td style="padding:3px 8px;text-align:right;">${severitySpdCA}</td><td style="padding:3px 8px;color:#666;">Damage pattern analysis</td></tr>` : ''}
           </tbody>
         </table>

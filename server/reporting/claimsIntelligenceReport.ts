@@ -37,7 +37,7 @@ export async function generateClaimsIntelligenceReport(
               a.estimated_cost, a.total_loss_indicated, a.repair_to_value_ratio,
               a.cost_intelligence_json, a.repair_intelligence_json,
               a.fraud_score_breakdown_json, a.ife_result_json,
-              a.narrative_analysis_json, a.physics_analysis,
+              a.narrative_analysis_json, a.physics_analysis, a.physics_truth_json,
               a.cross_validation_json,
               a.enriched_photos_json,
               a.created_at AS assessment_date, a.model_version
@@ -88,6 +88,14 @@ export async function generateClaimsIntelligenceReport(
     const fraudBreak = safeJson(c.fraud_score_breakdown_json as string) as any;
     const ife        = safeJson(c.ife_result_json as string) as any;
     const physics    = safeJson(c.physics_analysis as string) as any;
+    // ARCH-02: Parse physics_truth_json (PTL) as primary source; fall back to legacy physics_analysis
+    const physicsTruthCI = safeJson(c.physics_truth_json as string) as any;
+    const ptCI = physicsTruthCI ?? null;
+    const ptlSpeedCI  = ptCI?.speed?.canonical ?? ptCI?.speed?.deltaVKmh ?? physics?.deltaVKmh ?? physics?.velocityKmh ?? null;
+    const ptlConsistencyCI = ptCI?.integrityCheck?.consistencyScore ?? ptCI?.evidenceCompleteness?.dataQualityScore ?? null;
+    const ptlConsistencyLabelCI: string = ptlConsistencyCI !== null
+      ? (Number(ptlConsistencyCI) >= 80 ? 'consistent' : Number(ptlConsistencyCI) >= 50 ? 'anomaly detected' : 'significant anomaly')
+      : '';
     const narrative  = safeJson(c.narrative_analysis_json as string) as any;
     const crossVal   = safeJson(c.cross_validation_json as string) as any;
     // Three-way speed comparison from cross_validation_json
@@ -102,7 +110,8 @@ export async function generateClaimsIntelligenceReport(
     const fraudScore   = Number(c.fraud_score ?? 0);
     const fraudLevel   = String(c.fraud_risk_level ?? "low").toLowerCase();
     const rtvRatio     = Number(c.repair_to_value_ratio ?? 0);
-    const marketValue  = Number(c.vehicle_market_value ?? 0);
+    // BUG-01 fix: vehicle_market_value is stored in cents — divide by 100 at point of read
+    const marketValue  = c.vehicle_market_value != null ? Number(c.vehicle_market_value) / 100 : 0;
     const estimatedCost = Number(c.estimated_cost ?? 0);
     const submittedDate = c.created_at ? Number(c.created_at) : null;
     const incidentDate  = c.incident_date ? Number(c.incident_date) : null;
@@ -136,15 +145,20 @@ export async function generateClaimsIntelligenceReport(
     const exclusions: Array<{item: string; amount: number; clause: string}> =
       (repairIntel?.policyExclusions as Array<{item: string; amount: number; clause: string}>) ?? [];
     const totalExclusions = exclusions.reduce((s, e) => s + Number(e.amount ?? 0), 0);
-    const excess = Number(c.policy_excess ?? c.deductible ?? 0);
+    // BUG-02 fix: prefer excess_amount_cents (canonical cents column) over legacy policy_excess
+    const excess = c.excess_amount_cents != null
+      ? Number(c.excess_amount_cents) / 100
+      : Number(c.policy_excess ?? c.deductible ?? 0);
     const recommendedSettlement = Math.max(0, kingaOptimised - totalExclusions - excess);
 
     // Fraud badge
     const fraudBadgeCls = fraudScore >= 70 ? "fail" : fraudScore >= 40 ? "warn" : "ok";
     const fraudBadgeLabel = fraudScore >= 70 ? "High Risk" : fraudScore >= 40 ? "Moderate Risk" : "Low Risk";
 
-    // Data completeness from IFE
-    const dataComplete = Number(ife?.overallScore ?? ife?.documentCompleteness ?? 75);
+    // ARCH-03 fix: use ife.completenessScore (same canonical field as FR tier) for data completeness.
+    // ife.overallScore is a composite IFE score — not the same metric as completenessScore.
+    // Label them distinctly so a user comparing CI and FR sees the same number with the same label.
+    const dataComplete = Number(ife?.completenessScore ?? ife?.overallScore ?? ife?.documentCompleteness ?? 75);
     const missingDocs = (ife?.missingFields as string[]) ?? [];
 
     // Photo stats
@@ -316,8 +330,13 @@ ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Sub
     &ldquo;${esc(String(narrative.claimantStatement))}&rdquo;
   </blockquote>` : ""}
 
-  ${physics ? `
-  <div class="callout" style="margin-top:8px;">${physics.deltaV != null ? `Estimated Delta-V: <strong>${physics.deltaV} km/h</strong>. ` : ""}${physics.summary ? esc(String(physics.summary)) : "Physics analysis was performed at the standard tier. No significant anomalies detected at this assessment level."}${physicsAnomaly > 30 ? ` <em>Physics anomaly score ${physicsAnomaly}/100 — full reconstruction available in the Forensic Report.</em>` : ""}</div>` : ""}
+  ${(ptlSpeedCI != null || ptlConsistencyCI !== null) ? `
+  <div class="callout" style="margin-top:8px;">
+    ${ptlSpeedCI != null ? `Impact speed estimate: <strong>${Math.round(Number(ptlSpeedCI) * 10) / 10} km/h</strong>. ` : ""}
+    ${ptlConsistencyCI !== null ? `Physics consistency: <strong>${Math.round(Number(ptlConsistencyCI))}/100</strong> — ${ptlConsistencyLabelCI}. ` : ""}
+    Full evidence chain, causation classification, and uncertainty quantification available at Prove tier.
+  </div>` : physics ? `
+  <div class="callout" style="margin-top:8px;">${physics.deltaV != null ? `Estimated Delta-V: <strong>${Number(physics.deltaV).toFixed(1)} km/h</strong>. ` : ""}${physics.summary ? esc(String(physics.summary)) : "Physics analysis was performed at the standard tier. No significant anomalies detected at this assessment level."}${physicsAnomaly > 30 ? ` <em>Physics anomaly score ${physicsAnomaly}/100 — full reconstruction available in the Forensic Report.</em>` : ""}</div>` : ""}
   ${(claimedSpd != null || consensusSpd != null) ? `
   <div style="margin-top:10pt;">
     <h4 style="margin:0 0 6pt 0;font-size:9pt;">Speed Comparison</h4>
@@ -328,8 +347,8 @@ ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Sub
         <th style="padding:4pt 6pt;text-align:left;">Basis</th>
       </tr></thead>
       <tbody>
-        ${claimedSpd != null ? `<tr><td style="padding:3pt 6pt;">Claimant-stated</td><td style="padding:3pt 6pt;text-align:right;">${claimedSpd} km/h</td><td style="padding:3pt 6pt;color:var(--ink-mid);">Claimant declaration</td></tr>` : ''}
-        ${consensusSpd != null ? `<tr><td style="padding:3pt 6pt;">Physics consensus</td><td style="padding:3pt 6pt;text-align:right;font-weight:700;">${consensusSpd} km/h</td><td style="padding:3pt 6pt;color:var(--ink-mid);">Multi-method ensemble</td></tr>` : ''}
+        ${claimedSpd != null ? `<tr><td style="padding:3pt 6pt;">Claimant-stated</td><td style="padding:3pt 6pt;text-align:right;">${Number(claimedSpd).toFixed(1)} km/h</td><td style="padding:3pt 6pt;color:var(--ink-mid);">Claimant declaration</td></tr>` : ''}
+        ${consensusSpd != null ? `<tr><td style="padding:3pt 6pt;">Physics consensus</td><td style="padding:3pt 6pt;text-align:right;font-weight:700;">${Number(consensusSpd).toFixed(1)} km/h</td><td style="padding:3pt 6pt;color:var(--ink-mid);">Multi-method ensemble</td></tr>` : ''}
         ${severitySpd ? `<tr><td style="padding:3pt 6pt;">Severity-implied</td><td style="padding:3pt 6pt;text-align:right;">${severitySpd}</td><td style="padding:3pt 6pt;color:var(--ink-mid);">Damage pattern analysis</td></tr>` : ''}
       </tbody>
     </table>
@@ -407,6 +426,11 @@ ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Sub
       <div class="verdict-cell"><div class="label">Less Excess</div><div class="value" style="color:var(--red)">&minus;${fmtUSD(excess)}</div><div class="sub">Policy deductible</div></div>
       <div class="verdict-cell accent"><div class="label">Recommended Settlement</div><div class="value" style="color:var(--green)">${fmtUSD(recommendedSettlement)}</div><div class="sub">Subject to structural assessment</div></div>
     </div>
+    <!-- TIER-06: Settlement rationale -->
+    <p style="font-size:10px;color:#4a4a4a;margin-top:8px;padding:6px 10px;background:#f5f5f5;border-radius:2px;">
+      Settlement rationale: KINGA Optimised estimate of <strong>${fmtUSD(kingaOptimised)}</strong>, less policy exclusions of <strong>${fmtUSD(totalExclusions)}</strong>${excess > 0 ? `, less policy excess of <strong>${fmtUSD(excess)}</strong>` : ""}, equals recommended settlement of <strong>${fmtUSD(recommendedSettlement)}</strong>.
+      ${criticalStructural.length > 0 ? `Note: ${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} (${criticalStructural.map(g => esc(g.component)).join(", ")}) are not included in any submitted quote and must be assessed independently before this figure can be finalised.` : "All major components are included in the submitted quotes."}
+    </p>
   </div>
 
   ${totalExclusions > 0 || exclusions.length > 0 ? `
@@ -564,7 +588,7 @@ ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Sub
       <h4>Fraud Score — ${fraudScore}/100 (${fraudBadgeLabel})</h4>
       <table class="kv">
         <tr><td class="k">Overall assessment</td><td class="v"><span class="pill ${fraudBadgeCls === "fail" ? "red" : fraudBadgeCls === "warn" ? "amber" : "green"}">${fraudBadgeLabel}</span></td></tr>
-        <tr><td class="k">Data completeness</td><td class="v">${Math.round(dataComplete)}% — ${dataComplete >= 80 ? "good" : "partial"}</td></tr>
+        <tr><td class="k">Data completeness (IFE)</td><td class="v">${Math.round(dataComplete)}% — ${dataComplete >= 80 ? "good" : "partial"}</td></tr>
       </table>
     </div>
     <div class="box" ${dayDelay !== null && dayDelay > 90 ? `style="border-color:var(--red);"` : ""}>
@@ -587,11 +611,13 @@ ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Sub
     const qs = fraudBreak?.quoteSimilarity;
     if (!qs) return '';
     const verdict = qs.overall_verdict ?? qs.verdict;
-    const pairSim = qs.highestPairSimilarity ?? qs.maxSimilarity;
+    // TIER-05: Use pairs[0].structural_similarity (0–1 decimal) as canonical pairSim source
+    const rawPairSim = qs.pairs?.[0]?.structural_similarity ?? qs.highestPairSimilarity ?? qs.maxSimilarity;
+    const pairSimPct = rawPairSim != null ? Math.round(Number(rawPairSim) * 100) : null;
     if (verdict === 'confirmed' || verdict === 'high_risk') {
-      return `<div class="callout" style="margin-top:8px;border-color:var(--red);background:#fff5f5;"><b>Copy-Quotation Detected.</b> Quote similarity analysis flagged a potential copy-quotation pattern (highest pair similarity: ${pairSim != null ? Math.round(Number(pairSim) * 100) + '%' : 'N/A'}). This indicates two or more repair quotes may share a common origin. Refer to the Forensic Report for full pair-by-pair analysis.</div>`;
+      return `<div class="callout" style="margin-top:8px;border-color:var(--red);background:#fff5f5;"><b>Copy-Quotation Detected.</b> Quote similarity analysis flagged a potential copy-quotation pattern (highest pair similarity: ${pairSimPct != null ? pairSimPct + '%' : 'N/A'}). This indicates two or more repair quotes may share a common origin — the quotes may have been produced by the same person or from the same template, which is a fraud indicator. Refer to the Forensic Report for full pair-by-pair analysis and structural fingerprint breakdown.</div>`;
     } else if (verdict === 'possible' || verdict === 'moderate_risk') {
-      return `<div class="callout amber" style="margin-top:8px;"><b>Copy-Quotation — Possible.</b> Quote similarity analysis detected a moderate similarity pattern (highest pair: ${pairSim != null ? Math.round(Number(pairSim) * 100) + '%' : 'N/A'}). Further review recommended.</div>`;
+      return `<div class="callout amber" style="margin-top:8px;"><b>Copy-Quotation — Possible.</b> Quote similarity analysis detected a moderate similarity pattern (highest pair: ${pairSimPct != null ? pairSimPct + '%' : 'N/A'}). Quotes may share structural similarities. Further review recommended before settlement.</div>`;
     }
     return '';
   })()} 
@@ -642,7 +668,7 @@ ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Sub
 
   <div class="cols-3" style="margin-top:10px;">
     <div class="box"><h4>Documents</h4><table class="kv"><tr><td class="k">Police report</td><td class="v">${hasPolice ? `<span class="pill green">Received</span>` : `<span class="pill amber">Not provided</span>`}</td></tr><tr><td class="k">Quotes</td><td class="v">${quoteArr.length} received</td></tr></table></div>
-    <div class="box"><h4>Data Completeness</h4><table class="kv"><tr><td class="k">Overall</td><td class="v">${Math.round(dataComplete)}%</td></tr><tr><td class="k">Policy number</td><td class="v" ${!policyNum || policyNum === "—" ? `style="color:var(--amber);"` : ""}>${!policyNum || policyNum === "—" ? "Missing" : "Provided"}</td></tr></table></div>
+    <div class="box"><h4>Data Completeness (IFE)</h4><table class="kv"><tr><td class="k">Completeness score</td><td class="v">${Math.round(dataComplete)}%</td></tr><tr><td class="k">Policy number</td><td class="v" ${!policyNum || policyNum === "—" ? `style="color:var(--amber);"` : ""}>${!policyNum || policyNum === "—" ? "Missing" : "Provided"}</td></tr></table></div>
     <div class="box"><h4>Outstanding Items</h4><ul class="tight small" style="margin-top:0;">${!hasPolice ? "<li>Police report</li>" : ""}${!policyNum || policyNum === "—" ? "<li>Policy number confirmation</li>" : ""}${dayDelay !== null && dayDelay > 90 ? "<li>Written explanation for submission delay</li>" : ""}<li>VIN certificate</li></ul></div>
   </div>
 

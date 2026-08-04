@@ -363,12 +363,14 @@ export async function generateForensicDecisionReport(
         : [{ zone: impactDirection, severity: "severe" }];
 
     // Damage component counts
-    const totalComponents = Number(repairIntel?.totalComponents ?? costIntel?.totalComponents ?? 62);
-    const severeCount   = Number(repairIntel?.severeCount ?? Math.round(totalComponents * 0.85));
-    const moderateCount = Number(repairIntel?.moderateCount ?? Math.round(totalComponents * 0.13));
+    // CONSIST-06 fix: removed hardcoded fallback of 62 — use actual pipeline values only.
+    // If the pipeline did not produce component counts, show 0 rather than a fabricated number.
+    const totalComponents = Number(repairIntel?.totalComponents ?? costIntel?.totalComponents ?? 0);
+    const severeCount   = Number(repairIntel?.severeCount ?? 0);
+    const moderateCount = Number(repairIntel?.moderateCount ?? 0);
     const minorCount    = Number(repairIntel?.minorCount ?? Math.max(0, totalComponents - severeCount - moderateCount));
-    const sevPct   = Math.round(severeCount / totalComponents * 100);
-    const modPct   = Math.round(moderateCount / totalComponents * 100);
+    const sevPct   = totalComponents > 0 ? Math.round(severeCount / totalComponents * 100) : 0;
+    const modPct   = totalComponents > 0 ? Math.round(moderateCount / totalComponents * 100) : 0;
     const minPct   = Math.max(0, 100 - sevPct - modPct);
 
     // Structural gaps
@@ -399,13 +401,23 @@ export async function generateForensicDecisionReport(
     const hasImpossibilityFlag = linkedClaims.length > 0 || (forensicAudit?.duplicateFlag as boolean);
     const fraudScoreAdjusted = hasImpossibilityFlag ? Math.min(100, fraudScore + 30) : fraudScore;
 
-    // Fraud breakdown
-    const fbDamage    = Number((fraudBreak as any)?.damageInconsistency ?? 0);
-    const fbCost      = Number((fraudBreak as any)?.costDeviation ?? (fraudBreak as any)?.costAnomalyScore ?? 0);
-    const fbDirection = Number((fraudBreak as any)?.directionMismatch ?? 0);
-    const fbRepeat    = Number((fraudBreak as any)?.repeatClaim ?? 0);
-    const fbMissing   = Number((fraudBreak as any)?.missingData ?? 0);
-    const fbSeverity  = Number((fraudBreak as any)?.severityVsPhysics ?? 0);
+    // ARCH-01 fix: read the actual pipeline category breakdown (fraudCategoryBreakdown)
+    // instead of the legacy per-field names (damageInconsistency, costDeviation, etc.)
+    // which are no longer populated by the weighted fraud engine.
+    const catBreak = (fraudBreak as any)?.fraudCategoryBreakdown ?? null;
+    const fbPhysical      = catBreak ? Math.round(Number(catBreak.physical_consistency?.normScore ?? 0)) : Number((fraudBreak as any)?.damageInconsistency ?? 0);
+    const fbScenario      = catBreak ? Math.round(Number(catBreak.scenario_intelligence?.normScore ?? 0)) : Number((fraudBreak as any)?.directionMismatch ?? 0);
+    const fbFinancial     = catBreak ? Math.round(Number(catBreak.financial_anomaly?.normScore ?? 0)) : Number((fraudBreak as any)?.costDeviation ?? (fraudBreak as any)?.costAnomalyScore ?? 0);
+    const fbDocumentation = catBreak ? Math.round(Number(catBreak.documentation_integrity?.normScore ?? 0)) : Number((fraudBreak as any)?.missingData ?? 0);
+    const fbEntity        = catBreak ? Math.round(Number(catBreak.entity_intelligence?.normScore ?? 0)) : Number((fraudBreak as any)?.repeatClaim ?? 0);
+    const fbPhoto         = catBreak ? Math.round(Number(catBreak.photo_forensics?.normScore ?? 0)) : Number((fraudBreak as any)?.severityVsPhysics ?? 0);
+    // Budget caps for display (matches CATEGORY_BUDGET in stage-8-fraud.ts)
+    const budgetPhysical = catBreak?.physical_consistency?.budget ?? 28;
+    const budgetScenario = catBreak?.scenario_intelligence?.budget ?? 22;
+    const budgetFinancial = catBreak?.financial_anomaly?.budget ?? 20;
+    const budgetDocumentation = catBreak?.documentation_integrity?.budget ?? 15;
+    const budgetEntity = catBreak?.entity_intelligence?.budget ?? 10;
+    const budgetPhoto = catBreak?.photo_forensics?.budget ?? 5;
 
     // Forensic audit validation
     const validationIssues = (forensicAudit?.validationIssues as Array<{severity: string; title: string; description: string}>) ?? [];
@@ -497,7 +509,17 @@ export async function generateForensicDecisionReport(
     const incidentYear = incidentDateObj && !isNaN(incidentDateObj.getTime()) ? incidentDateObj.getFullYear() : 0;
     const dateAnomalyFlag = vehicleYear > 0 && incidentYear > 0 && incidentYear < vehicleYear;
     const genDate      = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-    const docRef       = `DOC-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${String(claimRef).replace(/[^A-Z0-9]/gi,"").slice(0,8).toUpperCase()}`;
+    // CONSIST-05 fix: use claim_reference directly if it already carries a DOC- prefix;
+    // otherwise derive from claim submission date (not today's date) to avoid date mismatch.
+    const docRef = (String(c.claim_reference ?? "").startsWith("DOC-"))
+      ? esc(String(c.claim_reference))
+      : (() => {
+          const submittedAt = c.created_at ? new Date(String(c.created_at)) : new Date();
+          const datePart = isNaN(submittedAt.getTime())
+            ? new Date().toISOString().slice(0,10).replace(/-/g,"")
+            : submittedAt.toISOString().slice(0,10).replace(/-/g,"");
+          return `DOC-${datePart}-${String(claimRef).replace(/[^A-Z0-9]/gi,"").slice(0,8).toUpperCase()}`;
+        })();
     const kingaRef     = esc(c.kinga_reference ?? `KNG-KINGA-${new Date().getFullYear()}-${String(claimId).padStart(6,"0")}-FR`);
 
     // Decision chip
@@ -1347,12 +1369,12 @@ export async function generateForensicDecisionReport(
       <div class="box">
         <h4>Fraud Score — ${fraudScoreAdjusted}/100 (${fraudScoreAdjusted >= 70 ? "High" : fraudScoreAdjusted >= 40 ? "Moderate" : "Low"})</h4>
         <table class="kv">
-          ${fbDamage > 0 || true ? kvRow("Damage inconsistency", `<span style="color:${fbDamage >= 10 ? "var(--amber)" : "inherit"};">${fbDamage}/20</span>`) : ""}
-          ${kvRow("Cost deviation", `<span style="color:${fbCost >= 10 ? "var(--amber)" : "inherit"};">${fbCost}/20</span>`)}
-          ${kvRow("Direction mismatch", `${fbDirection}/20`)}
-          ${kvRow("Repeat / prior claim", `${fbRepeat}/20`)}
-          ${kvRow("Missing data", `<span style="color:${fbMissing >= 10 ? "var(--amber)" : "inherit"};">${fbMissing}/20</span>`)}
-          ${kvRow("Severity vs. physics", `<span style="color:${fbSeverity >= 10 ? "var(--amber)" : "inherit"};">${fbSeverity}/20</span>`)}
+          ${kvRow("Physical consistency", `<span style="color:${fbPhysical >= Math.round(budgetPhysical * 0.5) ? "var(--amber)" : "inherit"}">${fbPhysical}/${budgetPhysical}</span>`)}
+          ${kvRow("Scenario intelligence", `<span style="color:${fbScenario >= Math.round(budgetScenario * 0.5) ? "var(--amber)" : "inherit"}">${fbScenario}/${budgetScenario}</span>`)}
+          ${kvRow("Financial anomaly", `<span style="color:${fbFinancial >= Math.round(budgetFinancial * 0.5) ? "var(--amber)" : "inherit"}">${fbFinancial}/${budgetFinancial}</span>`)}
+          ${kvRow("Documentation integrity", `<span style="color:${fbDocumentation >= Math.round(budgetDocumentation * 0.5) ? "var(--amber)" : "inherit"}">${fbDocumentation}/${budgetDocumentation}</span>`)}
+          ${kvRow("Entity intelligence", `<span style="color:${fbEntity >= Math.round(budgetEntity * 0.5) ? "var(--amber)" : "inherit"}">${fbEntity}/${budgetEntity}</span>`)}
+          ${kvRow("Photo forensics", `<span style="color:${fbPhoto >= Math.round(budgetPhoto * 0.5) ? "var(--amber)" : "inherit"}">${fbPhoto}/${budgetPhoto}</span>`)}
         </table>
         ${hasImpossibilityFlag ? `<p class="small" style="margin-top:8px;">Score reflects cost-deviation and missing-data indicators only. The impossibility flag at right is scored separately and is not yet reflected in the headline ${fraudScore}/100.</p>` : ""}
       </div>
