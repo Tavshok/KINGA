@@ -1183,3 +1183,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Ticket 4.2 (N-09): Confirm predictiveAnalyticsRouter exists and is wired — getPortfolioLossForecast and getVehicleRenewalRisk both present
 - [x] Ticket 4.3 (N-01): Document 1-year session duration decision; confirm stale-tenantId is a non-issue (tenantId not in JWT payload, always fetched from DB)
 - [x] Ticket 4.4 (N-03): Add KINGA-N-03 calibration flag comments to accidentPhysics.ts, physics-deviation-calculator.ts, and existing calibration blocks
+
+## Batch 4 Remediation — Tenant Isolation Violations Root Cause Fix
+- [x] KINGA-AUTH-01: Fix fail-closed re-sync guard in authenticateRequest — only re-sync platform owner, reject all other missing users (prevents hard-deleted users from being re-created via OAuth sync on every request with a valid JWT)
+- [x] KINGA-AUTH-01: Added 4 vitest tests in server/auth.resync.test.ts covering: non-owner missing user rejected, OAuth server not called for missing users, active user allowed, deactivated user rejected
+- [x] Root cause analysis complete: User 2 violations were from hard-deleted user re-synced on every request; User 1 violations were from browser session open before admin bypass deployment; both stopped at 21:10-21:11 UTC when browser closed
+- [x] 281/281 test files passing, 8,396 tests passed after KINGA-AUTH-01 fix

@@ -347,34 +347,51 @@ class SDKServer {
     const signedInAt = new Date().toISOString();
     let user = await db.getUserByOpenId(sessionUserId);
 
-    // If user not in DB, sync from OAuth server automatically
+    // ── KINGA-AUTH-01: Fail-closed re-sync guard ──────────────────────────────
+    // Only the platform owner (ENV.ownerOpenId) is auto-synced from the OAuth
+    // server when not found in the DB. All other missing users are rejected
+    // immediately with FORBIDDEN.
+    //
+    // Previously, any authenticated user not found in the DB was re-synced,
+    // which allowed hard-deleted users to be re-created on every request because
+    // their JWT remains valid for 1 year. This fix ensures that removing a user
+    // from the DB is a permanent revocation. The correct revocation path is
+    // admin.deactivateUser (sets isActive=0); hard-deleting a row is also safe
+    // now because missing users are rejected rather than re-created.
     if (!user) {
-      try {
-        const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
-        await db.upsertUser({
-          openId: userInfo.openId,
-          name: userInfo.name || null,
-          email: userInfo.email ?? null,
-          loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-          lastSignedIn: signedInAt,
-        });
-        user = await db.getUserByOpenId(userInfo.openId);
-      } catch (error) {
-        console.error("[Auth] Failed to sync user from OAuth:", error);
-        throw ForbiddenError("Failed to sync user info");
+      if (sessionUserId === ENV.ownerOpenId) {
+        // Owner auto-sync: the platform owner may not be in the DB on first login.
+        try {
+          const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
+          await db.upsertUser({
+            openId: userInfo.openId,
+            name: userInfo.name || null,
+            email: userInfo.email ?? null,
+            loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+            lastSignedIn: signedInAt,
+          });
+          user = await db.getUserByOpenId(userInfo.openId);
+        } catch (error) {
+          console.error("[Auth] Failed to sync owner from OAuth:", error);
+          throw ForbiddenError("Failed to sync owner info");
+        }
+      } else {
+        // Non-owner not in DB: fail closed.
+        // Hard-deleted users whose JWT is still valid are rejected here.
+        // They must be re-invited through the normal registration flow.
+        console.warn(`[Auth] Rejected unknown user openId=${sessionUserId} — not in DB and not the platform owner`);
+        throw ForbiddenError("User not found");
       }
     }
 
     if (!user) {
-      throw ForbiddenError("User not found");
+      throw ForbiddenError("User not found after owner sync");
     }
 
     // ── Revocation check ──────────────────────────────────────────────────────
     // isActive=0 means the account has been explicitly deactivated by an admin.
     // A valid JWT for a deactivated account must be rejected immediately.
-    // NOTE: Hard-deleting a user row (vs. deactivating via admin.deactivateUser)
-    // bypasses this check — always use the deactivateUser procedure, never raw
-    // SQL DELETE on the users table, to ensure JWT revocation takes effect.
+    // Hard-deleted users are now also blocked by the KINGA-AUTH-01 guard above.
     if (user.isActive === 0) {
       console.warn(`[Auth] Rejected deactivated user id=${user.id} openId=${user.openId}`);
       throw ForbiddenError("Account has been deactivated");
