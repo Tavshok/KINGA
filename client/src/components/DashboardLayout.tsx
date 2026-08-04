@@ -31,6 +31,7 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 import { GlobalSearchBar } from "@/components/search/GlobalSearchBar"; // Epic 5-A
+import { NotificationBell } from "@/components/NotificationBell"; // Epic 5-B
 
 /**
  * Build nav items from the server-derived user object.
@@ -321,6 +322,10 @@ function DashboardLayoutContent({
             {/* Global Search — Epic 5-A */}
             <div className="mb-2 group-data-[collapsible=icon]:hidden">
               <GlobalSearchBar variant="bar" placeholder="Search…" />
+            </div>
+            {/* Notification Bell — Epic 5-B */}
+            <div className="mb-2 group-data-[collapsible=icon]:hidden">
+              <NotificationBell className="w-full justify-start" />
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

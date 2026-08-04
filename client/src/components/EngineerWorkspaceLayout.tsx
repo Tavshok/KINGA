@@ -10,6 +10,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { GlobalSearchBar } from "@/components/search/GlobalSearchBar"; // Epic 5-A
+import { NotificationBell } from "@/components/NotificationBell"; // Epic 5-B
 import {
   LayoutDashboard,
   ClipboardList,
@@ -283,6 +284,10 @@ export default function EngineerWorkspaceLayout({
         {/* Global Search — Epic 5-A */}
         <div style={{ padding: "8px 12px", borderTop: "1px solid rgba(255,255,255,0.09)" }}>
           <GlobalSearchBar variant="bar" placeholder="Search…" className="bg-white/5 border-white/10 text-white/70 hover:bg-white/10 text-xs" />
+        </div>
+        {/* Notification Bell — Epic 5-B */}
+        <div style={{ padding: "4px 12px 8px" }}>
+          <NotificationBell className="w-full justify-start text-white/60 hover:text-white hover:bg-white/10" />
         </div>
         {/* User footer */}
         <div

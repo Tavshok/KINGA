@@ -156,6 +156,8 @@ const RoleSetup = lazy(() => import("./pages/RoleSetup"));
 const UserDiagnostic = lazy(() => import("./pages/UserDiagnostic"));
 const RelationshipIntelligence = lazy(() => import("./pages/RelationshipIntelligence"));
 const ReportsCentre = lazy(() => import("./pages/ReportsCentre"));
+const NotificationCentre = lazy(() => import("./pages/NotificationCentre"));
+const NotificationPreferences = lazy(() => import("./pages/NotificationPreferences"));
 
 function Router() {
   return (
@@ -839,6 +841,17 @@ function Router() {
         <Route path="/engineer/inspections/:id">
           <ProtectedRoute domain="engineer">
             <EngineerInspectionDetail />
+          </ProtectedRoute>
+        </Route>
+        {/* Epic 5-B — Notification Centre (accessible from all portals, protected) */}
+        <Route path="/notifications/preferences">
+          <ProtectedRoute>
+            <NotificationPreferences />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/notifications">
+          <ProtectedRoute>
+            <NotificationCentre />
           </ProtectedRoute>
         </Route>
         <Route path="/404">

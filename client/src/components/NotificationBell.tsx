@@ -1,61 +1,52 @@
-import { useState, useEffect } from "react";
-import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
-import { trpc } from "@/lib/trpc";
-import { NotificationList } from "./NotificationList";
-
 /**
- * NotificationBell Component
- * 
- * Displays a bell icon with unread notification count badge.
- * Opens a popover with notification list when clicked.
- * Automatically refreshes unread count every 30 seconds.
+ * NotificationBell — Epic 5-B
+ *
+ * Reusable bell icon with unread badge.
+ * Clicking navigates to the full Notification Centre at /notifications.
+ * Used in all portal layouts.
  */
-export function NotificationBell() {
-  const [isOpen, setIsOpen] = useState(false);
-  
-  // Query unread notification count
-  const { data: unreadData, refetch } = trpc.notifications.getUnreadCount.useQuery(
-    undefined,
-    {
-      refetchInterval: 30000, // Refresh every 30 seconds
-      refetchIntervalInBackground: false,
-    }
-  );
 
-  const unreadCount = (unreadData as any)?.count || 0;
+import { Bell } from "lucide-react";
+import { useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-  // Refetch when popover opens
-  useEffect(() => {
-    if (isOpen) {
-      refetch();
-    }
-  }, [isOpen, refetch]);
+interface NotificationBellProps {
+  className?: string;
+  size?: "sm" | "md";
+}
+
+export function NotificationBell({ className, size = "md" }: NotificationBellProps) {
+  const [, setLocation] = useLocation();
+  const { data } = trpc.notifications.getUnreadCount.useQuery(undefined, {
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  });
+
+  const count = data?.count ?? 0;
+  const iconSize = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
+  const btnSize = size === "sm" ? "h-7 w-7" : "h-8 w-8";
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </Badge>
+    <Button
+      variant="ghost"
+      size="icon"
+      className={cn("relative", btnSize, className)}
+      onClick={() => setLocation("/notifications")}
+      aria-label={count > 0 ? `${count} unread notifications` : "Notifications"}
+    >
+      <Bell className={iconSize} />
+      {count > 0 && (
+        <span
+          className={cn(
+            "absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full bg-red-500 text-white font-bold leading-none",
+            count > 9 ? "h-4 w-4 text-[9px]" : "h-3.5 w-3.5 text-[8px]"
           )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-96 p-0" align="end">
-        <NotificationList onClose={() => setIsOpen(false)} />
-      </PopoverContent>
-    </Popover>
+        >
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </Button>
   );
 }

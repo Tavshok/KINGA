@@ -5769,3 +5769,30 @@ export const globalSearchAnalytics = mysqlTable("global_search_analytics", {
 ]);
 export type InsertGlobalSearchAnalytics = typeof globalSearchAnalytics.$inferInsert;
 export type SelectGlobalSearchAnalytics = typeof globalSearchAnalytics.$inferSelect;
+
+// ── Epic 5-B: Notification Preferences ─────────────────────────────────────
+/**
+ * Per-user notification preferences per source module.
+ * Controls in-app, email, and SMS delivery + minimum priority threshold.
+ */
+export const notificationPreferences = mysqlTable("notification_preferences", {
+  id: int().autoincrement().notNull(),
+  userId: int("user_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  /** Source module: claims | fraud | vehicle_passport | asset_passport | engineering | fleet | timeline | recoveries | portfolio | predictive */
+  module: varchar({ length: 64 }).notNull(),
+  inAppEnabled: tinyint("in_app_enabled").default(1).notNull(),
+  emailEnabled: tinyint("email_enabled").default(0).notNull(),
+  smsEnabled: tinyint("sms_enabled").default(0).notNull(),
+  minPriority: mysqlEnum("min_priority", ["low", "medium", "high", "urgent"]).default("low").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  uniqueIndex("uq_notif_pref_user_module").on(table.userId, table.tenantId, table.module),
+  index("idx_notif_pref_user").on(table.userId),
+  index("idx_notif_pref_tenant").on(table.tenantId),
+]);
+
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+export type InsertNotificationPreference = typeof notificationPreferences.$inferInsert;

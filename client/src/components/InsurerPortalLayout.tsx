@@ -7,6 +7,7 @@
  */
 import { useEffect } from "react";
 import { GlobalSearchBar } from "@/components/search/GlobalSearchBar"; // Epic 5-A
+import { NotificationBell } from "@/components/NotificationBell"; // Epic 5-B
 import { Link, useLocation } from "wouter";
 import { PORTAL_ROUTE_ROLES } from "@/lib/roleRouting";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -535,6 +536,10 @@ export default function InsurerPortalLayout({
           {/* Global Search — Epic 5-A */}
           <div className="mb-2">
             <GlobalSearchBar variant="bar" placeholder="Search…" className="bg-white/5 border-white/10 text-white/70 hover:bg-white/10 text-xs" />
+          </div>
+          {/* Notification Bell — Epic 5-B */}
+          <div className="mb-2">
+            <NotificationBell className="w-full justify-start text-white/60 hover:text-white hover:bg-white/10" />
           </div>
           <button
             onClick={logout}
