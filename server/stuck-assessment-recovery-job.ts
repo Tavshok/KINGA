@@ -665,11 +665,11 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
     }
 
     // ── CASE 7b: Heartbeat-based dead pipeline detection ────────────────────────────────
-    // The pipeline updates pipelineHeartbeatAt on every stage start.
-    // If pipelineHeartbeatAt is set but >2 minutes old AND the claim is still in a running
+    // The pipeline updates pipelineHeartbeatAt on every stage start AND every 60s during
+    // long-running stages (Stage 2 max observed: 186s, Stage 3 max: 90s).
+    // Threshold: 8 minutes — safely above the 186s Stage 2 maximum with a 5-minute margin.
+    // If pipelineHeartbeatAt is set but >8 minutes old AND the claim is still in a running
     // state, the pipeline process is dead (server restart, OOM, tsx hot-reload killed it).
-    // This is faster than the 5-minute wall-clock check in Case 7 — it fires within 2 minutes
-    // of the pipeline dying, regardless of when the claim was last updated.
     const deadHeartbeat = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -681,7 +681,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             inArray(claims.status, PIPELINE_RUNNING_STATUSES as unknown as string[]),
             eq(claims.aiAssessmentCompleted, 0),
             sql`${(claims as any).pipelineHeartbeatAt} IS NOT NULL`,
-            sql`${(claims as any).pipelineHeartbeatAt} < DATE_SUB(NOW(), INTERVAL 2 MINUTE)`
+            sql`${(claims as any).pipelineHeartbeatAt} < DATE_SUB(NOW(), INTERVAL 8 MINUTE)`
           )
         )
         .limit(20);

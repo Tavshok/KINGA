@@ -1437,6 +1437,16 @@ export async function triggerAiAssessment(claimId: number) {
         }).catch(() => {});
       });
     },
+    // Mid-stage heartbeat tick — called by long-running stages (Stage 2, Stage 6) to
+    // keep the heartbeat fresh during slow LLM calls. Non-blocking, never throws.
+    tickHeartbeat: () => {
+      getDb().then(dbInst => {
+        if (!dbInst) return;
+        dbInst.update(claims).set({
+          pipelineHeartbeatAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        }).where(eq(claims.id, claimId)).catch(() => {});
+      }).catch(() => {});
+    },
   } satisfies import('./pipeline-v2/types').PipelineContext;
   // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
   // Wrap the entire pipeline in a 15-minute timeout. With thinking disabled

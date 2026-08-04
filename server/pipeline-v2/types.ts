@@ -1898,6 +1898,14 @@ export interface PipelineContext {
    * When true, M7 receives null and falls back to no_claim method.
    */
   claimantSpeedNeedsVerification?: boolean;
+  /**
+   * Optional callback to update the pipeline heartbeat timestamp mid-stage.
+   * Called periodically by long-running stages (Stage 2, Stage 6) so the
+   * heartbeat-based dead-process detector (Case 7b) does not falsely reset
+   * a healthy claim during a slow LLM call or large PDF extraction.
+   * Non-blocking: implementations must not throw.
+   */
+  tickHeartbeat?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

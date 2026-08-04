@@ -38,11 +38,17 @@ function llmCall(params: any): Promise<any> {
 // Handles transient API timeouts that cause Stage 2 to degrade unnecessarily.
 function llmCallWithRetry(params: any, ctx: PipelineContext, label: string): Promise<any> {
   return withRetry(
-    () => invokeLLM({ ...params, timeoutMs: 90_000 }),
+    () => {
+      // Tick heartbeat before each LLM call so the dead-process detector
+      // does not falsely reset this claim during a slow 90s LLM extraction.
+      ctx.tickHeartbeat?.();
+      return invokeLLM({ ...params, timeoutMs: 90_000 });
+    },
     3,
     [2000, 4000, 8000],
     (attempt, err) => {
       ctx.log('Stage 2', `[${label}] Attempt ${attempt} failed (${(err as Error)?.message ?? err}). Retrying in ${[2, 4, 8][attempt - 1]}s...`);
+      ctx.tickHeartbeat?.();
     },
   );
 }
