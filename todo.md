@@ -1104,3 +1104,27 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 
 ### Remaining (not in this sprint)
 - [ ] Fix 6: Remove @ts-nocheck from workflow-engine.ts and the ~40 remaining high-value server files
+
+## Epic 5-A — Global Search & Navigation
+
+- [ ] Add global_search_history and global_search_analytics tables to drizzle/schema.ts
+- [ ] Run pnpm db:push to migrate new tables
+- [ ] Create server/routers/global-search.ts with permission-aware search procedure
+- [ ] Register globalSearch router in server/routers.ts
+- [ ] Create client/src/components/search/SearchResultCard.tsx
+- [ ] Create client/src/components/search/UniversalSearchModal.tsx
+- [ ] Create client/src/components/search/GlobalSearchBar.tsx
+- [ ] Create client/src/components/search/RecentSearches.tsx
+- [ ] Create client/src/components/search/SearchAnalyticsDashboard.tsx
+- [ ] Wire GlobalSearchBar into InsurerPortalLayout
+- [ ] Wire GlobalSearchBar into PlatformLayout
+- [ ] Wire GlobalSearchBar into EngineerWorkspaceLayout
+- [ ] Wire GlobalSearchBar into KingaDashboardLayout
+- [ ] Wire GlobalSearchBar into AssessorPortalLayout
+- [ ] Wire GlobalSearchBar into PanelBeaterPortalLayout
+- [ ] Wire GlobalSearchBar into ClaimantPortalLayout
+- [ ] Wire GlobalSearchBar into DashboardLayout (Fleet)
+- [ ] Add /search route to App.tsx for full-page search results
+- [ ] Write vitest tests for globalSearch router
+- [ ] TypeScript validation (0 new errors)
+- [ ] Checkpoint

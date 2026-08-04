@@ -8,6 +8,7 @@ import { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import ThemeToggle from "@/components/ThemeToggle";
+import { GlobalSearchBar } from "@/components/search/GlobalSearchBar";
 
 /**
  * KINGA Dashboard Layout Component
@@ -81,6 +82,9 @@ export default function KingaDashboardLayout({
             {/* Right: Actions, Notifications, User Profile */}
             <div className="flex items-center gap-3">
               {actions}
+
+              {/* Global Search — Epic 5-A */}
+              <GlobalSearchBar variant="icon" />
 
               {/* Dark / Light Mode Toggle */}
               <ThemeToggle />

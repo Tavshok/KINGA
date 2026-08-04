@@ -17,6 +17,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
+import { GlobalSearchBar } from "@/components/search/GlobalSearchBar"; // Epic 5-A
 
 // ── Brand constants (KINGA Design Standard v1.0) ──────────────────────────────
 export const KINGA_GREEN    = "#3C7844";
@@ -184,12 +185,11 @@ export function PortalHeader({
           )}
         </div>
 
-        {/* Right: actions */}
-        {actions && (
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {actions}
-          </div>
-        )}
+        {/* Right: search + actions — Epic 5-A */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <GlobalSearchBar variant="icon" />
+          {actions}
+        </div>
       </div>
 
       {/* ── Gold separator ── */}

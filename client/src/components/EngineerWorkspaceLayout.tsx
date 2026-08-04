@@ -9,6 +9,7 @@
  */
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { GlobalSearchBar } from "@/components/search/GlobalSearchBar"; // Epic 5-A
 import {
   LayoutDashboard,
   ClipboardList,
@@ -279,6 +280,10 @@ export default function EngineerWorkspaceLayout({
           ))}
         </nav>
 
+        {/* Global Search — Epic 5-A */}
+        <div style={{ padding: "8px 12px", borderTop: "1px solid rgba(255,255,255,0.09)" }}>
+          <GlobalSearchBar variant="bar" placeholder="Search…" className="bg-white/5 border-white/10 text-white/70 hover:bg-white/10 text-xs" />
+        </div>
         {/* User footer */}
         <div
           style={{

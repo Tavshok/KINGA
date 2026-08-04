@@ -30,6 +30,7 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import { GlobalSearchBar } from "@/components/search/GlobalSearchBar"; // Epic 5-A
 
 /**
  * Build nav items from the server-derived user object.
@@ -317,6 +318,10 @@ function DashboardLayoutContent({
           </SidebarContent>
 
           <SidebarFooter className="p-3">
+            {/* Global Search — Epic 5-A */}
+            <div className="mb-2 group-data-[collapsible=icon]:hidden">
+              <GlobalSearchBar variant="bar" placeholder="Search…" />
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">

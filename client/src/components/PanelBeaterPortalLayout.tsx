@@ -7,6 +7,7 @@
  */
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { GlobalSearchBar } from "@/components/search/GlobalSearchBar"; // Epic 5-A
 import {
   LayoutDashboard,
   FileText,
@@ -114,6 +115,10 @@ export default function PanelBeaterPortalLayout({ children }: { children: React.
               <p style={{ fontSize: "12px", fontWeight: 500, color: "rgba(255,255,255,0.90)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>{user?.name ?? "—"}</p>
               <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.45)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>{user?.email ?? "—"}</p>
             </div>
+          </div>
+          {/* Global Search — Epic 5-A */}
+          <div style={{ marginBottom: 8 }}>
+            <GlobalSearchBar variant="bar" placeholder="Search…" className="bg-white/5 border-white/10 text-white/70 hover:bg-white/10 text-xs" />
           </div>
           <button
             onClick={logout}

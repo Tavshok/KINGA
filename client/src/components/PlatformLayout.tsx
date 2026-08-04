@@ -6,6 +6,7 @@
  */
 
 import { Link, useLocation } from "wouter";
+import { GlobalSearchBar } from "@/components/search/GlobalSearchBar"; // Epic 5-A
 import {
   LayoutDashboard,
   Store,
@@ -130,6 +131,10 @@ export default function PlatformLayout({
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-gray-800">
+          {/* Global Search — Epic 5-A */}
+          <div className="mb-3">
+            <GlobalSearchBar variant="bar" placeholder="Search…" className="bg-white/5 border-white/10 text-white/70 hover:bg-white/10 text-xs" />
+          </div>
           <Link href="/">
             <a className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:text-gray-300 transition-colors">
               ← Back to app

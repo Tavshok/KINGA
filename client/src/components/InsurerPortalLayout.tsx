@@ -6,6 +6,7 @@
  * No role-specific colour overrides — one consistent palette across all roles.
  */
 import { useEffect } from "react";
+import { GlobalSearchBar } from "@/components/search/GlobalSearchBar"; // Epic 5-A
 import { Link, useLocation } from "wouter";
 import { PORTAL_ROUTE_ROLES } from "@/lib/roleRouting";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -530,6 +531,10 @@ export default function InsurerPortalLayout({
               </p>
               <p className="text-[10px] truncate mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>{user?.email ?? "—"}</p>
             </div>
+          </div>
+          {/* Global Search — Epic 5-A */}
+          <div className="mb-2">
+            <GlobalSearchBar variant="bar" placeholder="Search…" className="bg-white/5 border-white/10 text-white/70 hover:bg-white/10 text-xs" />
           </div>
           <button
             onClick={logout}

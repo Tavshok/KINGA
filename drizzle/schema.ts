@@ -5735,3 +5735,37 @@ export const predictiveRiskScores = mysqlTable("predictive_risk_scores", {
 ]);
 export type InsertPredictiveRiskScore = typeof predictiveRiskScores.$inferInsert;
 export type SelectPredictiveRiskScore = typeof predictiveRiskScores.$inferSelect;
+
+// ─── Epic 5-A: Global Search ──────────────────────────────────────────────────
+
+export const globalSearchHistory = mysqlTable("global_search_history", {
+  id:          int().autoincrement().primaryKey().notNull(),
+  userId:      int("user_id").notNull(),
+  tenantId:    varchar("tenant_id", { length: 255 }),
+  query:       varchar("query", { length: 500 }).notNull(),
+  resultCount: int("result_count").default(0).notNull(),
+  searchedAt:  timestamp("searched_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+}, (table) => [
+  index("idx_gsh_user_id").on(table.userId),
+  index("idx_gsh_tenant_id").on(table.tenantId),
+  index("idx_gsh_searched_at").on(table.searchedAt),
+]);
+export type InsertGlobalSearchHistory = typeof globalSearchHistory.$inferInsert;
+export type SelectGlobalSearchHistory = typeof globalSearchHistory.$inferSelect;
+
+export const globalSearchAnalytics = mysqlTable("global_search_analytics", {
+  id:           int().autoincrement().primaryKey().notNull(),
+  tenantId:     varchar("tenant_id", { length: 255 }),
+  query:        varchar("query", { length: 500 }).notNull(),
+  resultCount:  int("result_count").default(0).notNull(),
+  clickedType:  varchar("clicked_type", { length: 50 }),
+  clickedId:    varchar("clicked_id", { length: 100 }),
+  userRole:     varchar("user_role", { length: 50 }),
+  searchedAt:   timestamp("searched_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+}, (table) => [
+  index("idx_gsa_tenant_id").on(table.tenantId),
+  index("idx_gsa_searched_at").on(table.searchedAt),
+  index("idx_gsa_query").on(table.query),
+]);
+export type InsertGlobalSearchAnalytics = typeof globalSearchAnalytics.$inferInsert;
+export type SelectGlobalSearchAnalytics = typeof globalSearchAnalytics.$inferSelect;
