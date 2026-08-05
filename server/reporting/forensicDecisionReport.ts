@@ -15,6 +15,7 @@ import mysql from "mysql2/promise";
 import {
   buildKingaFdrHtml, esc, fmtUSD, fmtCurrency, fmtD, safeJson, photoZonePanel,
 } from "./templates/kingaDesignSystem";
+import type { CGIAvailabilitySummary } from "../pipeline-v2/stage-9-5-cgi";
 
 const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
@@ -1519,33 +1520,66 @@ export async function generateForensicDecisionReport(
 
 
   <!-- §09b CONTACT GEOMETRY INTELLIGENCE (CGI) -->
-  ${cgiData ? `
+  ${cgiData ? (() => {
+    const cgiVerdict: string = cgiData.conclusion?.verdict ?? 'UNKNOWN';
+    const cgiTabStatus = cgiVerdict === 'INCOHERENT' ? 'high' : cgiVerdict === 'ANOMALOUS' ? 'mid' : 'ok';
+    const cgiTabLabel = cgiVerdict === 'INCOHERENT' ? 'Geometry incoherent' : cgiVerdict === 'ANOMALOUS' ? 'Geometry anomalous' : 'Geometry consistent';
+    const cgiSummary: CGIAvailabilitySummary | undefined = cgiData.availabilitySummary;
+    const indStatusBadge = (status: string): string => {
+      const colours: Record<string, string> = { PASS: '#22c55e', ADVISORY: '#f59e0b', CONCERN: '#f97316', FLAG: '#ef4444', UNAVAILABLE: '#94a3b8' };
+      const colour = colours[status] ?? '#94a3b8';
+      return `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:600;background:${colour};color:#fff;">${esc(status)}</span>`;
+    };
+    const renderIndicatorRow = (ind: any): string => {
+      const badge = indStatusBadge(ind.status ?? 'UNAVAILABLE');
+      const tierLabel = ind.tier ? `<span style="font-size:10px;color:#64748b;margin-left:4px;">[${esc(ind.tier)}]</span>` : '';
+      const explanation = ind.status !== 'UNAVAILABLE' && ind.explanation ? `<br><span style="font-size:11px;color:#475569;">${esc(ind.explanation)}</span>` : '';
+      return `<tr><td>${esc(ind.name ?? ind.id)}${tierLabel}</td><td>${badge}${explanation}</td></tr>`;
+    };
+    return `
   <div class="section">
-    ${sectionTab("09b", "Contact Geometry Intelligence", cgiData.conclusion?.verdict === "INCOHERENT" ? "Geometry incoherent" : cgiData.conclusion?.verdict === "SUSPICIOUS" ? "Suspicious geometry" : "Geometry consistent", cgiData.conclusion?.verdict === "INCOHERENT" ? "high" : cgiData.conclusion?.verdict === "SUSPICIOUS" ? "mid" : "ok")}
+    ${sectionTab('09b', 'Contact Geometry Intelligence', cgiTabLabel, cgiTabStatus)}
+    ${cgiSummary ? `
+    <div style="display:flex;gap:12px;margin-bottom:12px;">
+      <div style="flex:1;padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:#16a34a;">${cgiSummary.core.available}/${cgiSummary.core.total}</div>
+        <div style="font-size:11px;color:#15803d;font-weight:600;">CORE indicators</div>
+      </div>
+      <div style="flex:1;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:#d97706;">${cgiSummary.conditional.available}/${cgiSummary.conditional.total}</div>
+        <div style="font-size:11px;color:#b45309;font-weight:600;">CONDITIONAL indicators</div>
+      </div>
+      <div style="flex:1;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:#475569;">${cgiSummary.advanced.available}/${cgiSummary.advanced.total}</div>
+        <div style="font-size:11px;color:#64748b;font-weight:600;">ADVANCED indicators</div>
+      </div>
+    </div>` : ''}
     <div class="cols-2">
       <div class="box">
-        <h4>CGI Verdict — ${esc(cgiData.conclusion?.verdict ?? "UNKNOWN")} (${Math.round((cgiData.conclusion?.confidence ?? 0) * 100)}% confidence)</h4>
+        <h4>CGI Verdict — ${esc(cgiVerdict)}</h4>
         <table class="kv">
-          ${kvRow("Contact patch ratio", cgiData.conclusion?.contactPatchRatio != null ? `${(cgiData.conclusion.contactPatchRatio * 100).toFixed(1)}%` : "N/A")}
-          ${kvRow("Expected CPR range", cgiData.conclusion?.expectedCprRange ?? "N/A")}
-          ${kvRow("Hidden damage probability", cgiData.conclusion?.hiddenDamageProbabilityOverride != null ? `${Math.round(cgiData.conclusion.hiddenDamageProbabilityOverride * 100)}%` : "N/A")}
-          ${kvRow("Fraud indicator injected", cgiData.conclusion?.injectFraudIndicator ? "Yes" : "No")}
+          ${kvRow('Hidden damage probability', cgiData.conclusion?.hiddenDamageProbabilityOverride != null ? `${Math.round(cgiData.conclusion.hiddenDamageProbabilityOverride * 100)}%` : 'N/A')}
+          ${kvRow('Fraud indicator injected', cgiData.conclusion?.injectFraudIndicator ? 'Yes' : 'No')}
+          ${kvRow('Fraud indicator score', cgiData.conclusion?.fraudIndicatorScore != null ? String(cgiData.conclusion.fraudIndicatorScore) : 'N/A')}
+          ${kvRow('Engine version', esc(cgiData.engineVersion ?? 'N/A'))}
         </table>
-        ${cgiData.conclusion?.summary ? `<p class="small" style="margin-top:8px;">${esc(cgiData.conclusion.summary)}</p>` : ""}
+        ${cgiData.conclusion?.summary ? `<p class="small" style="margin-top:8px;">${esc(cgiData.conclusion.summary)}</p>` : ''}
       </div>
       <div class="box">
         <h4>Layer 1 — Geometry Indicators</h4>
         <table class="kv">
-          ${(cgiData.layer1Indicators ?? []).map((ind: any) => kvRow(esc(ind.name ?? ind.id), `${esc(ind.verdict ?? "N/A")} (${Math.round((ind.confidence ?? 0) * 100)}%)`)).join("")}
+          ${(cgiData.layer1Indicators ?? []).map(renderIndicatorRow).join('')}
         </table>
         ${(cgiData.layer2Indicators ?? []).length > 0 ? `
         <h4 style="margin-top:12px;">Layer 2 — Structural Indicators</h4>
         <table class="kv">
-          ${(cgiData.layer2Indicators ?? []).map((ind: any) => kvRow(esc(ind.name ?? ind.id), `${esc(ind.verdict ?? "N/A")} (${Math.round((ind.confidence ?? 0) * 100)}%)`)).join("")}
-        </table>` : ""}
+          ${(cgiData.layer2Indicators ?? []).map(renderIndicatorRow).join('')}
+        </table>` : ''}
       </div>
     </div>
-  </div>` : ""}
+    ${cgiData.conclusion?.narrative ? `<div class="box" style="margin-top:12px;"><h4>CGI Narrative</h4><pre style="white-space:pre-wrap;font-size:12px;">${esc(cgiData.conclusion.narrative)}</pre></div>` : ''}
+  </div>`;
+  })() : ''}
   <!-- §10 VALIDATION, DECISION & NEXT STEPS -->
   <div class="section">
     ${sectionTab("10", "Validation, Decision & Next Steps")}

@@ -93,10 +93,35 @@ export type CGIIndicatorStatus =
   | 'FLAG'          // Significant deviation — strong contribution to verdict
   | 'UNAVAILABLE';  // Required input was absent — not counted in verdict
 
+/**
+ * Indicator availability tier.
+ *
+ * CORE        — Expected to be available in >90% of applicable claims.
+ *               Depends only on Stage 6 damage parts, Stage 7 physics, and
+ *               collision direction — all of which are present whenever the
+ *               pipeline completes normally.
+ *
+ * CONDITIONAL — Only relevant for specific collision scenarios or when the
+ *               counterpart vehicle type is known. Will legitimately be
+ *               UNAVAILABLE for many claims (e.g. single-vehicle incidents,
+ *               side impacts, claims without counterpart data).
+ *
+ * ADVANCED    — Requires richer evidence that is not always available:
+ *               VGR consensus crush depth (needs ≥1 calibrated image) or
+ *               multi-image VGR (needs ≥2 calibrated images).
+ */
+export type CGIIndicatorTier = 'CORE' | 'CONDITIONAL' | 'ADVANCED';
+
 export interface CGIIndicator {
   id: string;
   name: string;
   layer: 1 | 2;
+  /**
+   * Availability tier — see CGIIndicatorTier for definitions.
+   * Used by the report to show a structured availability summary rather than
+   * a flat list of UNAVAILABLE entries.
+   */
+  tier: CGIIndicatorTier;
   status: CGIIndicatorStatus;
   /** Computed value (null when UNAVAILABLE) */
   value: number | null;
@@ -128,6 +153,20 @@ export interface CGIForensicConclusion {
   summary: string;
 }
 
+/**
+ * Availability summary broken down by tier.
+ * Enables the report to show:
+ *   "7/7 Core indicators evaluated"
+ *   "3/5 Conditional indicators evaluated"
+ *   "0/2 Advanced indicators evaluated (insufficient evidence)"
+ * instead of a flat list of UNAVAILABLE entries.
+ */
+export interface CGIAvailabilitySummary {
+  core:        { available: number; total: number };
+  conditional: { available: number; total: number };
+  advanced:    { available: number; total: number };
+}
+
 export interface Stage9_5Output {
   /** Whether CGI ran successfully */
   available: boolean;
@@ -141,6 +180,8 @@ export interface Stage9_5Output {
   conclusion: CGIForensicConclusion;
   /** All 12 indicators in order for report rendering */
   allIndicators: CGIIndicator[];
+  /** Per-tier availability counts for the report header */
+  availabilitySummary: CGIAvailabilitySummary;
   /** CGI engine version */
   engineVersion: string;
   /** Milliseconds taken to run */
@@ -159,7 +200,7 @@ export interface CGIInput {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const CGI_ENGINE_VERSION = '1.1.0';
+const CGI_ENGINE_VERSION = '1.2.0';
 
 /**
  * Minimum contact patch ratio by collision direction.
@@ -254,14 +295,16 @@ function computeL1_01_ContactPatchRatio(
 
   // Identify the primary impact panel from collision direction
   const primaryPanelKey = getPrimaryPanelKey(direction);
+  const TIER: CGIIndicatorTier = 'CORE';
+
   if (!primaryPanelKey) {
-    return unavailable(id, name, 1, 'Cannot determine primary impact panel from collision direction', sources);
+    return unavailable(id, name, 1, 'Cannot determine primary impact panel from collision direction', sources, TIER);
   }
 
   // Get the total area of the primary panel
   const totalPanelAreaM2 = getPanelAreaM2(bodyType as VehicleBodyType, primaryPanelKey);
   if (!totalPanelAreaM2 || totalPanelAreaM2 <= 0) {
-    return unavailable(id, name, 1, `No panel area data for panel=${primaryPanelKey}, bodyType=${bodyType}`, sources);
+    return unavailable(id, name, 1, `No panel area data for panel=${primaryPanelKey}, bodyType=${bodyType}`, sources, TIER);
   }
 
   // Get the damage fraction for the primary panel from Stage 6
@@ -271,7 +314,7 @@ function computeL1_01_ContactPatchRatio(
   const damageFraction = primaryPart?.damageFractionEstimate ?? null;
 
   if (damageFraction === null || damageFraction === undefined) {
-    return unavailable(id, name, 1, `No damageFractionEstimate for primary panel (${primaryPanelKey})`, sources);
+    return unavailable(id, name, 1, `No damageFractionEstimate for primary panel (${primaryPanelKey})`, sources, TIER);
   }
 
   // Observed contact patch area = total panel area × damage fraction
@@ -292,16 +335,16 @@ function computeL1_01_ContactPatchRatio(
   if (cpr < 0.5) {
     return indicator(id, name, 1, 'FLAG', cpr, expectedRange,
       `Contact patch ratio ${(cpr * 100).toFixed(0)}% — observed damage area (${(observedContactPatchM2 * 10000).toFixed(0)} cm²) is significantly below the minimum expected for a ${direction} impact (${(expectedMinContactPatchM2 * 10000).toFixed(0)} cm²). This is inconsistent with the stated collision scenario.`,
-      sources);
+      sources, TIER);
   }
   if (cpr < 0.75) {
     return indicator(id, name, 1, 'CONCERN', cpr, expectedRange,
       `Contact patch ratio ${(cpr * 100).toFixed(0)}% — observed damage area is below the expected minimum for a ${direction} impact. Minor inconsistency.`,
-      sources);
+      sources, TIER);
   }
   return indicator(id, name, 1, 'PASS', cpr, expectedRange,
     `Contact patch ratio ${(cpr * 100).toFixed(0)}% — consistent with a ${direction} impact scenario.`,
-    sources);
+    sources, TIER);
 }
 
 /**
@@ -324,20 +367,22 @@ function computeL1_02_BumperHeightCompatibility(
 
   const direction = (claimRecord.accidentDetails?.collisionDirection ?? 'unknown').toLowerCase();
 
+  const TIER: CGIIndicatorTier = 'CONDITIONAL';
+
   // Only relevant for frontal and rear impacts
   if (!direction.includes('front') && !direction.includes('rear')) {
-    return unavailable(id, name, 1, 'Bumper height compatibility only assessed for frontal/rear impacts', sources);
+    return unavailable(id, name, 1, 'Bumper height compatibility only assessed for frontal/rear impacts', sources, TIER);
   }
 
   const vgeResult = stage7Data.geometryEvidenceBlock;
   if (!vgeResult?.vehicleProfileUsed) {
-    return unavailable(id, name, 1, 'No VGE vehicle profile available — bumper height not calibrated', sources);
+    return unavailable(id, name, 1, 'No VGE vehicle profile available — bumper height not calibrated', sources, TIER);
   }
 
   // Counterpart vehicle type from claim record
   const counterpartType = (claimRecord.accidentDetails as any)?.counterpartVehicleType ?? null;
   if (!counterpartType) {
-    return unavailable(id, name, 1, 'No counterpart vehicle type in claim record', sources);
+    return unavailable(id, name, 1, 'No counterpart vehicle type in claim record', sources, TIER);
   }
 
   // Estimate bumper height mismatch from vehicle class
@@ -349,7 +394,7 @@ function computeL1_02_BumperHeightCompatibility(
   const counterpartBumperMidMm = bumperHeightMidpoint(counterpartClass);
 
   if (insuredBumperMidMm === null || counterpartBumperMidMm === null) {
-    return unavailable(id, name, 1, 'Cannot estimate bumper height for one or both vehicles', sources);
+    return unavailable(id, name, 1, 'Cannot estimate bumper height for one or both vehicles', sources, TIER);
   }
 
   const mismatchMm = Math.abs(insuredBumperMidMm - counterpartBumperMidMm);
@@ -358,16 +403,16 @@ function computeL1_02_BumperHeightCompatibility(
   if (mismatchMm > MAX_BUMPER_HEIGHT_MISMATCH_MM * 2) {
     return indicator(id, name, 1, 'FLAG', mismatchMm, expectedRange,
       `Bumper height mismatch ${mismatchMm.toFixed(0)} mm — insured vehicle (${insuredClass}, ~${insuredBumperMidMm} mm) and counterpart (${counterpartClass}, ~${counterpartBumperMidMm} mm) bumpers would not engage in a standard impact. Underride/override geometry expected.`,
-      sources);
+      sources, TIER);
   }
   if (mismatchMm > MAX_BUMPER_HEIGHT_MISMATCH_MM) {
     return indicator(id, name, 1, 'CONCERN', mismatchMm, expectedRange,
       `Bumper height mismatch ${mismatchMm.toFixed(0)} mm — partial engagement expected. Damage pattern may differ from a full-engagement impact.`,
-      sources);
+      sources, TIER);
   }
   return indicator(id, name, 1, 'PASS', mismatchMm, expectedRange,
     `Bumper height mismatch ${mismatchMm.toFixed(0)} mm — within compatibility range. Standard bumper engagement expected.`,
-    sources);
+    sources, TIER);
 }
 
 /**
@@ -388,16 +433,18 @@ function computeL1_03_OverlapFractionConsistency(
 
   const direction = (claimRecord.accidentDetails?.collisionDirection ?? 'unknown').toLowerCase();
 
+  const TIER: CGIIndicatorTier = 'CONDITIONAL';
+
   // Only relevant for offset frontal impacts
   const statedOverlap = getStatedOverlapFraction(direction);
   if (statedOverlap === null) {
-    return unavailable(id, name, 1, 'Overlap fraction consistency only assessed for offset frontal impacts', sources);
+    return unavailable(id, name, 1, 'Overlap fraction consistency only assessed for offset frontal impacts', sources, TIER);
   }
 
   const bodyType = (claimRecord.vehicle?.bodyType ?? 'sedan') as string;
   const frontBumperArea = getPanelAreaM2(bodyType as VehicleBodyType, 'front_bumper');
   if (!frontBumperArea || frontBumperArea <= 0) {
-    return unavailable(id, name, 1, 'No front bumper area data for this vehicle body type', sources);
+    return unavailable(id, name, 1, 'No front bumper area data for this vehicle body type', sources, TIER);
   }
 
   const frontBumperPart = stage6Data.damagedParts?.find(
@@ -406,7 +453,7 @@ function computeL1_03_OverlapFractionConsistency(
   const damageFraction = frontBumperPart?.damageFractionEstimate ?? null;
 
   if (damageFraction === null) {
-    return unavailable(id, name, 1, 'No damageFractionEstimate for front bumper', sources);
+    return unavailable(id, name, 1, 'No damageFractionEstimate for front bumper', sources, TIER);
   }
 
   // Tolerance: ±20 percentage points around stated overlap
@@ -417,21 +464,21 @@ function computeL1_03_OverlapFractionConsistency(
   if (damageFraction > maxExpected + 0.20) {
     return indicator(id, name, 1, 'FLAG', damageFraction, expectedRange,
       `Observed damage fraction ${(damageFraction * 100).toFixed(0)}% of front bumper face — significantly exceeds the expected range for a ${direction} impact (${(statedOverlap * 100).toFixed(0)}% ± 20%). Full-width damage on a stated offset impact is inconsistent.`,
-      sources);
+      sources, TIER);
   }
   if (damageFraction > maxExpected) {
     return indicator(id, name, 1, 'CONCERN', damageFraction, expectedRange,
       `Observed damage fraction ${(damageFraction * 100).toFixed(0)}% — slightly above expected range for a ${direction} impact.`,
-      sources);
+      sources, TIER);
   }
   if (damageFraction < minExpected) {
     return indicator(id, name, 1, 'ADVISORY', damageFraction, expectedRange,
       `Observed damage fraction ${(damageFraction * 100).toFixed(0)}% — below expected minimum for a ${direction} impact. Minor inconsistency.`,
-      sources);
+      sources, TIER);
   }
   return indicator(id, name, 1, 'PASS', damageFraction, expectedRange,
     `Observed damage fraction ${(damageFraction * 100).toFixed(0)}% — consistent with a ${direction} impact.`,
-    sources);
+    sources, TIER);
 }
 
 /**
@@ -450,14 +497,16 @@ function computeL1_04_CrushDepthConsistency(
   const name = 'Crush Depth Consistency (VGR vs. Physics)';
   const sources = ['Stage 6.5B VGRConsensusResult.consensusCrushDepthM', 'Stage 7 crushDepth (Campbell model)'];
 
+  const TIER: CGIIndicatorTier = 'ADVANCED';
+
   if (!vgrResult?.reconciliationAvailable || vgrResult.consensusCrushDepthM === null) {
-    return unavailable(id, name, 1, 'VGR consensus crush depth not available', sources);
+    return unavailable(id, name, 1, 'VGR consensus crush depth not available', sources, TIER);
   }
 
   // Stage 7 physics-derived crush depth
   const physicsSpeedKmh = stage7Data.estimatedSpeedKmh;
   if (!physicsSpeedKmh || physicsSpeedKmh <= 0) {
-    return unavailable(id, name, 1, 'Stage 7 physics speed not available — cannot derive physics crush depth', sources);
+    return unavailable(id, name, 1, 'Stage 7 physics speed not available — cannot derive physics crush depth', sources, TIER);
   }
 
   // Campbell model: C = A + B × ΔV where A ≈ 0, B ≈ 0.01 m/(km/h) for typical sedans
@@ -471,16 +520,16 @@ function computeL1_04_CrushDepthConsistency(
   if (discrepancyFraction > CRUSH_DEPTH_CONSISTENCY_TOLERANCE * 2) {
     return indicator(id, name, 1, 'FLAG', discrepancyFraction, expectedRange,
       `VGR crush depth ${(vgrCrushM * 1000).toFixed(0)} mm vs. physics-derived ${(physicsCrushDepthM * 1000).toFixed(0)} mm — discrepancy ${(discrepancyFraction * 100).toFixed(0)}%. Photos may not show the true damage extent, or the stated speed is inconsistent with the observed deformation.`,
-      sources);
+      sources, TIER);
   }
   if (discrepancyFraction > CRUSH_DEPTH_CONSISTENCY_TOLERANCE) {
     return indicator(id, name, 1, 'CONCERN', discrepancyFraction, expectedRange,
       `VGR crush depth ${(vgrCrushM * 1000).toFixed(0)} mm vs. physics-derived ${(physicsCrushDepthM * 1000).toFixed(0)} mm — discrepancy ${(discrepancyFraction * 100).toFixed(0)}%. Minor inconsistency.`,
-      sources);
+      sources, TIER);
   }
   return indicator(id, name, 1, 'PASS', discrepancyFraction, expectedRange,
     `VGR crush depth ${(vgrCrushM * 1000).toFixed(0)} mm vs. physics-derived ${(physicsCrushDepthM * 1000).toFixed(0)} mm — within tolerance (${(discrepancyFraction * 100).toFixed(0)}% discrepancy).`,
-    sources);
+    sources, TIER);
 }
 
 /**
@@ -498,14 +547,16 @@ function computeL1_05_DamageFractionSeverityConsistency(
   const name = 'Damage Fraction vs. Severity Consistency';
   const sources = ['Stage 6 damagedParts.damageFractionEstimate', 'Stage 7 accidentSeverity'];
 
+  const TIER: CGIIndicatorTier = 'CORE';
+
   const severity = stage7Data.accidentSeverity;
   if (!severity) {
-    return unavailable(id, name, 1, 'Stage 7 accidentSeverity not available', sources);
+    return unavailable(id, name, 1, 'Stage 7 accidentSeverity not available', sources, TIER);
   }
 
   const parts = stage6Data.damagedParts ?? [];
   if (parts.length === 0) {
-    return unavailable(id, name, 1, 'No damagedParts in Stage 6 output', sources);
+    return unavailable(id, name, 1, 'No damagedParts in Stage 6 output', sources, TIER);
   }
 
   // Average damage fraction across all damaged panels
@@ -514,7 +565,7 @@ function computeL1_05_DamageFractionSeverityConsistency(
     .filter((f): f is number => f !== null);
 
   if (fractions.length === 0) {
-    return unavailable(id, name, 1, 'No damageFractionEstimate values in Stage 6 damagedParts', sources);
+    return unavailable(id, name, 1, 'No damageFractionEstimate values in Stage 6 damagedParts', sources, TIER);
   }
 
   const avgFraction = fractions.reduce((a, b) => a + b, 0) / fractions.length;
@@ -533,21 +584,21 @@ function computeL1_05_DamageFractionSeverityConsistency(
   if (avgFraction < expectedRange[0] * 0.5) {
     return indicator(id, name, 1, 'FLAG', avgFraction, expectedRange,
       `Average damage fraction ${(avgFraction * 100).toFixed(0)}% is significantly below the expected minimum for a ${severity} severity claim (${(expectedRange[0] * 100).toFixed(0)}%–${(expectedRange[1] * 100).toFixed(0)}%). Damage extent is inconsistent with stated severity.`,
-      sources);
+      sources, TIER);
   }
   if (avgFraction < expectedRange[0]) {
     return indicator(id, name, 1, 'CONCERN', avgFraction, expectedRange,
       `Average damage fraction ${(avgFraction * 100).toFixed(0)}% is below the expected minimum for a ${severity} severity claim.`,
-      sources);
+      sources, TIER);
   }
   if (avgFraction > expectedRange[1]) {
     return indicator(id, name, 1, 'ADVISORY', avgFraction, expectedRange,
       `Average damage fraction ${(avgFraction * 100).toFixed(0)}% is above the expected maximum for a ${severity} severity claim. Possible pre-existing damage included.`,
-      sources);
+      sources, TIER);
   }
   return indicator(id, name, 1, 'PASS', avgFraction, expectedRange,
     `Average damage fraction ${(avgFraction * 100).toFixed(0)}% is consistent with a ${severity} severity claim.`,
-    sources);
+    sources, TIER);
 }
 
 /**
@@ -564,13 +615,15 @@ function computeL1_06_MultiImageCrushDepthConvergence(
   const name = 'Multi-Image Crush Depth Convergence';
   const sources = ['Stage 6.5B VGRConsensusResult.imageEntries'];
 
+  const TIER: CGIIndicatorTier = 'ADVANCED';
+
   if (!vgrResult?.reconciliationAvailable) {
-    return unavailable(id, name, 1, 'VGR not available — multi-image convergence cannot be assessed', sources);
+    return unavailable(id, name, 1, 'VGR not available — multi-image convergence cannot be assessed', sources, TIER);
   }
 
   const entries = vgrResult.imageEntries?.filter(e => e.contributesToConsensus) ?? [];
   if (entries.length < 2) {
-    return unavailable(id, name, 1, `Only ${entries.length} contributing image(s) — convergence requires ≥ 2`, sources);
+    return unavailable(id, name, 1, `Only ${entries.length} contributing image(s) — convergence requires ≥ 2`, sources, TIER);
   }
 
   const depths = entries.map(e => e.calibratedCrushDepthMm);
@@ -584,16 +637,16 @@ function computeL1_06_MultiImageCrushDepthConvergence(
   if (cv > CRUSH_DEPTH_CV_FLAG_THRESHOLD * 1.5) {
     return indicator(id, name, 1, 'FLAG', cv, expectedRange,
       `Crush depth coefficient of variation ${(cv * 100).toFixed(0)}% across ${entries.length} images — high inconsistency. Images may show different damage states (staged, pre-existing, or different incidents).`,
-      sources);
+      sources, TIER);
   }
   if (cv > CRUSH_DEPTH_CV_FLAG_THRESHOLD) {
     return indicator(id, name, 1, 'CONCERN', cv, expectedRange,
       `Crush depth CV ${(cv * 100).toFixed(0)}% — moderate inconsistency across ${entries.length} images.`,
-      sources);
+      sources, TIER);
   }
   return indicator(id, name, 1, 'PASS', cv, expectedRange,
     `Crush depth CV ${(cv * 100).toFixed(0)}% — images are consistent with each other.`,
-    sources);
+    sources, TIER);
 }
 
 /**
@@ -614,8 +667,10 @@ function computeL1_07_StructuralZonePenetrationConsistency(
   const direction = (claimRecord.accidentDetails?.collisionDirection ?? 'unknown').toLowerCase();
   const parts = stage6Data.damagedParts ?? [];
 
+  const TIER: CGIIndicatorTier = 'CORE';
+
   if (parts.length === 0) {
-    return unavailable(id, name, 1, 'No damagedParts in Stage 6 output', sources);
+    return unavailable(id, name, 1, 'No damagedParts in Stage 6 output', sources, TIER);
   }
 
   // Get zones from damaged parts
@@ -624,7 +679,7 @@ function computeL1_07_StructuralZonePenetrationConsistency(
     .filter(z => z.length > 0);
 
   if (zones.length === 0) {
-    return unavailable(id, name, 1, 'No zone data in Stage 6 damagedParts', sources);
+    return unavailable(id, name, 1, 'No zone data in Stage 6 damagedParts', sources, TIER);
   }
 
   // Check for contradictory zones
@@ -633,12 +688,12 @@ function computeL1_07_StructuralZonePenetrationConsistency(
   if (contradictoryZone) {
     return indicator(id, name, 1, 'FLAG', null, null,
       `Structural zone "${contradictoryZone}" is inconsistent with a ${direction} impact. Primary damage should be in the ${getExpectedZone(direction)} zone.`,
-      sources);
+      sources, TIER);
   }
 
   return indicator(id, name, 1, 'PASS', null, null,
     `All damaged zones (${Array.from(new Set(zones)).join(', ')}) are consistent with a ${direction} impact.`,
-    sources);
+    sources, TIER);
 }
 
 // ── Layer 2: Structural Intelligence ─────────────────────────────────────────
@@ -663,18 +718,20 @@ function computeL2_01_ForceDensityIndex(
   const name = 'Force Density Index';
   const sources = ['Stage 7 energyDistribution.kineticEnergyJ', 'Stage 6.5B VGRConsensusResult.consensusCrushDepthM', 'Stage 6 damagedParts.damageFractionEstimate'];
 
+  const TIER: CGIIndicatorTier = 'CONDITIONAL';
+
   if (stage7Data.physicsStatus === 'SKIPPED_NON_PHYSICAL' || stage7Data.physicsStatus === 'SKIPPED_NO_SPEED') {
-    return unavailable(id, name, 2, 'Physics was skipped — FDI cannot be computed', sources);
+    return unavailable(id, name, 2, 'Physics was skipped — FDI cannot be computed', sources, TIER);
   }
 
   const kineticEnergyJ = stage7Data.energyDistribution?.kineticEnergyJ ?? null;
   if (!kineticEnergyJ || kineticEnergyJ <= 0) {
-    return unavailable(id, name, 2, 'Stage 7 kinetic energy not available', sources);
+    return unavailable(id, name, 2, 'Stage 7 kinetic energy not available', sources, TIER);
   }
 
   const crushDepthM = vgrResult?.consensusCrushDepthM ?? null;
   if (!crushDepthM || crushDepthM <= 0) {
-    return unavailable(id, name, 2, 'VGR crush depth not available for FDI calculation', sources);
+    return unavailable(id, name, 2, 'VGR crush depth not available for FDI calculation', sources, TIER);
   }
 
   const direction = (claimRecord.accidentDetails?.collisionDirection ?? 'unknown').toLowerCase();
@@ -689,7 +746,7 @@ function computeL2_01_ForceDensityIndex(
   const contactPatchM2 = (totalPanelAreaM2 ?? 0.3) * damageFraction;
 
   if (contactPatchM2 <= 0) {
-    return unavailable(id, name, 2, 'Cannot compute contact patch area for FDI', sources);
+    return unavailable(id, name, 2, 'Cannot compute contact patch area for FDI', sources, TIER);
   }
 
   // FDI = energy / (contact area × crush depth) → kN/m²
@@ -699,21 +756,21 @@ function computeL2_01_ForceDensityIndex(
   if (fdiKNm2 < FORCE_DENSITY_MIN_KN_M2 * 0.5) {
     return indicator(id, name, 2, 'FLAG', fdiKNm2, expectedRange,
       `Force density index ${fdiKNm2.toFixed(0)} kN/m² is significantly below the expected minimum (${FORCE_DENSITY_MIN_KN_M2} kN/m²). The stated impact energy is insufficient to produce the observed deformation pattern.`,
-      sources);
+      sources, TIER);
   }
   if (fdiKNm2 < FORCE_DENSITY_MIN_KN_M2) {
     return indicator(id, name, 2, 'CONCERN', fdiKNm2, expectedRange,
       `Force density index ${fdiKNm2.toFixed(0)} kN/m² is below the expected minimum. Minor inconsistency between impact energy and deformation.`,
-      sources);
+      sources, TIER);
   }
   if (fdiKNm2 > FORCE_DENSITY_MAX_KN_M2) {
     return indicator(id, name, 2, 'ADVISORY', fdiKNm2, expectedRange,
       `Force density index ${fdiKNm2.toFixed(0)} kN/m² exceeds the structural yield threshold (${FORCE_DENSITY_MAX_KN_M2} kN/m²). Structural damage to load-bearing members is highly probable.`,
-      sources);
+      sources, TIER);
   }
   return indicator(id, name, 2, 'PASS', fdiKNm2, expectedRange,
     `Force density index ${fdiKNm2.toFixed(0)} kN/m² — within the expected range for this impact scenario.`,
-    sources);
+    sources, TIER);
 }
 
 /**
@@ -731,15 +788,17 @@ function computeL2_02_EnergyAbsorptionEfficiency(
   const name = 'Energy Absorption Efficiency';
   const sources = ['Stage 7 energyDistribution.kineticEnergyJ', 'Stage 7 energyDistribution.energyDissipatedJ'];
 
+  const TIER: CGIIndicatorTier = 'CORE';
+
   if (stage7Data.physicsStatus === 'SKIPPED_NON_PHYSICAL' || stage7Data.physicsStatus === 'SKIPPED_NO_SPEED') {
-    return unavailable(id, name, 2, 'Physics was skipped — energy absorption cannot be assessed', sources);
+    return unavailable(id, name, 2, 'Physics was skipped — energy absorption cannot be assessed', sources, TIER);
   }
 
   const kineticEnergyJ = stage7Data.energyDistribution?.kineticEnergyJ ?? null;
   const dissipatedJ = stage7Data.energyDistribution?.energyDissipatedJ ?? null;
 
   if (!kineticEnergyJ || kineticEnergyJ <= 0 || dissipatedJ === null) {
-    return unavailable(id, name, 2, 'Stage 7 energy distribution fields not available', sources);
+    return unavailable(id, name, 2, 'Stage 7 energy distribution fields not available', sources, TIER);
   }
 
   const efficiency = dissipatedJ / kineticEnergyJ;
@@ -748,16 +807,16 @@ function computeL2_02_EnergyAbsorptionEfficiency(
   if (efficiency > 1.05) {
     return indicator(id, name, 2, 'FLAG', efficiency, expectedRange,
       `Energy absorption efficiency ${(efficiency * 100).toFixed(0)}% exceeds 100% — physically impossible. Energy dissipated (${(dissipatedJ / 1000).toFixed(1)} kJ) cannot exceed kinetic energy at impact (${(kineticEnergyJ / 1000).toFixed(1)} kJ).`,
-      sources);
+      sources, TIER);
   }
   if (efficiency < ENERGY_EFFICIENCY_MIN) {
     return indicator(id, name, 2, 'CONCERN', efficiency, expectedRange,
       `Energy absorption efficiency ${(efficiency * 100).toFixed(0)}% is below the expected minimum (${(ENERGY_EFFICIENCY_MIN * 100).toFixed(0)}%). Deformation may be pre-existing or the impact was staged at low speed.`,
-      sources);
+      sources, TIER);
   }
   return indicator(id, name, 2, 'PASS', efficiency, expectedRange,
     `Energy absorption efficiency ${(efficiency * 100).toFixed(0)}% — consistent with a genuine impact event.`,
-    sources);
+    sources, TIER);
 }
 
 /**
@@ -776,8 +835,10 @@ function computeL2_03_StiffnessAdjustedSeverityConsistency(
   const name = 'Stiffness-Adjusted Severity Consistency';
   const sources = ['Stage 7 accidentSeverity', 'Stage 6.5B VGRConsensusResult.consensusCrushDepthM', 'Stage 7 speedInferenceEnsemble.consensusSpeedKmh'];
 
+  const TIER: CGIIndicatorTier = 'CONDITIONAL';
+
   if (stage7Data.physicsStatus === 'SKIPPED_NON_PHYSICAL') {
-    return unavailable(id, name, 2, 'Non-physical incident — stiffness-adjusted severity not applicable', sources);
+    return unavailable(id, name, 2, 'Non-physical incident — stiffness-adjusted severity not applicable', sources, TIER);
   }
 
   const severity = stage7Data.accidentSeverity;
@@ -785,7 +846,7 @@ function computeL2_03_StiffnessAdjustedSeverityConsistency(
   const speedKmh = stage7Data.speedInferenceEnsemble?.consensusSpeedKmh ?? stage7Data.estimatedSpeedKmh ?? null;
 
   if (!severity || !crushDepthM || !speedKmh) {
-    return unavailable(id, name, 2, 'Severity, crush depth, or speed not available', sources);
+    return unavailable(id, name, 2, 'Severity, crush depth, or speed not available', sources, TIER);
   }
 
   // Expected crush depth range by severity (metres)
@@ -802,16 +863,16 @@ function computeL2_03_StiffnessAdjustedSeverityConsistency(
   if (crushDepthM < expectedRange[0] * 0.5) {
     return indicator(id, name, 2, 'FLAG', crushDepthM, expectedRange,
       `Crush depth ${(crushDepthM * 1000).toFixed(0)} mm is significantly below the expected minimum for a ${severity} severity claim (${(expectedRange[0] * 1000).toFixed(0)}–${(expectedRange[1] * 1000).toFixed(0)} mm). Severity may be overstated.`,
-      sources);
+      sources, TIER);
   }
   if (crushDepthM < expectedRange[0]) {
     return indicator(id, name, 2, 'CONCERN', crushDepthM, expectedRange,
       `Crush depth ${(crushDepthM * 1000).toFixed(0)} mm is below the expected minimum for a ${severity} severity claim.`,
-      sources);
+      sources, TIER);
   }
   return indicator(id, name, 2, 'PASS', crushDepthM, expectedRange,
     `Crush depth ${(crushDepthM * 1000).toFixed(0)} mm is consistent with a ${severity} severity claim.`,
-    sources);
+    sources, TIER);
 }
 
 /**
@@ -830,11 +891,13 @@ function computeL2_04_LatentDamageProbabilityUplift(
   const name = 'Latent Damage Probability Uplift';
   const sources = ['Stage 7 latentDamageProbability', 'Stage 6.5B VGRConsensusResult.consensusCrushDepthM', 'L2-01 Force Density Index'];
 
+  const TIER: CGIIndicatorTier = 'CORE';
+
   const crushDepthM = vgrResult?.consensusCrushDepthM ?? null;
   const latentProb = stage7Data.latentDamageProbability;
 
   if (!latentProb) {
-    return unavailable(id, name, 2, 'Stage 7 latentDamageProbability not available', sources);
+    return unavailable(id, name, 2, 'Stage 7 latentDamageProbability not available', sources, TIER);
   }
 
   // Triggers for uplift
@@ -856,16 +919,16 @@ function computeL2_04_LatentDamageProbabilityUplift(
   if (upliftTriggered && adjustedFrameProb > 0.7) {
     return indicator(id, name, 2, 'ADVISORY', adjustedFrameProb, expectedRange,
       `Geometry-adjusted frame damage probability ${(adjustedFrameProb * 100).toFixed(0)}% (uplift factor ${upliftFactor.toFixed(2)}×). Structural inspection of load-bearing members is strongly recommended before repair authorisation.`,
-      sources);
+      sources, TIER);
   }
   if (upliftTriggered) {
     return indicator(id, name, 2, 'ADVISORY', adjustedFrameProb, expectedRange,
       `Geometry-adjusted frame damage probability ${(adjustedFrameProb * 100).toFixed(0)}% — elevated above Stage 7 default. Structural inspection recommended.`,
-      sources);
+      sources, TIER);
   }
   return indicator(id, name, 2, 'PASS', latentProb.frame, expectedRange,
     `Latent damage probability within normal range — no geometry-based uplift triggered.`,
-    sources);
+    sources, TIER);
 }
 
 /**
@@ -887,8 +950,10 @@ function computeL2_05_LoadPathCoherence(
   const direction = (claimRecord.accidentDetails?.collisionDirection ?? 'unknown').toLowerCase();
   const parts = stage6Data.damagedParts ?? [];
 
+  const TIER: CGIIndicatorTier = 'CORE';
+
   if (parts.length === 0) {
-    return unavailable(id, name, 2, 'No damagedParts in Stage 6 output', sources);
+    return unavailable(id, name, 2, 'No damagedParts in Stage 6 output', sources, TIER);
   }
 
   const partNames = parts.map(p => normalisePanelName(p.name ?? ''));
@@ -896,7 +961,7 @@ function computeL2_05_LoadPathCoherence(
   // Expected load path components by direction
   const expectedLoadPath = getExpectedLoadPath(direction);
   if (!expectedLoadPath) {
-    return unavailable(id, name, 2, 'Cannot determine expected load path for collision direction', sources);
+    return unavailable(id, name, 2, 'Cannot determine expected load path for collision direction', sources, TIER);
   }
 
   // Check if any primary load path component is present
@@ -911,16 +976,16 @@ function computeL2_05_LoadPathCoherence(
   if (hasOnlyUnexpected) {
     return indicator(id, name, 2, 'FLAG', null, null,
       `Damaged components (${partNames.slice(0, 3).join(', ')}) are not on the expected structural load path for a ${direction} impact. Primary load path components (${Array.from(primaryComponents).join(', ')}) are absent.`,
-      sources);
+      sources, TIER);
   }
   if (hasUnexpectedComponent && hasPrimaryComponent) {
     return indicator(id, name, 2, 'CONCERN', null, null,
       `Load path includes unexpected components alongside primary components. Possible pre-existing damage or secondary impact.`,
-      sources);
+      sources, TIER);
   }
   return indicator(id, name, 2, 'PASS', null, null,
     `Damaged components are consistent with the expected load path for a ${direction} impact.`,
-    sources);
+    sources, TIER);
 }
 
 // ── Layer 3: Forensic Conclusions ─────────────────────────────────────────────
@@ -1045,6 +1110,8 @@ export function runContactGeometryIntelligence(input: CGIInput): Stage9_5Output 
     // Layer 3 — Forensic Conclusions
     const conclusion = computeLayer3Conclusions(allIndicators, stage7Data, vgrResult);
 
+    const availabilitySummary = computeAvailabilitySummary(allIndicators);
+
     return {
       available: true,
       unavailableReason: null,
@@ -1052,11 +1119,17 @@ export function runContactGeometryIntelligence(input: CGIInput): Stage9_5Output 
       layer2Indicators,
       conclusion,
       allIndicators,
+      availabilitySummary,
       engineVersion: CGI_ENGINE_VERSION,
       runtimeMs: Date.now() - startMs,
     };
 
   } catch (err) {
+    const emptyAvailability: CGIAvailabilitySummary = {
+      core:        { available: 0, total: 0 },
+      conditional: { available: 0, total: 0 },
+      advanced:    { available: 0, total: 0 },
+    };
     return {
       available: false,
       unavailableReason: `CGI engine error: ${err instanceof Error ? err.message : String(err)}`,
@@ -1072,6 +1145,7 @@ export function runContactGeometryIntelligence(input: CGIInput): Stage9_5Output 
         summary: 'CGI: UNAVAILABLE (engine error)',
       },
       allIndicators: [],
+      availabilitySummary: emptyAvailability,
       engineVersion: CGI_ENGINE_VERSION,
       runtimeMs: Date.now() - startMs,
     };
@@ -1080,8 +1154,8 @@ export function runContactGeometryIntelligence(input: CGIInput): Stage9_5Output 
 
 // ── Helper functions ──────────────────────────────────────────────────────────
 
-function unavailable(id: string, name: string, layer: 1 | 2, reason: string, sources: string[]): CGIIndicator {
-  return { id, name, layer, status: 'UNAVAILABLE', value: null, expectedRange: null, explanation: reason, sources };
+function unavailable(id: string, name: string, layer: 1 | 2, reason: string, sources: string[], tier: CGIIndicatorTier): CGIIndicator {
+  return { id, name, layer, tier, status: 'UNAVAILABLE', value: null, expectedRange: null, explanation: reason, sources };
 }
 
 function indicator(
@@ -1091,8 +1165,29 @@ function indicator(
   expectedRange: [number, number] | null,
   explanation: string,
   sources: string[],
+  tier: CGIIndicatorTier,
 ): CGIIndicator {
-  return { id, name, layer, status, value, expectedRange, explanation, sources };
+  return { id, name, layer, tier, status, value, expectedRange, explanation, sources };
+}
+
+/**
+ * Compute per-tier availability counts for the report header.
+ * An indicator is "available" when its status is anything other than UNAVAILABLE.
+ */
+function computeAvailabilitySummary(indicators: CGIIndicator[]): CGIAvailabilitySummary {
+  const summary: CGIAvailabilitySummary = {
+    core:        { available: 0, total: 0 },
+    conditional: { available: 0, total: 0 },
+    advanced:    { available: 0, total: 0 },
+  };
+  for (const ind of indicators) {
+    const key = ind.tier.toLowerCase() as keyof CGIAvailabilitySummary;
+    const bucket = summary[key];
+    if (!bucket) continue; // guard against unexpected tier values
+    bucket.total++;
+    if (ind.status !== 'UNAVAILABLE') bucket.available++;
+  }
+  return summary;
 }
 
 function normalisePanelName(name: string): string {

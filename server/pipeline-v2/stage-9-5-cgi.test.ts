@@ -129,6 +129,7 @@ function makeStage6(overrides: Partial<Stage6Output> = {}): Stage6Output {
       {
         name: 'Front Bumper',
         location: 'front',
+        zone: 'front',
         damageType: 'impact',
         severity: 'MODERATE',
         visible: true,
@@ -313,9 +314,9 @@ describe('runContactGeometryIntelligence — integration', () => {
     expect(result.allIndicators).toHaveLength(12);
   });
 
-  it('returns engineVersion 1.1.0', () => {
+  it('returns engineVersion 1.2.0', () => {
     const result = runContactGeometryIntelligence(makeInput());
-    expect(result.engineVersion).toBe('1.1.0');
+    expect(result.engineVersion).toBe('1.2.0');
   });
 
   it('runtimeMs is a non-negative number', () => {
@@ -1341,5 +1342,85 @@ describe('Graceful degradation', () => {
     for (const ind of result.layer2Indicators) {
       expect(ind.layer).toBe(2);
     }
+  });
+});
+
+// ── Tier classification and availability summary ─────────────────────────────
+
+describe('Indicator tier classification', () => {
+  it('each indicator has a valid tier: CORE, CONDITIONAL, or ADVANCED', () => {
+    const result = runContactGeometryIntelligence(makeInput());
+    const validTiers = ['CORE', 'CONDITIONAL', 'ADVANCED'];
+    for (const ind of result.allIndicators) {
+      expect(validTiers).toContain(ind.tier);
+    }
+  });
+
+  it('CORE indicators: L1-01, L1-05, L1-07, L2-02, L2-04, L2-05', () => {
+    const result = runContactGeometryIntelligence(makeInput());
+    const coreIds = result.allIndicators
+      .filter(i => i.tier === 'CORE')
+      .map(i => i.id)
+      .sort();
+    expect(coreIds).toEqual(['L1-01', 'L1-05', 'L1-07', 'L2-02', 'L2-04', 'L2-05'].sort());
+  });
+
+  it('CONDITIONAL indicators: L1-02, L1-03, L2-01, L2-03', () => {
+    const result = runContactGeometryIntelligence(makeInput());
+    const conditionalIds = result.allIndicators
+      .filter(i => i.tier === 'CONDITIONAL')
+      .map(i => i.id)
+      .sort();
+    expect(conditionalIds).toEqual(['L1-02', 'L1-03', 'L2-01', 'L2-03'].sort());
+  });
+
+  it('ADVANCED indicators: L1-04, L1-06', () => {
+    const result = runContactGeometryIntelligence(makeInput());
+    const advancedIds = result.allIndicators
+      .filter(i => i.tier === 'ADVANCED')
+      .map(i => i.id)
+      .sort();
+    expect(advancedIds).toEqual(['L1-04', 'L1-06'].sort());
+  });
+
+  it('availabilitySummary has core/conditional/advanced buckets with total and available counts', () => {
+    const result = runContactGeometryIntelligence(makeInput());
+    const s = result.availabilitySummary;
+    expect(s).toHaveProperty('core');
+    expect(s).toHaveProperty('conditional');
+    expect(s).toHaveProperty('advanced');
+    expect(s.core.total).toBe(6);
+    expect(s.conditional.total).toBe(4);
+    expect(s.advanced.total).toBe(2);
+    // available counts must be <= total
+    expect(s.core.available).toBeLessThanOrEqual(s.core.total);
+    expect(s.conditional.available).toBeLessThanOrEqual(s.conditional.total);
+    expect(s.advanced.available).toBeLessThanOrEqual(s.advanced.total);
+  });
+
+  it('availabilitySummary.core.available=6 when all core indicators have data', () => {
+    // makeInput() provides all data needed for CORE indicators
+    const result = runContactGeometryIntelligence(makeInput());
+    expect(result.availabilitySummary.core.available).toBe(6);
+  });
+
+  it('availabilitySummary.advanced.available=0 when vgrResult is null', () => {
+    const input = makeInput({ vgrResult: null });
+    const result = runContactGeometryIntelligence(input);
+    // L1-04 and L1-06 both require VGR
+    expect(result.availabilitySummary.advanced.available).toBe(0);
+    expect(result.availabilitySummary.advanced.total).toBe(2);
+  });
+
+  it('availabilitySummary counts match actual indicator statuses', () => {
+    const result = runContactGeometryIntelligence(makeInput());
+    const s = result.availabilitySummary;
+    // Manually count from allIndicators
+    const coreAvailable = result.allIndicators.filter(i => i.tier === 'CORE' && i.status !== 'UNAVAILABLE').length;
+    const condAvailable = result.allIndicators.filter(i => i.tier === 'CONDITIONAL' && i.status !== 'UNAVAILABLE').length;
+    const advAvailable  = result.allIndicators.filter(i => i.tier === 'ADVANCED' && i.status !== 'UNAVAILABLE').length;
+    expect(s.core.available).toBe(coreAvailable);
+    expect(s.conditional.available).toBe(condAvailable);
+    expect(s.advanced.available).toBe(advAvailable);
   });
 });

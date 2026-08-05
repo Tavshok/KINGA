@@ -1591,7 +1591,7 @@ export type Stage9bOutput = TurnaroundTimeOutput;
 // ─────────────────────────────────────────────────────────────────────────────
 // STAGE 9.5 — CONTACT GEOMETRY INTELLIGENCE (CGI)
 // ─────────────────────────────────────────────────────────────────────────────
-export type { Stage9_5Output, CGIVerdict, CGIIndicator, CGIIndicatorStatus, CGIForensicConclusion } from './stage-9-5-cgi';
+export type { Stage9_5Output, CGIVerdict, CGIIndicator, CGIIndicatorStatus, CGIForensicConclusion, CGIIndicatorTier, CGIAvailabilitySummary } from './stage-9-5-cgi';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STAGE 10 — REPORT GENERATION
