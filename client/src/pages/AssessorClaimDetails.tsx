@@ -16,6 +16,7 @@ import PoliceReportForm from "@/components/PoliceReportForm";
 import VehicleValuationCard from "@/components/VehicleValuationCard";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
+import { ClaimIntelligenceHeader } from "@/components/ClaimIntelligenceHeader";
 import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
 import ClaimCurrencyHistory from "@/components/ClaimCurrencyHistory";
 import { VehicleStructuralIntelligencePanel } from "@/components/VehicleStructuralIntelligencePanel";
@@ -159,6 +160,15 @@ export default function AssessorClaimDetails() {
                   <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
                   <ClaimCurrencyOverride claimId={claimId} currentCurrencyCode={(claim as any).currencyCode} />
                 </div>
+                {/* KINGA Intelligence — action-driving compact layer */}
+                {(aiAssessment as any)?._interpretation && (
+                  <ClaimIntelligenceHeader
+                    interpretation={(aiAssessment as any)._interpretation}
+                    cgi={(aiAssessment as any)?._cgi}
+                    variant="compact"
+                    className="mt-2"
+                  />
+                )}
                 {/* Currency change audit history — collapses when empty */}
                 <ClaimCurrencyHistory claimId={claimId} />
               </div>

@@ -10,6 +10,7 @@ import { exportClaimReportToPDF, type ClaimReportData } from "@/lib/export-pdf";
 import { toast } from "sonner";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { fraudLevelDisplayLabel, normaliseFraudLevel } from '../../../shared/fraudScoring';
+import { ClaimIntelligenceHeader } from "@/components/ClaimIntelligenceHeader";
 
 interface ClaimReviewDialogProps {
   claimId: number | null;
@@ -124,6 +125,16 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
         {claimId && (
           <div className="px-0 pt-1 pb-2">
             <ReportReadinessBadge claimId={claimId} variant="banner" />
+          </div>
+        )}
+        {/* KINGA Intelligence Header — action-driving layer */}
+        {(aiAssessment?._interpretation || aiAssessment?._cgi) && (
+          <div className="pb-2">
+            <ClaimIntelligenceHeader
+              interpretation={(aiAssessment as any)._interpretation}
+              cgi={(aiAssessment as any)._cgi}
+              variant="full"
+            />
           </div>
         )}
 
