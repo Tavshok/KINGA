@@ -2293,6 +2293,13 @@ export async function triggerAiAssessment(claimId: number) {
         return gd ? JSON.stringify(gd) : null;
       } catch { return null; }
     })(),
+    // Stage 9.5: Contact Geometry Intelligence (CGI) result
+    cgiResultJson: (() => {
+      try {
+        const cgi = (result as any).stage9_5Data;
+        return cgi ? JSON.stringify(cgi) : null;
+      } catch { return null; }
+    })(),
   };
   // Apply the global NaN sanitizer before passing to Drizzle.
   // This catches any numeric field that slipped through safeInt/safeFloat guards.

@@ -38,7 +38,7 @@ export async function generateForensicDecisionReport(
               a.forensic_audit_validation_json, a.claim_quality_json,
               a.created_at AS assessment_date, a.model_version,
               a.enriched_photos_json, a.cross_validation_json,
-              a.claim_truth_json
+              a.claim_truth_json, a.cgi_result_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
        WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""}
@@ -132,6 +132,7 @@ export async function generateForensicDecisionReport(
     const forensicAudit = safeJson(c.forensic_audit_validation_json);
     // Cross-validation JSON — three-way speed comparison, XV risk, impact direction
     const xv = safeJson(c.cross_validation_json) as any;
+    const cgiData     = safeJson(c.cgi_result_json) as any;
     const xvThreeWay     = xv?.threeWaySpeedComparison ?? null;
     const xvClaimedSpeed: number | null  = xvThreeWay?.claimedSpeedKmh ?? null;
     const xvConsensusSpeed: number | null = xvThreeWay?.consensusSpeedKmh ?? null;
@@ -1516,6 +1517,35 @@ export async function generateForensicDecisionReport(
     </div>
   </div>
 
+
+  <!-- §09b CONTACT GEOMETRY INTELLIGENCE (CGI) -->
+  ${cgiData ? `
+  <div class="section">
+    ${sectionTab("09b", "Contact Geometry Intelligence", cgiData.conclusion?.verdict === "INCOHERENT" ? "Geometry incoherent" : cgiData.conclusion?.verdict === "SUSPICIOUS" ? "Suspicious geometry" : "Geometry consistent", cgiData.conclusion?.verdict === "INCOHERENT" ? "high" : cgiData.conclusion?.verdict === "SUSPICIOUS" ? "mid" : "ok")}
+    <div class="cols-2">
+      <div class="box">
+        <h4>CGI Verdict — ${esc(cgiData.conclusion?.verdict ?? "UNKNOWN")} (${Math.round((cgiData.conclusion?.confidence ?? 0) * 100)}% confidence)</h4>
+        <table class="kv">
+          ${kvRow("Contact patch ratio", cgiData.conclusion?.contactPatchRatio != null ? `${(cgiData.conclusion.contactPatchRatio * 100).toFixed(1)}%` : "N/A")}
+          ${kvRow("Expected CPR range", cgiData.conclusion?.expectedCprRange ?? "N/A")}
+          ${kvRow("Hidden damage probability", cgiData.conclusion?.hiddenDamageProbabilityOverride != null ? `${Math.round(cgiData.conclusion.hiddenDamageProbabilityOverride * 100)}%` : "N/A")}
+          ${kvRow("Fraud indicator injected", cgiData.conclusion?.injectFraudIndicator ? "Yes" : "No")}
+        </table>
+        ${cgiData.conclusion?.summary ? `<p class="small" style="margin-top:8px;">${esc(cgiData.conclusion.summary)}</p>` : ""}
+      </div>
+      <div class="box">
+        <h4>Layer 1 — Geometry Indicators</h4>
+        <table class="kv">
+          ${(cgiData.layer1Indicators ?? []).map((ind: any) => kvRow(esc(ind.name ?? ind.id), `${esc(ind.verdict ?? "N/A")} (${Math.round((ind.confidence ?? 0) * 100)}%)`)).join("")}
+        </table>
+        ${(cgiData.layer2Indicators ?? []).length > 0 ? `
+        <h4 style="margin-top:12px;">Layer 2 — Structural Indicators</h4>
+        <table class="kv">
+          ${(cgiData.layer2Indicators ?? []).map((ind: any) => kvRow(esc(ind.name ?? ind.id), `${esc(ind.verdict ?? "N/A")} (${Math.round((ind.confidence ?? 0) * 100)}%)`)).join("")}
+        </table>` : ""}
+      </div>
+    </div>
+  </div>` : ""}
   <!-- §10 VALIDATION, DECISION & NEXT STEPS -->
   <div class="section">
     ${sectionTab("10", "Validation, Decision & Next Steps")}

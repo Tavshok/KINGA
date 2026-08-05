@@ -41,6 +41,7 @@ import { scoreClaimComplexity, type ComplexityScore } from "./claimComplexitySco
 import { runFraudAnalysisStage, recomputeFraudScore } from "./stage-8-fraud";
 import { aggregateConfidence, buildConfidenceAggregationInput } from "./confidenceAggregationEngine";
 import { runCostOptimisationStage } from "./stage-9-cost";
+import { runContactGeometryIntelligence, type Stage9_5Output } from "./stage-9-5-cgi";
 import { runTurnaroundTimeStage } from "./stage-9b-turnaround";
 import { runReportGenerationStage } from "./stage-10-report";
 import { runReconciliationPass, type ReconciliationLog } from "./reconciliation-engine";
@@ -456,6 +457,7 @@ export async function runPipelineV2(
   let stage7Data: Stage7Output | null = null;
   let stage8Data: Stage8Output | null = null;
   let stage9Data: Stage9Output | null = null;
+  let stage9_5Data: Stage9_5Output | null = null;
   let stage9bData: TurnaroundTimeOutput | null = null;
   let causalChain: CausalChainOutput | null = null;
   let evidenceBundle: EvidenceBundle | null = null;
@@ -1986,6 +1988,26 @@ export async function runPipelineV2(
     ctx.log?.("7d_confidence", `overall=${confResult.overall_confidence} (${confResult.confidence_level}), weakest=${confResult.weakest_component}`);
   } catch (err) {
     ctx.log?.("7d_confidence", `failed: ${err}`);
+  }
+
+  // ── STAGE 9.5: CONTACT GEOMETRY INTELLIGENCE ────────────────────────────
+  // Runs synchronously after S8/S9 resolve (pure arithmetic, <2ms).
+  // Non-fatal: wrapped in try/catch; null output is safe for all consumers.
+  try {
+    const cgiInput = {
+      claimRecord: claimRecord!,
+      stage6Data: stage6Data!,
+      stage7Data: stage7Data!,
+      stage8Data: stage8Data!,
+      stage9Data: stage9Data!,
+      vgeResult: (ctx as any).vgeCalibrationResult ?? null,
+      vgrResult: (ctx as any).vgrConsensusResult ?? null,
+    };
+    stage9_5Data = runContactGeometryIntelligence(cgiInput);
+    saveStageResult(ctx.runId, "9_5_cgi", stage9_5Data).catch(() => {});
+    ctx.log("Pipeline", `S9.5 CGI: verdict=${stage9_5Data.conclusion.verdict}, flags=${stage9_5Data.layer1Indicators.filter((i: any) => i.status === "FLAG").length + stage9_5Data.layer2Indicators.filter((i: any) => i.status === "FLAG").length}, hiddenDamageProb=${((stage9_5Data.conclusion.hiddenDamageProbabilityOverride ?? 0) * 100).toFixed(0)}%`);
+  } catch (cgiErr) {
+    ctx.log("Pipeline", `S9.5 CGI error (non-fatal): ${String(cgiErr)}`);
   }
 
   // ── POST-S8/S9 PARALLEL BLOCK ────────────────────────────────────────────

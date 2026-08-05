@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, AlertTriangle, DollarSign, Users, MapPin } from "lucide-react";
+import { TrendingUp, AlertTriangle, DollarSign, Users } from "lucide-react";
 import { KingaReportButton } from "@/components/KingaReportButton";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -14,7 +15,11 @@ export default function FraudAnalyticsDashboard() {
 
   // Get all claims for fraud analysis — includes assessed claims with real fraudRiskScore
   const { data: claims = [], isLoading } = trpc.claims.allForTenant.useQuery();
-  
+  const [showCgiOnly, setShowCgiOnly] = useState(false);
+
+  // CGI geometry incoherence count (for the KPI strip)
+  const cgiFlaggedCount = claims.filter((c: any) => c._cgi?.contactGeometryFlag === true).length;
+
   // Calculate fraud statistics
   const fraudStats = calculateFraudStatistics(claims);
 
@@ -398,16 +403,44 @@ export default function FraudAnalyticsDashboard() {
           </CardContent>
         </Card>
 
+        {/* CGI KPI Strip */}
+        {cgiFlaggedCount > 0 && (
+          <div className="flex items-center gap-3 p-4 rounded-xl border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/30">
+            <span className="text-2xl">⬡</span>
+            <div className="flex-1">
+              <p className="font-semibold text-orange-800 dark:text-orange-300 text-sm">Contact Geometry Intelligence — Stage 9.5</p>
+              <p className="text-xs text-orange-700 dark:text-orange-400 mt-0.5">
+                {cgiFlaggedCount} claim{cgiFlaggedCount !== 1 ? 's' : ''} flagged with geometric incoherence between stated collision type and observed contact patch
+              </p>
+            </div>
+            <button
+              onClick={() => setShowCgiOnly(v => !v)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                showCgiOnly
+                  ? 'bg-orange-200 border-orange-500 text-orange-900 dark:bg-orange-800 dark:text-orange-100'
+                  : 'bg-white border-orange-400 text-orange-800 hover:bg-orange-100 dark:bg-transparent dark:text-orange-300'
+              }`}
+            >
+              {showCgiOnly ? 'Show All High-Risk' : 'Show Geometry Incoherent Only'}
+            </button>
+          </div>
+        )}
+
         {/* High-Risk Claims List */}
         <Card>
           <CardHeader>
             <CardTitle>High-Risk Claims Requiring Review</CardTitle>
-            <CardDescription>Claims flagged by KINGA and physics analysis</CardDescription>
+            <CardDescription>
+              {showCgiOnly
+                ? `Showing ${cgiFlaggedCount} claim${cgiFlaggedCount !== 1 ? 's' : ''} with CGI geometry incoherence`
+                : 'Claims flagged by KINGA and physics analysis'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {claims
-                .filter(claim => (claim.fraudRiskScore || 0) > 70)
+                .filter(claim => (claim.fraudRiskScore || 0) > 70 || (showCgiOnly && (claim as any)._cgi?.contactGeometryFlag))
+                .filter(claim => !showCgiOnly || (claim as any)._cgi?.contactGeometryFlag === true)
                 .slice(0, 10)
                 .map(claim => (
                   <div 
@@ -419,6 +452,11 @@ export default function FraudAnalyticsDashboard() {
                       <div className="flex items-center gap-3">
                         <p className="font-medium">{claim.claimNumber}</p>
                         <Badge variant="destructive">High Risk</Badge>
+                        {(claim as any)._cgi?.contactGeometryFlag && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border border-orange-300 dark:border-orange-600">
+                            ⬡ Geometry Incoherent
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         {claim.vehicleMake} {claim.vehicleModel} • {new Date(claim.createdAt).toLocaleDateString()}
@@ -435,7 +473,10 @@ export default function FraudAnalyticsDashboard() {
                   </div>
                 ))}
               
-              {claims.filter(claim => (claim.fraudRiskScore || 0) > 70).length === 0 && (
+              {claims
+                .filter(claim => (claim.fraudRiskScore || 0) > 70 || (showCgiOnly && (claim as any)._cgi?.contactGeometryFlag))
+                .filter(claim => !showCgiOnly || (claim as any)._cgi?.contactGeometryFlag === true)
+                .length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No high-risk claims detected</p>
                   <p className="text-xs mt-2">All claims are within acceptable risk thresholds</p>

@@ -1825,10 +1825,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const { aiAssessments: aiAssessmentsTable } = await import("../drizzle/schema");
         const { inArray: inArrayOp } = await import("drizzle-orm");
         const qualityRows = await db
-          .select({ claimId: aiAssessmentsTable.claimId, claimQualityJson: aiAssessmentsTable.claimQualityJson })
+          .select({ claimId: aiAssessmentsTable.claimId, claimQualityJson: aiAssessmentsTable.claimQualityJson, cgiResultJson: aiAssessmentsTable.cgiResultJson })
           .from(aiAssessmentsTable)
           .where(inArrayOp(aiAssessmentsTable.claimId, completedIds));
         const qualityMap = new Map<number, any>();
+        const cgiMap = new Map<number, any>();
         for (const qr of qualityRows) {
           if (qr.claimId && qr.claimQualityJson) {
             try {
@@ -1836,10 +1837,17 @@ If any value is not found, use 0 for numbers and empty string for text.`;
               qualityMap.set(qr.claimId, { grade: parsed.grade, overallScore: parsed.overallScore, requiresManualReview: parsed.requiresManualReview });
             } catch { /* non-fatal */ }
           }
+          if (qr.claimId && qr.cgiResultJson) {
+            try {
+              const cgi = JSON.parse(qr.cgiResultJson as string);
+              cgiMap.set(qr.claimId, { contactGeometryFlag: cgi.contactGeometryFlag ?? false, forensicVerdict: cgi.forensicVerdict ?? null, hiddenDamageProbabilityOverride: cgi.hiddenDamageProbabilityOverride ?? null });
+            } catch { /* non-fatal */ }
+          }
         }
         return rows.map((r: any) => ({
           ...r,
           _qualityGrade: qualityMap.get(r.id) ?? null,
+          _cgi: cgiMap.get(r.id) ?? null,
         }));
       }),
 

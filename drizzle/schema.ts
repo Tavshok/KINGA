@@ -248,6 +248,11 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Batch 2d: Stage 4 pipeline gate decision (JSON GateControllerResult)
   // Whether the pipeline was allowed to proceed past Stage 4, and the gate reasoning.
   gateDecisionJson: longtext("gate_decision_json"),
+  // Stage 9.5: Contact Geometry Intelligence (CGI) result
+  // Full Stage9_5Output JSON: layer1Indicators, layer2Indicators, conclusion (verdict, confidence,
+  // hiddenDamageProbabilityOverride, injectFraudIndicator), allIndicators, engineVersion, runtimeMs.
+  // Null when Stage 9.5 did not run (insufficient geometry data or pipeline aborted before S9.5).
+  cgiResultJson: longtext("cgi_result_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),
