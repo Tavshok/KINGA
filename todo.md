@@ -1244,3 +1244,13 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] H-06: Add fleet cost analytics procedures (getFleetCostBreakdown, getCostTrends) to fleet router
 - [x] H-06: Build FleetCostAnalyticsTab component for FleetManagerDashboard
 - [x] H-06: Wire FleetCostAnalyticsTab into FleetManagerDashboard tabs
+
+## Feature Completion Audit — Phase 4 (Enhancement Features)
+
+- [x] M-01: Agency quote comparison UI — side-by-side quote comparison view in KingaAgency
+- [x] M-02: Fleet fuel tracking — fuel_records schema table, addFuelRecord/listFuelRecords procedures, FuelTrackingTab in FleetManagerDashboard
+- [x] M-03: Fleet licensing records — licensing_records schema table, addLicensingRecord/listLicensingRecords procedures, LicensingTab in FleetManagerDashboard
+- [x] M-04: Engineering → Claims attachment — linkInspectionToClaim procedure, InspectionLinkPanel in EngineerInspectionDetail
+- [x] M-05: Engineering project management — inspection_projects schema table, createProject/listProjects procedures, ProjectsTab in EngineerDashboard
+- [x] M-06: Agency performance analytics — getAgencyPerformanceMetrics procedure, AgencyPerformanceTab in KingaAgency
+- [x] M-07: Portfolio export — exportPortfolioReport procedure returning PDF, Export button in InsurerAdminDashboard

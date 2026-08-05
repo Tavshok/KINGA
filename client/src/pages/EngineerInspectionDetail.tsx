@@ -21,6 +21,7 @@ import {
   Loader2, FileText, Mic, MicOff,
 } from "lucide-react";
 import { toast } from "sonner";
+import { InspectionLinkPanel } from "@/components/InspectionLinkPanel";
 
 const TABS = [
   { id: "overview",      label: "Overview",     icon: LayoutDashboard },
@@ -218,6 +219,13 @@ export default function EngineerInspectionDetail() {
 
         {/* OVERVIEW */}
         {activeTab === "overview" && (
+          <>
+          <div style={{ marginBottom: "20px" }}>
+            <InspectionLinkPanel
+              inspectionId={inspectionId}
+              currentClaimId={insp?.inspection?.claim_id ?? null}
+            />
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
             <div style={{ background: "#fff", border: "1px solid #e8e8e8", borderRadius: "8px", padding: "20px" }}>
               <h3 style={{ fontSize: "13px", fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 16px" }}>Inspection Details</h3>
@@ -269,6 +277,7 @@ export default function EngineerInspectionDetail() {
               </div>
             </div>
           </div>
+          </>
         )}
 
         {/* EVIDENCE */}

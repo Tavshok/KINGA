@@ -178,6 +178,52 @@ export default function InsurerAdminDashboard() {
 
   // KPI card data
   const kpiSummary = (kpis as any)?.summaryMetrics;
+
+  // M-07: Portfolio CSV export (placed after all data queries)
+  const handleExportCSV = () => {
+    const rows: string[][] = [
+      ['KINGA Portfolio Export', new Date().toLocaleDateString()],
+      [],
+      ['CLAIMS SUMMARY'],
+      ['Metric', 'Value'],
+      ['Total Claims', String(kpiSummary?.totalClaims ?? '—')],
+      ['Active Claims', String(kpiSummary?.activeClaims ?? '—')],
+      ['Completed Claims', String(kpiSummary?.completedClaims ?? '—')],
+      ['Completion Rate', kpiSummary?.completionRate != null ? `${kpiSummary.completionRate}%` : '—'],
+      ['Fraud Detected', String(kpiSummary?.fraudDetected ?? '—')],
+      [],
+    ];
+    if (fleetExposure) {
+      rows.push(
+        ['FLEET EXPOSURE'],
+        ['Metric', 'Value'],
+        ['Total Fleets', String((fleetExposure as any).totalFleets ?? 0)],
+        ['Total Vehicles', String((fleetExposure as any).totalVehicles ?? 0)],
+        ['High Risk Fleets', String((fleetExposure as any).highRiskFleets ?? 0)],
+        ['Avg Risk Score', String((fleetExposure as any).avgRiskScore ?? 0)],
+        [],
+      );
+    }
+    if (engineeringRisk) {
+      rows.push(
+        ['ENGINEERING RISK'],
+        ['Metric', 'Value'],
+        ['Total Inspections', String((engineeringRisk as any).totalInspections ?? 0)],
+        ['Completed', String((engineeringRisk as any).completedInspections ?? 0)],
+        ['Critical Risk', String((engineeringRisk as any).criticalRiskCount ?? 0)],
+        ['High Risk', String((engineeringRisk as any).highRiskCount ?? 0)],
+        [],
+      );
+    }
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kinga-portfolio-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   const kpiCards = [
     {
       label: "Total Claims",
@@ -234,7 +280,7 @@ export default function InsurerAdminDashboard() {
         subtitle="Company-wide overview, team management, and portal configuration"
         actions={[
           { label: 'Refresh', icon: <RefreshCw className="h-3 w-3" />, onClick: () => setRefreshKey(k => k + 1) },
-          { label: 'Export Report', icon: <Download className="h-3 w-3" />, primary: true },
+          { label: 'Export Report', icon: <Download className="h-3 w-3" />, primary: true, onClick: handleExportCSV },
         ]}
         kpis={kpiCards.map(card => ({
           label: card.label,

@@ -974,4 +974,76 @@ export const agencyBrokerRouter = router({
       count: Number(r.count),
     }));
   }),
+
+  // ── M-06: Agency Performance Analytics ───────────────────────────────────────────
+
+  /**
+   * M-06: Get agency performance metrics.
+   * Conversion rate, avg time-to-quote, revenue pipeline, and insurer breakdown.
+   */
+  getPerformanceMetrics: agencyProcedure
+    .input(z.object({
+      days: z.number().int().min(7).max(365).default(90),
+    }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
+      const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000)
+        .toISOString().slice(0, 19).replace('T', ' ');
+
+      // Quotation funnel metrics
+      const [funnel] = await db
+        .select({
+          total: sql<number>`COUNT(*)`,
+          accepted: sql<number>`SUM(CASE WHEN ${insurerQuoteRequests.status} = 'accepted' THEN 1 ELSE 0 END)`,
+          rejected: sql<number>`SUM(CASE WHEN ${insurerQuoteRequests.status} = 'rejected' THEN 1 ELSE 0 END)`,
+          pending: sql<number>`SUM(CASE WHEN ${insurerQuoteRequests.status} IN ('pending','submitted','under_review') THEN 1 ELSE 0 END)`,
+          totalEstimatedCommission: sql<number>`COALESCE(SUM(CAST(${insurerQuoteRequests.commissionEstimate} AS DECIMAL(12,2))), 0)`,
+        })
+        .from(insurerQuoteRequests)
+        .where(and(
+          eq(insurerQuoteRequests.agencyTenantId, tenantId),
+          sql`${insurerQuoteRequests.createdAt} >= ${since}`
+        ));
+
+      const total = Number(funnel?.total ?? 0);
+      const accepted = Number(funnel?.accepted ?? 0);
+      const conversionRate = total > 0 ? Math.round((accepted / total) * 100) : 0;
+
+      // Insurer breakdown
+      const insurerRows = await db
+        .select({
+          insurerTenantId: insurerQuoteRequests.insurerTenantId,
+          count: sql<number>`COUNT(*)`,
+          acceptedCount: sql<number>`SUM(CASE WHEN ${insurerQuoteRequests.status} = 'accepted' THEN 1 ELSE 0 END)`,
+          totalCommission: sql<number>`COALESCE(SUM(CAST(${insurerQuoteRequests.commissionEstimate} AS DECIMAL(12,2))), 0)`,
+        })
+        .from(insurerQuoteRequests)
+        .where(and(
+          eq(insurerQuoteRequests.agencyTenantId, tenantId),
+          sql`${insurerQuoteRequests.createdAt} >= ${since}`
+        ))
+        .groupBy(insurerQuoteRequests.insurerTenantId)
+        .orderBy(desc(sql`COUNT(*)`));
+
+      return {
+        period: { days: input.days, since },
+        funnel: {
+          total,
+          accepted,
+          rejected: Number(funnel?.rejected ?? 0),
+          pending: Number(funnel?.pending ?? 0),
+          conversionRate,
+          totalEstimatedCommissionCents: Math.round(Number(funnel?.totalEstimatedCommission ?? 0) * 100),
+        },
+        insurerBreakdown: insurerRows.map(r => ({
+          insurerTenantId: r.insurerTenantId,
+          total: Number(r.count),
+          accepted: Number(r.acceptedCount),
+          conversionRate: Number(r.count) > 0 ? Math.round((Number(r.acceptedCount) / Number(r.count)) * 100) : 0,
+          totalCommissionCents: Math.round(Number(r.totalCommission) * 100),
+        })),
+      };
+    }),
 });

@@ -19,6 +19,8 @@ import {
   AlertTriangle, ShieldCheck, ScanLine
 } from "lucide-react";
 import { TimelineIntelligenceTab } from "@/components/TimelineIntelligenceTab";
+import { QuoteComparisonView } from "@/components/QuoteComparisonView";
+import { AgencyPerformanceTab } from "@/components/AgencyPerformanceTab";
 
 export default function KingaAgency() {
   const { user } = useAuth();
@@ -33,6 +35,8 @@ export default function KingaAgency() {
     { id: 'vehicle-valuation', label: '🚗 Vehicle Valuation' },
     { id: 'timeline-intelligence', label: '📅 Timeline Intelligence' },
     { id: 'commissions', label: '💰 Commissions' },
+    { id: 'compare', label: '📊 Compare Quotes' },
+    { id: 'performance', label: '📈 Performance' },
   ];
 
   return (
@@ -119,6 +123,8 @@ export default function KingaAgency() {
             {activeTab === 'vehicle-valuation' && <VehicleValuationTab />}
             {activeTab === 'timeline-intelligence' && <TimelineIntelligenceTab />}
             {activeTab === 'commissions' && (() => { setLocation('/agency/commissions'); return null; })()}
+            {activeTab === 'compare' && <QuoteComparisonSection />}
+            {activeTab === 'performance' && <AgencyPerformanceSection />}
           </div>
           {/* ── SIDEBAR ── */}
           <div className="p11-sidebar">
@@ -1051,6 +1057,38 @@ function VehicleValuationTab() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Quote Comparison Section ─────────────────────────────────────────────────
+
+function QuoteComparisonSection() {
+  return (
+    <div className="p11-card">
+      <div style={{ padding: '16px 0 8px' }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Quote Comparison</h2>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+          Select up to 4 quotations to compare side by side.
+        </p>
+        <QuoteComparisonView />
+      </div>
+    </div>
+  );
+}
+
+// ─── Agency Performance Section ───────────────────────────────────────────────
+
+function AgencyPerformanceSection() {
+  return (
+    <div className="p11-card">
+      <div style={{ padding: '16px 0 8px' }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Agency Performance</h2>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+          Conversion rates, revenue pipeline, and insurer breakdown.
+        </p>
+        <AgencyPerformanceTab />
+      </div>
     </div>
   );
 }

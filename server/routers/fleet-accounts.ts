@@ -12,7 +12,7 @@ import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "../db";
-import { fleetAccounts, claims, users, fleetManagerRequests } from "../../drizzle/schema";
+import { fleetAccounts, claims, users, fleetManagerRequests, fuelRecords, licensingRecords } from "../../drizzle/schema";
 import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
 import { notifyOwner } from "../_core/notification";
 import { sendFleetManagerApprovedEmail, sendFleetManagerRejectedEmail, sendFleetManagerSubmittedEmail } from "../safe-email";
@@ -1017,4 +1017,166 @@ export const fleetAccountsRouter = router({
       return [];
     }
   }),
+
+  // ── M-02: Fuel Tracking ───────────────────────────────────────────────────
+
+  addFuelRecord: protectedProcedure
+    .input(z.object({
+      vehicleRegistration: z.string().min(1).max(50),
+      vehicleMake: z.string().optional(),
+      vehicleModel: z.string().optional(),
+      fuelDate: z.string(),
+      litres: z.number().positive(),
+      costPerLitre: z.number().positive().optional(),
+      totalCostCents: z.number().int().positive(),
+      odometer: z.number().int().positive().optional(),
+      fuelType: z.enum(['petrol','diesel','electric','hybrid','lpg']).default('petrol'),
+      filledBy: z.string().optional(),
+      stationName: z.string().optional(),
+      notes: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+      const [account] = await db.select({ id: fleetAccounts.id })
+        .from(fleetAccounts).where(eq(fleetAccounts.ownerId, ctx.user.id)).limit(1);
+      if (!account) throw new TRPCError({ code: 'NOT_FOUND', message: 'No fleet account found' });
+      const [result] = await db.insert(fuelRecords).values({
+        fleetAccountId: account.id,
+        vehicleRegistration: input.vehicleRegistration,
+        vehicleMake: input.vehicleMake,
+        vehicleModel: input.vehicleModel,
+        fuelDate: input.fuelDate,
+        litres: String(input.litres),
+        costPerLitre: input.costPerLitre ? String(input.costPerLitre) : null,
+        totalCostCents: input.totalCostCents,
+        odometer: input.odometer,
+        fuelType: input.fuelType,
+        filledBy: input.filledBy,
+        stationName: input.stationName,
+        notes: input.notes,
+        createdBy: ctx.user.id,
+      });
+      return { success: true, id: (result as any).insertId };
+    }),
+
+  listFuelRecords: protectedProcedure
+    .input(z.object({
+      vehicleRegistration: z.string().optional(),
+      limit: z.number().int().min(1).max(100).default(20),
+      offset: z.number().int().min(0).default(0),
+    }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return { records: [], total: 0 };
+      const [account] = await db.select({ id: fleetAccounts.id })
+        .from(fleetAccounts).where(eq(fleetAccounts.ownerId, ctx.user.id)).limit(1);
+      if (!account) return { records: [], total: 0 };
+      const conditions = [eq(fuelRecords.fleetAccountId, account.id)];
+      if (input.vehicleRegistration) conditions.push(eq(fuelRecords.vehicleRegistration, input.vehicleRegistration));
+      const rows = await db.select().from(fuelRecords)
+        .where(and(...conditions)).orderBy(desc(fuelRecords.fuelDate))
+        .limit(input.limit).offset(input.offset);
+      const [countRow] = await db.select({ count: sql`COUNT(*)` }).from(fuelRecords).where(and(...conditions));
+      return { records: rows, total: Number(countRow?.count ?? 0) };
+    }),
+
+  getFuelSummary: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) return null;
+    const [account] = await db.select({ id: fleetAccounts.id })
+      .from(fleetAccounts).where(eq(fleetAccounts.ownerId, ctx.user.id)).limit(1);
+    if (!account) return null;
+    const [summary] = await db.select({
+      totalLitres: sql`COALESCE(SUM(litres), 0)`,
+      totalCostCents: sql`COALESCE(SUM(total_cost_cents), 0)`,
+      recordCount: sql`COUNT(*)`,
+    }).from(fuelRecords).where(eq(fuelRecords.fleetAccountId, account.id));
+    return {
+      totalLitres: Number(summary?.totalLitres ?? 0),
+      totalCostCents: Number(summary?.totalCostCents ?? 0),
+      recordCount: Number(summary?.recordCount ?? 0),
+    };
+  }),
+
+  // ── M-03: Licensing Records ───────────────────────────────────────────────
+
+  addLicensingRecord: protectedProcedure
+    .input(z.object({
+      vehicleRegistration: z.string().min(1).max(50),
+      vehicleMake: z.string().optional(),
+      vehicleModel: z.string().optional(),
+      licenseType: z.enum(['vehicle_license','roadworthy','operator_permit','cross_border','other']),
+      licenseNumber: z.string().optional(),
+      issueDate: z.string().optional(),
+      expiryDate: z.string(),
+      issuingAuthority: z.string().optional(),
+      costCents: z.number().int().positive().optional(),
+      documentUrl: z.string().url().optional(),
+      notes: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+      const [account] = await db.select({ id: fleetAccounts.id })
+        .from(fleetAccounts).where(eq(fleetAccounts.ownerId, ctx.user.id)).limit(1);
+      if (!account) throw new TRPCError({ code: 'NOT_FOUND', message: 'No fleet account found' });
+      const [result] = await db.insert(licensingRecords).values({
+        fleetAccountId: account.id,
+        vehicleRegistration: input.vehicleRegistration,
+        vehicleMake: input.vehicleMake,
+        vehicleModel: input.vehicleModel,
+        licenseType: input.licenseType,
+        licenseNumber: input.licenseNumber,
+        issueDate: input.issueDate,
+        expiryDate: input.expiryDate,
+        issuingAuthority: input.issuingAuthority,
+        costCents: input.costCents,
+        documentUrl: input.documentUrl,
+        notes: input.notes,
+        createdBy: ctx.user.id,
+      });
+      return { success: true, id: (result as any).insertId };
+    }),
+
+  listLicensingRecords: protectedProcedure
+    .input(z.object({
+      vehicleRegistration: z.string().optional(),
+      status: z.enum(['active','expired','expiring_soon','pending_renewal','all']).default('all'),
+      limit: z.number().int().min(1).max(100).default(20),
+      offset: z.number().int().min(0).default(0),
+    }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return { records: [], total: 0 };
+      const [account] = await db.select({ id: fleetAccounts.id })
+        .from(fleetAccounts).where(eq(fleetAccounts.ownerId, ctx.user.id)).limit(1);
+      if (!account) return { records: [], total: 0 };
+      const conditions = [eq(licensingRecords.fleetAccountId, account.id)];
+      if (input.vehicleRegistration) conditions.push(eq(licensingRecords.vehicleRegistration, input.vehicleRegistration));
+      if (input.status !== 'all') conditions.push(eq(licensingRecords.status, input.status as any));
+      const rows = await db.select().from(licensingRecords)
+        .where(and(...conditions)).orderBy(desc(licensingRecords.expiryDate))
+        .limit(input.limit).offset(input.offset);
+      const [countRow] = await db.select({ count: sql`COUNT(*)` }).from(licensingRecords).where(and(...conditions));
+      return { records: rows, total: Number(countRow?.count ?? 0) };
+    }),
+
+  getExpiringLicenses: protectedProcedure
+    .input(z.object({ daysAhead: z.number().int().min(1).max(90).default(30) }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const [account] = await db.select({ id: fleetAccounts.id })
+        .from(fleetAccounts).where(eq(fleetAccounts.ownerId, ctx.user.id)).limit(1);
+      if (!account) return [];
+      const rows = await db.select().from(licensingRecords)
+        .where(and(
+          eq(licensingRecords.fleetAccountId, account.id),
+          sql`${licensingRecords.expiryDate} <= DATE_ADD(NOW(), INTERVAL ${input.daysAhead} DAY)`,
+          sql`${licensingRecords.expiryDate} >= NOW()`
+        ))
+        .orderBy(licensingRecords.expiryDate);
+      return rows;
+    }),
 });

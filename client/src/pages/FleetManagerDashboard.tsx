@@ -57,6 +57,7 @@ import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type Portal
 import { FleetRiskAnalyticsTab } from "@/components/FleetRiskAnalyticsTab";
 import { FleetIntelligenceTab } from "@/components/FleetIntelligenceTab";
 import { FleetCostAnalyticsTab } from "@/components/FleetCostAnalyticsTab";
+import { FleetFuelLicensingTab } from "@/components/FleetFuelLicensingTab";
 import { PredictiveAnalyticsTab } from "@/components/PredictiveAnalyticsTab";
 import {
   Dialog,
@@ -395,6 +396,7 @@ export default function FleetManagerDashboard() {
           { id: 'vehicles', label: 'Vehicle Tracking', count: 0, countClass: '' },
           { id: 'risk', label: 'Risk Analytics', count: 0, countClass: '' },
           { id: 'cost', label: '💰 Cost Analytics', count: 0, countClass: '' },
+          { id: 'compliance', label: '⛽ Fuel & Licensing', count: 0, countClass: '' },
           { id: 'intelligence', label: '🛡 Fleet Intelligence', count: 0, countClass: '' },
           { id: 'predictive', label: '📈 Predictive Analytics', count: 0, countClass: '' },
         ].map(t => (
@@ -438,6 +440,9 @@ export default function FleetManagerDashboard() {
         )}
         {mainTab === 'cost' && (
           <FleetCostAnalyticsTab />
+        )}
+        {mainTab === 'compliance' && (
+          <FleetFuelLicensingTab />
         )}
         {mainTab === 'intelligence' && (
           <div className="p-6">

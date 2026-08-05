@@ -36,6 +36,7 @@ import {
   assetRegistry,
   claimDocuments,
   users,
+  inspectionProjects,
 } from "../../drizzle/schema";
 import { invokeLLM } from "../_core/llm";
 import { transcribeAudio } from "../_core/voiceTranscription";
@@ -860,6 +861,97 @@ export const inspectionsRouter = router({
         await ctx.db.insert(engineerProfiles).values(payload);
       }
 
+      return { success: true };
+    }),
+
+  // ── M-04: Link Inspection to Claim ───────────────────────────────────────────
+
+  linkToClaim: engineerDomainProcedure
+    .input(z.object({
+      inspectionId: z.number().int().positive(),
+      claimId: z.number().int().positive().nullable(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const [insp] = await ctx.db
+        .select({ id: inspections.id, createdBy: inspections.createdBy })
+        .from(inspections)
+        .where(eq(inspections.id, input.inspectionId))
+        .limit(1);
+      if (!insp) throw new TRPCError({ code: 'NOT_FOUND', message: 'Inspection not found' });
+      const isAdmin = ctx.user!.role === 'admin' || ctx.user!.role === 'platform_super_admin';
+      if (!isAdmin && insp.createdBy !== ctx.user!.id) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not own this inspection' });
+      }
+      await ctx.db.update(inspections)
+        .set({ claimId: input.claimId })
+        .where(eq(inspections.id, input.inspectionId));
+      return { success: true, claimId: input.claimId };
+    }),
+
+  // ── M-05: Inspection Projects ───────────────────────────────────────────────
+
+  createProject: engineerDomainProcedure
+    .input(z.object({
+      projectName: z.string().min(1).max(255),
+      clientName: z.string().optional(),
+      description: z.string().optional(),
+      startDate: z.string().optional(),
+      targetEndDate: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const projectRef = `PROJ-${Date.now().toString(36).toUpperCase()}`;
+      const [result] = await ctx.db.insert(inspectionProjects).values({
+        tenantId: ctx.user!.tenantId ?? null,
+        projectRef,
+        projectName: input.projectName,
+        clientName: input.clientName,
+        description: input.description,
+        startDate: input.startDate,
+        targetEndDate: input.targetEndDate,
+        createdBy: ctx.user!.id,
+      });
+      return { success: true, id: (result as any).insertId, projectRef };
+    }),
+
+  listProjects: engineerDomainProcedure
+    .input(z.object({
+      status: z.enum(['active','completed','on_hold','cancelled','all']).default('all'),
+      limit: z.number().int().min(1).max(50).default(20),
+      offset: z.number().int().min(0).default(0),
+    }))
+    .query(async ({ ctx, input }) => {
+      const conditions: any[] = ctx.user!.tenantId
+        ? [eq(inspectionProjects.tenantId, ctx.user!.tenantId)]
+        : [eq(inspectionProjects.createdBy, ctx.user!.id)];
+      if (input.status !== 'all') conditions.push(eq(inspectionProjects.status, input.status as any));
+      const rows = await ctx.db.select().from(inspectionProjects)
+        .where(and(...conditions))
+        .orderBy(desc(inspectionProjects.createdAt))
+        .limit(input.limit).offset(input.offset);
+      const [countRow] = await ctx.db.select({ count: sql`COUNT(*)` })
+        .from(inspectionProjects).where(and(...conditions));
+      return { projects: rows, total: Number(countRow?.count ?? 0) };
+    }),
+
+  updateProject: engineerDomainProcedure
+    .input(z.object({
+      id: z.number().int().positive(),
+      projectName: z.string().min(1).max(255).optional(),
+      clientName: z.string().optional(),
+      description: z.string().optional(),
+      status: z.enum(['active','completed','on_hold','cancelled']).optional(),
+      targetEndDate: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...updates } = input;
+      const updateData: any = { ...updates };
+      if (updates.status === 'completed') updateData.completedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      await ctx.db.update(inspectionProjects)
+        .set(updateData)
+        .where(and(
+          eq(inspectionProjects.id, id),
+          eq(inspectionProjects.createdBy, ctx.user!.id)
+        ));
       return { success: true };
     }),
 });

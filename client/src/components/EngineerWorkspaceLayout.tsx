@@ -22,6 +22,7 @@ import {
   CheckSquare,
   LogOut,
   HardHat,
+  FolderOpen,
 } from "lucide-react";
 
 const KINGA_LOGO =
@@ -48,6 +49,12 @@ const sections = [
         href: "/engineer/inspections",
         icon: HardHat,
         description: "Full inspection register",
+      },
+      {
+        label: "Projects",
+        href: "/engineer/projects",
+        icon: FolderOpen,
+        description: "Group inspections by project",
       },
     ],
   },

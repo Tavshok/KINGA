@@ -130,6 +130,7 @@ const EngineerDashboard = lazy(() => import("./pages/EngineerDashboard"));
 const EngineerAssignments = lazy(() => import("./pages/EngineerAssignments"));
 const EngineerInspectionList = lazy(() => import("./pages/EngineerInspectionList"));
 const EngineerInspectionDetail = lazy(() => import("./pages/EngineerInspectionDetail"));
+const EngineerProjects = lazy(() => import("./pages/EngineerProjects"));
 const InsurerFleetRFQs = lazy(() => import("./pages/InsurerFleetRFQs"));
 
 // Feature pages
@@ -858,6 +859,11 @@ function Router() {
         <Route path="/engineer/inspections/:id">
           <ProtectedRoute domain="engineer">
             <EngineerWorkspaceLayout><EngineerInspectionDetail /></EngineerWorkspaceLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/engineer/projects">
+          <ProtectedRoute domain="engineer">
+            <EngineerWorkspaceLayout><EngineerProjects /></EngineerWorkspaceLayout>
           </ProtectedRoute>
         </Route>
         {/* Epic 5-B — Notification Centre (accessible from all portals, protected) */}

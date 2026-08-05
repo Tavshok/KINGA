@@ -5811,3 +5811,77 @@ export const notificationPreferences = mysqlTable("notification_preferences", {
 
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
 export type InsertNotificationPreference = typeof notificationPreferences.$inferInsert;
+
+// ============================================================================
+// FLEET FUEL RECORDS — M-02: Fuel tracking per vehicle
+// ============================================================================
+export const fuelRecords = mysqlTable("fuel_records", {
+  id:                 int().autoincrement().notNull(),
+  fleetAccountId:     int("fleet_account_id").notNull(),
+  vehicleRegistration: varchar("vehicle_registration", { length: 50 }).notNull(),
+  vehicleMake:        varchar("vehicle_make", { length: 100 }),
+  vehicleModel:       varchar("vehicle_model", { length: 100 }),
+  fuelDate:           timestamp("fuel_date", { mode: 'string' }).notNull(),
+  litres:             decimal("litres", { precision: 8, scale: 2 }).notNull(),
+  costPerLitre:       decimal("cost_per_litre", { precision: 8, scale: 4 }),
+  totalCostCents:     int("total_cost_cents").notNull(),
+  odometer:           int("odometer"),
+  fuelType:           mysqlEnum("fuel_type", ['petrol','diesel','electric','hybrid','lpg']).default('petrol').notNull(),
+  filledBy:           varchar("filled_by", { length: 255 }),
+  stationName:        varchar("station_name", { length: 255 }),
+  notes:              text("notes"),
+  createdBy:          int("created_by").notNull(),
+  createdAt:          timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
+export type FuelRecord = typeof fuelRecords.$inferSelect;
+export type InsertFuelRecord = typeof fuelRecords.$inferInsert;
+
+// ============================================================================
+// FLEET LICENSING RECORDS — M-03: Vehicle licensing and compliance tracking
+// ============================================================================
+export const licensingRecords = mysqlTable("licensing_records", {
+  id:                 int().autoincrement().notNull(),
+  fleetAccountId:     int("fleet_account_id").notNull(),
+  vehicleRegistration: varchar("vehicle_registration", { length: 50 }).notNull(),
+  vehicleMake:        varchar("vehicle_make", { length: 100 }),
+  vehicleModel:       varchar("vehicle_model", { length: 100 }),
+  licenseType:        mysqlEnum("license_type", ['vehicle_license','roadworthy','operator_permit','cross_border','other']).notNull(),
+  licenseNumber:      varchar("license_number", { length: 100 }),
+  issueDate:          timestamp("issue_date", { mode: 'string' }),
+  expiryDate:         timestamp("expiry_date", { mode: 'string' }).notNull(),
+  issuingAuthority:   varchar("issuing_authority", { length: 255 }),
+  costCents:          int("cost_cents"),
+  status:             mysqlEnum("licensing_status", ['active','expired','expiring_soon','pending_renewal']).default('active').notNull(),
+  documentUrl:        varchar("document_url", { length: 1000 }),
+  notes:              text("notes"),
+  createdBy:          int("created_by").notNull(),
+  createdAt:          timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt:          timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+export type LicensingRecord = typeof licensingRecords.$inferSelect;
+export type InsertLicensingRecord = typeof licensingRecords.$inferInsert;
+
+// ============================================================================
+// INSPECTION PROJECTS — M-05: Engineering project management
+// Groups multiple inspections under a named project for engineering companies
+// ============================================================================
+export const inspectionProjects = mysqlTable("inspection_projects", {
+  id:                   int().autoincrement().notNull(),
+  tenantId:             varchar("tenant_id", { length: 255 }),
+  projectRef:           varchar("project_ref", { length: 50 }).notNull(),
+  projectName:          varchar("project_name", { length: 255 }).notNull(),
+  clientName:           varchar("client_name", { length: 255 }),
+  description:          text("description"),
+  status:               mysqlEnum("project_status", ['active','completed','on_hold','cancelled']).default('active').notNull(),
+  startDate:            timestamp("start_date", { mode: 'string' }),
+  targetEndDate:        timestamp("target_end_date", { mode: 'string' }),
+  completedAt:          timestamp("completed_at", { mode: 'string' }),
+  totalInspections:     int("total_inspections").default(0).notNull(),
+  completedInspections: int("completed_inspections").default(0).notNull(),
+  leadEngineerId:       int("lead_engineer_id"),
+  createdBy:            int("created_by").notNull(),
+  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+export type InspectionProject = typeof inspectionProjects.$inferSelect;
+export type InsertInspectionProject = typeof inspectionProjects.$inferInsert;
