@@ -1234,3 +1234,13 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] H-04: Add engineering inspection summary to PortfolioAdministration dashboard (inspections completed, structural risk flags)
 - [x] H-05: Wire engineering inspection completions to portfolio intelligence aggregations
 - [x] H-05: Add engineering risk summary card to PortfolioAdministration page
+
+## Feature Completion Audit — Phase 3 (Commercial Completion)
+
+- [x] H-02: Add commission tracking schema (commissions table with agent, policy, rate, amount, status)
+- [x] H-02: Add getCommissionSummary and listCommissions procedures to agency-broker router
+- [x] H-02: Build CommissionDashboard page for agency brokers showing earned, pending, paid commissions
+- [x] H-02: Register CommissionDashboard route in App.tsx
+- [x] H-06: Add fleet cost analytics procedures (getFleetCostBreakdown, getCostTrends) to fleet router
+- [x] H-06: Build FleetCostAnalyticsTab component for FleetManagerDashboard
+- [x] H-06: Wire FleetCostAnalyticsTab into FleetManagerDashboard tabs

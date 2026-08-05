@@ -23,6 +23,7 @@ import {
   fleetAccounts,
   claims,
   auditTrail,
+  commissionRecords,
 } from "../../drizzle/schema";
 import { randomUUID } from "crypto";
 
@@ -843,4 +844,134 @@ export const agencyBrokerRouter = router({
 
       return { rfqs: rows, total: countRow?.count ?? 0 };
     }),
+
+  // ── Commission Dashboard ───────────────────────────────────────────────────
+
+  /**
+   * H-02: Get commission summary for the agency dashboard.
+   * Aggregates earned, pending, and paid commissions from two sources:
+   *   1. insurerQuoteRequests.commissionEstimate (accepted quotes)
+   *   2. commissionRecords (formal ledger entries)
+   */
+  getCommissionSummary: agencyProcedure
+    .input(z.object({
+      days: z.number().int().min(7).max(365).default(90),
+    }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
+      const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000)
+        .toISOString().slice(0, 19).replace('T', ' ');
+
+      // Source 1: commission estimates from accepted quotes
+      const [quoteCommissions] = await db
+        .select({
+          totalEstimated: sql<number>`COALESCE(SUM(CAST(${insurerQuoteRequests.commissionEstimate} AS DECIMAL(12,2))), 0)`,
+          acceptedCount: sql<number>`COUNT(*)`,
+        })
+        .from(insurerQuoteRequests)
+        .where(and(
+          eq(insurerQuoteRequests.agencyTenantId, tenantId),
+          eq(insurerQuoteRequests.status, 'accepted'),
+          sql`${insurerQuoteRequests.createdAt} >= ${since}`
+        ));
+
+      // Source 2: formal commission records
+      const [formalCommissions] = await db
+        .select({
+          totalPaid: sql<number>`COALESCE(SUM(CASE WHEN ${commissionRecords.paymentStatus} = 'paid' THEN ${commissionRecords.commissionAmount} ELSE 0 END), 0)`,
+          totalPending: sql<number>`COALESCE(SUM(CASE WHEN ${commissionRecords.paymentStatus} = 'pending' THEN ${commissionRecords.commissionAmount} ELSE 0 END), 0)`,
+          totalDisputed: sql<number>`COALESCE(SUM(CASE WHEN ${commissionRecords.paymentStatus} = 'disputed' THEN ${commissionRecords.commissionAmount} ELSE 0 END), 0)`,
+          totalRecords: sql<number>`COUNT(*)`,
+          paidCount: sql<number>`SUM(CASE WHEN ${commissionRecords.paymentStatus} = 'paid' THEN 1 ELSE 0 END)`,
+          pendingCount: sql<number>`SUM(CASE WHEN ${commissionRecords.paymentStatus} = 'pending' THEN 1 ELSE 0 END)`,
+        })
+        .from(commissionRecords)
+        .where(and(
+          eq(commissionRecords.tenantId, tenantId),
+          sql`${commissionRecords.createdAt} >= ${since}`
+        ));
+
+      return {
+        period: { days: input.days, since },
+        quoteCommissions: {
+          totalEstimatedCents: Math.round(Number(quoteCommissions?.totalEstimated ?? 0) * 100),
+          acceptedQuoteCount: Number(quoteCommissions?.acceptedCount ?? 0),
+        },
+        formalCommissions: {
+          totalPaidCents: Number(formalCommissions?.totalPaid ?? 0),
+          totalPendingCents: Number(formalCommissions?.totalPending ?? 0),
+          totalDisputedCents: Number(formalCommissions?.totalDisputed ?? 0),
+          totalRecords: Number(formalCommissions?.totalRecords ?? 0),
+          paidCount: Number(formalCommissions?.paidCount ?? 0),
+          pendingCount: Number(formalCommissions?.pendingCount ?? 0),
+        },
+      };
+    }),
+
+  /**
+   * H-02: List commission records for the agency with pagination.
+   */
+  listCommissions: agencyProcedure
+    .input(z.object({
+      status: z.enum(['pending', 'paid', 'disputed', 'all']).default('all'),
+      limit: z.number().int().min(1).max(100).default(20),
+      offset: z.number().int().min(0).default(0),
+    }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
+
+      const conditions = [eq(commissionRecords.tenantId, tenantId)];
+      if (input.status !== 'all') {
+        conditions.push(eq(commissionRecords.paymentStatus, input.status));
+      }
+
+      const rows = await db
+        .select()
+        .from(commissionRecords)
+        .where(and(...conditions))
+        .orderBy(desc(commissionRecords.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      const [countRow] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(commissionRecords)
+        .where(and(...conditions));
+
+      return { commissions: rows, total: countRow?.count ?? 0 };
+    }),
+
+  /**
+   * H-02: Get monthly commission trend for the last 6 months.
+   */
+  getCommissionTrends: agencyProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+    const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
+
+    // Monthly accepted quote commissions for last 6 months
+    const rows = await db
+      .select({
+        month: sql<string>`DATE_FORMAT(${insurerQuoteRequests.createdAt}, '%Y-%m')`,
+        totalEstimated: sql<number>`COALESCE(SUM(CAST(${insurerQuoteRequests.commissionEstimate} AS DECIMAL(12,2))), 0)`,
+        count: sql<number>`COUNT(*)`,
+      })
+      .from(insurerQuoteRequests)
+      .where(and(
+        eq(insurerQuoteRequests.agencyTenantId, tenantId),
+        eq(insurerQuoteRequests.status, 'accepted'),
+        sql`${insurerQuoteRequests.createdAt} >= DATE_SUB(NOW(), INTERVAL 6 MONTH)`
+      ))
+      .groupBy(sql`DATE_FORMAT(${insurerQuoteRequests.createdAt}, '%Y-%m')`);
+
+    return rows.map(r => ({
+      month: r.month,
+      totalEstimatedCents: Math.round(Number(r.totalEstimated) * 100),
+      count: Number(r.count),
+    }));
+  }),
 });

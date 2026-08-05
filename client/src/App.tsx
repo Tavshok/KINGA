@@ -124,6 +124,7 @@ const IntegrityMetricsDashboard = lazy(() => import("./pages/admin/IntegrityMetr
 const PhysicsAccuracyDashboard = lazy(() => import("./pages/admin/PhysicsAccuracyDashboard"));
 const KingaAgency = lazy(() => import("./pages/KingaAgency"));
 const AgencyFleetQuotes = lazy(() => import("./pages/AgencyFleetQuotes"));
+const CommissionDashboard = lazy(() => import("./pages/CommissionDashboard"));
 // Engineering Workspace pages
 const EngineerDashboard = lazy(() => import("./pages/EngineerDashboard"));
 const EngineerAssignments = lazy(() => import("./pages/EngineerAssignments"));
@@ -581,6 +582,13 @@ function Router() {
         <Route path="/agency">
           <ProtectedRoute domain="agency">
             <KingaAgency />
+          </ProtectedRoute>
+        </Route>
+
+        {/* Agency commission dashboard */}
+        <Route path="/agency/commissions">
+          <ProtectedRoute domain="agency">
+            <CommissionDashboard />
           </ProtectedRoute>
         </Route>
 

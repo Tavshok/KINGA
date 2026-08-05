@@ -32,6 +32,7 @@ export default function KingaAgency() {
     { id: 'documents', label: 'Documents' },
     { id: 'vehicle-valuation', label: '🚗 Vehicle Valuation' },
     { id: 'timeline-intelligence', label: '📅 Timeline Intelligence' },
+    { id: 'commissions', label: '💰 Commissions' },
   ];
 
   return (
@@ -117,6 +118,7 @@ export default function KingaAgency() {
             {activeTab === 'documents' && <DocumentsTab />}
             {activeTab === 'vehicle-valuation' && <VehicleValuationTab />}
             {activeTab === 'timeline-intelligence' && <TimelineIntelligenceTab />}
+            {activeTab === 'commissions' && (() => { setLocation('/agency/commissions'); return null; })()}
           </div>
           {/* ── SIDEBAR ── */}
           <div className="p11-sidebar">

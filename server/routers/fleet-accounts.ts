@@ -915,4 +915,106 @@ export const fleetAccountsRouter = router({
         return [];
       }
     }),
+
+  /**
+   * H-06: Get fleet cost breakdown for the current user's fleet.
+   * Aggregates claim costs by status and vehicle from the claims table.
+   */
+  getFleetCostBreakdown: protectedProcedure
+    .input(z.object({
+      days: z.number().int().min(7).max(730).default(365),
+    }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return null;
+      try {
+        const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000)
+          .toISOString().slice(0, 19).replace('T', ' ');
+        const rows = await db
+          .select({
+            claimId: claims.id,
+            claimNumber: claims.claimNumber,
+            vehicleRegistration: claims.vehicleRegistration,
+            vehicleMake: claims.vehicleMake,
+            vehicleModel: claims.vehicleModel,
+            status: claims.status,
+            finalApprovedAmount: claims.finalApprovedAmount,
+            estimatedRepairCost: claims.estimatedRepairCost,
+            createdAt: claims.createdAt,
+          })
+          .from(claims)
+          .where(and(
+            eq(claims.claimantId, ctx.user.id),
+            sql`${claims.createdAt} >= ${since}`
+          ))
+          .orderBy(desc(claims.createdAt));
+
+        const totalApproved = rows.reduce((s: number, r: any) => s + Number(r.finalApprovedAmount ?? 0), 0);
+        const totalEstimated = rows.reduce((s: number, r: any) => s + Number(r.estimatedRepairCost ?? 0), 0);
+        const completedClaims = rows.filter((r: any) => r.status === 'completed');
+        const openClaims = rows.filter((r: any) => !['completed','rejected','withdrawn','closed'].includes(r.status ?? ''));
+
+        // Top 5 most costly vehicles
+        const vehicleCosts = new Map<string, { reg: string; make: string; model: string; totalCents: number; count: number }>();
+        for (const r of rows) {
+          const key = (r.vehicleRegistration ?? 'Unknown') as string;
+          const existing = vehicleCosts.get(key) ?? { reg: key, make: r.vehicleMake ?? '', model: r.vehicleModel ?? '', totalCents: 0, count: 0 };
+          existing.totalCents += Math.round(Number(r.finalApprovedAmount ?? 0) * 100);
+          existing.count += 1;
+          vehicleCosts.set(key, existing);
+        }
+        const topVehicles = Array.from(vehicleCosts.values())
+          .sort((a, b) => b.totalCents - a.totalCents)
+          .slice(0, 5);
+
+        return {
+          period: { days: input.days, since },
+          summary: {
+            totalApprovedCents: Math.round(totalApproved * 100),
+            totalEstimatedCents: Math.round(totalEstimated * 100),
+            totalClaims: rows.length,
+            completedClaims: completedClaims.length,
+            openClaims: openClaims.length,
+            avgCostPerClaimCents: rows.length > 0 ? Math.round((totalApproved / rows.length) * 100) : 0,
+          },
+          topVehicles,
+        };
+      } catch (err) {
+        console.error('[FleetAccounts] getFleetCostBreakdown error:', err);
+        return null;
+      }
+    }),
+
+  /**
+   * H-06: Get monthly fleet cost trends for the last 12 months.
+   */
+  getFleetCostTrends: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) return [];
+    try {
+      const rows = await db
+        .select({
+          month: sql`DATE_FORMAT(${claims.createdAt}, '%Y-%m')`,
+          totalApproved: sql`COALESCE(SUM(${claims.finalApprovedAmount}), 0)`,
+          totalEstimated: sql`COALESCE(SUM(${claims.estimatedRepairCost}), 0)`,
+          count: sql`COUNT(*)`,
+        })
+        .from(claims)
+        .where(and(
+          eq(claims.claimantId, ctx.user.id),
+          sql`${claims.createdAt} >= DATE_SUB(NOW(), INTERVAL 12 MONTH)`
+        ))
+        .groupBy(sql`DATE_FORMAT(${claims.createdAt}, '%Y-%m')`);
+
+      return rows.map((r: any) => ({
+        month: r.month,
+        approvedCents: Math.round(Number(r.totalApproved) * 100),
+        estimatedCents: Math.round(Number(r.totalEstimated) * 100),
+        count: Number(r.count),
+      }));
+    } catch (err) {
+      console.error('[FleetAccounts] getFleetCostTrends error:', err);
+      return [];
+    }
+  }),
 });

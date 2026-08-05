@@ -56,6 +56,7 @@ import { PortalHeroBand, ProtoAlertBar, ProtoTabBar, ProtoCard, P } from "@/comp
 import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { FleetRiskAnalyticsTab } from "@/components/FleetRiskAnalyticsTab";
 import { FleetIntelligenceTab } from "@/components/FleetIntelligenceTab";
+import { FleetCostAnalyticsTab } from "@/components/FleetCostAnalyticsTab";
 import { PredictiveAnalyticsTab } from "@/components/PredictiveAnalyticsTab";
 import {
   Dialog,
@@ -393,6 +394,7 @@ export default function FleetManagerDashboard() {
           { id: 'claims', label: 'Claims', count: allClaims.length, countClass: '' },
           { id: 'vehicles', label: 'Vehicle Tracking', count: 0, countClass: '' },
           { id: 'risk', label: 'Risk Analytics', count: 0, countClass: '' },
+          { id: 'cost', label: '💰 Cost Analytics', count: 0, countClass: '' },
           { id: 'intelligence', label: '🛡 Fleet Intelligence', count: 0, countClass: '' },
           { id: 'predictive', label: '📈 Predictive Analytics', count: 0, countClass: '' },
         ].map(t => (
@@ -433,6 +435,9 @@ export default function FleetManagerDashboard() {
         )}
         {mainTab === 'risk' && (
           <FleetRiskAnalyticsTab claims={allClaims} accountName={primaryAccount?.accountName ?? ''} />
+        )}
+        {mainTab === 'cost' && (
+          <FleetCostAnalyticsTab />
         )}
         {mainTab === 'intelligence' && (
           <div className="p-6">
