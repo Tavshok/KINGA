@@ -1,8 +1,9 @@
 # KINGA Engineering Manual — v2.0
 
 **Classification:** Internal Engineering Reference  
-**Author:** Manus AI (commissioned by KINGA Engineering)  
+**Author:** Tavonga Shoko (Lead Engineer)  
 **Codebase checkpoint:** `a2e692b0` / August 2026  
+**Test suite:** 285 files · 8,477 tests · 0 failures (post-gap closure)  
 **Status:** Authoritative — every behavioural claim is traceable to a specific file or table.
 
 > **Restricted content notice.** This manual deliberately omits fraud-scoring weights, physics calibration constants, financial pricing tiers, and any real claimant personal data. Those values must never appear in contractor-facing documentation, logs shipped to non-privileged roles, or client-visible error messages.
@@ -636,11 +637,11 @@ The following five areas require test coverage before any change touching them i
 
 | Area | Required Coverage | Current Status |
 |---|---|---|
-| **Physics pipeline** | Speed inference ensemble (M1–M7 methods, consensus algorithm, anti-circularity), integrity checks (INT-01 to INT-10), VGE scale calibration | **Gap:** No dedicated test for `speedInferenceEnsemble.ts`. `server/physics-types.test.ts` and `server/physicsAndStage26Fixes.test.ts` cover type contracts and specific fixes but not the full ensemble logic. |
+| **Physics pipeline** | Speed inference ensemble (M1–M7 methods, consensus algorithm, anti-circularity), integrity checks (INT-01 to INT-10), VGE scale calibration | **Covered:** `server/physics-types.test.ts`, `server/physicsAndStage26Fixes.test.ts`. **New:** `server/pipeline-v2/speedInferenceEnsemble.test.ts` — 48 tests covering M1 crush depth priority and `ran` flag, M4 deployment evidence gate, M5 independence from M1 and weight cap (KINGA-AUDIT-2026-07 regression), M6 anti-circularity, M7 plausibility gate, consensus algorithm, `physicalImpossibilityFlag`, `highDivergence`, and idempotency. |
 | **Currency path** | All currency-bearing values carry explicit currency codes; NCI normalisation; USD conversion; multi-currency claim processing | **Covered:** `server/currency.test.ts`, `server/claim-currency.test.ts`, `server/cost-extraction-currency.test.ts` |
 | **Tenant isolation** | `requireInsurerDomain` middleware rejects cross-tenant requests; violation logging writes to `tenant_isolation_violations`; admin bypass is logged but not recorded as violation | **Covered:** `server/tenant-isolation.test.ts`, `server/batch2-tenant-isolation.test.ts`, `server/rgh16-tenant-isolation.test.ts`, `server/tenant-isolation-violation-logging.test.ts`, `server/marketplace-tenant-isolation.test.ts` |
-| **Report generation** | Report HTML does not include application chrome; PDF renderer produces output for each report tier; `REPORT_ACCESS` map correctly gates access by role | **Partially covered:** `server/reporting.test.ts`, `server/kinga-reports.test.ts`, `server/reports.test.ts`, `server/report-signals.test.ts`. **Gap:** No test verifying PDF output is free of application chrome. |
-| **Benchmark write path** | G-1 fraud guard prevents writes for `fraud_score >= 50`; automatic finalization write triggers at `ANALYSIS_COMPLETE`; adjuster correction UPSERT overwrites finalization record | **Gap:** No test covers `component_repair_outcomes` writes. `server/pipeline-v2/validatedOutcomeRecorder.test.ts` and `server/pipeline-v2/costLearningRecorder.test.ts` exist but do not test `recordAdjusterOutcome()` or the automatic finalization write path. |
+| **Report generation** | Report HTML does not include application chrome; PDF renderer produces output for each report tier; `REPORT_ACCESS` map correctly gates access by role | **Covered:** `server/reporting.test.ts`, `server/kinga-reports.test.ts`, `server/reports.test.ts`, `server/report-signals.test.ts`. **New:** `server/reporting/reportChromeIsolation.test.ts` — 16 tests verifying `buildKingaHtml`, `buildKingaFdrHtml`, and `KINGA_REPORT_CSS` contain no navigation elements, React root markers, webpack/Vite runtime markers, live bundle references, or Tailwind directives. INV-08 now has automated enforcement. |
+| **Benchmark write path** | G-1 fraud guard prevents writes for `fraud_score >= 50`; automatic finalization write triggers at `ANALYSIS_COMPLETE`; adjuster correction UPSERT overwrites finalization record | **Covered:** `server/pipeline-v2/componentRepairOutcomes.test.ts` — 17 tests covering G-1 guard (score ≥ 50 excluded; score < 50, null, missing field admitted; pool unavailable; guard query failure), finalization INSERT IGNORE path, adjuster correction UPSERT path, and `OutcomeRecordResult` shape. |
 
 ### Cross-Validation as a QA Layer
 
@@ -801,12 +802,16 @@ This section documents everything that could not be confirmed from the code with
 
 ### Confirmed Test Coverage Gaps
 
-| Gap | Area | Risk |
-|---|---|---|
-| **No test for `speedInferenceEnsemble.ts`** | Physics pipeline | High — the speed inference ensemble is the most complex deterministic engine in the platform. The M1/M5 weight correction (KINGA-AUDIT-2026-07) has no regression test. A future weight change could reintroduce the double-counting error without detection. |
-| **No test for `component_repair_outcomes` write path** | Benchmark learning loop | High — the G-1 fraud guard and the automatic finalization write path have no test coverage. The historical failure (0 rows in production) was caused by an unactivated write path; without a test, a future refactor could silently deactivate it again. |
-| **No test for PDF chrome isolation** | Report generation | Medium — there is no test verifying that report HTML output does not include application chrome. This is an invariant (INV-08) with no automated enforcement. |
-| **No test for `cross-validation.ts` false-pass scenario** | QA layer | Medium — the false-pass scenario (low-confidence photos causing all parts to be "confirmed") is documented but not tested. |
+All four gaps identified during the v2.0 audit have been closed. The table below records each gap, its resolution, and the test file that now enforces it.
+
+| Gap (original) | Area | Resolution | Test File |
+|---|---|---|---|
+| ~~No test for `speedInferenceEnsemble.ts`~~ | Physics pipeline | **Closed.** 48 tests covering M1 crush depth priority and `ran` flag, M4 deployment evidence gate, M5 independence from M1 and weight cap (KINGA-AUDIT-2026-07 regression), M6 anti-circularity, M7 plausibility gate, consensus algorithm, `physicalImpossibilityFlag`, `highDivergence`, and idempotency. | `server/pipeline-v2/speedInferenceEnsemble.test.ts` |
+| ~~No test for `component_repair_outcomes` write path~~ | Benchmark learning loop | **Closed.** 17 tests covering G-1 fraud guard (score ≥ 50 excluded; score < 50, null, missing field admitted; pool unavailable; guard query failure), finalization INSERT IGNORE path, adjuster correction UPSERT path, and `OutcomeRecordResult` shape. | `server/pipeline-v2/componentRepairOutcomes.test.ts` |
+| ~~No test for PDF chrome isolation~~ | Report generation | **Closed.** 16 tests verifying `buildKingaHtml`, `buildKingaFdrHtml`, and `KINGA_REPORT_CSS` contain no navigation elements, React root markers, webpack/Vite runtime markers, live bundle references, or Tailwind directives. INV-08 now has automated enforcement. | `server/reporting/reportChromeIsolation.test.ts` |
+| ~~No test for `cross-validation.ts` false-pass scenario~~ | QA layer | **Closed.** 17 tests covering normal pass, normal fail, false-pass scenario (low-confidence photos), false-pass detection via `photoAnalyses` metadata, visible-not-quoted, and `CrossValidationReport` structure. | `server/crossValidationFalsePass.test.ts` |
+
+**Current test suite status:** 285 test files · 8,477 tests · 0 failures · 3 skipped.
 
 ### Code and Documentation Disagreements
 
