@@ -43,13 +43,13 @@ const sections: Array<{
   {
     title: "Documents",
     items: [
-      { label: "My Documents", href: "/claimant/dashboard", icon: FileText, description: "Uploaded files & photos" },
+      { label: "My Documents", href: "/claimant/documents", icon: FileText, description: "Uploaded files & photos" },
     ],
   },
   {
     title: "Support",
     items: [
-      { label: "Help & FAQ", href: "/claimant/dashboard", icon: HelpCircle, description: "How claims work" },
+      { label: "Notifications", href: "/notifications", icon: HelpCircle, description: "Alerts & updates" },
     ],
   },
 ];
