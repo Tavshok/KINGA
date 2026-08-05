@@ -78,6 +78,7 @@ import type {
   InputRecoveryOutput,
 } from "./types";
 import { scoreToFraudLevel, type FraudRiskLevel } from "../../shared/fraudScoring";
+import { runContactPatchRatioCheck } from "./contactPatchRatioEngine";
 
 /**
  * R-D-05: Codes for signals that are PHYSICS FINDINGS, not fraud signals.
@@ -1135,6 +1136,25 @@ export async function runFraudAnalysisStage(
       ctx.log('Stage 8 (entity)', `Cross-entity checks skipped (non-fatal): ${String(entityErr).substring(0, 80)}`);
     }
 
+    // ── CGI Phase 1: Contact Patch Ratio (CPR) indicator ─────────────────────
+    // Pure arithmetic — no LLM calls, no DB queries. < 2 ms.
+    // See: docs/TDR-001-M3-Retirement-and-CGI-Architecture.md
+    try {
+      const cprIndicator = runContactPatchRatioCheck(
+        claimRecord.accidentDetails.collisionDirection,
+        claimRecord.vehicle.bodyType,
+        damageAnalysis.damagedParts,
+      );
+      if (cprIndicator) {
+        const alreadyPresent = allIndicators.some(i => i.indicator === cprIndicator.indicator);
+        if (!alreadyPresent) {
+          allIndicators.push(cprIndicator);
+          ctx.log('Stage 8 (CGI)', `CPR anomaly detected: ${cprIndicator.description.substring(0, 80)} (+${cprIndicator.score}pts)`);
+        }
+      }
+    } catch (cprErr) {
+      ctx.log('Stage 8 (CGI)', `CPR check skipped (non-fatal): ${String(cprErr).substring(0, 80)}`);
+    }
     // ── Weighted composite fraud scoring ───────────────────────────────────────
     // Use the 6-category weighted framework instead of the naive raw sum.
     // The scenario engine's fraud_score is passed as a floor for the scenario_intelligence

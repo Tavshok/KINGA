@@ -224,22 +224,100 @@ writing a repair outcome record to the benchmark dataset upon receipt of a verif
 
 ---
 
+## Invention 5: Contact Geometry Intelligence — Contact Patch Ratio Indicator for Motor Claims Fraud Detection
+
+### Abstract
+
+A computer-implemented system and method for detecting geometric incoherence between a stated motor vehicle collision scenario and the observed pattern of vehicle damage, by computing a Contact Patch Ratio (CPR) from the fraction of the primary impact panel's surface area that exhibits visible damage, comparing that ratio against a minimum threshold derived from published collision test protocols for the stated impact type, and generating a fraud indicator when the observed contact patch is geometrically inconsistent with the stated collision scenario. The system uses a calibrated vehicle geometry database and per-component damage fraction estimates produced by a vision analysis engine to derive the contact patch area without requiring physical measurement or additional data sources.
+
+### Field of the Invention
+
+The invention relates to computer-implemented fraud detection systems for motor vehicle insurance claims, and more particularly to systems that detect geometric incoherence between a stated collision scenario and observed damage patterns using vehicle geometry data and vision-derived damage fraction estimates.
+
+### Background
+
+Existing motor vehicle claims fraud detection systems rely primarily on statistical pattern matching, document cross-checking, and financial anomaly detection. No prior system known to the applicant uses the geometric relationship between the observed contact patch area on the primary impact panel and the minimum contact patch area expected for the stated collision type — as defined by published collision test protocols — as a fraud detection signal. This geometric approach produces a forensically defensible, falsifiable physical statement about the consistency of the claim, which is qualitatively different from statistical pattern-matching signals.
+
+### Brief Description of the System
+
+The system operates as follows:
+
+1. **Vehicle geometry lookup.** The system queries a calibrated vehicle geometry database to obtain the total surface area of the primary impact panel for the stated vehicle body type (e.g., front bumper area for a frontal impact, rear bumper area for a rear impact).
+
+2. **Damage fraction extraction.** The system reads the per-component damage fraction estimate produced by a vision analysis engine for the primary impact panel. This estimate represents the fraction of the panel’s total surface area that exhibits visible damage, as assessed from photographic evidence.
+
+3. **CPR computation.** The Contact Patch Ratio is computed as: `CPR = (panel area × damage fraction) / panel area = damage fraction`. The observed damaged area in square metres is `panel area × damage fraction`.
+
+4. **Threshold comparison.** The system applies a minimum CPR threshold for the stated collision direction, derived from published IIHS and Euro NCAP collision test protocols. A conservative margin is subtracted from the threshold before comparison to reduce false positives arising from partial photo coverage and angle-limited visibility.
+
+5. **Indicator generation.** When the observed CPR falls below the effective threshold, the system generates a structured fraud indicator with a score, severity level, and a human-readable description citing the specific CPR values, the expected minimum, the panel area, and the source protocol.
+
+6. **Anti-circularity.** The CPR computation uses only the vehicle geometry database and the vision-derived damage fraction. It does not use any speed estimate or physics output, ensuring it cannot be circular with the speed inference ensemble.
+
+7. **Fail-closed design.** The system returns a null indicator (no fraud signal) rather than throwing an exception when required data is unavailable, ensuring it cannot halt the downstream fraud scoring pipeline.
+
+### Claims
+
+**Claim 24 (Independent — System).** A computer-implemented system for detecting geometric incoherence in a motor vehicle insurance claim, comprising:
+
+a vehicle geometry database storing the surface area of primary impact panels for a plurality of vehicle body types;
+
+a damage fraction input module configured to receive, for each damaged vehicle component, a damage fraction value representing the fraction of that component’s surface area exhibiting visible damage, as produced by a vision analysis engine operating on photographic evidence of the claimed damage;
+
+a contact patch ratio computation module configured to compute, for the primary impact panel associated with the stated collision direction, a Contact Patch Ratio as the product of the panel’s total surface area and the damage fraction value for that panel, divided by the panel’s total surface area;
+
+a threshold comparison module configured to compare the computed Contact Patch Ratio against a minimum threshold derived from published collision test protocols for the stated collision direction, applying a conservative margin to the threshold to reduce false positives from partial photographic coverage;
+
+an indicator generation module configured to generate a structured fraud indicator when the Contact Patch Ratio falls below the effective threshold, the indicator comprising the observed ratio, the expected minimum ratio, the observed damaged area in square metres, the total panel area, and the collision direction; and
+
+a fail-safe module configured to return a null indicator rather than raising an exception when required data is unavailable, ensuring the system cannot halt downstream fraud scoring processes.
+
+**Claim 25 (Dependent on Claim 24).** The system of Claim 24, wherein the minimum threshold for each collision direction is derived from the minimum contact patch ratio observed in published IIHS full-width rigid barrier, IIHS moderate overlap, IIHS small overlap, and Euro NCAP offset deformable barrier collision test protocols.
+
+**Claim 26 (Dependent on Claim 24).** The system of Claim 24, wherein the primary impact panel for a frontal collision direction is the front bumper, the primary impact panel for a rear collision direction is the rear bumper, and the primary impact panel for a side collision direction is the front door of the impacted side.
+
+**Claim 27 (Dependent on Claim 24).** The system of Claim 24, wherein the indicator generation module assigns a severity level to the generated indicator based on the magnitude of the gap between the effective threshold and the observed Contact Patch Ratio, assigning a high severity level when the gap exceeds a first threshold, a medium severity level when the gap exceeds a second lower threshold, and an advisory severity level otherwise.
+
+**Claim 28 (Dependent on Claim 24).** The system of Claim 24, wherein the contact patch ratio computation module is configured to return a non-computable result rather than a fraud indicator when no damage fraction value is available for the primary impact panel, and the fail-safe module is configured to return a null indicator in response to a non-computable result.
+
+**Claim 29 (Independent — Method).** A computer-implemented method for detecting geometric incoherence in a motor vehicle insurance claim, comprising:
+
+receiving a stated collision direction and a vehicle body type for the claimed vehicle;
+
+querying a vehicle geometry database to obtain the surface area of the primary impact panel associated with the stated collision direction and vehicle body type;
+
+receiving a damage fraction value for the primary impact panel from a vision analysis engine that has processed photographic evidence of the claimed damage;
+
+computing a Contact Patch Ratio as the product of the panel surface area and the damage fraction value, divided by the panel surface area;
+
+comparing the Contact Patch Ratio against a minimum threshold derived from published collision test protocols for the stated collision direction, reduced by a conservative margin;
+
+generating a structured fraud indicator when the Contact Patch Ratio falls below the effective threshold, the indicator comprising the observed ratio, the expected minimum ratio, and the collision direction; and
+
+returning a null result rather than raising an exception when required data is unavailable.
+
+**Claim 30 (Dependent on Claim 29).** The method of Claim 29, further comprising injecting the generated fraud indicator into a weighted composite fraud scoring pipeline as a physical consistency signal, wherein the indicator contributes to a physical consistency category score that is normalised against a calibrated maximum and scaled to a fixed budget within the composite score, such that the contact geometry signal cannot dominate the final fraud score independently of signals from other fraud detection categories.
+
+---
+
 ## Filing Guidance for Patent Attorney
 
 ### Priority and Filing Strategy
 
 | Action | Jurisdiction | Body | Recommended Timing |
 |---|---|---|---|
-| File provisional applications for all four inventions | Zimbabwe | Zimbabwe Intellectual Property Office (ZIPO) | Immediately — establishes priority date |
-| File provisional applications for all four inventions | South Africa | Companies and Intellectual Property Commission (CIPC) | Immediately — South Africa does not substantively examine, easier to obtain |
+| File provisional applications for all five inventions | Zimbabwe | Zimbabwe Intellectual Property Office (ZIPO) | Immediately — establishes priority date |
+| File provisional applications for all five inventions | South Africa | Companies and Intellectual Property Commission (CIPC) | Immediately — South Africa does not substantively examine, easier to obtain |
 | File PCT international application | International | WIPO | Within 12 months of provisional filing — covers UK, EU, US, East Africa in a single filing |
 | File complete applications | Zimbabwe, South Africa | ZIPO, CIPC | Within 12 months of provisional filing |
 
 ### Claim Drafting Notes
 
-The independent claims (Claims 1, 7, 8, 12, 13, 17, 18, 23) are drafted as system and method claims in parallel, which is standard practice to maximise coverage. The dependent claims add specific technical features that narrow the claim but provide fallback positions if the independent claim is challenged on novelty or inventive step grounds.
+The independent claims (Claims 1, 7, 8, 12, 13, 17, 18, 23, 24, 29) are drafted as system and method claims in parallel, which is standard practice to maximise coverage. The dependent claims add specific technical features that narrow the claim but provide fallback positions if the independent claim is challenged on novelty or inventive step grounds.
 
-The claims are drafted to cover the technical implementation and the technical effect (improved accuracy of speed inference, detection of speed-damage inconsistencies, prevention of fraudulent claim payouts, prevention of benchmark dataset contamination) rather than the underlying mathematical methods in the abstract. This framing is important for patentability in Zimbabwe and South Africa, where abstract mathematical methods are not patentable but technical processes producing technical results are.
+The claims are drafted to cover the technical implementation and the technical effect (improved accuracy of speed inference, detection of speed-damage inconsistencies, prevention of fraudulent claim payouts, prevention of benchmark dataset contamination, detection of geometric incoherence) rather than the underlying mathematical methods in the abstract. This framing is important for patentability in Zimbabwe and South Africa, where abstract mathematical methods are not patentable but technical processes producing technical results are.
+
+**Note on Invention 5 (CGI — CPR).** The Contact Patch Ratio indicator is implemented in Phase 1 with conservative thresholds calibrated from published test protocols. The full Contact Geometry Intelligence engine (Phase 2, v1.1) will add nine additional indicators (structural zone compliance, vehicle compatibility score, underride/override detection, etc.) and will be added to these claims at the complete application stage. The provisional filing covers the full CGI architecture as described in the Brief Description of the System above.
 
 ### What Is Not Claimed Here
 
@@ -248,6 +326,7 @@ The following are protected as trade secrets via the KINGA Confidentiality Agree
 - The specific numerical values of fraud-scoring weights, band thresholds, and scoring parameters.
 - The specific numerical values of physics calibration constants, stiffness coefficients, and method weights.
 - The specific financial configuration values used in the cost optimisation engine.
+- The specific CPR threshold values and conservative margin values used in the Contact Geometry Intelligence engine.
 
 Trade secret protection is indefinite and does not require public disclosure. Patent protection requires disclosure and expires after 20 years. The strategy is to patent the architecture and the method, while protecting the specific parameter values as trade secrets.
 
