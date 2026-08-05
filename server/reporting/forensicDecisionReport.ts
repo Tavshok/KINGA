@@ -39,7 +39,7 @@ export async function generateForensicDecisionReport(
               a.forensic_audit_validation_json, a.claim_quality_json,
               a.created_at AS assessment_date, a.model_version,
               a.enriched_photos_json, a.cross_validation_json,
-              a.claim_truth_json, a.cgi_result_json
+              a.claim_truth_json, a.cgi_result_json, a.interpretation_result_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
        WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""}
@@ -134,6 +134,7 @@ export async function generateForensicDecisionReport(
     // Cross-validation JSON — three-way speed comparison, XV risk, impact direction
     const xv = safeJson(c.cross_validation_json) as any;
     const cgiData     = safeJson(c.cgi_result_json) as any;
+    const interpData  = safeJson(c.interpretation_result_json) as any;
     const xvThreeWay     = xv?.threeWaySpeedComparison ?? null;
     const xvClaimedSpeed: number | null  = xvThreeWay?.claimedSpeedKmh ?? null;
     const xvConsensusSpeed: number | null = xvThreeWay?.consensusSpeedKmh ?? null;
@@ -1580,6 +1581,34 @@ export async function generateForensicDecisionReport(
     ${cgiData.conclusion?.narrative ? `<div class="box" style="margin-top:12px;"><h4>CGI Narrative</h4><pre style="white-space:pre-wrap;font-size:12px;">${esc(cgiData.conclusion.narrative)}</pre></div>` : ''}
   </div>`;
   })() : ''}
+  <!-- §09c INTERPRETATION ENGINE -->
+  ${interpData?.sections?.length ? (() => {
+    const overallClass: string = interpData.overallClassification ?? 'UNKNOWN';
+    const classColor = overallClass === 'CRITICAL' ? '#c0392b' : overallClass === 'CONCERN' ? '#e67e22' : overallClass === 'ATTENTION' ? '#f39c12' : '#27ae60';
+    const topActions: string[] = interpData.topThreeActions ?? [];
+    const sections: any[] = interpData.sections ?? [];
+    return `
+  <div class="section">
+    ${sectionTab('09c', 'Claim Interpretation', overallClass, overallClass === 'NORMAL' ? 'green' : overallClass === 'CRITICAL' ? 'red' : 'amber')}
+    <div class="box" style="border-left:4px solid ${classColor};margin-bottom:16px;">
+      <h4 style="color:${classColor};">Overall Classification: ${esc(overallClass)}</h4>
+      ${interpData.overallNarrative ? `<p style="font-size:13px;line-height:1.6;">${esc(interpData.overallNarrative)}</p>` : ''}
+    </div>
+    ${topActions.length ? `<div class="box" style="margin-bottom:16px;"><h4>Recommended Actions</h4><ol style="margin:0;padding-left:20px;">${topActions.map((a: string) => `<li style="margin-bottom:6px;font-size:13px;">${esc(a)}</li>`).join('')}</ol></div>` : ''}
+    ${sections.map((sec: any) => {
+      const findings: any[] = sec.findings ?? [];
+      if (!findings.length) return '';
+      return `<div class="box" style="margin-bottom:12px;"><h4>${esc(sec.engineLabel ?? sec.engine)}</h4><table class="data-table" style="width:100%;font-size:12px;"><thead><tr><th>Finding</th><th>Value</th><th>Status</th><th>Interpretation</th></tr></thead><tbody>${findings.map((f: any) => {
+        const cls = f.classification ?? 'NORMAL';
+        const rowBg = cls === 'CRITICAL' ? '#fdf0ef' : cls === 'CONCERN' ? '#fef9ec' : cls === 'ATTENTION' ? '#fffbf0' : '';
+        const badgeColor = cls === 'CRITICAL' ? '#c0392b' : cls === 'CONCERN' ? '#e67e22' : cls === 'ATTENTION' ? '#f39c12' : cls === 'UNAVAILABLE' ? '#95a5a6' : '#27ae60';
+        return `<tr style="background:${rowBg}"><td style="font-weight:500;">${esc(f.label)}</td><td>${esc(String(f.value ?? ''))}</td><td><span style="background:${badgeColor};color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">${esc(cls)}</span></td><td style="font-size:11px;color:#555;">${esc(f.interpretation ?? '')}${f.recommendedAction ? `<br><strong>Action:</strong> ${esc(f.recommendedAction)}` : ''}</td></tr>`;
+      }).join('')}</tbody></table></div>`;
+    }).join('')}
+    <p style="font-size:11px;color:#999;margin-top:8px;">Interpretation Engine v${esc(interpData.engineVersion ?? '1.0.0')} &middot; LLM-enriched: ${interpData.llmEnriched ? 'Yes' : 'No'} &middot; Generated: ${esc(interpData.generatedAt ?? '')}</p>
+  </div>`;
+  })() : ''}
+
   <!-- §10 VALIDATION, DECISION & NEXT STEPS -->
   <div class="section">
     ${sectionTab("10", "Validation, Decision & Next Steps")}

@@ -253,6 +253,11 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // hiddenDamageProbabilityOverride, injectFraudIndicator), allIndicators, engineVersion, runtimeMs.
   // Null when Stage 9.5 did not run (insufficient geometry data or pipeline aborted before S9.5).
   cgiResultJson: longtext("cgi_result_json"),
+  // Stage 10-I: Interpretation Engine result
+  // Full InterpretedClaim JSON: sections (one per engine), overallNarrative, topThreeActions,
+  // overallClassification, generatedAt, engineVersion, llmEnriched.
+  // Null when Stage 10-I did not run.
+  interpretationResultJson: longtext("interpretation_result_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

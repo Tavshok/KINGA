@@ -42,6 +42,7 @@ import { runFraudAnalysisStage, recomputeFraudScore } from "./stage-8-fraud";
 import { aggregateConfidence, buildConfidenceAggregationInput } from "./confidenceAggregationEngine";
 import { runCostOptimisationStage } from "./stage-9-cost";
 import { runContactGeometryIntelligence, type Stage9_5Output } from "./stage-9-5-cgi";
+import { runInterpretationEngine, type InterpretedClaim } from "./stage-10i-interpretation";
 import { runTurnaroundTimeStage } from "./stage-9b-turnaround";
 import { runReportGenerationStage } from "./stage-10-report";
 import { runReconciliationPass, type ReconciliationLog } from "./reconciliation-engine";
@@ -470,6 +471,7 @@ export async function runPipelineV2(
   let contradictionGateResult: import('./contradictionDetectionEngine').ContradictionResult | null = null;
   let physicsDeviationScoreValue: number | null = null;
   let stage10Data: Stage10Output | null = null;
+  let stage10iData: InterpretedClaim | null = null;
   let claimRecord: ClaimRecord | null = null;
   let evidenceRegistryData: EvidenceRegistry | null = null;
   let validatedOutcomeResult: ValidatedOutcomeResult | null = null;
@@ -2506,6 +2508,25 @@ export async function runPipelineV2(
     ),
   } : null;
 
+  // ── Stage 10-I: Interpretation Engine ─────────────────────────────────────
+  // Runs AFTER all analysis stages and BEFORE the report generator.
+  // Transforms raw engineering outputs into structured plain-English findings.
+  ctx.onStageStart?.("Stage 10-I — Interpretation Engine");
+  try {
+    stage10iData = await runInterpretationEngine({
+      claimRecord: claimRecord!,
+      stage6Data,
+      stage7Data,
+      stage8Data,
+      stage9Data,
+      stage9_5Data,
+    });
+    saveStageResult(ctx.runId, "10i_interpretation", stage10iData).catch(() => {});
+    ctx.log("Pipeline", `S10-I Interpretation: classification=${stage10iData.overallClassification}, llmEnriched=${stage10iData.llmEnriched}, sections=${stage10iData.sections.length}`);
+  } catch (interpErr) {
+    ctx.log("Pipeline", `S10-I Interpretation error (non-fatal): ${String(interpErr)}`);
+  }
+
   ctx.onStageStart?.("Stage 10 — Report Generation");
   const s10 = await runWithTimeout("10_report", () => runReportGenerationStage(
     ctx, claimRecord,
@@ -3101,7 +3122,8 @@ export async function runPipelineV2(
     claimTruthObject,
     physicsTruth,
         directionContradictionFlag,
-    crossValidationResult
+    crossValidationResult,
+    stage10iData
   );
 }
 function buildResult(
@@ -3146,7 +3168,8 @@ function buildResult(
     contradicts: boolean;
     explanation: string;
   } | null = null,
-  crossValidationResult: import('./multiSignalCrossValidation').MultiSignalCrossValidationResult | null = null
+  crossValidationResult: import('./multiSignalCrossValidation').MultiSignalCrossValidationResult | null = null,
+  interpretedClaim: InterpretedClaim | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
 
@@ -3252,6 +3275,7 @@ function buildResult(
     physicsTruth,
         directionContradictionFlag,
     crossValidationResult,
+    interpretedClaim,
   };
 }
 /**
