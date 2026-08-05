@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import {
   Loader2, Plus, FileText, Shield, Clock, CheckCircle, XCircle,
   Upload, Car, DollarSign, RefreshCw, ArrowLeft, Search, Eye,
-  Trash2, Download, Calendar, Phone, Mail, User, Building2
+  Trash2, Download, Calendar, Phone, Mail, User, Building2,
+  AlertTriangle, ShieldCheck, ScanLine
 } from "lucide-react";
 import { TimelineIntelligenceTab } from "@/components/TimelineIntelligenceTab";
 
@@ -267,9 +268,86 @@ function QuotationsTab() {
                 <p className="text-sm text-secondary">{q.quoteNotes}</p>
               </div>
             )}
+            {/* C-02: Show vehicle forensics analysis if vehicle photos were uploaded */}
+            <VehicleForensicsPanel quotationRequestId={q.id} />
           </CardContent>
         </Card>
       ))}
+    </div>
+  );
+}
+
+// ========== VEHICLE FORENSICS PANEL (C-02) ==========
+function VehicleForensicsPanel({ quotationRequestId }: { quotationRequestId: number }) {
+  const { data, isLoading } = trpc.agency.getVehicleForensics.useQuery(
+    { quotationRequestId },
+    { refetchInterval: (query) => (query.state.data?.status === 'processing' ? 3000 : false) }
+  );
+
+  if (isLoading) return null;
+  if (!data || data.status === 'not_started') return null;
+
+  if (data.status === 'processing') {
+    return (
+      <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-3">
+        <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
+        <p className="text-sm text-amber-800 dark:text-amber-200">KINGA is analysing your vehicle photos...</p>
+      </div>
+    );
+  }
+
+  if (data.status === 'failed') {
+    return (
+      <div className="mt-3 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
+        <AlertTriangle className="h-4 w-4 text-red-600" />
+        <p className="text-sm text-red-800 dark:text-red-200">Photo analysis failed. Please re-upload your vehicle photos.</p>
+      </div>
+    );
+  }
+
+  if (data.status !== 'complete' || !data.result) return null;
+
+  const result = data.result as any;
+  const riskScore = data.riskScore ?? 50;
+  const riskColor = riskScore >= 70 ? 'text-red-600' : riskScore >= 40 ? 'text-amber-600' : 'text-emerald-600';
+  const riskBg = riskScore >= 70 ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800' : riskScore >= 40 ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800' : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800';
+  const riskLabel = riskScore >= 70 ? 'High Risk' : riskScore >= 40 ? 'Moderate Risk' : 'Low Risk';
+
+  return (
+    <div className={`mt-3 p-3 border rounded-lg ${riskBg}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <ScanLine className={`h-4 w-4 ${riskColor}`} />
+        <span className="text-sm font-semibold">KINGA Vehicle Photo Analysis</span>
+        <Badge variant="outline" className={`ml-auto text-xs ${riskColor}`}>{riskLabel} ({riskScore}/100)</Badge>
+      </div>
+      <div className="grid grid-cols-3 gap-3 text-xs">
+        <div className="text-center">
+          <p className="text-muted-foreground">Photos Analysed</p>
+          <p className="font-semibold">{result.analysedCount ?? 0}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-muted-foreground">Suspicious Flags</p>
+          <p className={`font-semibold ${result.anySuspicious ? 'text-red-600' : 'text-emerald-600'}`}>
+            {result.anySuspicious ? 'Detected' : 'None'}
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-muted-foreground">AI Generation</p>
+          <p className={`font-semibold ${result.aiGenerationFlag ? 'text-red-600' : 'text-emerald-600'}`}>
+            {result.aiGenerationFlag ? 'Suspected' : 'Not Detected'}
+          </p>
+        </div>
+      </div>
+      {result.indicators?.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-current/10">
+          <p className="text-xs text-muted-foreground mb-1">Forensic Indicators:</p>
+          <div className="flex flex-wrap gap-1">
+            {result.indicators.slice(0, 3).map((ind: any, i: number) => (
+              <Badge key={i} variant="outline" className="text-xs">{ind.type?.replace(/_/g, ' ')}</Badge>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

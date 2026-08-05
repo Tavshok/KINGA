@@ -281,6 +281,49 @@ export const agencyRouter = router({
         uploadedBy: ctx.user!.id,
       }).$returningId();
 
+      // C-02: If this is a vehicle photo, trigger Photo Forensics Engine + Damage Detection AI
+      // This runs fire-and-forget so the upload response is immediate.
+      // Results are stored against the quotation request for the Agency dashboard to display.
+      if (input.documentType === 'vehicle_photos' && input.quotationRequestId) {
+        const quotationId = input.quotationRequestId;
+        // Mark as processing immediately so the UI can show a spinner
+        await db.update(quotationRequests)
+          .set({ vehicleForensicsStatus: 'processing' })
+          .where(eq(quotationRequests.id, quotationId));
+        // Fire-and-forget: run forensics in background
+        (async () => {
+          try {
+            const { runPhotoForensics } = await import('../pipeline-v2/photoForensicsEngine');
+            const forensicsResult = await runPhotoForensics([fileUrl], true);
+            // Compute a risk score 0-100:
+            // Base 50, +20 if any suspicious photo, +15 if AI generation detected,
+            // +10 if any manipulation, -10 if no flags at all
+            let riskScore = 50;
+            if (forensicsResult.anySuspicious) riskScore += 20;
+            if (forensicsResult.aiGenerationFlag) riskScore += 15;
+            const hasManipulation = forensicsResult.photos.some(
+              p => p.analysisResult?.manipulation_indicators?.manipulation_score &&
+                   p.analysisResult.manipulation_indicators.manipulation_score > 0.3
+            );
+            if (hasManipulation) riskScore += 10;
+            if (!forensicsResult.anySuspicious && !forensicsResult.aiGenerationFlag) riskScore -= 10;
+            riskScore = Math.max(0, Math.min(100, riskScore));
+            await db.update(quotationRequests)
+              .set({
+                vehicleForensicsJson: JSON.stringify(forensicsResult),
+                vehicleRiskScore: riskScore,
+                vehicleForensicsStatus: 'complete',
+              })
+              .where(eq(quotationRequests.id, quotationId));
+          } catch (err) {
+            console.error('[Agency C-02] Photo forensics failed for quotation', quotationId, err);
+            await db.update(quotationRequests)
+              .set({ vehicleForensicsStatus: 'failed' })
+              .where(eq(quotationRequests.id, quotationId));
+          }
+        })();
+      }
+
       return { success: true, documentId: (result as Array<{id: number}>)[0]?.id, fileUrl };
     }),
 
@@ -337,6 +380,37 @@ export const agencyRouter = router({
         .delete(agencyDocuments)
         .where(eq(agencyDocuments.id, input.documentId));
       return { success: true };
+    }),
+
+  /**
+   * C-02: Get vehicle photo forensics result for a quotation request.
+   * Returns the forensics status and results so the UI can poll and display.
+   */
+  getVehicleForensics: protectedProcedure
+    .input(z.object({
+      quotationRequestId: z.number(),
+    }))
+    .query(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error('Database not available');
+      const [row] = await db
+        .select({
+          id: quotationRequests.id,
+          vehicleForensicsStatus: quotationRequests.vehicleForensicsStatus,
+          vehicleRiskScore: quotationRequests.vehicleRiskScore,
+          vehicleForensicsJson: quotationRequests.vehicleForensicsJson,
+        })
+        .from(quotationRequests)
+        .where(and(
+          eq(quotationRequests.id, input.quotationRequestId),
+          eq(quotationRequests.userId, ctx.user!.id)
+        ));
+      if (!row) return null;
+      return {
+        status: row.vehicleForensicsStatus ?? 'not_started',
+        riskScore: row.vehicleRiskScore ?? null,
+        result: row.vehicleForensicsJson ? JSON.parse(row.vehicleForensicsJson) : null,
+      };
     }),
 
   /**

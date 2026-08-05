@@ -100,6 +100,94 @@ export const claimCompletionRouter = router({
       
       console.log(`[Completion] Claim ${claim.claimNumber} completed and closed by user ${ctx.user.id}`);
 
+      // C-03: Update vehicle damage history and fleet risk profile
+      // Non-blocking fire-and-forget: errors won't fail claim completion
+      ;(async () => {
+        try {
+          const { insertDamageHistory } = await import('../vehicle-damage-history');
+          const { vehicleRegistry, fleetRiskScores } = await import('../../drizzle/schema');
+          const { eq: eqDrizzle, sql: sqlDrizzle } = await import('drizzle-orm');
+          // Get the AI assessment for this claim to extract damage data
+          const [assessment] = await db
+            .select()
+            .from((await import('../../drizzle/schema')).aiAssessments)
+            .where(eqDrizzle((await import('../../drizzle/schema')).aiAssessments.claimId, input.claimId))
+            .orderBy((await import('drizzle-orm')).desc((await import('../../drizzle/schema')).aiAssessments.createdAt))
+            .limit(1);
+          // Look up vehicle in registry by registration number
+          let vehicleId: number | null = null;
+          if (claim.vehicleRegistration) {
+            const reg = claim.vehicleRegistration.toUpperCase().replace(/\s/g, '');
+            const [regRow] = await db
+              .select({ id: vehicleRegistry.id })
+              .from(vehicleRegistry)
+              .where(eqDrizzle(vehicleRegistry.registrationNumber, reg))
+              .limit(1);
+            vehicleId = regRow?.id ?? null;
+          }
+          if (vehicleId && assessment) {
+            // Parse damaged components from assessment
+            let damagedComponents: Array<{ name: string; severity?: string | null; zone?: string | null; estimatedCost?: number | null }> = [];
+            try {
+              const parsed = assessment.damagedComponentsJson ? JSON.parse(assessment.damagedComponentsJson) : [];
+              damagedComponents = Array.isArray(parsed) ? parsed : [];
+            } catch {}
+            // Parse physics data
+            let estimatedSpeedKmh: number | null = null;
+            let impactForceKn: number | null = null;
+            try {
+              const physics = assessment.physicsAnalysis ? JSON.parse(assessment.physicsAnalysis) : null;
+              estimatedSpeedKmh = physics?.estimatedSpeedKmh ?? null;
+              impactForceKn = physics?.impactForceKn ?? null;
+            } catch {}
+            await insertDamageHistory({
+              vehicleId,
+              claimId: input.claimId,
+              damagedComponents,
+              impactDirection: null, // collision direction not on claims table; sourced from physics analysis if available
+              estimatedSpeedKmh,
+              impactForceKn,
+              structuralDamageSeverity: assessment.structuralDamageSeverity ?? null,
+              hasStructuralDamage: (assessment.structuralDamageSeverity ?? 'none') !== 'none',
+              repairCostEstimateCents: assessment.estimatedCost ?? 0,
+              fraudRiskScore: assessment.fraudScore ?? 0,
+              tenantId: claim.tenantId ?? null,
+            });
+            console.log(`[C-03] Vehicle damage history inserted for claim ${claim.claimNumber} vehicle ${vehicleId}`);
+            // Update vehicleRegistry aggregate counters
+            await db.update(vehicleRegistry)
+              .set({
+                totalClaimsCount: sqlDrizzle`total_claims_count + 1`,
+                totalRepairCostCents: sqlDrizzle`total_repair_cost_cents + ${assessment.estimatedCost ?? 0}`,
+                lastClaimDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                lastSeenAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+              })
+              .where(eqDrizzle(vehicleRegistry.id, vehicleId));
+          }
+          // Update fleet risk score if vehicle belongs to a fleet
+          if (vehicleId) {
+            const { fleetVehicles } = await import('../../drizzle/schema');
+            const [fleetVehicle] = await db
+              .select({ fleetId: fleetVehicles.fleetId })
+              .from(fleetVehicles)
+              .where(eqDrizzle(fleetVehicles.id, vehicleId))
+              .limit(1);
+            if (fleetVehicle?.fleetId) {
+              // Bump fleet risk score by fraud score delta (capped at 100)
+              const fraudDelta = Math.min(assessment?.fraudScore ?? 0, 20);
+              await db.update(fleetRiskScores)
+                .set({
+                  overallRiskScore: sqlDrizzle`LEAST(100, overall_risk_score + ${fraudDelta})`,
+                })
+                .where(eqDrizzle(fleetRiskScores.fleetId, fleetVehicle.fleetId));
+              console.log(`[C-03] Fleet risk score updated for fleet ${fleetVehicle.fleetId}`);
+            }
+          }
+        } catch (err) {
+          console.error(`[C-03] Vehicle damage history update failed for claim ${input.claimId}:`, err);
+        }
+      })();
+
       // Capture claim intelligence dataset for continuous learning
       // Non-blocking: errors won't fail claim completion
       try {

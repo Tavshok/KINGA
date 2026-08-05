@@ -1208,3 +1208,18 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ### Priority 3
 - [ ] D-1: Add fleet-approvals to TABS array in ClaimsManagerDashboard.tsx
 - [ ] D-5: Wrap InsurerAdminDashboard in InsurerPortalLayout in App.tsx
+
+## Feature Completion Audit — Phase 1 (Production Readiness Fixes)
+
+- [x] C-01: Add `engineer` role to users table enum in schema.ts
+- [x] C-01: Run DB migration to add engineer role
+- [x] C-01: Update roleAssignmentAudit enum in schema.ts
+- [x] C-01: Update PortalHub to include Engineers portal entry
+- [x] C-02: Wire agency uploadDocument to trigger photo forensics + damage detection
+- [x] C-02: Store forensic results against quote/vehicle in DB
+- [x] C-02: Display forensic results in Agency dashboard
+- [x] C-03: completeClaim writes to vehicle_damage_history table
+- [x] C-03: completeClaim triggers vehicle risk recalculation
+- [x] C-03: completeClaim updates fleet intelligence snapshot
+- [x] C-04: Add claims ageing bands (0-7, 8-14, 15-30, 30+) to ClaimsManagerDashboard
+- [x] C-04: Add average claim age and oldest open claim metrics

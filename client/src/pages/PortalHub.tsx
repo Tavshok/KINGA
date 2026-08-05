@@ -13,7 +13,8 @@ import {
   Database,
   Truck,
   TrendingUp,
-  UserCog
+  UserCog,
+  HardHat
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
@@ -82,6 +83,15 @@ export default function PortalHub() {
       path: "/agency",
       color: "from-emerald-500 to-teal-500",
       roles: ["insurer", "admin", "claimant", "assessor"]
+    },
+    {
+      id: "engineers",
+      title: "KINGA Engineers",
+      description: "Engineering inspections, asset passports, risk surveys, and engineering intelligence",
+      icon: HardHat,
+      path: "/engineer/dashboard",
+      color: "from-yellow-500 to-orange-500",
+      roles: ["engineer", "admin"]
     },
     {
       id: "admin",

@@ -52,6 +52,63 @@ const G = {
   red: '#B1402F', redSoft: '#F8E9E4', amber: '#A6730B', amberSoft: '#F8EFDD',
 };
 
+// ── C-04: Claims Ageing Intelligence Panel ──────────────────────────────────
+function ClaimsAgeingPanel() {
+  const { data, isLoading } = trpc.analytics.getClaimsAgeing.useQuery();
+  const buckets = data?.buckets ?? [];
+  const totalOpen = buckets.reduce((sum, b) => sum + b.count, 0);
+  const oldest = buckets[3]; // 30+ days bucket
+  if (isLoading || totalOpen === 0) return null;
+  return (
+    <div style={{
+      marginTop: '8px', padding: '12px 16px',
+      background: 'rgba(255,255,255,0.06)', borderRadius: '6px',
+      border: '1px solid rgba(255,255,255,0.1)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Clock style={{ width: '13px', height: '13px', color: G.gold300 }} />
+          <span style={{ fontSize: '11px', fontWeight: 600, color: G.gold300, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Claims Ageing</span>
+        </div>
+        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>{totalOpen} open claims</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+        {buckets.map((bucket, i) => {
+          const pct = totalOpen > 0 ? Math.round((bucket.count / totalOpen) * 100) : 0;
+          const isAlert = i >= 2 && bucket.count > 0; // 15-30 and 30+ are warning
+          const isCritical = i === 3 && bucket.count > 0; // 30+ is critical
+          return (
+            <div key={i} style={{
+              background: isCritical ? 'rgba(177,64,47,0.2)' : isAlert ? 'rgba(166,115,11,0.15)' : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${isCritical ? 'rgba(177,64,47,0.4)' : isAlert ? 'rgba(166,115,11,0.3)' : 'rgba(255,255,255,0.08)'}`,
+              borderRadius: '4px', padding: '8px 10px',
+            }}>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', marginBottom: '4px' }}>{bucket.label}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                <span style={{ fontSize: '22px', fontWeight: 700, color: isCritical ? '#FCA5A5' : isAlert ? '#FCD34D' : '#FFFFFF', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                  {bucket.count}
+                </span>
+                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>{pct}%</span>
+              </div>
+              <div style={{ marginTop: '4px', height: '3px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${pct}%`, background: isCritical ? '#EF4444' : isAlert ? '#F59E0B' : '#10B981', borderRadius: '2px', transition: 'width 0.3s ease' }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {oldest && oldest.count > 0 && (
+        <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', background: 'rgba(177,64,47,0.15)', borderRadius: '4px' }}>
+          <AlertTriangle style={{ width: '12px', height: '12px', color: '#FCA5A5', flexShrink: 0 }} />
+          <span style={{ fontSize: '11px', color: '#FCA5A5' }}>
+            {oldest.count} claim{oldest.count !== 1 ? 's' : ''} open for 30+ days — requires immediate management attention
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Status chip helper ────────────────────────────────────────────────────────
 function StatusChip({ status }: { status: string }) {
   const s = (status ?? '').toLowerCase().replace(/_/g, ' ');
@@ -474,8 +531,11 @@ export default function ClaimsManagerDashboard() {
                 {kpi.delta}
               </div>
             </div>
-          ))}
+          )          )}
         </div>
+
+        {/* C-04: Claims Ageing Intelligence Panel */}
+        <ClaimsAgeingPanel />
       </section>
 
       {/* ═══════════════════════════════════════════════════════

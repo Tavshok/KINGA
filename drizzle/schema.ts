@@ -2590,6 +2590,10 @@ export const quotationRequests = mysqlTable("quotation_requests", {
 	quoteNotes: text("quote_notes"),
 	status: mysqlEnum(['pending','under_review','quoted','accepted','rejected','expired']).default('pending').notNull(),
 	assignedAgentId: int("assigned_agent_id"),
+	// C-02: Photo Forensics Engine results for vehicle photos uploaded during quotation
+	vehicleForensicsJson: longtext("vehicle_forensics_json"),
+	vehicleRiskScore: int("vehicle_risk_score"),
+	vehicleForensicsStatus: mysqlEnum("vehicle_forensics_status", ['pending','processing','complete','failed']),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
@@ -2802,8 +2806,8 @@ export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
 	id: int().autoincrement().notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	userId: int("user_id").notNull(),
-	previousRole: mysqlEnum("previous_role", ['user','admin','insurer','assessor','panel_beater','claimant','fleet_admin','fleet_manager','fleet_driver','platform_super_admin','agency']),
-	newRole: mysqlEnum("new_role", ['user','admin','insurer','assessor','panel_beater','claimant','fleet_admin','fleet_manager','fleet_driver','platform_super_admin','agency']).notNull(),
+	previousRole: mysqlEnum("previous_role", ['user','admin','insurer','assessor','panel_beater','claimant','fleet_admin','fleet_manager','fleet_driver','platform_super_admin','agency','engineer']),
+	newRole: mysqlEnum("new_role", ['user','admin','insurer','assessor','panel_beater','claimant','fleet_admin','fleet_manager','fleet_driver','platform_super_admin','agency','engineer']).notNull(),
 	previousInsurerRole: mysqlEnum("previous_insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']),
 	newInsurerRole: mysqlEnum("new_insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']),
 	changedByUserId: int("changed_by_user_id").notNull(),
@@ -3314,12 +3318,13 @@ export const users = mysqlTable("users", {
 	// (KingaAgency.tsx, AgencyFleetQuotes.tsx). Activation completed 2026-07-30.
 	// Activation checklist completed: enum updated, roleAssignmentAudit updated, guard updated.
 	// See KINGA-Architecture-Freeze-Report-Epic1.md for full audit trail.
-	
-	
-	
-	
-	
-	role: mysqlEnum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver','agency']).default('user').notNull(),
+	//
+	// R-INF-10 (2026-08-05 → ACTIVATED): 'engineer' role activated by Feature Completion Audit C-01.
+	// The KINGA Engineers portal (/engineer/*) is fully built server-side (server/routers/inspections.ts,
+	// server/routers/asset-passport.ts, server/routers/intelligence-platform.ts engineeringIntelligenceRouter)
+	// and client-side (EngineerDashboard, EngineerAssignments, EngineerInspectionList, EngineerInspectionDetail).
+	// ProtectedRoute domain='engineer' already maps to ['engineer', 'admin'].
+	role: mysqlEnum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver','agency','engineer']).default('user').notNull(),
 	insurerRole: mysqlEnum("insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']),
 	organizationId: int("organization_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
