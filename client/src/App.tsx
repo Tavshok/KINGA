@@ -86,6 +86,7 @@ import InsurerPortalLayout from "./components/InsurerPortalLayout";
 import AssessorPortalLayout from "./components/AssessorPortalLayout";
 import PanelBeaterPortalLayout from "./components/PanelBeaterPortalLayout";
 import ClaimantPortalLayout from "./components/ClaimantPortalLayout";
+import EngineerWorkspaceLayout from "./components/EngineerWorkspaceLayout"; // Epic 4.5: applied to /engineer/* routes
 
 // Assessor pages
 const ExternalAssessorDashboard = lazy(() => import("./pages/ExternalAssessorDashboard"));
@@ -397,9 +398,10 @@ function Router() {
         </Route>
         
         <Route path="/insurer-portal/insurer-admin">
+          {/* Epic 4.5: wrapped in InsurerPortalLayout so insurer_admin has sidebar navigation */}
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["insurer_admin"]}>
-              <InsurerAdminDashboard />
+              <InsurerPortalLayout><InsurerAdminDashboard /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>
         </Route>
@@ -731,7 +733,8 @@ function Router() {
           </ProtectedRoute>
         </Route>
         <Route path="/claimant/fleet-dashboard">
-          <ProtectedRoute domain="portal">
+          {/* Epic 4.5: fleet_admin and fleet_manager added — they land here after login (ROLE_PORTAL_MAP) */}
+          <ProtectedRoute allowedRoles={["claimant", "admin", "fleet_admin", "fleet_manager"]}>
             <ClaimantPortalLayout><FleetManagerDashboard /></ClaimantPortalLayout>
           </ProtectedRoute>
         </Route>
@@ -828,25 +831,25 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
-        {/* Engineering Workspace Routes — /engineer domain */}
+        {/* Engineering Workspace Routes — /engineer domain (Epic 4.5: EngineerWorkspaceLayout applied) */}
         <Route path="/engineer/dashboard">
           <ProtectedRoute domain="engineer">
-            <EngineerDashboard />
+            <EngineerWorkspaceLayout><EngineerDashboard /></EngineerWorkspaceLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/engineer/assignments">
           <ProtectedRoute domain="engineer">
-            <EngineerAssignments />
+            <EngineerWorkspaceLayout><EngineerAssignments /></EngineerWorkspaceLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/engineer/inspections">
           <ProtectedRoute domain="engineer">
-            <EngineerInspectionList />
+            <EngineerWorkspaceLayout><EngineerInspectionList /></EngineerWorkspaceLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/engineer/inspections/:id">
           <ProtectedRoute domain="engineer">
-            <EngineerInspectionDetail />
+            <EngineerWorkspaceLayout><EngineerInspectionDetail /></EngineerWorkspaceLayout>
           </ProtectedRoute>
         </Route>
         {/* Epic 5-B — Notification Centre (accessible from all portals, protected) */}

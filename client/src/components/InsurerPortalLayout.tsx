@@ -41,6 +41,7 @@ import {
   Gavel,
   Archive,
   Truck,
+  Database,
 } from "lucide-react";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
@@ -81,6 +82,7 @@ const navByRole: Record<string, NavSection[]> = {
       title: "Intelligence",
       items: [
         { label: "Fraud Alerts", description: "FCDI flags requiring action", href: "/insurer/fraud-analytics", icon: AlertCircle },
+        { label: "Vehicle Registry", description: "Vehicle passport and history", href: "/insurer/vehicle-registry", icon: Database },
       ],
     },
     {
@@ -145,6 +147,8 @@ const navByRole: Record<string, NavSection[]> = {
         { label: "Relationship Intelligence", description: "Entity network analysis", href: "/insurer-portal/relationship-intelligence", icon: Network },
         { label: "Workflow Analytics", description: "Decision times and outcomes", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
         { label: "Risk Analytics", description: "Own-book motor intelligence (Enterprise)", href: "/insurer-portal/risk-analytics", icon: TrendingUp },
+        { label: "Vehicle Registry", description: "Vehicle passport and history", href: "/insurer/vehicle-registry", icon: Database },
+        { label: "Portfolio Intelligence", description: "AI-driven portfolio risk analysis", href: "/insurer-portal/risk-manager?tab=portfolio-intelligence", icon: BarChart3 },
       ],
     },
     {
@@ -168,6 +172,8 @@ const navByRole: Record<string, NavSection[]> = {
         { label: "Savings Tracker", description: "Cost savings and financial impact", href: "/insurer-portal/executive?tab=financials", icon: TrendingUp },
         { label: "Fraud Analytics", description: "Fraud detection performance", href: "/insurer/fraud-analytics", icon: ShieldAlert },
         { label: "Repairer Intelligence", description: "Panel beater performance data", href: "/insurer/panel-beater-performance", icon: Car },
+        { label: "Vehicle Registry", description: "Vehicle passport and history", href: "/insurer/vehicle-registry", icon: Database },
+        { label: "Portfolio Intelligence", description: "AI-driven portfolio risk analysis", href: "/insurer-portal/executive?tab=portfolio-intelligence", icon: BarChart3 },
       ],
     },
     {
@@ -263,6 +269,7 @@ const navByRole: Record<string, NavSection[]> = {
         { label: "Fraud Analytics", description: "Fraud detection overview and FCDI flags", href: "/insurer/fraud-analytics", icon: ShieldAlert },
         { label: "Workflow Analytics", description: "Processing times and throughput", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
         { label: "Relationship Intelligence", description: "Entity network analysis", href: "/insurer-portal/relationship-intelligence", icon: Network },
+        { label: "Vehicle Registry", description: "Vehicle passport and history", href: "/insurer/vehicle-registry", icon: Database },
         { label: "Reports Centre", description: "Full report catalogue", href: "/insurer-portal/reports-centre", icon: FileBarChart },
       ],
     },

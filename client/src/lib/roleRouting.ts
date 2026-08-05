@@ -22,9 +22,10 @@ export const ROLE_PORTAL_MAP: Record<string, string> = {
   assessor: "/assessor/dashboard",
   panel_beater: "/panel-beater/dashboard",
   claimant: "/claimant/dashboard",
-  fleet_admin: "/fleet-management",
-  fleet_manager: "/fleet-management",
+  fleet_admin: "/claimant/fleet-dashboard",   // Epic 4.5: routed to FleetManagerDashboard (Epic 4 tabs)
+  fleet_manager: "/claimant/fleet-dashboard", // Epic 4.5: routed to FleetManagerDashboard (Epic 4 tabs)
   fleet_driver: "/fleet-management",
+  engineer: "/engineer/dashboard",             // Epic 4.5: Engineering Workspace (Epic 3)
   user: "/portal-hub",                  // No portal assigned yet
 };
 

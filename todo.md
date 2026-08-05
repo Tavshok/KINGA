@@ -1189,3 +1189,22 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] KINGA-AUTH-01: Added 4 vitest tests in server/auth.resync.test.ts covering: non-owner missing user rejected, OAuth server not called for missing users, active user allowed, deactivated user rejected
 - [x] Root cause analysis complete: User 2 violations were from hard-deleted user re-synced on every request; User 1 violations were from browser session open before admin bypass deployment; both stopped at 21:10-21:11 UTC when browser closed
 - [x] 281/281 test files passing, 8,396 tests passed after KINGA-AUTH-01 fix
+
+## Epic 4.5 — Portal Integration Completion
+
+### Priority 1 (Release Blockers)
+- [ ] D-3: Add `engineer` to DOMAIN_ROLE_MAP in ProtectedRoute.tsx
+- [ ] D-4: Add `engineer` to ROLE_PORTAL_MAP in roleRouting.ts
+- [ ] D-10: Route fleet_admin/fleet_manager to FleetManagerDashboard (Epic 4)
+
+### Priority 2
+- [ ] D-2: Apply EngineerWorkspaceLayout to all /engineer/* routes in App.tsx
+- [ ] D-6: Add VehicleRegistry nav links for risk_manager, claims_manager, executive, insurer_admin
+- [ ] D-8: Add agency.vehicle_verification and agency.vehicle_valuation to REPORT_CATALOGUE
+- [ ] D-7: Add Vehicle Valuation tab/panel to KingaAgency.tsx
+- [ ] D-9: Add Platform Claim Trace to PlatformLayout nav
+- [ ] D-11: Add Portfolio Intelligence nav links for executive and risk_manager
+
+### Priority 3
+- [ ] D-1: Add fleet-approvals to TABS array in ClaimsManagerDashboard.tsx
+- [ ] D-5: Wrap InsurerAdminDashboard in InsurerPortalLayout in App.tsx

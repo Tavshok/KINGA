@@ -375,6 +375,7 @@ export default function ClaimsManagerDashboard() {
     { id: 'review', label: 'Under Review', count: allReviewableClaims.length },
     { id: 'fraud', label: 'AI Flagged', count: fraudFlagCount, alert: true },
     { id: 'sla', label: 'SLA Watch', count: slaBreachCount, alert: slaBreachCount > 0 },
+    { id: 'fleet-approvals', label: 'Fleet Approvals', count: null },
     { id: 'completed', label: 'Completed', count: null },
   ];
 

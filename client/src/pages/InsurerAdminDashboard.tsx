@@ -214,6 +214,7 @@ export default function InsurerAdminDashboard() {
   ];
 
   return (
+    <InsurerPortalLayout>
     <div className="min-h-screen" style={{ background: '#F7F8F6', fontFamily: 'Inter, sans-serif' }}>
       <PortalHeroBand
         portalName="Insurer Administration"
@@ -362,5 +363,6 @@ export default function InsurerAdminDashboard() {
         </div>
       </div>
     </div>
+    </InsurerPortalLayout>
   );
 }

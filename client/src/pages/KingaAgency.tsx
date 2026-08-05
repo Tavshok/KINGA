@@ -29,6 +29,7 @@ export default function KingaAgency() {
     { id: 'quotations', label: 'Quotations' },
     { id: 'policies', label: 'Policies' },
     { id: 'documents', label: 'Documents' },
+    { id: 'vehicle-valuation', label: '🚗 Vehicle Valuation' },
     { id: 'timeline-intelligence', label: '📅 Timeline Intelligence' },
   ];
 
@@ -113,6 +114,7 @@ export default function KingaAgency() {
             {activeTab === 'quotations' && <QuotationsTab />}
             {activeTab === 'policies' && <PoliciesTab />}
             {activeTab === 'documents' && <DocumentsTab />}
+            {activeTab === 'vehicle-valuation' && <VehicleValuationTab />}
             {activeTab === 'timeline-intelligence' && <TimelineIntelligenceTab />}
           </div>
           {/* ── SIDEBAR ── */}
@@ -795,5 +797,128 @@ function DocumentUploadDialog({ open, onOpenChange }: { open: boolean; onOpenCha
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ========== VEHICLE VALUATION TAB (Epic 4.5: D-7) ==========
+function VehicleValuationTab() {
+  const [make, setMake] = useState("");
+  const [model, setModel] = useState("");
+  const [year, setYear] = useState<number>(new Date().getFullYear() - 3);
+  const [condition, setCondition] = useState<"excellent" | "good" | "fair" | "poor">("good");
+  const [mileage, setMileage] = useState<number | undefined>(undefined);
+  const [regNumber, setRegNumber] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const { data, isFetching, refetch } = trpc.agency.getValuation.useQuery(
+    { make, model, year, condition, mileage, registrationNumber: regNumber || undefined },
+    { enabled: submitted && !!make && !!model && !!year }
+  );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!make || !model || !year) return;
+    setSubmitted(true);
+    refetch();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p11-card">
+        <div className="p11-card-header">
+          <div className="p11-card-title">
+            <Car style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+            Vehicle Valuation Request
+          </div>
+        </div>
+        <div className="p11-card-body">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground mb-1 block">Make *</Label>
+                <Input value={make} onChange={e => setMake(e.target.value)} placeholder="e.g. Toyota" required />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground mb-1 block">Model *</Label>
+                <Input value={model} onChange={e => setModel(e.target.value)} placeholder="e.g. Corolla" required />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground mb-1 block">Year *</Label>
+                <Input type="number" value={year} onChange={e => setYear(Number(e.target.value))} min={1950} max={new Date().getFullYear() + 1} required />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground mb-1 block">Condition</Label>
+                <select
+                  value={condition}
+                  onChange={e => setCondition(e.target.value as "excellent" | "good" | "fair" | "poor")}
+                  style={{ width: '100%', height: 36, border: '1px solid var(--line)', borderRadius: 6, padding: '0 10px', fontSize: 13, background: '#fff', color: 'var(--ink)' }}
+                >
+                  <option value="excellent">Excellent</option>
+                  <option value="good">Good</option>
+                  <option value="fair">Fair</option>
+                  <option value="poor">Poor</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground mb-1 block">Mileage (km)</Label>
+                <Input type="number" value={mileage ?? ""} onChange={e => setMileage(e.target.value ? Number(e.target.value) : undefined)} placeholder="Optional" min={0} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground mb-1 block">Registration Number</Label>
+                <Input value={regNumber} onChange={e => setRegNumber(e.target.value)} placeholder="Optional" />
+              </div>
+            </div>
+            <button type="submit" className="p11-btn-gold" disabled={isFetching || !make || !model}>
+              {isFetching ? <><Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> Valuing...</> : <><Search style={{ width: 13, height: 13 }} /> Get Valuation</>}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {data && (
+        <div className="p11-card">
+          <div className="p11-card-header">
+            <div className="p11-card-title">
+              <DollarSign style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+              Valuation Result — {make} {model} ({year})
+            </div>
+          </div>
+          <div className="p11-card-body">
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div style={{ padding: '12px', background: 'var(--g-50)', borderRadius: 8, textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Estimated Value</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
+                  USD {(data.estimatedValue / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div style={{ padding: '12px', background: 'var(--g-50)', borderRadius: 8, textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Confidence</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--g-700)' }}>
+                  {data.confidence}%
+                </div>
+              </div>
+              <div style={{ padding: '12px', background: 'var(--g-50)', borderRadius: 8, textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Source</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+                  {data.source}
+                </div>
+              </div>
+            </div>
+            {data.factors && (
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+                Base value: <strong>USD {(data.factors.baseValue / 100).toLocaleString()}</strong>
+                {data.factors.conditionAdjustment !== 0 && <> · Condition adj: {data.factors.conditionAdjustment > 0 ? '+' : ''}{(data.factors.conditionAdjustment / 100).toLocaleString()}</>}
+                {data.factors.ageAdjustment !== 0 && <> · Age adj: {data.factors.ageAdjustment > 0 ? '+' : ''}{(data.factors.ageAdjustment / 100).toLocaleString()}</>}
+              </div>
+            )}
+            {data.comparables && data.comparables.length > 0 && (
+              <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 12px', background: 'var(--g-50)', borderRadius: 6 }}>
+                Based on {data.comparables.length} comparable{data.comparables.length !== 1 ? 's' : ''} · Valuation date: {new Date(data.valuationDate).toLocaleDateString()}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

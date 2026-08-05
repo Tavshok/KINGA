@@ -78,6 +78,9 @@ const REPORT_CATALOGUE = [
   // ── Panel Beater ──────────────────────────────────────────────────────────────────────
   { key: "panel_beater.quote_history",        name: "Quote History Report",             category: "Panel Beater",   description: "All quotes submitted by this panel beater, with acceptance rates and AI benchmark comparison.",    requiresClaimId: false },
   { key: "panel_beater.job_completion",       name: "Job Completion Report",            category: "Panel Beater",   description: "Completed repair jobs with timelines, final costs, and customer satisfaction scores.",             requiresClaimId: false },
+  // ── KINGA Agency (Epic 4.5: D-8) ─────────────────────────────────────────────────────────────────────────────────────
+  { key: "agency.vehicle_verification",       name: "Vehicle Verification Report",      category: "Agency",         description: "Full vehicle identity verification including VIN, registration, and ownership history.",          requiresClaimId: false },
+  { key: "agency.vehicle_valuation",          name: "Vehicle Valuation Report",         category: "Agency",         description: "AI-driven market valuation with comparable sales, depreciation model, and condition assessment.",  requiresClaimId: false },
 ];
 
 // ─── Allowed regeneration states ─────────────────────────────────────────────

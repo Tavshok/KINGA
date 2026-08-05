@@ -19,6 +19,7 @@ import {
   FlaskConical,
   Wrench,
   BarChart3,
+  GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +71,12 @@ const navItems = [
     href: "/platform/claim-simulator",
     icon: FlaskConical,
     description: "Synthetic claim testing",
+  },
+  {
+    label: "Claim Trace",
+    href: "/platform/claim-trace",
+    icon: GitBranch,
+    description: "Full claim lifecycle trace",
   },
   {
     label: "Operations Centre",

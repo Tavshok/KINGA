@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
  * /agency    → agency, admin, platform_super_admin (system testing access — confirmed 2026-07-30)
  * /insurer   → insurer, admin
  * /fleet     → fleet_admin, fleet_manager, fleet_driver, admin
+ * /engineer  → engineer, admin (Epic 3 — Engineering Workspace)
  * /marketplace → all authenticated roles
  * /portal    → claimant, admin
  */
@@ -17,6 +18,7 @@ export const DOMAIN_ROLE_MAP: Record<string, string[]> = {
   agency: ["agency", "admin", "platform_super_admin"], // platform_super_admin: system testing access (confirmed 2026-07-30)
   insurer: ["insurer", "admin"],
   fleet: ["fleet_admin", "fleet_manager", "fleet_driver", "admin"],
+  engineer: ["engineer", "admin"], // Epic 3 — Engineering Workspace (wired Epic 4.5)
   marketplace: [
     "admin", "insurer", "assessor", "panel_beater", "agency",
     "fleet_admin", "fleet_manager", "claimant", "user", "platform_super_admin",
