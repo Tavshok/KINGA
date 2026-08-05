@@ -187,7 +187,7 @@ export function PortalHeader({
 
         {/* Right: search + actions — Epic 5-A */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <GlobalSearchBar variant="icon" />
+          <GlobalSearchBar variant="bar" />
           {actions}
         </div>
       </div>

@@ -69,11 +69,11 @@ export default function PortalHub() {
     {
       id: "fleet",
       title: "Fleet Management",
-      description: "Manage vehicle fleets, bulk imports, and fleet-wide analytics",
+      description: "Fleet Command Centre — vehicles, risk analytics, cost intelligence, and claims management",
       icon: Truck,
-      path: "/fleet-management",
+      path: "/claimant/fleet-dashboard",
       color: "from-teal-500 to-cyan-500",
-      roles: ["insurer", "admin"]
+      roles: ["fleet_admin", "fleet_manager", "insurer", "admin"]
     },
     {
       id: "kinga-agency",

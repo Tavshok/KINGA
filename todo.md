@@ -1274,5 +1274,60 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] DEF-003: Update InspectionProjectsTab to pass projectId when creating inspections (FK in place; projectId passed at inspection creation time)
 
 ### Admin Platform Audit
-- [ ] ADMIN-AUDIT: Complete audit of all 10 admin domains
-- [ ] ADMIN-AUDIT: Deliver Admin Completion Matrix and priority implementation plan
+- [x] ADMIN-AUDIT: Complete audit of all 10 admin domains
+- [x] ADMIN-AUDIT: Deliver Admin Completion Matrix and priority implementation plan
+
+---
+
+## Phase 1 — Product Experience Transformation (Approved 5 Aug 2026)
+
+### Portal Entry Validation
+- [x] P1-ENTRY-01: Audit OnboardingManager — engineer/panel_beater/fleet_admin/assessor roles added
+- [x] P1-ENTRY-02: Audit PortalHub — fleet path fixed to /claimant/fleet-dashboard; fleet_admin/fleet_manager roles added
+- [x] P1-ENTRY-03: Audit role routing — all roles verified in ROLE_PORTAL_MAP
+- [x] P1-ENTRY-04: Fixed: PortalHub fleet URL mismatch; OnboardingWalkthrough missing 4 roles
+
+### Sprint 2: Engineer Dashboard (Highest Priority)
+- [x] P1-ENG-01: Add inspections.getProjectDashboard tRPC procedure
+- [x] P1-ENG-02: Replace EngineerDashboard.tsx with KingaPortalShell project-first workspace
+- [x] P1-ENG-03: Wire InspectionProjectsTab as primary tab
+- [x] P1-ENG-04: Add KPI strip: Active Projects, Inspections Due, Pending Reports, Total Inspections
+
+### Sprint 1: Intelligence + Global Search
+- [ ] P1-INTEL-01: Create ClaimIntelligenceHeader component (action-driving layer)
+- [ ] P1-INTEL-02: Wire ClaimIntelligenceHeader into Claims Manager claim detail
+- [ ] P1-INTEL-03: Wire compact ClaimIntelligenceHeader into Assessor assignment view
+- [ ] P1-INTEL-04: Wire simplified intelligence summary into Claimant Dashboard claim cards
+- [ ] P1-SEARCH-01: Activate GlobalSearchBar (change variant from icon to bar)
+
+### Sprint 3: Platform Command Centre + Personalised Headers
+- [ ] P1-PLAT-01: Add platformObservability.getCommandCentreMetrics procedure
+- [ ] P1-PLAT-02: Replace PlatformOverviewDashboard with KINGA Command Centre
+- [ ] P1-PLAT-03: Add personalised greeting strip to ClaimsManagerDashboard
+- [ ] P1-PLAT-04: Add personalised queue header to AssessorDashboard
+- [ ] P1-PLAT-05: Add job lifecycle status to PanelBeaterDashboard
+- [ ] P1-FLEET-01: Add fleetAccounts.getCommandCentreKPIs procedure
+- [ ] P1-FLEET-02: Populate Fleet Manager Dashboard KPI strip with real data
+
+### Sprint 4: Settlement + Document Requests
+- [ ] P1-SETTLE-01: DB migration — add payment_status, payment_date to final_approval_records
+- [ ] P1-SETTLE-02: DB migration — add comment_type, document_type_requested, deadline, fulfilled_at to claim_comments
+- [ ] P1-SETTLE-03: Add claims.requestDocuments tRPC procedure
+- [ ] P1-SETTLE-04: Add claims.fulfillDocumentRequest tRPC procedure
+- [ ] P1-SETTLE-05: Add claims.getDocumentRequests tRPC procedure
+- [ ] P1-SETTLE-06: Add claims.updatePaymentStatus tRPC procedure
+- [ ] P1-SETTLE-07: Create DocumentRequestDialog component
+- [ ] P1-SETTLE-08: Add document request alert panel to ClaimantDashboard
+- [ ] P1-SETTLE-09: Add payment tracking to ClaimantDashboard settlement view
+- [ ] P1-SETTLE-10: Add lifecycle progress bar to Claims Manager claim cards
+
+### Sprint 5: Navigation Standardisation
+- [ ] P1-NAV-01: Standardise tab labels across all portals
+
+### End-to-End Journey Validation
+- [ ] P1-E2E-01: Customer journey validation
+- [ ] P1-E2E-02: Claims journey validation
+- [ ] P1-E2E-03: Engineering journey validation
+- [ ] P1-E2E-04: Fleet journey validation
+- [ ] P1-E2E-05: Insurer Admin journey validation
+- [ ] P1-E2E-06: Platform Admin journey validation

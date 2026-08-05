@@ -1,313 +1,393 @@
 /**
  * EngineerDashboard.tsx
  * ─────────────────────────────────────────────────────────────────────────────
- * Epic 3 — E3-T11
+ * Phase 1 — Sprint 2: Engineer Dashboard Transformation
  *
- * Engineering Workspace — Dashboard
- * Shows KPIs, active inspections, recent activity, and quick actions.
+ * Project-first workspace using KingaPortalShell with:
+ *   - KPI strip: Active Projects, Inspections Due, Pending Reports, Total Inspections
+ *   - Tabs: My Projects (primary), Inspections, Assets, Intelligence, Reports
+ *   - Recent activity feed
+ *
+ * Uses existing components: InspectionProjectsTab, EngineeringIntelligencePanel,
+ * AssetPassportPanel — no new engines or duplicate workflows.
  */
+
 import { useState } from "react";
-import { EngineeringIntelligencePanel } from "@/components/EngineeringIntelligencePanel";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  HardHat, ClipboardList, CheckCircle, Clock, AlertTriangle,
-  Plus, ArrowRight, Ruler, Eye, Brain,
+  KingaPortalShell,
+  type PortalKPI,
+  type PortalTab,
+  type PortalAlert,
+} from "@/components/KingaPortalShell";
+import { InspectionProjectsTab } from "@/components/InspectionProjectsTab";
+import { EngineeringIntelligencePanel } from "@/components/EngineeringIntelligencePanel";
+import { AssetPassportPanel } from "@/components/AssetPassportPanel";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  HardHat,
+  Plus,
+  ClipboardList,
+  FolderOpen,
+  FileText,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Calendar,
+  ChevronRight,
 } from "lucide-react";
-import { toast } from "sonner";
 
-const STATUS_COLOURS: Record<string, string> = {
-  assigned:           "#2980b9",
-  in_progress:        "#f39c12",
-  measurements_done:  "#8e44ad",
-  observations_done:  "#16a085",
-  ai_analysed:        "#27ae60",
-  physics_reconciled: "#1abc9c",
-  under_review:       "#e67e22",
-  complete:           "#27ae60",
-  cancelled:          "#95a5a6",
-};
+// ── Status badge helper ────────────────────────────────────────────────────────
 
-const STATUS_LABELS: Record<string, string> = {
-  assigned:           "Assigned",
-  in_progress:        "In Progress",
-  measurements_done:  "Measurements Done",
-  observations_done:  "Observations Done",
-  ai_analysed:        "AI Analysed",
-  physics_reconciled: "Physics Reconciled",
-  under_review:       "Under Review",
-  complete:           "Complete",
-  cancelled:          "Cancelled",
-};
-
-function statusBadge(status: string) {
-  const colour = STATUS_COLOURS[status] ?? "#888";
-  const label  = STATUS_LABELS[status] ?? status;
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; color: string }> = {
+    scheduled:             { label: "Scheduled",   color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
+    assigned:              { label: "Assigned",    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300" },
+    in_progress:           { label: "In Progress", color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
+    evidence_capture:      { label: "Evidence",    color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
+    measurements_complete: { label: "Measured",    color: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300" },
+    ai_analysis:           { label: "AI Analysis", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
+    engineer_review:       { label: "Review",      color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" },
+    complete:              { label: "Complete",    color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
+    cancelled:             { label: "Cancelled",   color: "bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400" },
+  };
+  const s = map[status] ?? { label: status, color: "bg-gray-100 text-gray-600" };
   return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 10px",
-        borderRadius: "12px",
-        background: colour + "22",
-        color: colour,
-        fontSize: "11px",
-        fontWeight: 600,
-        border: `1px solid ${colour}44`,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {label}
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${s.color}`}>
+      {s.label}
     </span>
   );
 }
 
-export default function EngineerDashboard() {
-  const { user } = useAuth();
+// ── Recent Activity Feed ───────────────────────────────────────────────────────
+
+function RecentActivityFeed({ inspections }: { inspections: any[] }) {
   const [, setLocation] = useLocation();
 
-  const { data: listData, isLoading } = trpc.inspections.list.useQuery({
-    page: 1,
-    pageSize: 20,
-  });
-
-  const inspections = (listData?.inspections ?? []) as Record<string, unknown>[];
-
-  // KPI counts
-  const active    = inspections.filter((i: Record<string, unknown>) => !["complete","cancelled"].includes(String(i.status ?? ""))).length;
-  const complete  = inspections.filter((i: Record<string, unknown>) => i.status === "complete").length;
-  const overdue   = inspections.filter((i: Record<string, unknown>) => {
-    if (!i.scheduled_date) return false;
-    return new Date(String(i.scheduled_date)) < new Date() && !["complete","cancelled"].includes(String(i.status ?? ""));
-  }).length;
+  if (!inspections || inspections.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <ClipboardList className="h-10 w-10 text-muted-foreground/40 mb-3" />
+        <p className="text-sm font-medium text-muted-foreground">No inspections yet</p>
+        <p className="text-xs text-muted-foreground/70 mt-1">Create your first inspection to get started</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: "32px", fontFamily: "Inter, sans-serif" }}>
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div style={{ marginBottom: "28px" }}>
-        <div style={{ fontSize: "11px", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>
-          Engineering Workspace
-        </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#111", margin: 0 }}>
-              Good day, {user?.name?.split(" ")[0] ?? "Engineer"}
-            </h1>
-            <p style={{ fontSize: "14px", color: "#666", margin: "4px 0 0" }}>
-              Here is your inspection workspace overview.
-            </p>
+    <div className="divide-y divide-border">
+      {inspections.map((insp: any) => (
+        <div
+          key={insp.id}
+          className="flex items-center justify-between py-3 px-1 hover:bg-muted/30 rounded cursor-pointer transition-colors"
+          onClick={() => setLocation(`/engineer/inspection/${insp.id}`)}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <ClipboardList className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{insp.referenceNumber ?? `INS-${insp.id}`}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {insp.vehicleRegistration ?? "No registration"} ·{" "}
+                {insp.scheduledDate
+                  ? new Date(insp.scheduledDate).toLocaleDateString()
+                  : "No date set"}
+              </p>
+            </div>
           </div>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+            <StatusBadge status={insp.status} />
+            <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Inspections List Tab ───────────────────────────────────────────────────────
+
+function InspectionsListTab() {
+  const [, setLocation] = useLocation();
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const { data, isLoading } = trpc.inspections.list.useQuery({
+    status: statusFilter as any,
+    page: 1,
+    pageSize: 50,
+  });
+
+  const statuses = ["scheduled", "in_progress", "complete", "cancelled"];
+
+  return (
+    <div className="p-6 space-y-4">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          variant={!statusFilter ? "default" : "outline"}
+          size="sm"
+          onClick={() => setStatusFilter(undefined)}
+        >
+          All
+        </Button>
+        {statuses.map((s) => (
           <Button
-            onClick={() => setLocation("/engineer/inspections")}
-            style={{ background: "#0F1A14", color: "#D4A800", border: "none", fontWeight: 600 }}
+            key={s}
+            variant={statusFilter === s ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter(s)}
           >
-            <Plus size={14} style={{ marginRight: 6 }} />
-            New Inspection
+            {s.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+          </Button>
+        ))}
+        <div className="ml-auto">
+          <Button size="sm" onClick={() => setLocation("/engineer/new-inspection")}>
+            <Plus className="h-4 w-4 mr-1" /> New Inspection
           </Button>
         </div>
       </div>
 
-      {/* ── KPI Strip ──────────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "32px" }}>
-        {[
-          { label: "Total Assigned",   value: inspections.length, icon: ClipboardList, colour: "#2980b9" },
-          { label: "Active",           value: active,             icon: HardHat,       colour: "#f39c12" },
-          { label: "Completed",        value: complete,           icon: CheckCircle,   colour: "#27ae60" },
-          { label: "Overdue",          value: overdue,            icon: AlertTriangle, colour: "#e74c3c" },
-        ].map((kpi) => {
-          const Icon = kpi.icon;
-          return (
-            <div
-              key={kpi.label}
-              style={{
-                background: "#fff",
-                border: "1px solid #e8e8e8",
-                borderRadius: "8px",
-                padding: "20px",
-                display: "flex",
-                alignItems: "center",
-                gap: "16px",
-              }}
-            >
-              <div
-                style={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "8px",
-                  background: kpi.colour + "18",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <Icon size={18} style={{ color: kpi.colour }} />
-              </div>
-              <div>
-                <div style={{ fontSize: "24px", fontWeight: 700, color: "#111", lineHeight: 1 }}>
-                  {isLoading ? "—" : kpi.value}
-                </div>
-                <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>{kpi.label}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── Active Inspections Table ────────────────────────────────────────── */}
-      <div style={{ background: "#fff", border: "1px solid #e8e8e8", borderRadius: "8px", overflow: "hidden" }}>
-        <div
-          style={{
-            padding: "16px 20px",
-            borderBottom: "1px solid #f0f0f0",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#111", margin: 0 }}>
-            My Inspections
-          </h2>
-          <button
-            onClick={() => setLocation("/engineer/inspections")}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: "12px",
-              color: "#888",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-            }}
-          >
-            View all <ArrowRight size={12} />
-          </button>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
-
-        {isLoading ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "#888", fontSize: "14px" }}>
-            Loading inspections…
-          </div>
-        ) : inspections.length === 0 ? (
-          <div style={{ padding: "48px", textAlign: "center" }}>
-            <HardHat size={32} style={{ color: "#ccc", marginBottom: "12px" }} />
-            <p style={{ fontSize: "14px", color: "#888", margin: 0 }}>No inspections assigned yet.</p>
-          </div>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#fafafa" }}>
-                {["Reference", "Asset", "Type", "Scheduled", "Status", ""].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      padding: "10px 16px",
-                      textAlign: "left",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      color: "#888",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      borderBottom: "1px solid #f0f0f0",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
+      ) : !data?.inspections?.length ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <ClipboardList className="h-10 w-10 text-muted-foreground/40 mb-3" />
+          <p className="text-sm font-medium text-muted-foreground">No inspections found</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Reference</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Vehicle / Asset</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Scheduled</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
-            <tbody>
-              {inspections.slice(0, 10).map((insp: Record<string, unknown>, idx: number) => (
+            <tbody className="divide-y divide-border">
+              {data.inspections.map((insp: any) => (
                 <tr
-                  key={String(insp.id)}
-                  style={{
-                    borderBottom: idx < inspections.length - 1 ? "1px solid #f5f5f5" : "none",
-                    cursor: "pointer",
-                  }}
-                  onClick={() => setLocation(`/engineer/inspections/${insp.id}`)}
+                  key={insp.id}
+                  className="hover:bg-muted/30 cursor-pointer transition-colors"
+                  onClick={() => setLocation(`/engineer/inspection/${insp.id}`)}
                 >
-                  <td style={{ padding: "12px 16px", fontSize: "13px", fontWeight: 600, color: "#111" }}>
-                    {String(insp.inspection_ref ?? "—")}
+                  <td className="px-4 py-3 font-mono text-xs">{insp.inspectionRef ?? `INS-${insp.id}`}</td>
+                  <td className="px-4 py-3">{insp.vehicleRegistration ?? insp.assetRef ?? "—"}</td>
+                  <td className="px-4 py-3 capitalize">{insp.inspectionType?.replace("_", " ") ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={insp.status} />
                   </td>
-                  <td style={{ padding: "12px 16px", fontSize: "13px", color: "#444" }}>
-                    {String(insp.vehicle_registration ?? insp.asset_ref ?? "—")}
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {insp.scheduledDate ? new Date(insp.scheduledDate).toLocaleDateString() : "—"}
                   </td>
-                  <td style={{ padding: "12px 16px", fontSize: "12px", color: "#666" }}>
-                    {String(insp.inspection_type ?? "—").replace(/_/g, " ").toUpperCase()}
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: "12px", color: "#666" }}>
-                    {insp.scheduled_date
-                      ? new Date(String(insp.scheduled_date)).toLocaleDateString()
-                      : "—"}
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    {statusBadge(String(insp.status ?? "assigned"))}
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <ArrowRight size={14} style={{ color: "#ccc" }} />
+                  <td className="px-4 py-3">
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
-      </div>
-
-      {/* ── Engineering Intelligence (Epic 4) ──────────────────────────── */}
-      <div style={{ marginTop: "32px", background: "#111", border: "1px solid #2a2a2a", borderRadius: "8px", padding: "24px" }}>
-        <EngineeringIntelligencePanel />
-      </div>
-
-      {/* ── Quick Actions ───────────────────────────────────────────────────── */}
-      <div style={{ marginTop: "24px", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
-        {[
-          { label: "Record Measurements", icon: Ruler,  href: "/engineer/inspections", desc: "Add physical measurements to an active inspection" },
-          { label: "Add Observations",    icon: Eye,    href: "/engineer/inspections", desc: "Record findings and recommendations" },
-          { label: "Run AI Analysis",     icon: Brain,  href: "/engineer/inspections", desc: "Trigger AI risk assessment on completed inspection" },
-        ].map((action) => {
-          const Icon = action.icon;
-          return (
-            <button
-              key={action.label}
-              onClick={() => setLocation(action.href)}
-              style={{
-                background: "#fff",
-                border: "1px solid #e8e8e8",
-                borderRadius: "8px",
-                padding: "16px",
-                cursor: "pointer",
-                textAlign: "left",
-                display: "flex",
-                alignItems: "flex-start",
-                gap: "12px",
-              }}
-            >
-              <div
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "6px",
-                  background: "#0F1A1418",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <Icon size={14} style={{ color: "#0F1A14" }} />
-              </div>
-              <div>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: "#111" }}>{action.label}</div>
-                <div style={{ fontSize: "11px", color: "#888", marginTop: "3px", lineHeight: 1.4 }}>{action.desc}</div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// ── Reports Placeholder Tab ────────────────────────────────────────────────────
+
+function ReportsTab() {
+  return (
+    <div className="p-6 flex flex-col items-center justify-center min-h-[300px] text-center">
+      <FileText className="h-12 w-12 text-muted-foreground/40 mb-4" />
+      <p className="text-base font-medium text-muted-foreground">Engineering Reports</p>
+      <p className="text-sm text-muted-foreground/70 mt-2 max-w-sm">
+        Generated inspection reports and AI analysis outputs will appear here. Complete an
+        inspection and run AI analysis to generate your first report.
+      </p>
+    </div>
+  );
+}
+
+// ── Tab definitions ────────────────────────────────────────────────────────────
+
+const TABS: PortalTab[] = [
+  { id: "projects",     label: "My Projects" },
+  { id: "inspections",  label: "Inspections" },
+  { id: "assets",       label: "Assets" },
+  { id: "intelligence", label: "Intelligence" },
+  { id: "reports",      label: "Reports" },
+];
+
+// ── Main Dashboard ─────────────────────────────────────────────────────────────
+
+export default function EngineerDashboard() {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState("projects");
+
+  const { data: dashboard, isLoading } = trpc.inspections.getProjectDashboard.useQuery();
+
+  // KPI strip
+  const kpis: PortalKPI[] = [
+    {
+      label: "Active Projects",
+      value: isLoading ? "—" : (dashboard?.activeProjects ?? 0),
+      icon: <FolderOpen className="h-5 w-5" />,
+      accent: "teal",
+      headline: true,
+    },
+    {
+      label: "Due This Week",
+      value: isLoading ? "—" : (dashboard?.dueThisWeek ?? 0),
+      icon: <Calendar className="h-5 w-5" />,
+      accent: dashboard?.dueThisWeek ? "amber" : "green",
+    },
+    {
+      label: "Pending Reports",
+      value: isLoading ? "—" : (dashboard?.pendingReports ?? 0),
+      icon: <Clock className="h-5 w-5" />,
+      accent: dashboard?.pendingReports ? "red" : "green",
+    },
+    {
+      label: "Total Inspections",
+      value: isLoading ? "—" : (dashboard?.totalInspections ?? 0),
+      icon: <ClipboardList className="h-5 w-5" />,
+      accent: "blue",
+    },
+  ];
+
+  // Alert bar
+  const alerts: PortalAlert[] = [];
+  if (dashboard?.dueThisWeek && dashboard.dueThisWeek > 0) {
+    alerts.push({
+      id: "due-this-week",
+      severity: "warning",
+      label: `${dashboard.dueThisWeek} inspection${dashboard.dueThisWeek > 1 ? "s" : ""} scheduled this week`,
+      count: dashboard.dueThisWeek,
+      onClick: () => setActiveTab("inspections"),
+    });
+  }
+  if (dashboard?.pendingReports && dashboard.pendingReports > 0) {
+    alerts.push({
+      id: "pending-reports",
+      severity: "warning",
+      label: `${dashboard.pendingReports} completed inspection${dashboard.pendingReports > 1 ? "s" : ""} awaiting report generation`,
+      count: dashboard.pendingReports,
+      onClick: () => setActiveTab("reports"),
+    });
+  }
+
+  // Header actions
+  const actions = (
+    <div className="flex items-center gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setLocation("/engineer/projects")}
+        className="border-white/30 text-white hover:bg-white/10"
+      >
+        <FolderOpen className="h-4 w-4 mr-1" />
+        Projects
+      </Button>
+      <Button
+        size="sm"
+        onClick={() => setLocation("/engineer/new-inspection")}
+        className="bg-white text-primary hover:bg-white/90"
+      >
+        <Plus className="h-4 w-4 mr-1" />
+        New Inspection
+      </Button>
+    </div>
+  );
+
+  return (
+    <KingaPortalShell
+      icon={<HardHat className="h-6 w-6 text-white" />}
+      title="Engineering Workspace"
+      description={`Welcome back, ${user?.name ?? "Engineer"} · KINGA Engineering Intelligence`}
+      kpis={kpis}
+      alerts={alerts}
+      tabs={TABS}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      actions={actions}
+    >
+      {/* My Projects — primary tab */}
+      {activeTab === "projects" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 min-h-[600px]">
+          <div className="lg:col-span-2 border-r border-border">
+            <InspectionProjectsTab />
+          </div>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-foreground">Recent Inspections</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground"
+                onClick={() => setActiveTab("inspections")}
+              >
+                View all
+              </Button>
+            </div>
+            <RecentActivityFeed inspections={dashboard?.recentInspections ?? []} />
+
+            <div className="mt-6 pt-6 border-t border-border space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Quick Stats</h3>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  Total Inspections
+                </span>
+                <Badge variant="secondary">
+                  {isLoading ? "—" : (dashboard?.totalInspections ?? 0)}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                  Pending Reports
+                </span>
+                <Badge variant={dashboard?.pendingReports ? "destructive" : "secondary"}>
+                  {isLoading ? "—" : (dashboard?.pendingReports ?? 0)}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <FolderOpen className="h-4 w-4 text-teal-500" />
+                  Active Projects
+                </span>
+                <Badge variant="secondary">
+                  {isLoading ? "—" : (dashboard?.activeProjects ?? 0)}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "inspections" && <InspectionsListTab />}
+
+      {activeTab === "assets" && (
+        <div className="p-6">
+          <AssetPassportPanel />
+        </div>
+      )}
+
+      {activeTab === "intelligence" && (
+        <div className="p-6">
+          <EngineeringIntelligencePanel />
+        </div>
+      )}
+
+      {activeTab === "reports" && <ReportsTab />}
+    </KingaPortalShell>
   );
 }

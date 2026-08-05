@@ -956,4 +956,42 @@ export const inspectionsRouter = router({
         ));
       return { success: true };
     }),
+
+  /**
+   * getProjectDashboard — KPI summary for the Engineer Dashboard KPI strip.
+   * Returns: activeProjects, totalInspections, dueThisWeek, pendingReports, recentInspections
+   */
+  getProjectDashboard: engineerDomainProcedure.query(async ({ ctx }) => {
+    const userId = ctx.user!.id;
+    const now = new Date();
+    const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const weekEndStr = weekEnd.toISOString().slice(0, 10);
+
+    const [[activeProjectsResult], [totalInspectionsResult], [dueThisWeekResult], [pendingReportsResult], recentInspections] = await Promise.all([
+      ctx.db.select({ count: sql`count(*)` }).from(inspectionProjects)
+        .where(and(eq(inspectionProjects.createdBy, userId), eq(inspectionProjects.status, 'active'))),
+      ctx.db.select({ count: sql`count(*)` }).from(inspections)
+        .where(eq(inspections.createdBy, userId)),
+      ctx.db.select({ count: sql`count(*)` }).from(inspections)
+        .where(and(eq(inspections.createdBy, userId), eq(inspections.status, 'scheduled'), sql`DATE(${inspections.scheduledDate}) <= ${weekEndStr}`)),
+      ctx.db.select({ count: sql`count(*)` }).from(inspections)
+        .where(and(eq(inspections.createdBy, userId), eq(inspections.status, 'complete'), sql`${inspections.aiAnalysisJson} IS NULL`)),
+      ctx.db.select({
+        id: inspections.id,
+        referenceNumber: inspections.inspectionRef,
+        status: inspections.status,
+        vehicleRegistration: inspections.vehicleRegistration,
+        scheduledDate: inspections.scheduledDate,
+        createdAt: inspections.createdAt,
+      }).from(inspections).where(eq(inspections.createdBy, userId)).orderBy(desc(inspections.createdAt)).limit(5),
+    ]);
+
+    return {
+      activeProjects: Number(activeProjectsResult?.count ?? 0),
+      totalInspections: Number(totalInspectionsResult?.count ?? 0),
+      dueThisWeek: Number(dueThisWeekResult?.count ?? 0),
+      pendingReports: Number(pendingReportsResult?.count ?? 0),
+      recentInspections,
+    };
+  }),
 });

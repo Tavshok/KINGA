@@ -26,10 +26,14 @@ export type UserRole =
   | "claims_processor"
   | "assessor_internal"
   | "assessor_external"
+  | "assessor"
   | "risk_manager"
   | "claims_manager"
   | "executive"
-  | "fleet_manager";
+  | "fleet_manager"
+  | "fleet_admin"
+  | "engineer"
+  | "panel_beater";
 
 interface OnboardingStep {
   icon: React.ReactNode;
@@ -377,6 +381,174 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
           "Claims for vehicles outside your fleet",
           "Internal processing workflows",
           "Executive-level analytics and reports",
+        ],
+      },
+    ],
+  },
+  assessor: {
+    roleName: "Assessor",
+    roleDescription: "Evaluate vehicle damage and submit professional assessments",
+    steps: [
+      {
+        icon: <Briefcase className="w-8 h-8 text-blue-600" />,
+        title: "What You Do",
+        description: "Your primary responsibilities as an assessor",
+        items: [
+          "Review KINGA damage detection and physics analysis",
+          "Conduct physical or remote vehicle inspections",
+          "Submit professional assessment reports",
+          "Confirm or override KINGA cost estimates",
+          "Flag additional fraud indicators not captured by KINGA",
+        ],
+      },
+      {
+        icon: <Eye className="w-8 h-8 text-green-600" />,
+        title: "What You See",
+        description: "Your dashboard and available features",
+        items: [
+          "Your assigned claim queue with SLA deadlines",
+          "KINGA intelligence summary per claim (confidence, fraud, cost)",
+          "Vehicle damage photos and incident details",
+          "Performance dashboard and leaderboard ranking",
+          "Assessment history and accuracy metrics",
+        ],
+      },
+      {
+        icon: <Lock className="w-8 h-8 text-amber-600" />,
+        title: "What You Cannot Modify",
+        description: "System protections and restrictions",
+        items: [
+          "Final claim approval decisions (insurer only)",
+          "Claims assigned to other assessors",
+          "KINGA engine algorithms and confidence scores",
+          "Claimant personal information beyond claim details",
+          "Audit logs and system timestamps",
+        ],
+      },
+    ],
+  },
+  fleet_admin: {
+    roleName: "Fleet Administrator",
+    roleDescription: "Manage your organisation's vehicle fleet and insurance",
+    steps: [
+      {
+        icon: <Briefcase className="w-8 h-8 text-blue-600" />,
+        title: "What You Do",
+        description: "Your primary responsibilities as a fleet administrator",
+        items: [
+          "Register and manage fleet vehicles and drivers",
+          "Monitor fleet risk scores and fraud-flagged vehicles",
+          "Track claims, costs, fuel, and licensing compliance",
+          "Request insurance quotes for the fleet",
+          "Review fleet cost analytics and monthly trends",
+        ],
+      },
+      {
+        icon: <Eye className="w-8 h-8 text-green-600" />,
+        title: "What You See",
+        description: "Your Fleet Command Centre",
+        items: [
+          "Fleet Command Centre with total vehicles, risk alerts, and active claims",
+          "Vehicle profiles with damage history and risk scores",
+          "Cost analytics: monthly trends and top-cost vehicles",
+          "Fuel tracking and licensing expiry calendar",
+          "Fraud-flagged vehicle alerts from KINGA",
+        ],
+      },
+      {
+        icon: <Lock className="w-8 h-8 text-amber-600" />,
+        title: "What You Cannot Modify",
+        description: "System protections and restrictions",
+        items: [
+          "Insurer-side claim assessments and decisions",
+          "KINGA fraud risk scores and engine outputs",
+          "Other fleet accounts' data",
+          "Vehicle registry records for vehicles not in your fleet",
+          "System audit logs and timestamps",
+        ],
+      },
+    ],
+  },
+  engineer: {
+    roleName: "Engineer",
+    roleDescription: "Conduct inspections and produce engineering intelligence",
+    steps: [
+      {
+        icon: <Briefcase className="w-8 h-8 text-blue-600" />,
+        title: "What You Do",
+        description: "Your primary responsibilities as an engineer",
+        items: [
+          "Manage engineering projects and inspection assignments",
+          "Capture measurements, observations, and photos in the field",
+          "Run KINGA AI analysis and physics reconciliation on findings",
+          "Generate inspection reports and link findings to insurance claims",
+          "Track project deliverables and client deadlines",
+        ],
+      },
+      {
+        icon: <Eye className="w-8 h-8 text-green-600" />,
+        title: "What You See",
+        description: "Your Engineering Workspace",
+        items: [
+          "My Projects dashboard with active projects and upcoming inspections",
+          "Inspection workspace with evidence capture and AI analysis tools",
+          "Asset passports with prior inspection history",
+          "Physics reconciliation results and structural risk assessments",
+          "Engineering intelligence: risk scores and condition trends",
+        ],
+      },
+      {
+        icon: <Lock className="w-8 h-8 text-amber-600" />,
+        title: "What You Cannot Modify",
+        description: "System protections and restrictions",
+        items: [
+          "Insurer-side claim decisions and approvals",
+          "Other engineers' inspection records",
+          "KINGA engine algorithms and confidence scores",
+          "Vehicle registry records not linked to your inspections",
+          "Audit logs and system timestamps",
+        ],
+      },
+    ],
+  },
+  panel_beater: {
+    roleName: "Panel Beater",
+    roleDescription: "Receive repair referrals and submit competitive quotes",
+    steps: [
+      {
+        icon: <Briefcase className="w-8 h-8 text-blue-600" />,
+        title: "What You Do",
+        description: "Your primary responsibilities as a panel beater",
+        items: [
+          "Review vehicle damage referrals and KINGA cost estimates",
+          "Submit detailed repair quotes with line-item breakdowns",
+          "Manage active repair jobs and update job status",
+          "Track your performance metrics and leaderboard ranking",
+          "Submit final invoices on job completion",
+        ],
+      },
+      {
+        icon: <Eye className="w-8 h-8 text-green-600" />,
+        title: "What You See",
+        description: "Your Panel Beater Dashboard",
+        items: [
+          "Job referral queue with vehicle details and damage descriptions",
+          "KINGA cost estimate as a benchmark for your quotes",
+          "Quote history with acceptance rates and deviation metrics",
+          "Performance dashboard and ranking among peers",
+          "Active jobs with status and payment tracking",
+        ],
+      },
+      {
+        icon: <Lock className="w-8 h-8 text-amber-600" />,
+        title: "What You Cannot Modify",
+        description: "System protections and restrictions",
+        items: [
+          "Full KINGA assessment reports (cost estimate only is visible)",
+          "Claim approval decisions (insurer only)",
+          "Jobs assigned to other panel beaters",
+          "Claimant personal information beyond repair details",
+          "Audit logs and system timestamps",
         ],
       },
     ],

@@ -41,6 +41,12 @@ function mapUserRole(role: string | undefined): UserRole | null {
     executive: "executive",
     fleet_manager: "fleet_manager",
     "fleet manager": "fleet_manager",
+    fleet_admin: "fleet_admin",
+    "fleet admin": "fleet_admin",
+    engineer: "engineer",
+    panel_beater: "panel_beater",
+    "panel beater": "panel_beater",
+    assessor: "assessor",
   };
   
   return roleMap[role.toLowerCase()] || null;
