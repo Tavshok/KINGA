@@ -182,6 +182,18 @@ export interface Stage9_5Output {
   allIndicators: CGIIndicator[];
   /** Per-tier availability counts for the report header */
   availabilitySummary: CGIAvailabilitySummary;
+  /**
+   * Convenience flag for the fraud analytics dashboard and list views.
+   * True when conclusion.verdict is INCOHERENT or ANOMALOUS.
+   * Mirrors conclusion.injectFraudIndicator — kept as a top-level field so
+   * routers that only select cgiResultJson don't need to drill into conclusion.
+   */
+  contactGeometryFlag: boolean;
+  /**
+   * Convenience alias for conclusion.verdict — top-level for easy access
+   * in list-view queries that parse only the cgiResultJson column.
+   */
+  forensicVerdict: CGIVerdict | null;
   /** CGI engine version */
   engineVersion: string;
   /** Milliseconds taken to run */
@@ -1119,11 +1131,12 @@ export function runContactGeometryIntelligence(input: CGIInput): Stage9_5Output 
       layer2Indicators,
       conclusion,
       allIndicators,
-      availabilitySummary,
+            availabilitySummary,
+      contactGeometryFlag: conclusion.injectFraudIndicator,
+      forensicVerdict: conclusion.verdict,
       engineVersion: CGI_ENGINE_VERSION,
       runtimeMs: Date.now() - startMs,
     };
-
   } catch (err) {
     const emptyAvailability: CGIAvailabilitySummary = {
       core:        { available: 0, total: 0 },
@@ -1146,6 +1159,8 @@ export function runContactGeometryIntelligence(input: CGIInput): Stage9_5Output 
       },
       allIndicators: [],
       availabilitySummary: emptyAvailability,
+      contactGeometryFlag: false,
+      forensicVerdict: null,
       engineVersion: CGI_ENGINE_VERSION,
       runtimeMs: Date.now() - startMs,
     };

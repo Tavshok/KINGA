@@ -1870,10 +1870,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const { aiAssessments: aiAssessmentsTable } = await import("../drizzle/schema");
         const { inArray: inArrayOp } = await import("drizzle-orm");
         const qualityRows = await db
-          .select({ claimId: aiAssessmentsTable.claimId, claimQualityJson: aiAssessmentsTable.claimQualityJson })
+          .select({ claimId: aiAssessmentsTable.claimId, claimQualityJson: aiAssessmentsTable.claimQualityJson, cgiResultJson: aiAssessmentsTable.cgiResultJson })
           .from(aiAssessmentsTable)
           .where(inArrayOp(aiAssessmentsTable.claimId, completedIds));
         const qualityMap = new Map<number, any>();
+        const cgiMap2 = new Map<number, any>();
         for (const qr of qualityRows) {
           if (qr.claimId && qr.claimQualityJson) {
             try {
@@ -1881,10 +1882,22 @@ If any value is not found, use 0 for numbers and empty string for text.`;
               qualityMap.set(qr.claimId, { grade: parsed.grade, overallScore: parsed.overallScore, requiresManualReview: parsed.requiresManualReview });
             } catch { /* non-fatal */ }
           }
+          if (qr.claimId && qr.cgiResultJson) {
+            try {
+              const cgi = JSON.parse(qr.cgiResultJson as string);
+              // Expose top-level convenience fields so FraudAnalyticsDashboard can filter on _cgi.contactGeometryFlag
+              cgiMap2.set(qr.claimId, {
+                contactGeometryFlag: cgi.contactGeometryFlag ?? false,
+                forensicVerdict: cgi.forensicVerdict ?? null,
+                hiddenDamageProbabilityOverride: cgi.conclusion?.hiddenDamageProbabilityOverride ?? null,
+              });
+            } catch { /* non-fatal */ }
+          }
         }
         return rows.map((r: any) => ({
           ...r,
           _qualityGrade: qualityMap.get(r.id) ?? null,
+          _cgi: cgiMap2.get(r.id) ?? null,
         }));
       }),
 
@@ -5732,6 +5745,29 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
                 costDeviation: xv.costDeviation ?? xv.cost_deviation ?? null,
                 findings: Array.isArray(xv.findings) ? xv.findings : [],
               };
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
+          // Stage 9.5 CGI — Contact Geometry Intelligence full output
+          // contactGeometryFlag and forensicVerdict are top-level convenience fields.
+          _cgi: (() => {
+            try {
+              if ((assessment as any).cgiResultJson) {
+                return typeof (assessment as any).cgiResultJson === 'string'
+                  ? JSON.parse((assessment as any).cgiResultJson)
+                  : (assessment as any).cgiResultJson;
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
+          // Stage 10-I Interpretation Engine — cross-engine LLM narrative and adjuster actions
+          _interpretation: (() => {
+            try {
+              if ((assessment as any).interpretationResultJson) {
+                return typeof (assessment as any).interpretationResultJson === 'string'
+                  ? JSON.parse((assessment as any).interpretationResultJson)
+                  : (assessment as any).interpretationResultJson;
+              }
             } catch { /* non-fatal */ }
             return null;
           })(),

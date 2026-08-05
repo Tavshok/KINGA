@@ -40,6 +40,7 @@ export async function generateClaimsIntelligenceReport(
               a.narrative_analysis_json, a.physics_analysis, a.physics_truth_json,
               a.cross_validation_json, a.claim_truth_json,
               a.enriched_photos_json,
+              a.cgi_result_json, a.interpretation_result_json,
               a.created_at AS assessment_date, a.model_version
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
