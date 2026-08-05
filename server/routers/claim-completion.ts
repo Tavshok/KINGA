@@ -143,6 +143,7 @@ export const claimCompletionRouter = router({
             await insertDamageHistory({
               vehicleId,
               claimId: input.claimId,
+              vehicleRegistration: claim.vehicleRegistration ?? null, // DEF-001: direct registration for vehicle-centric queries
               damagedComponents,
               impactDirection: null, // collision direction not on claims table; sourced from physics analysis if available
               estimatedSpeedKmh,

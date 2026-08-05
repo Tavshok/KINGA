@@ -1254,3 +1254,25 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] M-05: Engineering project management — inspection_projects schema table, createProject/listProjects procedures, ProjectsTab in EngineerDashboard
 - [x] M-06: Agency performance analytics — getAgencyPerformanceMetrics procedure, AgencyPerformanceTab in KingaAgency
 - [x] M-07: Portfolio export — exportPortfolioReport procedure returning PDF, Export button in InsurerAdminDashboard
+
+## Phase 4.5 — Admin Platform Audit & Defect Fixes
+
+### DEF-001: vehicleDamageHistory vehicleRegistration
+- [x] DEF-001: Add vehicleRegistration column to vehicleDamageHistory in schema.ts
+- [x] DEF-001: Run DB migration to add vehicle_registration column
+- [x] DEF-001: Update completeClaim to populate vehicleRegistration on insert
+
+### DEF-002: fleet.addVehicle tRPC exposure
+- [x] DEF-002: Add addVehicle tRPC mutation to fleet-accounts.ts router
+- [x] DEF-002: Add AddVehicleDialog component to FleetManagement.tsx (fleet.registerVehicle already exists; fleetAccounts.addVehicle added as complementary path)
+- [x] DEF-002: Wire addVehicle mutation to dialog submit handler
+
+### DEF-003: inspections projectId FK
+- [x] DEF-003: Add projectId column to inspections table in schema.ts
+- [x] DEF-003: Run DB migration to add project_id column
+- [x] DEF-003: Update inspections.create to accept optional projectId
+- [x] DEF-003: Update InspectionProjectsTab to pass projectId when creating inspections (FK in place; projectId passed at inspection creation time)
+
+### Admin Platform Audit
+- [ ] ADMIN-AUDIT: Complete audit of all 10 admin domains
+- [ ] ADMIN-AUDIT: Deliver Admin Completion Matrix and priority implementation plan

@@ -131,6 +131,7 @@ export const inspectionsRouter = router({
       assetRef: z.string().max(100).optional(),
       vehicleRegistration: z.string().max(50).optional(),
       claimId: z.number().int().positive().optional(),
+      projectId: z.number().int().positive().optional(), // DEF-003: link to inspection_projects
       scheduledDate: z.string().datetime().optional(),
       locationAddress: z.string().max(500).optional(),
       locationLat: z.number().optional(),
@@ -177,6 +178,7 @@ export const inspectionsRouter = router({
         assetRef: input.assetRef ?? null,
         vehicleRegistration: input.vehicleRegistration ?? null,
         claimId: input.claimId ?? null,
+        projectId: input.projectId ?? null, // DEF-003
         assignedEngineerId,
         assignedAt,
         scheduledDate: input.scheduledDate ? new Date(input.scheduledDate) : null,

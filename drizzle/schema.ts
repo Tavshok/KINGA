@@ -4083,6 +4083,9 @@ export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
   vehicleId: int("vehicle_id").notNull(),
   // Links to claims.id — the claim that generated this damage record.
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+  // DEF-001: Direct vehicle registration for efficient vehicle-centric queries
+  // without requiring a join through claims. Populated automatically on insert.
+  vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
 
   // Damage classification -------------------------------------------------
   // Primary standardised damage zone for this incident.
@@ -4135,6 +4138,7 @@ export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
 (table) => [
   index("idx_vdh_vehicle_id").on(table.vehicleId),
   index("idx_vdh_claim_id").on(table.claimId),
+  index("idx_vdh_vehicle_reg").on(table.vehicleRegistration),
   index("idx_vdh_damage_zone").on(table.damageZone),
   index("idx_vdh_severity").on(table.severity),
   index("idx_vdh_tenant").on(table.tenantId),
@@ -5489,6 +5493,8 @@ export const inspections = mysqlTable("inspections", {
   assetType:            varchar("asset_type", { length: 50 }).notNull(),
   vehicleRegistration:  varchar("vehicle_registration", { length: 50 }),
   claimId:              int("claim_id"),
+  // DEF-003: FK to inspection_projects for project-level grouping of inspections.
+  projectId:            int("project_id"),
   assignedEngineerId:   int("assigned_engineer_id"),
   assignedAt:           timestamp("assigned_at", { mode: 'string' }),
   scheduledDate:        timestamp("scheduled_date", { mode: 'string' }),
@@ -5513,6 +5519,7 @@ export const inspections = mysqlTable("inspections", {
   uniqueIndex("idx_inspections_ref").on(table.inspectionRef),
   index("idx_inspections_tenant").on(table.tenantId),
   index("idx_inspections_claim").on(table.claimId),
+  index("idx_inspections_project").on(table.projectId), // DEF-003
   index("idx_inspections_engineer").on(table.assignedEngineerId),
   index("idx_inspections_asset").on(table.assetRegistryId),
   index("idx_inspections_vehicle").on(table.vehicleRegistration),

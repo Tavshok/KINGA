@@ -1179,4 +1179,61 @@ export const fleetAccountsRouter = router({
         .orderBy(licensingRecords.expiryDate);
       return rows;
     }),
+
+  // DEF-002: Expose fleet.addVehicle as a tRPC mutation so fleet managers
+  // can add vehicles through the UI without requiring bulk import.
+  addVehicle: protectedProcedure
+    .input(z.object({
+      fleetAccountId: z.number().int().positive(),
+      vin: z.string().min(1).max(50),
+      make: z.string().min(1).max(100),
+      model: z.string().min(1).max(100),
+      year: z.number().int().min(1900).max(new Date().getFullYear() + 2),
+      licensePlate: z.string().min(1).max(30),
+      registrationExpiry: z.string().optional(),
+      insurancePolicyNumber: z.string().optional(),
+      insuranceExpiry: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+      // Verify the fleet account belongs to the current user
+      const [account] = await db.select({ id: fleetAccounts.id, tenantId: fleetAccounts.tenantId })
+        .from(fleetAccounts)
+        .where(and(
+          eq(fleetAccounts.id, input.fleetAccountId),
+          eq(fleetAccounts.ownerUserId, ctx.user.id)
+        ))
+        .limit(1);
+      if (!account) throw new TRPCError({ code: 'NOT_FOUND', message: 'Fleet account not found or access denied' });
+      // Check for duplicate VIN within this fleet
+      const { fleetVehicles } = await import('../../drizzle/schema');
+      const [existing] = await db.select({ id: fleetVehicles.id })
+        .from(fleetVehicles)
+        .where(and(
+          eq(fleetVehicles.fleetId, input.fleetAccountId),
+          eq(fleetVehicles.vin, input.vin)
+        ))
+        .limit(1);
+      if (existing) throw new TRPCError({ code: 'CONFLICT', message: `Vehicle with VIN ${input.vin} already exists in this fleet` });
+      // Insert the vehicle
+      const result = await db.insert(fleetVehicles).values({
+        fleetId: input.fleetAccountId,
+        tenantId: account.tenantId ?? ctx.user.tenantId ?? null,
+        vin: input.vin,
+        make: input.make,
+        model: input.model,
+        year: input.year,
+        licensePlate: input.licensePlate,
+        registrationExpiry: input.registrationExpiry ? new Date(input.registrationExpiry) : undefined,
+        insurancePolicyNumber: input.insurancePolicyNumber ?? null,
+        insuranceExpiry: input.insuranceExpiry ? new Date(input.insuranceExpiry) : undefined,
+        status: 'active',
+        riskScore: 50,
+        maintenanceComplianceScore: 70,
+      } as any);
+      const vehicleId = (result as any)[0]?.insertId ?? (result as any).insertId ?? null;
+      console.log(`[DEF-002] Fleet vehicle added: id=${vehicleId} vin=${input.vin} fleet=${input.fleetAccountId} by user=${ctx.user.id}`);
+      return { vehicleId, vin: input.vin, make: input.make, model: input.model, year: input.year, licensePlate: input.licensePlate };
+    }),
 });

@@ -310,6 +310,8 @@ export async function detectRepeatZone(
 export interface InsertDamageHistoryParams {
   vehicleId: number;
   claimId: number;
+  /** DEF-001: Direct vehicle registration for vehicle-centric queries without join through claims. */
+  vehicleRegistration?: string | null;
   /** Raw component list from KINGA assessment. */
   damagedComponents: Array<{
     name: string;
@@ -352,6 +354,7 @@ export async function insertDamageHistory(
   const {
     vehicleId,
     claimId,
+    vehicleRegistration,
     damagedComponents,
     impactZoneRaw,
     impactDirection,
@@ -416,6 +419,7 @@ export async function insertDamageHistory(
     repairCostEstimateCents,
     fraudRiskScore,
     isRepeatZone: isRepeatZone ? 1 : 0,
+    vehicleRegistration: vehicleRegistration ?? null, // DEF-001
     tenantId: tenantId ?? null,
     createdAt: new Date().toISOString().slice(0, 19).replace("T", " "),
   };
