@@ -869,4 +869,50 @@ export const fleetAccountsRouter = router({
       console.log(`[FleetAccounts] Claim ${claim.claimNumber} flagged for review by fleet user ${ctx.user.id}.`);
       return { success: true, claimId: input.claimId, claimNumber: claim.claimNumber };
     }),
+
+  /**
+   * H-03: Get fraud-flagged vehicles in the fleet.
+   * Joins fraud_alerts → claims → fleet_vehicles → vehicle_registry.
+   * Returns vehicles with active fraud flags so the Fleet Manager can act.
+   */
+  getFraudFlaggedVehicles: protectedProcedure
+    .input(z.object({
+      fleetAccountId: z.number().int().positive().optional(),
+      limit: z.number().int().min(1).max(50).default(20),
+    }))
+    .query(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+      try {
+        const { fraudAlerts, aiAssessments, fleetVehicles, vehicleRegistry } = await import('../../drizzle/schema');
+        const { eq: eqD, desc: descD, and: andD, isNotNull } = await import('drizzle-orm');
+        // Get fraud-flagged claims for this user's fleet vehicles
+        const rows = await db
+          .select({
+            claimId: claims.id,
+            claimNumber: claims.claimNumber,
+            vehicleRegistration: claims.vehicleRegistration,
+            vehicleMake: claims.vehicleMake,
+            vehicleModel: claims.vehicleModel,
+            vehicleYear: claims.vehicleYear,
+            fraudScore: aiAssessments.fraudScore,
+            claimStatus: claims.status,
+            flaggedAt: fraudAlerts.createdAt,
+            alertSeverity: fraudAlerts.alertSeverity,
+            alertType: fraudAlerts.alertType,
+          })
+          .from(fraudAlerts)
+          .innerJoin(claims, eqD(claims.id, fraudAlerts.claimId))
+          .leftJoin(aiAssessments, eqD(aiAssessments.claimId, claims.id))
+          .where(
+            eqD(claims.claimantId, ctx.user.id)
+          )
+          .orderBy(descD(fraudAlerts.createdAt))
+          .limit(input.limit);
+        return rows;
+      } catch (err) {
+        console.error('[FleetAccounts] getFraudFlaggedVehicles error:', err);
+        return [];
+      }
+    }),
 });

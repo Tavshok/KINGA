@@ -164,6 +164,18 @@ export default function InsurerAdminDashboard() {
     { staleTime: 2 * 60 * 1000 }
   );
 
+  // H-04: Fleet exposure summary
+  const { data: fleetExposure } = trpc.portfolioIntelligence.getFleetExposureSummary.useQuery(
+    undefined,
+    { staleTime: 5 * 60 * 1000 }
+  );
+
+  // H-05: Engineering risk summary
+  const { data: engineeringRisk } = trpc.portfolioIntelligence.getEngineeringRiskSummary.useQuery(
+    undefined,
+    { staleTime: 5 * 60 * 1000 }
+  );
+
   // KPI card data
   const kpiSummary = (kpis as any)?.summaryMetrics;
   const kpiCards = [
@@ -338,6 +350,58 @@ export default function InsurerAdminDashboard() {
                 ))}
               </div>
             </div>
+
+            {/* H-04: Fleet Exposure Summary */}
+            {fleetExposure && fleetExposure.totalFleets > 0 && (
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <Layers style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    Fleet Intelligence
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  {[
+                    { label: 'Total Fleets', value: fleetExposure.totalFleets },
+                    { label: 'Vehicles Tracked', value: fleetExposure.totalVehicles },
+                    { label: 'High-Risk Fleets', value: fleetExposure.highRiskFleets },
+                    { label: 'Avg Fleet Risk', value: `${fleetExposure.avgFleetRiskScore}/100` },
+                    { label: 'Total Claim Cost', value: `$${(fleetExposure.totalClaimCostCents / 100).toLocaleString()}` },
+                  ].map((item: any) => (
+                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>{item.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: item.label === 'High-Risk Fleets' && item.value > 0 ? 'var(--red)' : 'var(--ink)' }}>{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* H-05: Engineering Risk Summary */}
+            {engineeringRisk && engineeringRisk.totalInspections > 0 && (
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <Activity style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    Engineering Intelligence
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  {[
+                    { label: 'Total Inspections', value: engineeringRisk.totalInspections },
+                    { label: 'Completed', value: engineeringRisk.completedInspections },
+                    { label: 'In Progress', value: engineeringRisk.inProgressInspections },
+                    { label: 'High Structural Risk', value: engineeringRisk.highStructuralRiskCount },
+                    { label: 'Active Engineers', value: engineeringRisk.activeEngineers },
+                  ].map((item: any) => (
+                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>{item.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: item.label === 'High Structural Risk' && item.value > 0 ? 'var(--red)' : 'var(--ink)' }}>{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Attention Required */}
             <div className="p11-card">

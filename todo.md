@@ -1223,3 +1223,14 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] C-03: completeClaim updates fleet intelligence snapshot
 - [x] C-04: Add claims ageing bands (0-7, 8-14, 15-30, 30+) to ClaimsManagerDashboard
 - [x] C-04: Add average claim age and oldest open claim metrics
+
+## Feature Completion Audit — Phase 2 (Intelligence Connectivity)
+
+- [x] H-01: Add agency risk intelligence panel to KingaAgency quotation detail (fraud risk from vehicle history, repeat claimant flag)
+- [x] H-01: Expose vehicleRiskScore and isRepeatClaimer from vehicleRegistry in agency.getValuation response
+- [x] H-03: Wire fraud flagged claims into fleet risk dashboard — show fraud-flagged vehicles in FleetManagerDashboard
+- [x] H-03: Add fraud risk band to fleet vehicle detail view
+- [x] H-04: Add fleet exposure summary to PortfolioAdministration dashboard (total fleet vehicles, high-risk vehicles, fleet claim cost)
+- [x] H-04: Add engineering inspection summary to PortfolioAdministration dashboard (inspections completed, structural risk flags)
+- [x] H-05: Wire engineering inspection completions to portfolio intelligence aggregations
+- [x] H-05: Add engineering risk summary card to PortfolioAdministration page

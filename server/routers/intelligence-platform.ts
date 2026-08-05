@@ -1013,11 +1013,10 @@ export const portfolioIntelligenceRouter = router({
     }),
 
   /** Get portfolio snapshot (cached). */
-  getSnapshot: protectedProcedure
+    getSnapshot: protectedProcedure
     .query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
-
       // Return the latest vehicle passport snapshot as a proxy for portfolio state
       const [snapshot] = await db
         .select()
@@ -1025,12 +1024,73 @@ export const portfolioIntelligenceRouter = router({
         .where(eq(vehiclePassportSnapshots.tenantId, ctx.user.tenantId ?? ""))
         .orderBy(desc(vehiclePassportSnapshots.generatedAt))
         .limit(1);
-
       return {
         snapshot: snapshot ?? null,
         dataSources: ["vehicle_passport_snapshots"],
       };
     }),
+
+  /** H-04: Fleet exposure summary for portfolio dashboard. */
+  getFleetExposureSummary: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) return null;
+    try {
+      const tenantFilter = ctx.user.tenantId ? `AND (f.tenant_id = '${ctx.user.tenantId}' OR f.tenant_id IS NULL)` : '';
+      const [row] = await db.execute(sql.raw(`
+        SELECT
+          COUNT(DISTINCT fv.id) AS totalVehicles,
+          COUNT(DISTINCT f.id) AS totalFleets,
+          SUM(CASE WHEN frs.overall_risk_score >= 70 THEN 1 ELSE 0 END) AS highRiskFleets,
+          COALESCE(SUM(frs.total_claims_cost_cents), 0) AS totalClaimCostCents,
+          COALESCE(AVG(frs.overall_risk_score), 0) AS avgFleetRiskScore
+        FROM fleets f
+        LEFT JOIN fleet_vehicles fv ON fv.fleet_id = f.id
+        LEFT JOIN fleet_risk_scores frs ON frs.fleet_id = f.id
+        WHERE 1=1 ${tenantFilter}
+      `));
+      const data = (Array.isArray(row) ? row[0] : row) as any;
+      return {
+        totalVehicles: Number(data?.totalVehicles ?? 0),
+        totalFleets: Number(data?.totalFleets ?? 0),
+        highRiskFleets: Number(data?.highRiskFleets ?? 0),
+        totalClaimCostCents: Number(data?.totalClaimCostCents ?? 0),
+        avgFleetRiskScore: Math.round(Number(data?.avgFleetRiskScore ?? 0)),
+      };
+    } catch (err) {
+      console.error('[PortfolioIntelligence] getFleetExposureSummary error:', err);
+      return null;
+    }
+  }),
+
+  /** H-05: Engineering risk summary for portfolio dashboard. */
+  getEngineeringRiskSummary: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) return null;
+    try {
+      const tenantFilter = ctx.user.tenantId ? `AND (i.tenant_id = '${ctx.user.tenantId}' OR i.tenant_id IS NULL)` : '';
+      const [row] = await db.execute(sql.raw(`
+        SELECT
+          COUNT(*) AS totalInspections,
+          SUM(CASE WHEN i.status = 'completed' THEN 1 ELSE 0 END) AS completedInspections,
+          SUM(CASE WHEN i.status = 'in_progress' THEN 1 ELSE 0 END) AS inProgressInspections,
+          SUM(CASE WHEN i.structural_risk_level IN ('high','critical') THEN 1 ELSE 0 END) AS highStructuralRiskCount,
+          COUNT(DISTINCT i.engineer_id) AS activeEngineers
+        FROM inspections i
+        WHERE 1=1 ${tenantFilter}
+      `));
+      const data = (Array.isArray(row) ? row[0] : row) as any;
+      return {
+        totalInspections: Number(data?.totalInspections ?? 0),
+        completedInspections: Number(data?.completedInspections ?? 0),
+        inProgressInspections: Number(data?.inProgressInspections ?? 0),
+        highStructuralRiskCount: Number(data?.highStructuralRiskCount ?? 0),
+        activeEngineers: Number(data?.activeEngineers ?? 0),
+      };
+    } catch (err) {
+      console.error('[PortfolioIntelligence] getEngineeringRiskSummary error:', err);
+      return null;
+    }
+  }),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

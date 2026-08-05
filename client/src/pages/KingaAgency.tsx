@@ -268,11 +268,63 @@ function QuotationsTab() {
                 <p className="text-sm text-secondary">{q.quoteNotes}</p>
               </div>
             )}
+            {/* H-01: Vehicle history risk intelligence from KINGA registry */}
+            <VehicleRiskIntelligencePanel registrationNumber={q.vehicleRegistration} />
             {/* C-02: Show vehicle forensics analysis if vehicle photos were uploaded */}
             <VehicleForensicsPanel quotationRequestId={q.id} />
           </CardContent>
         </Card>
       ))}
+    </div>
+  );
+}
+
+// ========== VEHICLE RISK INTELLIGENCE PANEL (H-01) ==========
+function VehicleRiskIntelligencePanel({ registrationNumber }: { registrationNumber?: string | null }) {
+  const { data, isLoading } = trpc.agency.getVehicleRiskIntelligence.useQuery(
+    { registrationNumber: registrationNumber! },
+    { enabled: !!registrationNumber }
+  );
+  if (!registrationNumber || isLoading || !data || !data.found) return null;
+  const risk = data as Extract<typeof data, { found: true }>;
+  const riskScore = risk.vehicleRiskScore ?? 0;
+  const riskColor = riskScore >= 70 ? 'text-red-600' : riskScore >= 40 ? 'text-amber-600' : 'text-emerald-600';
+  const riskBg = riskScore >= 70 ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800' : riskScore >= 40 ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800' : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800';
+  const flags = [
+    risk.isRepeatClaimer && 'Repeat Claimant',
+    risk.isSalvageTitle && 'Salvage Title',
+    risk.isStolen && 'Reported Stolen',
+    risk.isWrittenOff && 'Written Off',
+    risk.hasSuspiciousDamagePattern && 'Suspicious Damage Pattern',
+  ].filter(Boolean);
+  return (
+    <div className={`mt-2 p-3 border rounded-lg ${riskBg}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <ShieldCheck className={`h-4 w-4 ${riskColor}`} />
+        <span className="text-sm font-semibold">KINGA Vehicle History Intelligence</span>
+        <Badge variant="outline" className={`ml-auto text-xs ${riskColor}`}>Risk {riskScore}/100</Badge>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-xs">
+        <div className="text-center">
+          <p className="text-muted-foreground">Prior Claims</p>
+          <p className={`font-semibold ${risk.totalClaimsCount > 2 ? 'text-red-600' : 'text-foreground'}`}>{risk.totalClaimsCount}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-muted-foreground">Total Repair Cost</p>
+          <p className="font-semibold">${((risk.totalRepairCostCents ?? 0) / 100).toLocaleString()}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-muted-foreground">Last Claim</p>
+          <p className="font-semibold">{risk.lastClaimDate ? new Date(risk.lastClaimDate).toLocaleDateString() : 'None'}</p>
+        </div>
+      </div>
+      {flags.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {flags.map((flag, i) => (
+            <Badge key={i} variant="destructive" className="text-xs">{flag}</Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

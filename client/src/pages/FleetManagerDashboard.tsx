@@ -204,6 +204,12 @@ export default function FleetManagerDashboard() {
 
   const allClaims: FleetClaim[] = (claimsData?.claims ?? []) as unknown as FleetClaim[];
 
+  // H-03: Fraud-flagged vehicles in this fleet
+  const { data: fraudFlaggedVehicles = [] } = trpc.fleetAccounts.getFraudFlaggedVehicles.useQuery(
+    {},
+    { enabled: !!primaryAccount?.id }
+  );
+
   const activeClaims = useMemo(
     () =>
       allClaims.filter((c) =>
@@ -402,12 +408,21 @@ export default function FleetManagerDashboard() {
       </nav>
 
       {/* ── ALERT BAR ── */}
-      {allClaims.filter(c => { const ms = c.createdAt ? now - new Date(c.createdAt).getTime() : 0; return ms > 72 * 3600000 && ['submitted','in_review','ai_complete'].includes(c.status); }).length > 0 && (
+      {(allClaims.filter(c => { const ms = c.createdAt ? now - new Date(c.createdAt).getTime() : 0; return ms > 72 * 3600000 && ['submitted','in_review','ai_complete'].includes(c.status); }).length > 0 || (fraudFlaggedVehicles as any[]).length > 0) && (
         <div className="p11-alert-bar">
-          <div className="p11-alert-item red">
-            <span className="p11-alert-count">{allClaims.filter(c => { const ms = c.createdAt ? now - new Date(c.createdAt).getTime() : 0; return ms > 72 * 3600000 && ['submitted','in_review','ai_complete'].includes(c.status); }).length}</span>
-            <span>claim(s) have exceeded 72-hour SLA — escalation required</span>
-          </div>
+          {allClaims.filter(c => { const ms = c.createdAt ? now - new Date(c.createdAt).getTime() : 0; return ms > 72 * 3600000 && ['submitted','in_review','ai_complete'].includes(c.status); }).length > 0 && (
+            <div className="p11-alert-item red">
+              <span className="p11-alert-count">{allClaims.filter(c => { const ms = c.createdAt ? now - new Date(c.createdAt).getTime() : 0; return ms > 72 * 3600000 && ['submitted','in_review','ai_complete'].includes(c.status); }).length}</span>
+              <span>claim(s) have exceeded 72-hour SLA — escalation required</span>
+            </div>
+          )}
+          {/* H-03: Fraud flagged vehicles alert */}
+          {(fraudFlaggedVehicles as any[]).length > 0 && (
+            <div className="p11-alert-item" style={{ background: '#FFF3CD', borderColor: '#E8C97A', color: '#7A4F00' }}>
+              <span className="p11-alert-count" style={{ background: '#E8A000', color: '#fff' }}>{(fraudFlaggedVehicles as any[]).length}</span>
+              <span>vehicle claim(s) have active KINGA fraud flags — review recommended</span>
+            </div>
+          )}
         </div>
       )}
 

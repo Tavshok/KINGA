@@ -383,6 +383,53 @@ export const agencyRouter = router({
     }),
 
   /**
+   * H-01: Get vehicle risk intelligence from KINGA vehicle registry.
+   * Returns risk profile for a vehicle by registration number.
+   */
+  getVehicleRiskIntelligence: protectedProcedure
+    .input(z.object({
+      registrationNumber: z.string().min(1).max(30),
+    }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return null;
+      const { vehicleRegistry } = await import('../../drizzle/schema');
+      const { eq } = await import('drizzle-orm');
+      const reg = input.registrationNumber.toUpperCase().replace(/\s/g, '');
+      const [vehicle] = await db
+        .select({
+          id: vehicleRegistry.id,
+          vehicleRiskScore: vehicleRegistry.vehicleRiskScore,
+          isRepeatClaimer: vehicleRegistry.isRepeatClaimer,
+          isSalvageTitle: vehicleRegistry.isSalvageTitle,
+          isStolen: vehicleRegistry.isStolen,
+          isWrittenOff: vehicleRegistry.isWrittenOff,
+          totalClaimsCount: vehicleRegistry.totalClaimsCount,
+          totalRepairCostCents: vehicleRegistry.totalRepairCostCents,
+          lastClaimDate: vehicleRegistry.lastClaimDate,
+          hasSuspiciousDamagePattern: vehicleRegistry.hasSuspiciousDamagePattern,
+          damageZoneCountsJson: vehicleRegistry.damageZoneCountsJson,
+        })
+        .from(vehicleRegistry)
+        .where(eq(vehicleRegistry.registrationNumber, reg))
+        .limit(1);
+      if (!vehicle) return { found: false as const };
+      return {
+        found: true as const,
+        vehicleRiskScore: vehicle.vehicleRiskScore,
+        isRepeatClaimer: vehicle.isRepeatClaimer === 1,
+        isSalvageTitle: vehicle.isSalvageTitle === 1,
+        isStolen: vehicle.isStolen === 1,
+        isWrittenOff: vehicle.isWrittenOff === 1,
+        totalClaimsCount: vehicle.totalClaimsCount,
+        totalRepairCostCents: vehicle.totalRepairCostCents,
+        lastClaimDate: vehicle.lastClaimDate ?? null,
+        hasSuspiciousDamagePattern: vehicle.hasSuspiciousDamagePattern === 1,
+        damageZoneCounts: vehicle.damageZoneCountsJson ? JSON.parse(vehicle.damageZoneCountsJson) : null,
+      };
+    }),
+
+  /**
    * C-02: Get vehicle photo forensics result for a quotation request.
    * Returns the forensics status and results so the UI can poll and display.
    */
