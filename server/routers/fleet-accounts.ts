@@ -12,8 +12,8 @@ import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "../db";
-import { fleetAccounts, claims, users, fleetManagerRequests, fuelRecords, licensingRecords } from "../../drizzle/schema";
-import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
+import { fleetAccounts, claims, users, fleetManagerRequests, fuelRecords, licensingRecords, fleetDrivers, maintenanceRecords, maintenanceSchedules, maintenanceAlerts } from "../../drizzle/schema";
+import { eq, and, desc, or, ilike, sql, count } from "drizzle-orm";
 import { notifyOwner } from "../_core/notification";
 import { sendFleetManagerApprovedEmail, sendFleetManagerRejectedEmail, sendFleetManagerSubmittedEmail } from "../safe-email";
 import { logRoleAssignment } from "../services/role-assignment-audit";
@@ -1236,4 +1236,144 @@ export const fleetAccountsRouter = router({
       console.log(`[DEF-002] Fleet vehicle added: id=${vehicleId} vin=${input.vin} fleet=${input.fleetAccountId} by user=${ctx.user.id}`);
       return { vehicleId, vin: input.vin, make: input.make, model: input.model, year: input.year, licensePlate: input.licensePlate };
     }),
+  /**
+   * Phase 2: List drivers for the current fleet manager's accounts
+   */
+  listDrivers: protectedProcedure
+    .input(z.object({ fleetAccountId: z.number().int().optional(), limit: z.number().int().min(1).max(200).default(100) }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'No tenant' });
+      const where = input.fleetAccountId
+        ? and(eq(fleetDrivers.tenantId, tenantId), eq(fleetDrivers.fleetId, input.fleetAccountId))
+        : eq(fleetDrivers.tenantId, tenantId);
+      return await db.select().from(fleetDrivers).where(where).orderBy(desc(fleetDrivers.createdAt)).limit(input.limit);
+    }),
+
+  /**
+   * Phase 2: Add a driver to a fleet
+   */
+  addDriver: protectedProcedure
+    .input(z.object({
+      fleetAccountId: z.number().int(),
+      userId: z.number().int(),
+      driverLicenseNumber: z.string().min(1).max(50),
+      licenseExpiry: z.string(),
+      licenseClass: z.string().max(20).optional(),
+      hireDate: z.string(),
+      emergencyContactName: z.string().max(255).optional(),
+      emergencyContactPhone: z.string().max(50).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'No tenant' });
+      const result = await db.insert(fleetDrivers).values({
+        fleetId: input.fleetAccountId,
+        tenantId,
+        userId: input.userId,
+        driverLicenseNumber: input.driverLicenseNumber,
+        licenseExpiry: input.licenseExpiry,
+        licenseClass: input.licenseClass ?? null,
+        hireDate: input.hireDate,
+        emergencyContactName: input.emergencyContactName ?? null,
+        emergencyContactPhone: input.emergencyContactPhone ?? null,
+        employmentStatus: 'active',
+      } as any);
+      return { success: true, driverId: (result as any)[0]?.insertId ?? null };
+    }),
+
+  /**
+   * Phase 2: List maintenance records for the tenant
+   */
+  listMaintenanceRecords: protectedProcedure
+    .input(z.object({ vehicleId: z.number().int().optional(), limit: z.number().int().min(1).max(200).default(50) }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'No tenant' });
+      const where = input.vehicleId
+        ? and(eq(maintenanceRecords.tenantId, tenantId), eq(maintenanceRecords.vehicleId, input.vehicleId))
+        : eq(maintenanceRecords.tenantId, tenantId);
+      return await db.select().from(maintenanceRecords).where(where).orderBy(desc(maintenanceRecords.serviceDate)).limit(input.limit);
+    }),
+
+  /**
+   * Phase 2: Add a maintenance record
+   */
+  addMaintenanceRecord: protectedProcedure
+    .input(z.object({
+      vehicleId: z.number().int(),
+      serviceDate: z.string(),
+      serviceType: z.string().min(1).max(255),
+      serviceProvider: z.string().max(255).optional(),
+      serviceLocation: z.string().max(255).optional(),
+      laborCost: z.number().int().min(0).optional(),
+      partsCost: z.number().int().min(0).optional(),
+      serviceItems: z.string().optional(),
+      partsReplaced: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'No tenant' });
+      const totalCost = (input.laborCost ?? 0) + (input.partsCost ?? 0);
+      const result = await db.insert(maintenanceRecords).values({
+        vehicleId: input.vehicleId,
+        tenantId,
+        serviceDate: input.serviceDate,
+        serviceType: input.serviceType,
+        serviceProvider: input.serviceProvider ?? null,
+        serviceLocation: input.serviceLocation ?? null,
+        laborCost: input.laborCost ?? null,
+        partsCost: input.partsCost ?? null,
+        totalCost: totalCost || null,
+        serviceItems: input.serviceItems ?? null,
+        partsReplaced: input.partsReplaced ?? null,
+        recordedBy: ctx.user.id,
+      } as any);
+      return { success: true, id: (result as any)[0]?.insertId ?? null };
+    }),
+
+  /**
+   * Phase 2: Get maintenance alerts for the tenant
+   */
+  getMaintenanceAlerts: protectedProcedure
+    .input(z.object({ status: z.enum(['pending','acknowledged','resolved','dismissed']).optional() }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'No tenant' });
+      const where = input.status
+        ? and(eq(maintenanceAlerts.tenantId, tenantId), eq(maintenanceAlerts.status, input.status))
+        : eq(maintenanceAlerts.tenantId, tenantId);
+      return await db.select().from(maintenanceAlerts).where(where).orderBy(desc(maintenanceAlerts.createdAt)).limit(100);
+    }),
+
+  /**
+   * Phase 2: Get maintenance summary stats
+   */
+  getMaintenanceSummary: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+    const tenantId = ctx.user.tenantId;
+    if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'No tenant' });
+    const [records, alerts] = await Promise.all([
+      db.select({ total: count(maintenanceRecords.id), totalCost: sql<number>`SUM(${maintenanceRecords.totalCost})` }).from(maintenanceRecords).where(eq(maintenanceRecords.tenantId, tenantId)),
+      db.select({ total: count(maintenanceAlerts.id), pending: sql<number>`SUM(CASE WHEN ${maintenanceAlerts.status} = 'pending' THEN 1 ELSE 0 END)`, critical: sql<number>`SUM(CASE WHEN ${maintenanceAlerts.severity} = 'critical' THEN 1 ELSE 0 END)` }).from(maintenanceAlerts).where(eq(maintenanceAlerts.tenantId, tenantId)),
+    ]);
+    return {
+      totalRecords: Number(records[0]?.total ?? 0),
+      totalCost: Number(records[0]?.totalCost ?? 0),
+      pendingAlerts: Number(alerts[0]?.pending ?? 0),
+      criticalAlerts: Number(alerts[0]?.critical ?? 0),
+    };
+  }),
+
 });

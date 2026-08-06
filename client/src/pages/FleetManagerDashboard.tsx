@@ -58,6 +58,7 @@ import { FleetRiskAnalyticsTab } from "@/components/FleetRiskAnalyticsTab";
 import { FleetIntelligenceTab } from "@/components/FleetIntelligenceTab";
 import { FleetCostAnalyticsTab } from "@/components/FleetCostAnalyticsTab";
 import { FleetFuelLicensingTab } from "@/components/FleetFuelLicensingTab";
+import { FleetMaintenanceTab } from "@/components/FleetMaintenanceTab";
 import { PredictiveAnalyticsTab } from "@/components/PredictiveAnalyticsTab";
 import {
   Dialog,
@@ -398,6 +399,8 @@ export default function FleetManagerDashboard() {
           { id: 'cost', label: '💰 Cost Analytics', count: 0, countClass: '' },
           { id: 'compliance', label: '⛽ Fuel & Licensing', count: 0, countClass: '' },
           { id: 'intelligence', label: '🛡 Fleet Intelligence', count: 0, countClass: '' },
+          { id: 'maintenance', label: '🔧 Maintenance', count: 0, countClass: '' },
+          { id: 'drivers', label: '👤 Drivers', count: 0, countClass: '' },
           { id: 'predictive', label: '📈 Predictive Analytics', count: 0, countClass: '' },
         ].map(t => (
           <div
@@ -443,6 +446,14 @@ export default function FleetManagerDashboard() {
         )}
         {mainTab === 'compliance' && (
           <FleetFuelLicensingTab />
+        {mainTab === 'maintenance' && (
+          <FleetMaintenanceTab />
+        )}
+        {mainTab === 'drivers' && (
+          <div style={{ padding: '16px 0', color: '#6b7280', fontSize: 13 }}>
+            Driver management coming soon — backend procedures for listDrivers and addDriver are ready.
+          </div>
+        )}
         )}
         {mainTab === 'intelligence' && (
           <div className="p-6">
