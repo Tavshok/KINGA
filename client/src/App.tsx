@@ -892,6 +892,12 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
+        {/* Phase 1A — Network Oversight */}
+        <Route path="/admin/network">
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
+            <AdminPortalLayout title="Network Oversight"><NetworkOversight /></AdminPortalLayout>
+          </ProtectedRoute>
+        </Route>
         {/* Sprint C — Governance & Audit */}
         <Route path="/admin/audit-log">
           <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
@@ -989,3 +995,4 @@ const ActivityTimeline = lazy(() => import("./pages/admin/ActivityTimeline"));
 const AuditLog = lazy(() => import("./pages/admin/AuditLog"));
 const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const SecurityEvents = lazy(() => import("./pages/admin/SecurityEvents"));
+const NetworkOversight = lazy(() => import("./pages/admin/NetworkOversight"));

@@ -113,6 +113,7 @@ const NAV_SECTIONS: NavSection[] = [
     icon: ScrollText,
     defaultOpen: false,
     items: [
+      { label: "Network Oversight", href: "/admin/network", icon: Network, description: "Insurers, agencies, panel beaters, assessors, fleet, engineers" },
       { label: "Escalation Queue", href: "/admin/escalation", icon: AlertTriangle, description: "Claims requiring escalation" },
       { label: "Workflow Templates", href: "/admin/workflows", icon: GitBranch, description: "Workflow configuration" },
     ],

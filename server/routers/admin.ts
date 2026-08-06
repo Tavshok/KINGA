@@ -11,6 +11,7 @@ import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { tenants, users } from "../../drizzle/schema";
 import { eq, and, gte, desc, count } from "drizzle-orm";
 import { panelBeaters, aiAssessments, pipelineJobs, insuranceAuditLogs } from "../../drizzle/schema";
+import { insurerTenants, insuranceCarriers, assessors, fleetAccounts, engineerProfiles, inspections, claims } from "../../drizzle/schema";
 import { sendInvitation, getInvitationByToken, acceptInvitation } from "../invitation-service";
 import { sql } from "drizzle-orm";
 
@@ -1053,6 +1054,121 @@ export const adminRouter = router({
       ]);
       return { users: rows, total: Number(total), page: input.page, pageSize: input.pageSize, totalPages: Math.ceil(Number(total) / input.pageSize) };
     }),
+  /**
+   * Phase 1A: Insurer network overview
+   */
+  getInsurerNetwork: superAdminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    const [insurers, claimCounts] = await Promise.all([
+      db.select({
+        id: insurerTenants.id,
+        name: insurerTenants.name,
+        displayName: insurerTenants.displayName,
+        primaryCurrency: insurerTenants.primaryCurrency,
+        createdAt: insurerTenants.createdAt,
+      }).from(insurerTenants).orderBy(desc(insurerTenants.createdAt)).limit(200),
+      db.select({
+        tenantId: claims.tenantId,
+        total: count(claims.id),
+      }).from(claims).groupBy(claims.tenantId),
+    ]);
+    const claimMap = Object.fromEntries(claimCounts.map((r: any) => [r.tenantId, Number(r.total)]));
+    return insurers.map((ins: any) => ({ ...ins, claimsTotal: claimMap[ins.id] ?? 0 }));
+  }),
+
+  /**
+   * Phase 1A: Agency (insurance carrier) network overview
+   */
+  getAgencyNetwork: superAdminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    return await db.select({
+      id: insuranceCarriers.id,
+      name: insuranceCarriers.name,
+      shortCode: insuranceCarriers.shortCode,
+      isActive: insuranceCarriers.isActive,
+      defaultCommissionRate: insuranceCarriers.defaultCommissionRate,
+      apiEnabled: insuranceCarriers.apiEnabled,
+      contactEmail: insuranceCarriers.contactEmail,
+      tenantId: insuranceCarriers.tenantId,
+      createdAt: insuranceCarriers.createdAt,
+    }).from(insuranceCarriers).orderBy(desc(insuranceCarriers.createdAt)).limit(200);
+  }),
+
+  /**
+   * Phase 1A: Assessor pool overview
+   */
+  getAssessorPool: superAdminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    const [rows, [stats]] = await Promise.all([
+      db.select({
+        id: assessors.id,
+        userId: assessors.userId,
+        assessorType: assessors.assessorType,
+        marketplaceStatus: assessors.marketplaceStatus,
+        certificationLevel: assessors.certificationLevel,
+        primaryTenantId: assessors.primaryTenantId,
+        marketplaceEnabled: assessors.marketplaceEnabled,
+        licenseExpiryDate: assessors.licenseExpiryDate,
+      }).from(assessors).orderBy(desc(assessors.id)).limit(200),
+      db.select({
+        total: count(assessors.id),
+        marketplace: sql<number>`SUM(CASE WHEN ${assessors.marketplaceEnabled} = 1 THEN 1 ELSE 0 END)`,
+        active: sql<number>`SUM(CASE WHEN ${assessors.marketplaceStatus} = 'active' THEN 1 ELSE 0 END)`,
+      }).from(assessors),
+    ]);
+    return { assessors: rows, stats: { total: Number(stats.total), marketplace: Number(stats.marketplace), active: Number(stats.active) } };
+  }),
+
+  /**
+   * Phase 1A: Fleet operator registry
+   */
+  getFleetOperatorRegistry: superAdminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    const [rows, [stats]] = await Promise.all([
+      db.select({
+        id: fleetAccounts.id,
+        companyName: fleetAccounts.companyName,
+        status: fleetAccounts.status,
+        tenantId: fleetAccounts.tenantId,
+        createdAt: fleetAccounts.createdAt,
+      }).from(fleetAccounts).orderBy(desc(fleetAccounts.createdAt)).limit(200),
+      db.select({
+        total: count(fleetAccounts.id),
+        active: sql<number>`SUM(CASE WHEN ${fleetAccounts.status} = 'active' THEN 1 ELSE 0 END)`,
+      }).from(fleetAccounts),
+    ]);
+    return { fleets: rows, stats: { total: Number(stats.total), active: Number(stats.active) } };
+  }),
+
+  /**
+   * Phase 1A: Engineering company / engineer registry
+   */
+  getEngineeringRegistry: superAdminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    const [rows, [stats]] = await Promise.all([
+      db.select({
+        id: engineerProfiles.id,
+        userId: engineerProfiles.userId,
+        tenantId: engineerProfiles.tenantId,
+        region: engineerProfiles.region,
+        isAvailable: engineerProfiles.isAvailable,
+        activeInspections: engineerProfiles.activeInspections,
+        createdAt: engineerProfiles.createdAt,
+      }).from(engineerProfiles).orderBy(desc(engineerProfiles.createdAt)).limit(200),
+      db.select({
+        total: count(engineerProfiles.id),
+        available: sql<number>`SUM(CASE WHEN ${engineerProfiles.isAvailable} = 1 THEN 1 ELSE 0 END)`,
+        totalActive: sql<number>`SUM(${engineerProfiles.activeInspections})`,
+      }).from(engineerProfiles),
+    ]);
+    return { engineers: rows, stats: { total: Number(stats.total), available: Number(stats.available), activeInspections: Number(stats.totalActive) } };
+  }),
+
 });
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000);
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400_000);
