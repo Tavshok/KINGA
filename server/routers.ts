@@ -4426,11 +4426,17 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         if (nonRejectableStates.includes(claim.workflowState as string)) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: `Cannot reject a claim in ${claim.workflowState} state` });
         }
+        // SR-H02: Write rejection audit trail to claims table
+        const now = new Date().toISOString();
         await _rejectDb.update(claims).set({
           workflowState: 'rejected' as any,
           status: 'rejected',
-          updatedAt: new Date().toISOString(),
-        }).where(eq(claims.id, input.claimId));
+          updatedAt: now,
+          rejectionReason: input.rejectionReason,
+          rejectionCategory: input.rejectionCategory,
+          rejectedBy: ctx.user.id,
+          rejectedAt: now,
+        } as any).where(eq(claims.id, input.claimId));
         await createAuditEntry({
           claimId: input.claimId,
           userId: ctx.user.id,

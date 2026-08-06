@@ -1025,6 +1025,15 @@ export const claims = mysqlTable("claims", {
 	// as failed so it surfaces in the UI for manual attention. Reset to 0 when a claim completes
 	// successfully or is manually reset via 'Reset if Stuck'.
 	recoveryRetryCount: int("recovery_retry_count").default(0).notNull(),
+	// SR-H02: Rejection audit trail — populated when rejectClaim procedure is called
+	// Free-text reason for rejection supplied by the claims manager.
+	rejectionReason: text("rejection_reason"),
+	// Structured rejection category for reporting: fraud | outside_coverage | invalid_claim | duplicate | other
+	rejectionCategory: varchar("rejection_category", { length: 50 }),
+	// FK → users.id — who rejected the claim.
+	rejectedBy: int("rejected_by"),
+	// Timestamp when the claim was rejected.
+	rejectedAt: timestamp("rejected_at", { mode: 'string' }),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),

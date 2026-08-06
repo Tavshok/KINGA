@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import {
   ArrowLeft, Camera, Ruler, Eye, Brain, GitMerge, CheckSquare,
   LayoutDashboard, Upload, Plus, RefreshCw, CheckCircle, AlertTriangle,
-  Loader2, FileText, Mic, MicOff,
+  Loader2, FileText, Mic, MicOff, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { InspectionLinkPanel } from "@/components/InspectionLinkPanel";
@@ -181,6 +181,41 @@ export default function EngineerInspectionDetail() {
         <span style={{ display: "inline-block", padding: "3px 12px", borderRadius: "12px", background: statusColour + "22", color: statusColour, fontSize: "11px", fontWeight: 700, border: `1px solid ${statusColour}44` }}>
           {status.replace(/_/g, " ").toUpperCase()}
         </span>
+        {/* SR-H01: Export engineering inspection report as CSV/text */}
+        <button
+          onClick={() => {
+            const rows: string[] = [
+              `KINGA Engineering Inspection Report`,
+              `Reference: ${String(inspection.inspection_ref ?? "")}`,
+              `Vehicle: ${String(inspection.vehicle_registration ?? inspection.asset_ref ?? "")}`,
+              `Status: ${status.replace(/_/g, " ").toUpperCase()}`,
+              `Date: ${new Date().toLocaleDateString()}`,
+              ``,
+              `MEASUREMENTS (${measurements.length})`,
+              ...measurements.map((m: any) => `  ${m.category ?? ""} | ${m.method ?? ""} | ${m.value ?? ""} ${m.unit ?? ""} | ${m.notes ?? ""}`),
+              ``,
+              `OBSERVATIONS (${observations.length})`,
+              ...observations.map((o: any) => `  [${(o.severity ?? "").toUpperCase()}] ${o.type ?? ""}: ${o.description ?? ""}`),
+              ``,
+              `AI ANALYSIS`,
+              aiAnalysis ? JSON.stringify(aiAnalysis, null, 2) : "Not available",
+              ``,
+              `PHYSICS RESULT`,
+              physicsResult ? JSON.stringify(physicsResult, null, 2) : "Not available",
+            ];
+            const blob = new Blob([rows.join("\n")], { type: "text/plain" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `KINGA-Inspection-${String(inspection.inspection_ref ?? inspectionId)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success("Inspection report exported");
+          }}
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", background: "#0F1A14", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+        >
+          <Download size={13} /> Export Report
+        </button>
       </div>
 
       {/* ── Tab bar ─────────────────────────────────────────────────────────── */}

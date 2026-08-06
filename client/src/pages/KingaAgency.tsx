@@ -194,7 +194,16 @@ export default function KingaAgency() {
 
 // ========== QUOTATIONS TAB ==========
 function QuotationsTab() {
-  const { data: quotations, isLoading } = trpc.agency.myQuotations.useQuery();
+  const { data: quotations, isLoading, refetch } = trpc.agency.myQuotations.useQuery();
+
+  // SR-H05: Accept a quoted premium — transitions status from 'quoted' to 'accepted'
+  const acceptQuote = trpc.agency.updateQuotation.useMutation({
+    onSuccess: () => {
+      toast.success("Quote accepted! Your insurer will contact you to finalise the policy.");
+      refetch();
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
 
   if (isLoading) {
     return (
@@ -274,6 +283,23 @@ function QuotationsTab() {
             {q.quoteNotes && (
               <div className="mt-3 p-3 bg-primary/5 rounded-lg">
                 <p className="text-sm text-secondary">{q.quoteNotes}</p>
+              </div>
+            )}
+            {/* SR-H05: Accept Quote button — shown only when insurer has provided a quoted premium */}
+            {q.status === 'quoted' && q.quotedPremium && (
+              <div className="mt-3 flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                <div>
+                  <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Quote ready for acceptance</p>
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">Accept to proceed with policy issuance</p>
+                </div>
+                <Button
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => acceptQuote.mutate({ id: q.id, status: 'accepted' })}
+                  disabled={acceptQuote.isPending}
+                >
+                  {acceptQuote.isPending ? 'Accepting…' : 'Accept Quote'}
+                </Button>
               </div>
             )}
             {/* H-01: Vehicle history risk intelligence from KINGA registry */}
