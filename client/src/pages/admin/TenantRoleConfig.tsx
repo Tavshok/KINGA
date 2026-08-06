@@ -17,14 +17,21 @@ import {
   ShieldAlert
 } from "lucide-react";
 import { useLocation, useParams } from "wouter";
-// Toast functionality to be added later
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 export default function TenantRoleConfig() {
   const { tenantId } = useParams();
   const [, setLocation] = useLocation();
-  // Toast hook to be added later
-
-  // Mock role data (will be replaced with tRPC query)
+  const utils = trpc.useUtils();
+  const updateRoleConfig = trpc.tenant.updateRoleConfig.useMutation({
+    onSuccess: () => {
+      toast.success("Role configuration saved successfully");
+      if (tenantId) utils.tenant.getRoleConfig.invalidate({ tenantId });
+    },
+    onError: (err) => toast.error(`Failed to save role configuration: ${err.message}`),
+  });
+  // Role data (local state — synced to backend on save)
   const [roles, setRoles] = useState([
     {
       roleKey: "executive",
@@ -117,7 +124,10 @@ export default function TenantRoleConfig() {
   };
 
   const handleSave = () => {
-    alert("Role configuration saved successfully");
+    if (!tenantId) { toast.error("No tenant selected"); return; }
+    const roleConfig: Record<string, boolean> = {};
+    roles.forEach(r => { roleConfig[r.roleKey] = r.enabled; });
+    updateRoleConfig.mutate({ tenantId, roleConfig });
   };
 
   return (
@@ -140,7 +150,7 @@ export default function TenantRoleConfig() {
               </Button>
               <Button size="sm" onClick={handleSave}>
                 <Save className="mr-2 h-4 w-4" />
-                Save Changes
+                {updateRoleConfig.isPending ? "Saving…" : "Save Changes"}
               </Button>
             </div>
           </div>

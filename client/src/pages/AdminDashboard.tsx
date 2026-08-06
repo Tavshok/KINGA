@@ -388,29 +388,7 @@ export default function AdminDashboard() {
 
             {/* Intelligence Tab */}
             {selectedTab === "intelligence" && (
-              <div className="p11-card" style={{ marginTop: 16 }}>
-                <div className="p11-card-header">
-                  <div className="p11-card-title">
-                    <Brain style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
-                    KINGA Intelligence Training
-                  </div>
-                </div>
-                <div className="p11-card-body">
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    {[
-                      { label: 'Model Version', value: 'GPT-4 Vision v1' },
-                      { label: 'Confidence Threshold', value: '85%' },
-                      { label: 'Cross-Validation', value: 'Enabled' },
-                      { label: 'Physics Engine', value: 'Enabled' },
-                    ].map(row => (
-                      <div key={row.label} style={{ padding: '12px 16px', background: '#F7F8F6', borderRadius: 6, border: '1px solid var(--line)' }}>
-                        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{row.label}</div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--g-600)' }}>{row.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <IntelligenceOverviewCard />
             )}
 
             {/* Settings Tab */}
@@ -421,17 +399,7 @@ export default function AdminDashboard() {
               </div>
             )}
             {selectedTab === "settings" && (
-              <div className="p11-card" style={{ marginTop: 16 }}>
-                <div className="p11-card-header">
-                  <div className="p11-card-title">
-                    <Settings style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
-                    Platform Settings
-                  </div>
-                </div>
-                <div className="p11-card-body">
-                  <p style={{ fontSize: 13, color: 'var(--muted)' }}>Platform configuration settings will appear here.</p>
-                </div>
-              </div>
+              <PlatformSettingsCard />
             )}
           </div>
 
@@ -507,6 +475,91 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+import { useLocation } from "wouter";
+import { Link } from "wouter";
+
+/** Live intelligence overview — pulls real data from getPipelineHealth */
+function IntelligenceOverviewCard() {
+  const { data: pipelineHealth, isLoading } = trpc.admin.getPipelineHealth.useQuery({ limit: 100 });
+
+  const rows = (pipelineHealth ?? []) as any[];
+  const total = rows.length;
+  const avgConf = total > 0
+    ? Math.round(rows.reduce((s: number, r: any) => s + (r.confidenceScore ?? 0), 0) / total)
+    : 0;
+  const highFraud = rows.filter((r: any) => r.fraudRiskLevel === "HIGH" || r.fraudRiskLevel === "ELEVATED").length;
+  const reanalysisCount = rows.filter((r: any) => r.isReanalysis).length;
+
+  return (
+    <div className="p11-card" style={{ marginTop: 16 }}>
+      <div className="p11-card-header">
+        <div className="p11-card-title">
+          <Brain style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+          KINGA Intelligence — Live Engine Status
+        </div>
+      </div>
+      <div className="p11-card-body">
+        {isLoading ? (
+          <div style={{ textAlign: 'center', padding: 16, color: 'var(--muted)', fontSize: 12 }}>Loading engine data…</div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              {[
+                { label: 'Assessments Processed', value: total },
+                { label: 'Avg Confidence Score', value: `${avgConf}%` },
+                { label: 'High/Elevated Fraud Flags', value: highFraud },
+                { label: 'Re-analysis Runs', value: reanalysisCount },
+              ].map(row => (
+                <div key={row.label} style={{ padding: '12px 16px', background: '#F7F8F6', borderRadius: 6, border: '1px solid var(--line)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{row.label}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--g-600)' }}>{row.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <a href="/admin/pipeline-health" style={{ fontSize: 12, color: 'var(--g-600)', textDecoration: 'underline' }}>Pipeline Health →</a>
+              <a href="/admin/integrity-metrics" style={{ fontSize: 12, color: 'var(--g-600)', textDecoration: 'underline' }}>Integrity Metrics →</a>
+              <a href="/admin/physics-accuracy" style={{ fontSize: 12, color: 'var(--g-600)', textDecoration: 'underline' }}>Physics Accuracy →</a>
+              <a href="/admin/learning" style={{ fontSize: 12, color: 'var(--g-600)', textDecoration: 'underline' }}>Learning Dashboard →</a>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Platform settings — navigation links to all config pages */
+function PlatformSettingsCard() {
+  const [, setLoc] = useLocation();
+  const links = [
+    { label: 'Tenant Management', path: '/admin/tenants', desc: 'Manage insurer tenants, roles, SLA, and currency' },
+    { label: 'Tier Management', path: '/admin/tier-management', desc: 'Configure platform pricing tiers' },
+    { label: 'Workflow Settings', path: '/admin/workflow-settings', desc: 'Approval thresholds and routing rules' },
+    { label: 'Market Quotes Ingestion', path: '/admin/market-quotes', desc: 'Import benchmark cost data' },
+    { label: 'Seed Data', path: '/admin/seed-data', desc: 'Seed test data for development' },
+  ];
+  return (
+    <div className="p11-card" style={{ marginTop: 16 }}>
+      <div className="p11-card-header">
+        <div className="p11-card-title">
+          <Settings style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+          Platform Configuration
+        </div>
+      </div>
+      <div className="p11-card-body" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {links.map(l => (
+          <button key={l.path} onClick={() => setLoc(l.path)} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', background: 'none', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', textAlign: 'left' }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{l.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{l.desc}</div>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   );
