@@ -5913,3 +5913,28 @@ export const inspectionProjects = mysqlTable("inspection_projects", {
 });
 export type InspectionProject = typeof inspectionProjects.$inferSelect;
 export type InsertInspectionProject = typeof inspectionProjects.$inferInsert;
+
+// ─── Phase 9: Personal Vehicle Registry ───────────────────────────────────────
+// Stores individual client-owned vehicles (distinct from corporate fleet vehicles).
+// Any authenticated user can register their personal vehicles here.
+export const personalVehicles = mysqlTable("personal_vehicles", {
+  id:               int().autoincrement().notNull(),
+  userId:           int("user_id").notNull(),
+  registration:     varchar("registration", { length: 50 }),
+  make:             varchar("make", { length: 100 }).notNull(),
+  model:            varchar("model", { length: 100 }).notNull(),
+  year:             int("year").notNull(),
+  vin:              varchar("vin", { length: 50 }),
+  colour:           varchar("colour", { length: 50 }),
+  engineSize:       varchar("engine_size", { length: 20 }),
+  fuelType:         mysqlEnum("fuel_type_pv", ['petrol','diesel','electric','hybrid','other']).default('petrol'),
+  notes:            text("notes"),
+  isPrimary:        tinyint("is_primary").default(0).notNull(),
+  createdAt:        timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt:        timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  index("personal_vehicles_user_id").on(table.userId),
+]);
+export type PersonalVehicle = typeof personalVehicles.$inferSelect;
+export type InsertPersonalVehicle = typeof personalVehicles.$inferInsert;

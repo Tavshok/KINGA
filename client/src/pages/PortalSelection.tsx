@@ -101,7 +101,7 @@ export default function PortalSelection() {
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground transition-colors">Valuations</button>
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground transition-colors">Insurance</button>
-            <button onClick={() => setLocation("/my-profile")} className="hover:text-foreground transition-colors">My Profile</button>
+            <button onClick={() => setLocation("/client")} className="hover:text-foreground transition-colors">My Profile</button>
           </nav>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => window.location.href = getLoginUrl("/portal-hub")}>Sign In</Button>
@@ -269,7 +269,7 @@ export default function PortalSelection() {
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground">Valuations</button>
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground">Insurance</button>
-            <button onClick={() => setLocation("/my-profile")} className="hover:text-foreground">My Profile</button>
+            <button onClick={() => setLocation("/client")} className="hover:text-foreground">My Profile</button>
             <button onClick={() => window.location.href = getLoginUrl("/portal-hub")} className="hover:text-foreground">Sign In</button>
           </div>
         </div>

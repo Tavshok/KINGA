@@ -112,6 +112,7 @@ const FleetDriverDashboard = lazy(() => import("./pages/FleetDriverDashboard"));
 const ValuationRequestPage = lazy(() => import("./pages/ValuationRequestPage"));
 const TeaserReportPage = lazy(() => import("./pages/TeaserReportPage"));
 const ClientProfile = lazy(() => import("./pages/ClientProfile"));
+const ClientPortal = lazy(() => import("./pages/ClientPortal"));
 const AgencyValuationInbox = lazy(() => import("./pages/AgencyValuationInbox"));
 const FleetRegister = lazy(() => import("./pages/FleetRegister"));
 
@@ -595,6 +596,9 @@ function Router() {
         </Route>
         <Route path="/my-profile">
           <ClientProfile />
+        </Route>
+        <Route path="/client">
+          <ClientPortal />
         </Route>
 
         <Route path="/agency">

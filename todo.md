@@ -1391,34 +1391,34 @@ and manage their personal vehicles — all from /client. Distinct from the Fleet
 which is for corporate fleet operators.
 
 ### Architecture
-- [ ] P9-A01: Create /client route with ClientPortalLayout (persistent sidebar: Dashboard | My Vehicles | Valuations | Insurance | Claims)
-- [ ] P9-A02: Add personal_vehicles table (id, userId, registration, make, model, year, vin, colour, notes, createdAt)
-- [ ] P9-A03: Add personalVehicles tRPC router (addVehicle, listMyVehicles, updateVehicle, deleteVehicle)
-- [ ] P9-A04: ClientPortalLayout accessible to ALL authenticated users regardless of primary role
+- [x] P9-A01: Create /client route with ClientPortalLayout (persistent sidebar: Dashboard | My Vehicles | Valuations | Insurance | Claims)
+- [x] P9-A02: Add personal_vehicles table (id, userId, registration, make, model, year, vin, colour, notes, createdAt)
+- [x] P9-A03: Add personalVehicles tRPC router (addVehicle, listMyVehicles, updateVehicle, deleteVehicle)
+- [x] P9-A04: ClientPortalLayout accessible to ALL authenticated users regardless of primary role
 
 ### Dashboard Tab
-- [ ] P9-D01: Client Dashboard — summary cards: vehicles, open claims, pending quotes, active policies
-- [ ] P9-D02: Recent activity feed (last 5 events across all journeys)
-- [ ] P9-D03: Quick action buttons: Request Valuation, Submit Claim, Add Vehicle
+- [x] P9-D01: Client Dashboard — summary cards: vehicles, open claims, pending quotes, active policies
+- [x] P9-D02: Recent activity feed (last 5 events across all journeys)
+- [x] P9-D03: Quick action buttons: Request Valuation, Submit Claim, Add Vehicle
 
 ### My Vehicles Tab
-- [ ] P9-PV01: Personal vehicle list — add/edit/delete (reg, make, model, year, VIN, colour)
-- [ ] P9-PV02: Per-vehicle card: last valuation, open claims, policy status, history link
-- [ ] P9-PV03: Link existing valuations and claims to a vehicle by registration match
+- [x] P9-PV01: Personal vehicle list — add/edit/delete (reg, make, model, year, VIN, colour)
+- [x] P9-PV02: Per-vehicle card: last valuation, open claims, policy status, history link
+- [x] P9-PV03: Link existing valuations and claims to a vehicle by registration match
 
 ### Valuations Tab
-- [ ] P9-V01: Valuation history list (all requests by email/userId)
-- [ ] P9-V02: Teaser vs full report status with unlock CTA
-- [ ] P9-V03: New valuation wizard (reuse /get-a-quote flow inline or redirect)
-- [ ] P9-V04: Accept quote from Valuations tab (reuse acceptQuote mutation)
+- [x] P9-V01: Valuation history list (all requests by email/userId)
+- [x] P9-V02: Teaser vs full report status with unlock CTA
+- [x] P9-V03: New valuation wizard (reuse /get-a-quote flow inline or redirect)
+- [x] P9-V04: Accept quote from Valuations tab (reuse acceptQuote mutation)
 
 ### Insurance Tab
-- [ ] P9-I01: Pending quotes list (status=quoted, amber highlight, Accept Quote button)
-- [ ] P9-I02: Active policies list (status=accepted, premium, expiry, excess)
-- [ ] P9-I03: Policy detail view (coverage, vehicle, documents)
+- [x] P9-I01: Pending quotes list (status=quoted, amber highlight, Accept Quote button)
+- [x] P9-I02: Active policies list (status=accepted, premium, expiry, excess)
+- [x] P9-I03: Policy detail view (coverage, vehicle, documents)
 
 ### Claims Tab
-- [ ] P9-C01: Claims list (all claimant's claims with workflow state)
-- [ ] P9-C02: Plain-language claim timeline per claim
-- [ ] P9-C03: Submit new claim button (redirect to /claimant/submit)
-- [ ] P9-C04: Dispute button on closed claims (reuse initiateDispute mutation)
+- [x] P9-C01: Claims list (all claimant's claims with workflow state)
+- [x] P9-C02: Plain-language claim timeline per claim
+- [x] P9-C03: Submit new claim button (redirect to /claimant/submit)
+- [x] P9-C04: Dispute button on closed claims (reuse initiateDispute mutation)
