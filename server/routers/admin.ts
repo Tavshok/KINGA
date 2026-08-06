@@ -971,6 +971,91 @@ export const adminRouter = router({
         details: insuranceAuditLogs.details,
       }).from(insuranceAuditLogs).orderBy(desc(insuranceAuditLogs.timestamp)).limit(input.limit);
     }),
+  getAuditLog: superAdminProcedure
+    .input(z.object({
+      page: z.number().int().min(1).default(1),
+      pageSize: z.number().int().min(1).max(200).default(50),
+      action: z.string().optional(),
+      entityType: z.string().optional(),
+      tenantId: z.string().optional(),
+      userRole: z.string().optional(),
+      fromDate: z.string().optional(),
+      toDate: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+      const offset = (input.page - 1) * input.pageSize;
+      const conditions: any[] = [];
+      if (input.action) conditions.push(like(insuranceAuditLogs.action, `%${input.action}%`));
+      if (input.entityType) conditions.push(eq(insuranceAuditLogs.entityType, input.entityType));
+      if (input.tenantId) conditions.push(eq(insuranceAuditLogs.tenantId, input.tenantId));
+      if (input.userRole) conditions.push(eq(insuranceAuditLogs.userRole, input.userRole));
+      if (input.fromDate) conditions.push(gte(insuranceAuditLogs.timestamp, new Date(input.fromDate)));
+      if (input.toDate) conditions.push(lte(insuranceAuditLogs.timestamp, new Date(input.toDate)));
+      const where = conditions.length > 0 ? and(...conditions) : undefined;
+      const [rows, [{ total }]] = await Promise.all([
+        db.select().from(insuranceAuditLogs).where(where).orderBy(desc(insuranceAuditLogs.timestamp)).limit(input.pageSize).offset(offset),
+        db.select({ total: count() }).from(insuranceAuditLogs).where(where),
+      ]);
+      return { rows, total: Number(total), page: input.page, pageSize: input.pageSize, totalPages: Math.ceil(Number(total) / input.pageSize) };
+    }),
+
+  /**
+   * Sprint C: Security events — role changes, access denials, segregation violations
+   */
+  getSecurityEvents: superAdminProcedure
+    .input(z.object({ limit: z.number().min(1).max(200).default(100) }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+      const [roleChanges, accessDenials] = await Promise.all([
+        db.select().from(roleAssignmentAudit).orderBy(desc(roleAssignmentAudit.timestamp)).limit(input.limit),
+        db.select().from(insuranceAuditLogs)
+          .where(or(
+            like(insuranceAuditLogs.action, '%denied%'),
+            like(insuranceAuditLogs.action, '%forbidden%'),
+            like(insuranceAuditLogs.action, '%override%'),
+            like(insuranceAuditLogs.action, '%rejected%'),
+          ))
+          .orderBy(desc(insuranceAuditLogs.timestamp))
+          .limit(input.limit),
+      ]);
+      return { roleChanges, accessDenials };
+    }),
+
+  /**
+   * Sprint C: All users with pagination for User Management page
+   */
+  getUsersAdmin: superAdminProcedure
+    .input(z.object({
+      page: z.number().int().min(1).default(1),
+      pageSize: z.number().int().min(1).max(100).default(50),
+      search: z.string().optional(),
+      role: z.string().optional(),
+      tenantId: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+      const offset = (input.page - 1) * input.pageSize;
+      const conditions: any[] = [];
+      if (input.role) conditions.push(eq(users.role, input.role as any));
+      if (input.tenantId) conditions.push(eq(users.tenantId, input.tenantId));
+      if (input.search) {
+        const term = `%${input.search}%`;
+        conditions.push(or(like(users.email, term), like(users.name, term)));
+      }
+      const where = conditions.length > 0 ? and(...conditions) : undefined;
+      const [rows, [{ total }]] = await Promise.all([
+        db.select({ id: users.id, name: users.name, email: users.email, role: users.role, insurerRole: users.insurerRole, tenantId: users.tenantId, createdAt: users.createdAt, lastSignedIn: users.lastSignedIn, isActive: (users as any).isActive }).from(users).where(where).orderBy(desc(users.createdAt)).limit(input.pageSize).offset(offset),
+        db.select({ total: count() }).from(users).where(where),
+      ]);
+      return { users: rows, total: Number(total), page: input.page, pageSize: input.pageSize, totalPages: Math.ceil(Number(total) / input.pageSize) };
+    }),
 });
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000);
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400_000);
+/**
+ * Sprint C: Paginated, filterable audit log
+ */

@@ -892,6 +892,22 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
+        {/* Sprint C — Governance & Audit */}
+        <Route path="/admin/audit-log">
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
+            <AdminPortalLayout title="Audit Log"><AuditLog /></AdminPortalLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/admin/users">
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
+            <AdminPortalLayout title="User Management"><UserManagement /></AdminPortalLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/admin/security-events">
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
+            <AdminPortalLayout title="Security Events"><SecurityEvents /></AdminPortalLayout>
+          </ProtectedRoute>
+        </Route>
         {/* Engineering Workspace Routes — /engineer domain (Epic 4.5: EngineerWorkspaceLayout applied) */}
         <Route path="/engineer/dashboard">
           <ProtectedRoute domain="engineer">
@@ -970,3 +986,6 @@ const IntelligenceEngineMonitoring = lazy(() => import("./pages/admin/Intelligen
 const TenantMonitoring = lazy(() => import("./pages/admin/TenantMonitoring"));
 const PanelBeaterManagement = lazy(() => import("./pages/admin/PanelBeaterManagement"));
 const ActivityTimeline = lazy(() => import("./pages/admin/ActivityTimeline"));
+const AuditLog = lazy(() => import("./pages/admin/AuditLog"));
+const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
+const SecurityEvents = lazy(() => import("./pages/admin/SecurityEvents"));

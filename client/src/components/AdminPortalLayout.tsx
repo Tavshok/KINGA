@@ -118,6 +118,16 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: "Governance & Audit",
+    icon: ScrollText,
+    defaultOpen: false,
+    items: [
+      { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText, description: "Full tamper-evident audit trail" },
+      { label: "User Management", href: "/admin/users", icon: UserCog, description: "All users, roles, deactivation" },
+      { label: "Security Events", href: "/admin/security-events", icon: Shield, description: "Role changes, access denials, overrides" },
+    ],
+  },
+  {
     title: "Platform Operations",
     icon: Globe,
     defaultOpen: false,
@@ -273,3 +283,4 @@ export default function AdminPortalLayout({ children, title }: AdminPortalLayout
       { label: "Engine Monitoring", href: "/admin/engine-monitoring", icon: Brain, description: "Per-engine status, activity, quality" },
       { label: "Tenant Monitoring", href: "/admin/tenant-monitoring", icon: Building2, description: "Per-tenant usage and health" },
       { label: "Activity Timeline", href: "/admin/activity-timeline", icon: Clock, description: "Operational event stream" },
+import { ScrollText as AuditIcon, UserCog as UserMgmtIcon } from "lucide-react";
