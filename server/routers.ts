@@ -4335,6 +4335,51 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           entityId: input.claimId,
           changeDescription: `Settlement accepted by claimant. Claim closed.`,
         });
+        // OAT-GAP-01 fix: auto-populate vehicle_damage_history on claim closure
+        // so that vehicle risk intelligence reflects completed claims.
+        try {
+          const { vehicleDamageHistory: vdhTable, vehicleRegistry: vrTable } = await import('../drizzle/schema');
+          const aiAssmt = await _settleDb
+            .select({
+              estimatedCost: aiAssessments.estimatedCost,
+              fraudScore: aiAssessments.fraudScore,
+              structuralDamageSeverity: aiAssessments.structuralDamageSeverity,
+              damagedComponentsJson: aiAssessments.damagedComponentsJson,
+              accidentType: aiAssessments.accidentType,
+              airbagDeployment: aiAssessments.airbagDeployment,
+            })
+            .from(aiAssessments)
+            .where(eq(aiAssessments.claimId, input.claimId))
+            .orderBy(desc(aiAssessments.createdAt))
+            .limit(1)
+            .then(r => r[0]);
+          const [vrRow] = await _settleDb
+            .select({ id: vrTable.id })
+            .from(vrTable)
+            .where(eq(vrTable.registrationNumber, (claim.vehicleRegistration ?? '').toUpperCase().replace(/\s/g, '')))
+            .limit(1);
+          const vehicleId = vrRow?.id ?? 1;
+          const sevMap: Record<string, 'minor'|'moderate'|'severe'|'total_loss'|'unknown'> = { none: 'minor', minor: 'minor', moderate: 'moderate', severe: 'severe' };
+          const severity = sevMap[aiAssmt?.structuralDamageSeverity ?? ''] ?? 'unknown';
+          await _settleDb.insert(vdhTable).values({
+            vehicleId,
+            claimId: input.claimId,
+            vehicleRegistration: claim.vehicleRegistration ?? null,
+            damageZone: 'unknown',
+            damagedComponentsJson: aiAssmt?.damagedComponentsJson ?? null,
+            impactDirection: aiAssmt?.accidentType ?? null,
+            severity,
+            hasStructuralDamage: (aiAssmt?.structuralDamageSeverity && aiAssmt.structuralDamageSeverity !== 'none') ? 1 : 0,
+            airbagsDeployed: aiAssmt?.airbagDeployment ? 1 : 0,
+            repairCostEstimateCents: aiAssmt?.estimatedCost ? Math.round(Number(aiAssmt.estimatedCost) * 100) : 0,
+            fraudRiskScore: aiAssmt?.fraudScore ? Math.round(Number(aiAssmt.fraudScore)) : 0,
+            isRepeatZone: 0,
+            tenantId: claim.tenantId ?? null,
+          });
+        } catch (vdhErr) {
+          // Non-blocking — log but do not fail the settlement
+          console.error('[acceptSettlement] vehicle_damage_history insert failed:', vdhErr);
+        }
         return { success: true, newState: 'closed' };
       }),
 
