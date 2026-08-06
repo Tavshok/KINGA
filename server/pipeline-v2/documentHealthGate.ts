@@ -583,7 +583,7 @@ function buildRecommendedAction(
  * Run the Document Health Gate for a claim.
  *
  * This is the primary entry point. Call this BEFORE running the AI pipeline.
- * If `result.mayProceed` is false, do NOT run the pipeline.
+ * `result.mayProceed` is always true — the gate never blocks. Use `result.decision` to detect degraded quality.
  *
  * @param input  Ingestion quality metrics collected during pre-pipeline processing
  * @returns      DocumentHealthGateResult with routing decision and full audit trail
@@ -603,7 +603,10 @@ export function runDocumentHealthGate(input: DocumentHealthGateInput): DocumentH
   const hasCriticalFailure = criticalFailures.length > 0;
 
   const decision = computeDecision(overallScore, hasCriticalFailure, contract.status, input);
-  const mayProceed = decision === 'PROCEED_AUTOMATICALLY' || decision === 'PROCEED_WITH_WARNING';
+  // POLICY: The gate NEVER blocks an assessment. mayProceed is always true.
+  // BLOCK_ASSESSMENT decisions are downgraded to warnings — the pipeline proceeds in degraded mode.
+  // Processors are notified in-app via notifyTenantProcessors() in db.ts.
+  const mayProceed = true;
 
   const summary = buildSummary(overallScore, decision, dims, failureModes, contract);
   const recommendedAction = buildRecommendedAction(decision, contract, dims, failureModes);

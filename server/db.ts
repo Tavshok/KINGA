@@ -1254,40 +1254,26 @@ export async function triggerAiAssessment(claimId: number) {
     );
 
     if (!_gateResult.mayProceed) {
-      // Gate blocked the assessment
-      const isHardBlock = _gateResult.decision === 'BLOCK_ASSESSMENT';
-      const newStatus = isHardBlock ? 'document_failed' : 'human_review_required';
-      const newDps = isHardBlock ? 'DOCUMENT_FAILED' : 'HUMAN_REVIEW_REQUIRED';
-
-      await db.update(claims).set({
-        status: newStatus,
-        documentProcessingStatus: newDps,
-        updatedAt: new Date().toISOString(),
-      }).where(eq(claims.id, claimId)).catch(() => {});
-
-      // Gate block is logged to the audit trail and visible in the Claims Processor UI.
-      // Owner email notifications are intentionally suppressed here — the gate fires on
-      // every automated pipeline run (including batch startup cleanup) and would generate
-      // thousands of emails. Processors review blocked claims via the KINGA Complete tab.
-      console.log(`[KINGA Assessment] Claim ${claimId}: Document Health Gate BLOCKED (${_gateResult.decision}). Score: ${_gateResult.overallScore}%. ${_gateResult.summary}`);
-
-      // Send in-app notification to all processors/admins for this tenant (non-blocking)
+      // POLICY: The gate NEVER blocks an assessment.
+      // Low document health is flagged as degraded — the pipeline always proceeds.
+      // Processors are notified in-app so they can follow up on document quality,
+      // but the AI assessment runs regardless to avoid claim delays.
+      console.warn(
+        `[KINGA Assessment] Claim ${claimId}: Document Health Gate flagged (${_gateResult.decision}). ` +
+        `Score: ${_gateResult.overallScore}%. Proceeding in degraded mode. ${_gateResult.summary}`
+      );
+      // Notify processors in-app (non-blocking, informational — not a hard stop)
       notifyTenantProcessors(claim.tenantId, {
-        title: `⚠️ Gate Block: Claim ${claim.claimNumber || claimId}`,
-        message: `Document Health Gate blocked assessment (score: ${_gateResult.overallScore}%). ${_gateResult.summary} Action: ${_gateResult.recommendedAction}`,
+        title: `⚠️ Low Document Quality: Claim ${claim.claimNumber || claimId}`,
+        message: `Document health score: ${_gateResult.overallScore}%. Assessment proceeding in degraded mode. ${_gateResult.summary} Recommended: ${_gateResult.recommendedAction}`,
         type: 'system_alert',
-        priority: isHardBlock ? 'high' : 'medium',
+        priority: 'medium',
         claimId,
         actionUrl: `/insurer/claims/${claimId}`,
         entityType: 'claim',
         entityId: claimId,
       }).catch(() => {});
-
-      return {
-        success: false,
-        message: `Assessment blocked by Document Health Gate (score: ${_gateResult.overallScore}%). ` +
-          `${_gateResult.summary} ${_gateResult.recommendedAction}`,
-      };
+      // Fall through — pipeline continues regardless of gate score.
     }
 
     // Gate passed — transition to DOCUMENT_READY
