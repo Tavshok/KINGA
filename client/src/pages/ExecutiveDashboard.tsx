@@ -561,7 +561,7 @@ export default function ExecutiveDashboard() {
           <TabsContent value="overview">
             {/* ══ PROTOTYPE-EXACT 3-COLUMN GRID BODY ══
                 Row 1: Claims Ageing (span-2, with Fraud Funnel below) | Escalation Queue
-                Row 2: Period Comparison | Cost Savings Trend | AI Confidence Doughnut
+                Row 2: Period Comparison | Cost Savings Trend | KINGA Confidence Doughnut
                 Row 3: Global Claim Search (span-2) | Fast-Track Analytics
             */}
             <div style={{ padding: '20px 0', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
@@ -651,13 +651,13 @@ export default function ExecutiveDashboard() {
                 </div>
               </div>
 
-              {/* ── Row 2 Col 3: AI Confidence Distribution (Doughnut) ── */}
+              {/* ── Row 2 Col 3: KINGA Confidence Distribution (Doughnut) ── */}
               <div style={{ background: '#FFFFFF', border: '1px solid #E7E2D6', borderRadius: '10px', overflow: 'hidden' }}>
                 <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #E7E2D6', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#15201A' }}>
                   <div style={{ width: '22px', height: '22px', borderRadius: '5px', background: '#E7F1EA', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1C5C39' }}>
                     <Shield className="h-3 w-3" />
                   </div>
-                  AI Confidence Distribution
+                  KINGA Confidence Distribution
                 </div>
                 <div style={{ padding: '16px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px' }}>
                   {/* Doughnut via recharts */}

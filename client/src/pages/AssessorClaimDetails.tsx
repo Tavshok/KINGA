@@ -23,6 +23,8 @@ import { VehicleStructuralIntelligencePanel } from "@/components/VehicleStructur
 import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import { RepairReplacePanel } from "@/components/RepairReplacePanel";
 import { ClaimCommentThread } from "@/components/ClaimCommentThread";
+import FraudScorePanel from "@/components/FraudScorePanel";
+import { ConfidenceScorePanel } from "@/components/ConfidenceScorePanel";
 
 export default function AssessorClaimDetails() {
   const { user, logout } = useAuth();
@@ -731,6 +733,16 @@ export default function AssessorClaimDetails() {
               vehicleModel={(claim as any)?.vehicleModel ?? undefined}
               vehicleYear={(claim as any)?.vehicleYear ?? undefined}
             />
+            {/* Phase 5: KINGA Intelligence Panels — Fraud Score, Confidence Breakdown */}
+            {aiAssessment && (
+              <>
+                <FraudScorePanel aiAssessment={aiAssessment} />
+                <ConfidenceScorePanel
+                  confidenceScore={(aiAssessment as any).confidenceScore ?? 0}
+                  confidenceScoreBreakdownJson={(aiAssessment as any).confidenceScoreBreakdownJson ?? null}
+                />
+              </>
+            )}
             {/* Claim Communications Thread */}
             <ClaimCommentThread claimId={claimId} showClaimantOption={false} />
           </div>

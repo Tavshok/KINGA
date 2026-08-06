@@ -93,10 +93,10 @@ const sections = [
     title: "Analysis",
     items: [
       {
-        label: "AI Analysis",
+        label: "KINGA Analysis",
         href: "/engineer/inspections",
         icon: Brain,
-        description: "AI risk assessment",
+        description: "KINGA risk assessment",
       },
       {
         label: "Physics Check",

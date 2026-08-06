@@ -81,7 +81,7 @@ function ClaimRow({ claim, onView }: { claim: any; onView: () => void }) {
         </p>
         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
           <span className="text-xs" style={{ color: "#6B7280" }}>{workflowLabel(claim.workflowState)}</span>
-          {aiConf !== null && <span className="text-xs" style={{ color: KINGA_TEAL }}>AI Confidence: {Math.round(aiConf)}%</span>}
+          {aiConf !== null && <span className="text-xs" style={{ color: KINGA_TEAL }}>KINGA Confidence: {Math.round(aiConf)}%</span>}
           {fraud !== null && fraud > 0.5 && <span className="text-xs font-medium" style={{ color: KINGA_RED }}>Fraud Score: {Math.round(fraud * 100)}%</span>}
           <span className="text-xs" style={{ color: "#9CA3AF" }}>Submitted {fmtDate(claim.createdAt)}</span>
         </div>

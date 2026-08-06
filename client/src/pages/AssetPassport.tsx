@@ -81,7 +81,7 @@ function PassportDetail({ assetId, onBack }: { assetId: number; onBack: () => vo
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#f9fafb" }}>
-                {["ID", "Status", "Physics", "AI Approved", "Duration", "Date"].map(h => (
+                {["ID", "Status", "Physics", "KINGA Approved", "Duration", "Date"].map(h => (
                   <th key={h} style={{ padding: "9px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#6b7280", borderBottom: "1px solid #f3f4f6" }}>{h}</th>
                 ))}
               </tr>

@@ -1306,7 +1306,7 @@ export default function ClaimsProcessorDashboard() {
           <div className="p11-kpi-tile">
             <div className="p11-kpi-label">KINGA Complete</div>
             <div className="p11-kpi-value num">{aiFlaggedClaims.length}</div>
-            <div className="p11-kpi-delta up">AI analysis done</div>
+            <div className="p11-kpi-delta up">KINGA analysis done</div>
           </div>
           <div className="p11-kpi-tile">
             <div className="p11-kpi-label">Completed</div>
@@ -1519,7 +1519,7 @@ export default function ClaimsProcessorDashboard() {
                                       <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
                                         onClick={() => handleTriggerAI(claim.id)}
                                         disabled={triggeringClaimId === claim.id}
-                                        title="Run KINGA AI analysis">
+                                        title="Run KINGA analysis">
                                         <Brain style={{ width: 11, height: 11 }} /> KINGA
                                       </button>
                                       <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
@@ -1590,7 +1590,7 @@ export default function ClaimsProcessorDashboard() {
                                       <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
                                         onClick={() => handleTriggerAI(claim.id)}
                                         disabled={triggerAiMutation.isPending}
-                                        title="Re-run KINGA AI analysis">
+                                        title="Re-run KINGA analysis">
                                         <Brain style={{ width: 11, height: 11 }} /> Re-run
                                       </button>
                                       <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
@@ -1645,7 +1645,7 @@ export default function ClaimsProcessorDashboard() {
                                       <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
                                         onClick={() => handleTriggerAI(claim.id)}
                                         disabled={triggerAiMutation.isPending}
-                                        title="Re-run KINGA AI analysis">
+                                        title="Re-run KINGA analysis">
                                         <Brain style={{ width: 11, height: 11 }} /> Re-run
                                       </button>
                                     </>

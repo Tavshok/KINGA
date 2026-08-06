@@ -49,7 +49,7 @@ function StatusBadge({ status }: { status: string }) {
     in_progress:           { label: "In Progress", color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
     evidence_capture:      { label: "Evidence",    color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
     measurements_complete: { label: "Measured",    color: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300" },
-    ai_analysis:           { label: "AI Analysis", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
+    ai_analysis:           { label: "KINGA Analysis", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
     engineer_review:       { label: "Review",      color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" },
     complete:              { label: "Complete",    color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
     cancelled:             { label: "Cancelled",   color: "bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400" },
@@ -208,8 +208,8 @@ function ReportsTab() {
       <FileText className="h-12 w-12 text-muted-foreground/40 mb-4" />
       <p className="text-base font-medium text-muted-foreground">Engineering Reports</p>
       <p className="text-sm text-muted-foreground/70 mt-2 max-w-sm">
-        Generated inspection reports and AI analysis outputs will appear here. Complete an
-        inspection and run AI analysis to generate your first report.
+        Generated inspection reports and KINGA analysis outputs will appear here. Complete an
+        inspection and run KINGA analysis to generate your first report.
       </p>
     </div>
   );

@@ -4,7 +4,7 @@
  * Epic 3 — E3-T14 to E3-T18 (combined into one tabbed detail page)
  *
  * Engineering Workspace — Inspection Detail
- * Tabs: Overview | Evidence | Measurements | Observations | AI Analysis | Physics | Sign-off
+ * Tabs: Overview | Evidence | Measurements | Observations | KINGA Analysis | Physics | Sign-off
  */
 import { useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
@@ -28,7 +28,7 @@ const TABS = [
   { id: "evidence",      label: "Evidence",      icon: Camera },
   { id: "measurements",  label: "Measurements",  icon: Ruler },
   { id: "observations",  label: "Observations",  icon: Eye },
-  { id: "ai",            label: "AI Analysis",   icon: Brain },
+  { id: "ai",            label: "KINGA Analysis",   icon: Brain },
   { id: "physics",       label: "Physics",       icon: GitMerge },
   { id: "signoff",       label: "Sign-off",      icon: CheckSquare },
 ] as const;
@@ -78,12 +78,12 @@ export default function EngineerInspectionDetail() {
   });
 
   const runAi = trpc.inspections.runAiAnalysis.useMutation({
-    onSuccess: () => { utils.inspections.get.invalidate({ inspectionId }); toast.success("AI analysis complete."); },
+    onSuccess: () => { utils.inspections.get.invalidate({ inspectionId }); toast.success("KINGA analysis complete."); },
     onError: (e) => toast.error(e.message),
   });
 
   const approveAi = trpc.inspections.approveAiAnalysis.useMutation({
-    onSuccess: () => { utils.inspections.get.invalidate({ inspectionId }); toast.success("AI analysis approved."); },
+    onSuccess: () => { utils.inspections.get.invalidate({ inspectionId }); toast.success("KINGA analysis approved."); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -96,7 +96,7 @@ export default function EngineerInspectionDetail() {
     onSuccess: (result) => {
       const r = result as Record<string, unknown>;
       setObsForm((f) => ({ ...f, observationText: String(r.draft ?? f.observationText) }));
-      toast.success("AI draft ready — review and edit before saving.");
+      toast.success("KINGA draft ready — review and edit before saving.");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -285,7 +285,7 @@ export default function EngineerInspectionDetail() {
                 ["Evidence items",   evidence.length],
                 ["Measurements",     measurements.length],
                 ["Observations",     observations.length],
-                ["AI Analysis",      aiAnalysis ? "Complete" : "Pending"],
+                ["KINGA Analysis",      aiAnalysis ? "Complete" : "Pending"],
                 ["Physics Check",    physicsResult ? "Complete" : "Pending"],
               ].map(([label, value]) => (
                 <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>
@@ -499,12 +499,12 @@ export default function EngineerInspectionDetail() {
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <Label style={{ fontSize: "12px" }}>Description</Label>
                         <button
-                          onClick={() => toast.info("Save the observation first, then use AI Draft to refine it.")}
+                          onClick={() => toast.info("Save the observation first, then use KINGA Draft to refine it.")}
           disabled={draftObs.isPending}
           style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "#888", display: "flex", alignItems: "center", gap: "4px" }}
         >
           <Brain size={11} />
-          {draftObs.isPending ? "Drafting…" : "AI Draft"}
+          {draftObs.isPending ? "Drafting…" : "KINGA Draft"}
         </button>
                         <button
                           onClick={async () => {
@@ -606,7 +606,7 @@ export default function EngineerInspectionDetail() {
         {activeTab === "ai" && (
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-              <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#111", margin: 0 }}>AI Analysis</h2>
+              <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#111", margin: 0 }}>KINGA Analysis</h2>
               <div style={{ display: "flex", gap: "8px" }}>
                 {aiAnalysis && !aiAnalysis.approved_by && (
                   <Button size="sm" variant="outline" onClick={() => approveAi.mutate({ inspectionId, approved: true })} disabled={approveAi.isPending}>
@@ -615,16 +615,16 @@ export default function EngineerInspectionDetail() {
                   </Button>
                 )}
                 <Button size="sm" style={{ background: "#0F1A14", color: "#D4A800", border: "none" }} onClick={() => runAi.mutate({ inspectionId })} disabled={runAi.isPending}>
-                  {runAi.isPending ? <><Loader2 size={13} style={{ marginRight: 6, animation: "spin 1s linear infinite" }} />Analysing…</> : <><RefreshCw size={13} style={{ marginRight: 6 }} />Run AI Analysis</>}
+                  {runAi.isPending ? <><Loader2 size={13} style={{ marginRight: 6, animation: "spin 1s linear infinite" }} />Analysing…</> : <><RefreshCw size={13} style={{ marginRight: 6 }} />Run KINGA Analysis</>}
                 </Button>
               </div>
             </div>
             {!aiAnalysis ? (
               <div style={{ background: "#fff", border: "1px solid #e8e8e8", borderRadius: "8px", padding: "48px", textAlign: "center" }}>
                 <Brain size={32} style={{ color: "#ccc", marginBottom: "12px" }} />
-                <p style={{ fontSize: "14px", color: "#888", margin: "0 0 16px" }}>No AI analysis yet. Run analysis to generate risk assessment.</p>
+                <p style={{ fontSize: "14px", color: "#888", margin: "0 0 16px" }}>No KINGA analysis yet. Run analysis to generate risk assessment.</p>
                 <Button style={{ background: "#0F1A14", color: "#D4A800", border: "none" }} onClick={() => runAi.mutate({ inspectionId })} disabled={runAi.isPending}>
-                  {runAi.isPending ? "Analysing…" : "Run AI Analysis"}
+                  {runAi.isPending ? "Analysing…" : "Run KINGA Analysis"}
                 </Button>
               </div>
             ) : (
@@ -730,8 +730,8 @@ export default function EngineerInspectionDetail() {
                 ["Evidence uploaded",         evidence.length > 0],
                 ["Measurements recorded",     measurements.length > 0],
                 ["Observations recorded",     observations.length > 0],
-                ["AI analysis complete",      !!aiAnalysis],
-                ["AI analysis approved",      !!(aiAnalysis?.approved_by)],
+                ["KINGA analysis complete",      !!aiAnalysis],
+                ["KINGA analysis approved",      !!(aiAnalysis?.approved_by)],
                 ["Physics reconciliation",    !!physicsResult],
               ].map(([label, done]) => (
                 <div key={String(label)} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>

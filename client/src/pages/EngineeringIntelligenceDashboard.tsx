@@ -63,7 +63,7 @@ export default function EngineeringIntelligenceDashboard() {
             <KpiCard label="Total Inspections" value={Number(s?.totalInspections ?? 0)} />
             <KpiCard label="Completed" value={Number(s?.completedInspections ?? 0)} />
             <KpiCard label="Physics Reconciled" value={Number(s?.physicsReconciledCount ?? 0)} />
-            <KpiCard label="AI Approved" value={Number(s?.aiApprovedCount ?? 0)} />
+            <KpiCard label="KINGA Approved" value={Number(s?.aiApprovedCount ?? 0)} />
             <KpiCard label="Avg Duration" value={s?.avgDurationMinutes ? `${Math.round(Number(s.avgDurationMinutes))}m` : "—"} />
           </div>
 
@@ -104,7 +104,7 @@ export default function EngineeringIntelligenceDashboard() {
               <SectionTitle>Observation Analytics</SectionTitle>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
                 <KpiCard label="Total Observations" value={Number(o.totalObservations ?? 0)} />
-                <KpiCard label="AI Drafted" value={Number(o.aiDraftedCount ?? 0)} />
+                <KpiCard label="KINGA Drafted" value={Number(o.aiDraftedCount ?? 0)} />
                 <KpiCard label="Voice Transcribed" value={Number(o.voiceTranscribedCount ?? 0)} />
               </div>
             </>

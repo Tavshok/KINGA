@@ -104,7 +104,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Observability", href: "/admin/observability", icon: Eye, description: "Platform observability metrics" },
       { label: "Physics Accuracy", href: "/admin/physics-accuracy", icon: Cpu, description: "Physics engine calibration" },
       { label: "Integrity Metrics", href: "/admin/integrity-metrics", icon: ShieldAlert, description: "Data integrity validation" },
-      { label: "Learning Dashboard", href: "/admin/learning", icon: Brain, description: "AI learning and ground truth" },
+      { label: "Learning Dashboard", href: "/admin/learning", icon: Brain, description: "KINGA learning and ground truth" },
       { label: "Market Quotes", href: "/admin/market-quotes", icon: Database, description: "Market benchmark ingestion" },
     ],
   },

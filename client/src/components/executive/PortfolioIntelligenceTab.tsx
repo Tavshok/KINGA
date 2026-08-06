@@ -243,7 +243,7 @@ export function PortfolioIntelligenceTab() {
             icon={<AlertTriangle className="h-5 w-5" />}
           />
           <KpiCard
-            label="Avg AI Confidence"
+            label="Avg KINGA Confidence"
             value={pct(ops?.avgConfidenceScore)}
             icon={<Zap className="h-5 w-5" />}
             accent={Number(ops?.avgConfidenceScore ?? 0) >= 80 ? "text-green-400" : "text-amber-400"}

@@ -480,7 +480,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         items: [
           "Manage engineering projects and inspection assignments",
           "Capture measurements, observations, and photos in the field",
-          "Run KINGA AI analysis and physics reconciliation on findings",
+          "Run KINGA analysis and physics reconciliation on findings",
           "Generate inspection reports and link findings to insurance claims",
           "Track project deliverables and client deadlines",
         ],
@@ -491,7 +491,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         description: "Your Engineering Workspace",
         items: [
           "My Projects dashboard with active projects and upcoming inspections",
-          "Inspection workspace with evidence capture and AI analysis tools",
+          "Inspection workspace with evidence capture and KINGA analysis tools",
           "Asset passports with prior inspection history",
           "Physics reconciliation results and structural risk assessments",
           "Engineering intelligence: risk scores and condition trends",

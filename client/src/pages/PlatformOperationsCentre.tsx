@@ -2,7 +2,7 @@
  * Platform Operations Centre — Epic 5-C
  *
  * Operational intelligence dashboard for Platform Administrators.
- * Aggregates: background jobs, queue health, AI processing, report generation,
+ * Aggregates: background jobs, queue health, KINGA processing, report generation,
  * workflow execution, failed jobs, active users, governance violations, audit statistics, storage.
  *
  * Access: platform_super_admin only.
@@ -240,7 +240,7 @@ function JobsPanel() {
   );
 }
 
-// ─── AI Processing Panel ─────────────────────────────────────────────────────
+// ─── KINGA Processing Panel ─────────────────────────────────────────────────────
 
 function AiProcessingPanel() {
   const { data, isLoading } = trpc.platformOperations.getAiProcessingStats.useQuery(undefined, {
@@ -790,7 +790,7 @@ export default function PlatformOperationsCentre() {
             <Server className="w-3.5 h-3.5" /> Jobs &amp; Queue
           </TabsTrigger>
           <TabsTrigger value="ai" className="flex items-center gap-1.5 text-xs">
-            <Zap className="w-3.5 h-3.5" /> AI Processing
+            <Zap className="w-3.5 h-3.5" /> KINGA Processing
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex items-center gap-1.5 text-xs">
             <FileText className="w-3.5 h-3.5" /> Report Generation

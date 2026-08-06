@@ -125,7 +125,7 @@ export function EngineeringIntelligencePanel() {
         </Card>
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="pt-3 pb-3 px-4">
-            <div className="text-xs text-gray-400 mb-1">AI Approval Rate</div>
+            <div className="text-xs text-gray-400 mb-1">KINGA Approval Rate</div>
             <div className={`text-2xl font-bold ${pctColor(summary?.aiApprovalRate)}`}>
               {pct(summary?.aiApprovalRate)}
             </div>
@@ -165,7 +165,7 @@ export function EngineeringIntelligencePanel() {
                         <div className="h-1.5 rounded-full bg-yellow-700" style={{ width: `${pctVal}%` }} />
                       </div>
                       <div className="flex gap-3 text-[10px] text-gray-600">
-                        <span>AI approval: {t.aiApprovalRate != null ? `${Math.round(Number(t.aiApprovalRate))}%` : '—'}</span>
+                        <span>KINGA approval: {t.aiApprovalRate != null ? `${Math.round(Number(t.aiApprovalRate))}%` : '—'}</span>
                         <span>avg {t.avgDuration != null ? `${Math.round(Number(t.avgDuration))}min` : '—'}</span>
                       </div>
                     </div>

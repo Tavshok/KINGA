@@ -430,7 +430,7 @@ export default function ClaimsManagerDashboard() {
     { id: 'all', label: 'All Claims', count: allClaims.length },
     { id: 'intake', label: 'Pending Intake', count: kpiPending },
     { id: 'review', label: 'Under Review', count: allReviewableClaims.length },
-    { id: 'fraud', label: 'AI Flagged', count: fraudFlagCount, alert: true },
+    { id: 'fraud', label: 'KINGA Flagged', count: fraudFlagCount, alert: true },
     { id: 'sla', label: 'SLA Watch', count: slaBreachCount, alert: slaBreachCount > 0 },
     { id: 'fleet-approvals', label: 'Fleet Approvals', count: null },
     { id: 'completed', label: 'Completed', count: null },
@@ -664,7 +664,7 @@ export default function ClaimsManagerDashboard() {
                   <option value="all">All statuses</option>
                   <option value="pending">Pending</option>
                   <option value="comparison">Under Review</option>
-                  <option value="financial_decision">AI Flagged</option>
+                  <option value="financial_decision">KINGA Flagged</option>
                   <option value="completed">Approved</option>
                 </select>
                 <select

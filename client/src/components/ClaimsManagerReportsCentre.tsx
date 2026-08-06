@@ -24,7 +24,7 @@ const CLAIMS_MANAGER_REPORTS: ReportEntry[] = [
   {
     reportKey: "claim.assessment",
     label: "Assessment Report",
-    description: "Full AI assessment for a specific claim",
+    description: "Full KINGA assessment for a specific claim",
     icon: FileText,
     category: "Claim-Level",
   },

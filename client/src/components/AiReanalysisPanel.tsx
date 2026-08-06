@@ -57,7 +57,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
       refetch();
     },
     onError: (error: any) => {
-      toast.error("AI Re-Analysis Failed", {
+      toast.error("KINGA Re-Analysis Failed", {
         description: error.message,
       });
     },

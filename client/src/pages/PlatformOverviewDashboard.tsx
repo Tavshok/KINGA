@@ -44,7 +44,7 @@ export default function PlatformOverviewDashboard() {
       { label: "Active Tenants", value: overview.totalTenants.toString(), icon: <Building2 className="h-4 w-4" />, accent: "teal" as const },
       { label: "Total Users", value: totalUsers.toLocaleString(), icon: <Users className="h-4 w-4" />, accent: "green" as const },
       { label: "In Progress", value: (pendingClaims + processingClaims).toLocaleString(), icon: <Clock className="h-4 w-4" />, accent: "amber" as const },
-      { label: "AI High Confidence", value: `${aiAccuracy}%`, icon: <Zap className="h-4 w-4" />, accent: "green" as const },
+      { label: "KINGA High Confidence", value: `${aiAccuracy}%`, icon: <Zap className="h-4 w-4" />, accent: "green" as const },
     ];
   }, [overview, totalUsers]);
 
@@ -67,7 +67,7 @@ export default function PlatformOverviewDashboard() {
   const tabs: PortalTab[] = [
     { id: "overview", label: "Overview" },
     { id: "tenants", label: "Tenants & Users" },
-    { id: "ai", label: "AI Performance" },
+    { id: "ai", label: "KINGA Performance" },
     { id: "routing", label: "Routing Decisions" },
     { id: "security", label: "Security" },
   ];
@@ -199,7 +199,7 @@ export default function PlatformOverviewDashboard() {
         {activeTab === "ai" && (
           <Card>
             <CardHeader>
-              <CardTitle>KINGA AI Confidence Distribution</CardTitle>
+              <CardTitle>KINGA KINGA Confidence Distribution</CardTitle>
               <CardDescription>Confidence levels across all KINGA assessments</CardDescription>
             </CardHeader>
             <CardContent>

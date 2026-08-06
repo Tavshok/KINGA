@@ -422,7 +422,7 @@ function VehicleForensicsPanel({ quotationRequestId }: { quotationRequestId: num
           </p>
         </div>
         <div className="text-center">
-          <p className="text-muted-foreground">AI Generation</p>
+          <p className="text-muted-foreground">KINGA Generation</p>
           <p className={`font-semibold ${result.aiGenerationFlag ? 'text-red-600' : 'text-emerald-600'}`}>
             {result.aiGenerationFlag ? 'Suspected' : 'Not Detected'}
           </p>

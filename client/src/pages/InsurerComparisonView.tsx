@@ -970,7 +970,7 @@ export default function InsurerComparisonView() {
                 style={{ borderColor: '#1C5C39', color: '#1C5C39', background: 'transparent' }}
                 onClick={() => reRunMutation.mutate({ claimId })}
                 disabled={reRunMutation.isPending}
-                title="Re-run the full KINGA AI analysis pipeline for this claim"
+                title="Re-run the full KINGA analysis pipeline for this claim"
               >
                 {reRunMutation.isPending
                   ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
