@@ -892,6 +892,12 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
+        {/* Phase 1C — Tenant Provisioning */}
+        <Route path="/admin/tenant-provisioning">
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
+            <AdminPortalLayout title="Provision Tenant"><TenantProvisioning /></AdminPortalLayout>
+          </ProtectedRoute>
+        </Route>
         {/* Phase 1A — Network Oversight */}
         <Route path="/admin/network">
           <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
@@ -996,3 +1002,4 @@ const AuditLog = lazy(() => import("./pages/admin/AuditLog"));
 const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const SecurityEvents = lazy(() => import("./pages/admin/SecurityEvents"));
 const NetworkOversight = lazy(() => import("./pages/admin/NetworkOversight"));
+const TenantProvisioning = lazy(() => import("./pages/admin/TenantProvisioning"));

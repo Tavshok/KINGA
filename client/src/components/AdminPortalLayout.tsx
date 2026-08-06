@@ -54,7 +54,7 @@ import {
   ScrollText,
   UserCheck,
 } from "lucide-react";
-import { Clock } from "lucide-react";
+import { Clock, PlusCircle, Network } from "lucide-react";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
 
@@ -113,6 +113,7 @@ const NAV_SECTIONS: NavSection[] = [
     icon: ScrollText,
     defaultOpen: false,
     items: [
+      { label: "Provision Tenant", href: "/admin/tenant-provisioning", icon: PlusCircle, description: "Create a new tenant with full configuration" },
       { label: "Network Oversight", href: "/admin/network", icon: Network, description: "Insurers, agencies, panel beaters, assessors, fleet, engineers" },
       { label: "Escalation Queue", href: "/admin/escalation", icon: AlertTriangle, description: "Claims requiring escalation" },
       { label: "Workflow Templates", href: "/admin/workflows", icon: GitBranch, description: "Workflow configuration" },
