@@ -40,6 +40,7 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
@@ -96,7 +97,14 @@ async function startServer() {
   
   // Trust proxy for rate limiting (required for X-Forwarded-For)
   app.set('trust proxy', 1);
-  
+
+  // ── Security headers (Phase 4.95) ────────────────────────────────────────
+  // helmet sets X-Content-Type-Options, X-Frame-Options, X-XSS-Protection,
+  // Strict-Transport-Security, Referrer-Policy, and more.
+  // CSP is disabled here because the Vite dev server and tRPC inline scripts
+  // require a permissive policy; a strict CSP should be added in production.
+  app.use(helmet({ contentSecurityPolicy: false }));
+
   // Rate limiters
   const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes

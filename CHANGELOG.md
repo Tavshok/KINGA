@@ -5,6 +5,55 @@ Each entry records: **what** changed, **why** it was changed, **which files** we
 
 ---
 
+## [v1.0.0] — 2026-08-06 — KINGA AutoVerify AI Pilot Release
+
+### Checkpoint: `2928a488`
+
+### Release Summary
+KINGA Version 1.0.0 is the first commercially pilot-ready release of the KINGA AutoVerify AI Motor Claims Management Platform. This release completes Phases 4.8 through 4.97 of the product roadmap, including Ship Readiness Remediation, Intelligence Validation & Calibration, Operational Acceptance Testing, Product Hardening & Release Engineering, Documentation Freeze, and Pilot Readiness Certification.
+
+### New Features (Phase 4.8 Ship Readiness Remediation)
+- **SR-C04:** Mark Repair Complete button in PanelBeaterDashboard with `repairHistory.markRepairComplete`
+- **SR-H05:** Accept Quote button in KingaAgency QuotationsTab (`agency.updateQuotation` status=accepted)
+- **SR-H01:** Export Report button in EngineerInspectionDetail (structured text export)
+- **SR-H02:** Rejection audit trail — `rejection_reason`, `rejection_category`, `rejected_by`, `rejected_at` columns added to claims table
+- **SR-H04:** Claimant state-change notifications on `authorizePayment`, `rejectClaim`, and `insurerOverride`
+- **SR-H03:** Insurer override procedure (`claims.insurerOverride`) with override dialog in InsurerAdminDashboard
+- **SR-H06:** Account recovery link on Login page (Manus OAuth portal)
+- **SR-M01:** `/claimant/documents` route with `ClaimantDocuments` page
+- **SR-M04:** Repair photo upload (`panelBeaters.uploadRepairPhotos`) with S3 storage
+- **SR-M07:** Repair tracking card in `ClaimantClaimDetail` sidebar
+
+### Bug Fixes
+- **OAT-GAP-01:** Vehicle damage history (`vehicle_damage_history`) now auto-populated on claim closure via `acceptSettlement` mutation
+
+### Security Hardening (Phase 4.95)
+- **Helmet:** HTTP security headers added (X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Strict-Transport-Security, Referrer-Policy)
+- **Rate limiting:** Global 1,000 req/15min; auth 10 req/15min (pre-existing, confirmed)
+- **Tenant isolation:** 42 tenant isolation tests pass
+- **RBAC:** `adminProcedure`, `superAdminProcedure`, `insurerDomainProcedure`, `executiveOnlyProcedure` guards confirmed
+- **Session management:** `httpOnly: true`, `secure: true` (production), `sameSite: none` cookies confirmed
+
+### Intelligence Calibration (Phase 4.8)
+- **R-E-02:** Cost Realism Validator `severe.maxCents` recalibrated from $500,000 to $150,000
+- **G1–G9:** Physics Pipeline direction-agnostic redesign (9 front-impact hardcoding gaps fixed)
+- **KINGA-FSS-2026-001:** Fraud Scoring Standard canonical bands (minimal/low/moderate/high/elevated)
+
+### Files Changed
+- `server/_core/index.ts` — helmet security headers
+- `server/routers.ts` — SR-H02, SR-H03, SR-H04, OAT-GAP-01 fixes
+- `client/src/pages/PanelBeaterDashboard.tsx` — SR-C04, SR-M04
+- `client/src/pages/KingaAgency.tsx` — SR-H05
+- `client/src/pages/EngineerInspectionDetail.tsx` — SR-H01
+- `client/src/pages/InsurerAdminDashboard.tsx` — SR-H03
+- `client/src/pages/Login.tsx` — SR-H06
+- `client/src/pages/ClaimantDocuments.tsx` — SR-M01 (new file)
+- `client/src/pages/ClaimantClaimDetail.tsx` — SR-M07
+- `drizzle/schema.ts` — rejection audit trail columns
+- `CHANGELOG.md` — v1.0.0 release entry
+
+---
+
 ## [e10634e2] — 2026-05-18 — ProtectedRoute Infinite Spinner Fix
 
 ### Bug Fix: "Verifying access..." infinite spinner after OAuth login
