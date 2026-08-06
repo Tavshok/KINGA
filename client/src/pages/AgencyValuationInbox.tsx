@@ -27,6 +27,13 @@ export default function AgencyValuationInbox() {
   const [quotePremium, setQuotePremium] = useState("");
   const [quoteExcess, setQuoteExcess] = useState("");
   const [quoteNotes, setQuoteNotes] = useState("");
+  const [docDialogOpen, setDocDialogOpen] = useState(false);
+  const [docTarget, setDocTarget] = useState<any>(null);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docTitle, setDocTitle] = useState("");
+  const [docType, setDocType] = useState("other");
+  const [docNotes, setDocNotes] = useState("");
+  const [docEmailClient, setDocEmailClient] = useState(false);
 
   const { data: requests, isLoading, refetch } = trpc.insuranceV2.getValuationRequests.useQuery({
     limit: 100,
@@ -55,6 +62,18 @@ export default function AgencyValuationInbox() {
       setQuoteDialogOpen(false);
       setQuoteTarget(null);
       refetch();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const sendDocumentMutation = trpc.insuranceV2.sendDocumentToClient.useMutation({
+    onSuccess: () => {
+      toast.success("Document sent to client");
+      setDocDialogOpen(false);
+      setDocTarget(null);
+      setDocFile(null);
+      setDocTitle("");
+      setDocType("other");
+      setDocNotes("");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -202,6 +221,9 @@ export default function AgencyValuationInbox() {
                         <Tag className="h-3 w-3 mr-1" /> Send Quote
                       </Button>
                     )}
+                    <Button size="sm" variant="outline" className="border-slate-400 text-slate-700 hover:bg-slate-50" onClick={() => { setDocTarget(req); setDocDialogOpen(true); }}>
+                      <FileText className="h-3 w-3 mr-1" /> Send Doc
+                    </Button>
                   </div>
                 </div>
               </CardContent>

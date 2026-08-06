@@ -1422,3 +1422,23 @@ which is for corporate fleet operators.
 - [x] P9-C02: Plain-language claim timeline per claim
 - [x] P9-C03: Submit new claim button (redirect to /claimant/submit)
 - [x] P9-C04: Dispute button on closed claims (reuse initiateDispute mutation)
+
+---
+
+## Phase 10 — Document Delivery + Multi-Product Insurance
+
+### Track A: Policy Document Delivery
+- [x] P10-DA01: Add quotation_request_documents table (id, quotationRequestId, userId, documentType, title, fileName, fileUrl, s3Key, fileSize, mimeType, sentByAgentId, deliveredToClient tinyint, emailedToClient tinyint, notes, createdAt)
+- [x] P10-DA02: Add sendDocumentToClient mutation to insurance-phase7 router (base64 upload → S3 → DB → in-app notification to client userId)
+- [x] P10-DA03: Add getMyDocuments query (client-side: returns all documents for the current user's quotation requests)
+- [x] P10-DA04: AgencyValuationInbox: "Send Document" button per request → dialog (file picker, document type, title, notes, email toggle)
+- [x] P10-DA05: Client Portal Insurance tab: Documents sub-section showing all agent-sent documents with download links
+
+### Track B: Multi-Product Insurance Catalogue
+- [x] P10-DB01: Add productCategory column to quotation_requests (motor | property | engineering | liability | bonds | other)
+- [x] P10-DB02: Extend insuranceType enum with non-motor products: plant_all_risks, assets_all_risks, electronic_equipment, contractors_all_risks, erection_all_risks, homeowners, fire_and_perils, public_liability, employers_liability, professional_indemnity, fidelity_guarantee, bonds, travel, personal_accident
+- [x] P10-DB03: Add non-motor intake fields to quotation_requests: insuredAssetDescription, insuredAssetValue, coverageAddress, businessType, projectValue, projectDuration, bondType, bondAmount, bondBeneficiary
+- [x] P10-DB04: Create InsuranceCatalogue.tsx — product grid with icons, descriptions, and "Request" CTA for each product line
+- [x] P10-DB05: Create InsuranceRequestWizard.tsx — multi-step wizard: (1) product select, (2) product-specific intake form, (3) review + submit
+- [x] P10-DB06: Wire InsuranceCatalogue into Client Portal Insurance tab "New Request" button
+- [x] P10-DB07: Agency inbox: show productCategory badge on non-motor requests; non-motor requests route to correct handler

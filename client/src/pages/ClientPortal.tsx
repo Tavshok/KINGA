@@ -24,6 +24,7 @@ import {
   LayoutDashboard, Gauge, AlertCircle, ChevronRight, X
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
+import InsuranceRequestWizard from "@/components/InsuranceRequestWizard";
 import { getLoginUrl } from "@/const";
 import { toast } from "sonner";
 
@@ -53,6 +54,9 @@ export default function ClientPortal() {
   const { data: myClaims } = trpc.claims.myClaims.useQuery(
     undefined, { enabled: !!user }
   );
+  const { data: myDocuments } = trpc.insuranceV2.getMyDocuments.useQuery(
+    undefined, { enabled: !!user }
+  );
 
   // ── Derived data ────────────────────────────────────────────────────────────
   const pendingQuotes   = (requests ?? []).filter((r: any) => r.status === "quoted");
@@ -78,6 +82,9 @@ export default function ClientPortal() {
     onSuccess: () => { toast.success("Dispute submitted"); utils.claims.myClaims.invalidate(); },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // ── Insurance wizard state ──────────────────────────────────────────────────
+  const [showInsuranceWizard, setShowInsuranceWizard] = useState(false);
 
   // ── Vehicle form state ───────────────────────────────────────────────────────
   const [addVehicleOpen, setAddVehicleOpen] = useState(false);
@@ -400,9 +407,20 @@ export default function ClientPortal() {
   // ── Tab: Insurance ───────────────────────────────────────────────────────────
   const InsuranceTab = () => (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold">Insurance</h2>
-        <p className="text-sm text-muted-foreground">Your quotes and active policies.</p>
+      {showInsuranceWizard ? (
+        <InsuranceRequestWizard
+          onSuccess={() => { setShowInsuranceWizard(false); refetchRequests(); }}
+          onCancel={() => setShowInsuranceWizard(false)}
+        />
+      ) : (<>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold">Insurance</h2>
+          <p className="text-sm text-muted-foreground">Your quotes, policies, and documents.</p>
+        </div>
+        <Button onClick={() => setShowInsuranceWizard(true)}>
+          <Plus className="h-4 w-4 mr-2" /> New Request
+        </Button>
       </div>
       {/* Pending quotes */}
       {pendingQuotes.length > 0 && (
@@ -459,6 +477,26 @@ export default function ClientPortal() {
           ))
         )}
       </div>
+      {/* Documents */}
+      {(myDocuments?.length ?? 0) > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-semibold text-sm flex items-center gap-2 text-slate-600"><FileText className="h-4 w-4" /> Documents from Your Agent ({myDocuments?.length})</h3>
+          {(myDocuments ?? []).map((doc: any) => (
+            <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border bg-white hover:shadow-sm transition-shadow">
+              <div className="p-2 rounded-lg bg-slate-100"><FileText className="h-4 w-4 text-slate-600" /></div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{doc.title}</p>
+                <p className="text-xs text-muted-foreground capitalize">{doc.documentType?.replace(/_/g,' ')} · {new Date(doc.createdAt).toLocaleDateString()}</p>
+                {doc.notes && <p className="text-xs text-muted-foreground italic">{doc.notes}</p>}
+              </div>
+              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm">Download</Button>
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+      </>)}
     </div>
   );
 

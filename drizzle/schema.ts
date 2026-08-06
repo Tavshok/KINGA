@@ -5938,3 +5938,34 @@ export const personalVehicles = mysqlTable("personal_vehicles", {
 ]);
 export type PersonalVehicle = typeof personalVehicles.$inferSelect;
 export type InsertPersonalVehicle = typeof personalVehicles.$inferInsert;
+
+// ─── Phase 10: Quotation Request Documents ────────────────────────────────────
+// Documents sent by agents to clients (policy schedules, cover notes, etc.)
+// Linked to a quotation request; client can view/download from their portal.
+export const quotationRequestDocuments = mysqlTable("quotation_request_documents", {
+  id:                  int().autoincrement().notNull(),
+  quotationRequestId:  int("quotation_request_id").notNull(),
+  clientUserId:        int("client_user_id"),
+  documentType:        mysqlEnum("document_type_qrd", [
+    'policy_schedule','certificate_of_insurance','endorsement',
+    'renewal_notice','cancellation_notice','cover_note',
+    'debit_note','claim_form','proposal_form','other'
+  ]).default('other').notNull(),
+  title:               varchar("title", { length: 255 }).notNull(),
+  fileName:            varchar("file_name", { length: 255 }).notNull(),
+  fileUrl:             text("file_url").notNull(),
+  s3Key:               varchar("s3_key", { length: 500 }).notNull(),
+  fileSize:            int("file_size"),
+  mimeType:            varchar("mime_type", { length: 100 }),
+  sentByAgentId:       int("sent_by_agent_id"),
+  deliveredToClient:   tinyint("delivered_to_client").default(1).notNull(),
+  emailedToClient:     tinyint("emailed_to_client").default(0).notNull(),
+  notes:               text("notes"),
+  createdAt:           timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+  index("qrd_quotation_request_id").on(table.quotationRequestId),
+  index("qrd_client_user_id").on(table.clientUserId),
+]);
+export type QuotationRequestDocument = typeof quotationRequestDocuments.$inferSelect;
+export type InsertQuotationRequestDocument = typeof quotationRequestDocuments.$inferInsert;

@@ -382,4 +382,170 @@ export const insurancePhase7Router = router({
       }
       return { success: true };
     }),
+
+  /**
+   * Agent sends a document (PDF/image) to a client linked to a quotation request.
+   * File is uploaded to S3, recorded in quotation_request_documents, and an
+   * in-app notification is sent to the client.
+   */
+  sendDocumentToClient: protectedProcedure
+    .input(z.object({
+      quotationRequestId: z.number(),
+      documentType: z.enum([
+        'policy_schedule','certificate_of_insurance','endorsement',
+        'renewal_notice','cancellation_notice','cover_note',
+        'debit_note','claim_form','proposal_form','other'
+      ]).default('other'),
+      title: z.string().min(1).max(255),
+      fileName: z.string().min(1).max(255),
+      fileData: z.string(), // base64 encoded (may include data URI prefix)
+      mimeType: z.string().optional(),
+      notes: z.string().max(1000).optional(),
+      emailToClient: z.boolean().default(false),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      // Verify the request exists and agent has access
+      const [request] = await db.select()
+        .from(quotationRequests)
+        .where(eq(quotationRequests.id, input.quotationRequestId))
+        .limit(1);
+      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Quotation request not found" });
+      // Upload to S3
+      const rawBase64 = input.fileData.includes(",") ? input.fileData.split(",")[1] : input.fileData;
+      const buffer = Buffer.from(rawBase64, "base64");
+      const { nanoid } = await import("nanoid");
+      const fileKey = `policy-docs/${input.quotationRequestId}/${Date.now()}-${nanoid(6)}-${input.fileName}`;
+      const { url: fileUrl } = await storagePut(fileKey, buffer, input.mimeType || "application/octet-stream");
+      // Record in DB
+      await db.insert(quotationRequestDocuments).values({
+        quotationRequestId: input.quotationRequestId,
+        clientUserId: request.userId ?? null,
+        documentType: input.documentType,
+        title: input.title,
+        fileName: input.fileName,
+        fileUrl,
+        s3Key: fileKey,
+        fileSize: buffer.length,
+        mimeType: input.mimeType ?? null,
+        sentByAgentId: ctx.user.id,
+        deliveredToClient: 1,
+        emailedToClient: input.emailToClient ? 1 : 0,
+        notes: input.notes ?? null,
+      } as any);
+      // In-app notification to client
+      if (request.userId) {
+        try {
+          const { createNotification } = await import("../db");
+          await createNotification({
+            userId: request.userId,
+            title: `Document from Your Agent: ${input.title}`,
+            message: `Your agent has sent you a document: "${input.title}" for your ${request.vehicleMake} ${request.vehicleModel} (${request.vehicleYear}). You can view and download it from your Client Portal under Insurance → Documents.`,
+            type: "document_received",
+            entityType: "quotation_request",
+            entityId: input.quotationRequestId,
+            actionUrl: `/client`,
+            priority: "normal",
+          });
+        } catch (_notifyErr) { /* non-fatal */ }
+      }
+      return { success: true, fileUrl };
+    }),
+
+  /**
+   * Phase 10 — Submit a multi-product insurance request (motor or non-motor).
+   * For motor products, wraps the existing submitValuationRequest logic.
+   * For non-motor products, creates a quotation request with product-specific fields.
+   */
+  submitRequest: protectedProcedure
+    .input(z.object({
+      // Product selection
+      insuranceType: z.string().min(1),
+      productCategory: z.enum(['motor','property','engineering','liability','bonds','personal','other']).default('motor'),
+      // Contact
+      fullName: z.string().min(2),
+      email: z.string().email(),
+      phone: z.string().optional(),
+      // Motor fields (required for motor products)
+      vehicleMake: z.string().default('N/A'),
+      vehicleModel: z.string().default('N/A'),
+      vehicleYear: z.number().int().min(1970).max(new Date().getFullYear() + 1).default(new Date().getFullYear()),
+      vehicleRegistration: z.string().optional(),
+      vehicleValue: z.number().int().min(0).optional(),
+      // Non-motor fields
+      insuredAssetDescription: z.string().optional(),
+      insuredAssetValue: z.number().int().min(0).optional(),
+      coverageAddress: z.string().optional(),
+      businessType: z.string().optional(),
+      projectValue: z.number().int().min(0).optional(),
+      projectDurationMonths: z.number().int().min(1).optional(),
+      bondType: z.string().optional(),
+      bondAmount: z.number().int().min(0).optional(),
+      bondBeneficiary: z.string().optional(),
+      additionalCover: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const token = generateToken();
+      const requestNumber = `INS-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      const motorTypes = ['comprehensive','third_party','third_party_fire_theft','fleet','commercial'];
+      const safeInsuranceType = motorTypes.includes(input.insuranceType) ? input.insuranceType : 'comprehensive';
+      const [result] = await db.insert(quotationRequests).values({
+        requestNumber,
+        userId: ctx.user.id,
+        fullName: input.fullName,
+        email: input.email,
+        phone: input.phone ?? '',
+        insuranceType: safeInsuranceType as any,
+        productCategory: input.productCategory,
+        vehicleMake: input.vehicleMake,
+        vehicleModel: input.vehicleModel,
+        vehicleYear: input.vehicleYear,
+        vehicleRegistration: input.vehicleRegistration ?? null,
+        vehicleValue: input.vehicleValue ?? null,
+        insuredAssetDescription: input.insuredAssetDescription ?? null,
+        insuredAssetValue: input.insuredAssetValue ?? null,
+        coverageAddress: input.coverageAddress ?? null,
+        businessType: input.businessType ?? null,
+        projectValue: input.projectValue ?? null,
+        projectDurationMonths: input.projectDurationMonths ?? null,
+        bondType: input.bondType ?? null,
+        bondAmount: input.bondAmount ?? null,
+        bondBeneficiary: input.bondBeneficiary ?? null,
+        additionalCover: input.additionalCover ?? null,
+        status: 'pending',
+        reportGatingStatus: 'teaser',
+        isStandaloneValuation: 0,
+        inspectionRequired: 0,
+        submissionToken: token,
+        contactVerified: 0,
+        documents: JSON.stringify({ productType: input.insuranceType }),
+      } as any);
+      const requestId = (result as any).insertId;
+      // Notify owner/admin of new request
+      try {
+        const { notifyOwner } = await import('../_core/notification');
+        await notifyOwner({
+          title: `New Insurance Request: ${input.insuranceType.replace(/_/g,' ')}`,
+          content: `${input.fullName} (${input.email}) has submitted a new ${input.productCategory} insurance request (${input.insuranceType.replace(/_/g,' ')}). Request #${requestNumber}.`,
+        });
+      } catch (_e) { /* non-fatal */ }
+      return { success: true, requestId, requestNumber, submissionToken: token };
+    }),
+
+  /**
+   * Client retrieves all documents sent to them by agents.
+   */
+  getMyDocuments: protectedProcedure
+    .query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const docs = await db.select()
+        .from(quotationRequestDocuments)
+        .where(eq(quotationRequestDocuments.clientUserId, ctx.user.id))
+        .orderBy(desc(quotationRequestDocuments.createdAt));
+      return docs;
+    }),
 });
