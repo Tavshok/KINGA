@@ -108,6 +108,7 @@ const ClaimantClaimDetail = lazy(() => import("./pages/ClaimantClaimDetail"));
 const ClaimantDocuments = lazy(() => import("./pages/ClaimantDocuments"));
 const SubmitClaim = lazy(() => import("./pages/SubmitClaim"));
 const FleetManagerDashboard = lazy(() => import("./pages/FleetManagerDashboard"));
+const FleetDriverDashboard = lazy(() => import("./pages/FleetDriverDashboard"));
 const FleetRegister = lazy(() => import("./pages/FleetRegister"));
 
 // Admin pages
@@ -755,10 +756,16 @@ function Router() {
           </ProtectedRoute>
         </Route>
         <Route path="/claimant/fleet-dashboard">
-          {/* Epic 4.5: fleet_admin and fleet_manager added — they land here after login (ROLE_PORTAL_MAP) */}
+          {/* Fleet Manager / Admin Dashboard */}
           <ProtectedRoute allowedRoles={["claimant", "admin", "fleet_admin", "fleet_manager"]}>
             <ClaimantPortalLayout><FleetManagerDashboard /></ClaimantPortalLayout>
           </ProtectedRoute>
+          {/* Fleet Driver Dashboard — role-scoped view for fleet_driver */}
+          <Route path="/fleet/driver">
+            <ProtectedRoute allowedRoles={["fleet_driver", "admin"]}>
+              <FleetDriverDashboard />
+            </ProtectedRoute>
+          </Route>
         </Route>
         <Route path="/claimant/fleet-register">
           <ProtectedRoute domain="portal">

@@ -16,6 +16,7 @@ import {
   UserCog,
   HardHat
 } from "lucide-react";
+import { Car } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { useRoleDashboardRoute } from "@/components/RoleRouteGuard";
@@ -74,6 +75,15 @@ export default function PortalHub() {
       path: "/claimant/fleet-dashboard",
       color: "from-teal-500 to-cyan-500",
       roles: ["fleet_admin", "fleet_manager", "insurer", "admin"]
+    },
+    {
+      id: "fleet_driver",
+      title: "Driver Workspace",
+      description: "Your assigned vehicle, incident reporting, maintenance alerts, and claims.",
+      icon: Car,
+      path: "/fleet/driver",
+      color: "from-slate-500 to-slate-600",
+      roles: ["fleet_driver", "admin"]
     },
     {
       id: "kinga-agency",
