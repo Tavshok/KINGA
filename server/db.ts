@@ -1265,14 +1265,11 @@ export async function triggerAiAssessment(claimId: number) {
         updatedAt: new Date().toISOString(),
       }).where(eq(claims.id, claimId)).catch(() => {});
 
-      // Notify owner
-      try {
-        const { notifyOwner } = await import('./_core/notification');
-        await notifyOwner({
-          title: `⚠️ Claim ${claimId}: Document Health Gate Blocked Assessment`,
-          content: `${_gateResult.summary} Recommended action: ${_gateResult.recommendedAction}`,
-        });
-      } catch { /* non-fatal */ }
+      // Gate block is logged to the audit trail and visible in the Claims Processor UI.
+      // Owner email notifications are intentionally suppressed here — the gate fires on
+      // every automated pipeline run (including batch startup cleanup) and would generate
+      // thousands of emails. Processors review blocked claims via the KINGA Complete tab.
+      console.log(`[KINGA Assessment] Claim ${claimId}: Document Health Gate BLOCKED (${_gateResult.decision}). Score: ${_gateResult.overallScore}%. ${_gateResult.summary}`);
 
       return {
         success: false,
@@ -1490,14 +1487,6 @@ export async function triggerAiAssessment(claimId: number) {
         workflowState: "intake_queue",
         updatedAt: new Date().toISOString(),
       }).where(eq(claims.id, claimId));
-      // Notify owner of pipeline incomplete failure
-      try {
-        const { notifyOwner } = await import('./_core/notification');
-        await notifyOwner({
-          title: `⚠️ Claim ${claimId}: Pipeline Incomplete`,
-          content: `Pipeline failed to complete for claim ${claimId}: ${pipelineErr.message}. Claim routed to DOCUMENT_FAILED for human review.`,
-        });
-      } catch { /* non-fatal */ }
       // Upsert a minimal ai_assessment record so the exception queue can surface it
       const existingAssessment = await db.select({ id: aiAssessments.id })
         .from(aiAssessments).where(eq(aiAssessments.claimId, claimId)).limit(1);
