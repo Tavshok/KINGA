@@ -21,6 +21,7 @@ import {
 import { TimelineIntelligenceTab } from "@/components/TimelineIntelligenceTab";
 import { QuoteComparisonView } from "@/components/QuoteComparisonView";
 import { AgencyPerformanceTab } from "@/components/AgencyPerformanceTab";
+import AgencyValuationInbox from "@/pages/AgencyValuationInbox";
 
 export default function KingaAgency() {
   const { user } = useAuth();
@@ -36,7 +37,8 @@ export default function KingaAgency() {
     { id: 'timeline-intelligence', label: '📅 Timeline Intelligence' },
     { id: 'commissions', label: '💰 Commissions' },
     { id: 'compare', label: '📊 Compare Quotes' },
-    { id: 'performance', label: '📈 Performance' },
+  { id: 'performance', label: '📈 Performance' },
+    { id: 'valuation-requests', label: '📥 Valuation Requests' },
   ];
 
   return (
@@ -125,6 +127,7 @@ export default function KingaAgency() {
             {activeTab === 'commissions' && (() => { setLocation('/agency/commissions'); return null; })()}
             {activeTab === 'compare' && <QuoteComparisonSection />}
             {activeTab === 'performance' && <AgencyPerformanceSection />}
+            {activeTab === 'valuation-requests' && <AgencyValuationInbox />}
           </div>
           {/* ── SIDEBAR ── */}
           <div className="p11-sidebar">

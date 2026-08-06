@@ -109,6 +109,10 @@ const ClaimantDocuments = lazy(() => import("./pages/ClaimantDocuments"));
 const SubmitClaim = lazy(() => import("./pages/SubmitClaim"));
 const FleetManagerDashboard = lazy(() => import("./pages/FleetManagerDashboard"));
 const FleetDriverDashboard = lazy(() => import("./pages/FleetDriverDashboard"));
+const ValuationRequestPage = lazy(() => import("./pages/ValuationRequestPage"));
+const TeaserReportPage = lazy(() => import("./pages/TeaserReportPage"));
+const ClientProfile = lazy(() => import("./pages/ClientProfile"));
+const AgencyValuationInbox = lazy(() => import("./pages/AgencyValuationInbox"));
 const FleetRegister = lazy(() => import("./pages/FleetRegister"));
 
 // Admin pages
@@ -583,6 +587,15 @@ function Router() {
         <Route path="/insurance/quote">
           <InsuranceQuote />
         </Route>
+        <Route path="/get-a-quote">
+          <ValuationRequestPage />
+        </Route>
+        <Route path="/quote/result/:token">
+          <TeaserReportPage />
+        </Route>
+        <Route path="/my-profile">
+          <ClientProfile />
+        </Route>
 
         <Route path="/agency">
           <ProtectedRoute domain="agency">
@@ -600,6 +613,11 @@ function Router() {
         {/* Fleet RFQ comparison — accessible to any authenticated fleet owner */}
         <Route path="/agency/valuation">
           <ProtectedRoute allowedRoles={["agency_broker", "agency_admin", "admin", "platform_super_admin"]}>
+            <KingaAgency />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/agency/valuation-requests">
+          <ProtectedRoute domain="agency">
             <KingaAgency />
           </ProtectedRoute>
         </Route>

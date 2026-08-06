@@ -137,6 +137,7 @@ import { logger } from './logger';
 import { validateClaimAnalysisResponse } from './services/apiResponseValidator';
 import { sanitiseReportNarrative, buildBlockError } from './services/externalReportSanitiser';
 import { treGovernanceRouter } from './routers/tre-governance';
+import { insurancePhase7Router } from './routers/insurance-phase7';
 import { treV4GovernanceRouter } from './routers/tre-v4-governance';
 import { globalSearchRouter } from './routers/global-search'; // Epic 5-A
 import { inspectionsRouter } from './routers/inspections'; // Epic 3
@@ -9901,6 +9902,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
   }),
 
   // ── Subrogation Recovery Module ──────────────────────────────────────────
+  insuranceV2: insurancePhase7Router,
   treGovernance: treGovernanceRouter,
   treV4Governance: treV4GovernanceRouter,
   recovery: router({
