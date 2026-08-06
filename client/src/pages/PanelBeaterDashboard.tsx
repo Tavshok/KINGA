@@ -60,8 +60,9 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 /**
- * SR-C04: Sub-component for a single repair-in-progress row.
- * Fetches repair history for the claim and shows Mark Repair Complete button.
+ * SR-C04 + SR-M04: Sub-component for a single repair-in-progress row.
+ * Fetches repair history for the claim, shows Mark Repair Complete button,
+ * and allows uploading repair completion photos.
  */
 function RepairInProgressRow({
   claim,
@@ -78,6 +79,43 @@ function RepairInProgressRow({
   );
   // Find the most recent open repair record (no repairDate set)
   const openRepair = repairRecords.find((r: any) => !r.repairDate);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [uploadedCount, setUploadedCount] = useState(0);
+
+  const uploadRepairPhotos = trpc.panelBeaters.uploadRepairPhotos.useMutation({
+    onSuccess: (data) => {
+      toast.success(`${data.uploadedCount} photo(s) uploaded successfully`);
+      setUploadedCount(prev => prev + data.uploadedCount);
+      setUploadingPhotos(false);
+    },
+    onError: (err) => {
+      toast.error(`Upload failed: ${err.message}`);
+      setUploadingPhotos(false);
+    },
+  });
+
+  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setUploadingPhotos(true);
+    const photoPromises = files.map(file => new Promise<{ fileName: string; fileData: string; mimeType: string }>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        resolve({ fileName: file.name, fileData: base64, mimeType: file.type });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    }));
+    Promise.all(photoPromises).then(photos => {
+      uploadRepairPhotos.mutate({ claimId: claim.id, photos });
+    }).catch(() => {
+      toast.error('Failed to read photo files');
+      setUploadingPhotos(false);
+    });
+    // Reset input
+    e.target.value = '';
+  }
 
   return (
     <tr>
@@ -87,25 +125,34 @@ function RepairInProgressRow({
         <span className="p11-badge green">{claim.status.replace(/_/g, ' ')}</span>
       </td>
       <td>
-        {openRepair ? (
-          <button
-            onClick={() => onMarkComplete(openRepair.id)}
-            disabled={isPending}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              fontSize: 11, fontWeight: 600,
-              color: isPending ? '#9CA3AF' : '#065F46',
-              background: isPending ? '#F3F4F6' : '#D1FAE5',
-              border: '1px solid #A7F3D0',
-              borderRadius: 4, padding: '4px 10px', cursor: isPending ? 'not-allowed' : 'pointer'
-            }}
-          >
-            <CheckCircle style={{ width: 11, height: 11 }} />
-            {isPending ? 'Saving…' : 'Mark Complete'}
-          </button>
-        ) : (
-          <span style={{ fontSize: 11, color: 'var(--muted)' }}>No open repair record</span>
-        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {/* SR-M04: Upload repair photos */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: uploadingPhotos ? '#9CA3AF' : '#1D4ED8', background: uploadingPhotos ? '#F3F4F6' : '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 4, padding: '4px 10px', cursor: uploadingPhotos ? 'not-allowed' : 'pointer' }}>
+            <Download style={{ width: 11, height: 11 }} />
+            {uploadingPhotos ? 'Uploading…' : `Upload Photos${uploadedCount > 0 ? ` (${uploadedCount})` : ''}`}
+            <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoUpload} disabled={uploadingPhotos} />
+          </label>
+          {/* SR-C04: Mark repair complete */}
+          {openRepair ? (
+            <button
+              onClick={() => onMarkComplete(openRepair.id)}
+              disabled={isPending}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                fontSize: 11, fontWeight: 600,
+                color: isPending ? '#9CA3AF' : '#065F46',
+                background: isPending ? '#F3F4F6' : '#D1FAE5',
+                border: '1px solid #A7F3D0',
+                borderRadius: 4, padding: '4px 10px', cursor: isPending ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <CheckCircle style={{ width: 11, height: 11 }} />
+              {isPending ? 'Saving…' : 'Mark Complete'}
+            </button>
+          ) : (
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>No open repair record</span>
+          )}
+        </div>
       </td>
     </tr>
   );

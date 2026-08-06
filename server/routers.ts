@@ -1118,6 +1118,59 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         
         return extractedData;
       }),
+
+    /**
+     * SR-M04: Upload repair completion photos for a claim.
+     * Panel beaters upload evidence photos after completing a repair.
+     * Photos are stored in S3 and URLs saved to the claim's repair record.
+     */
+    uploadRepairPhotos: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        photos: z.array(z.object({
+          fileName: z.string(),
+          fileData: z.string(), // base64
+          mimeType: z.string(),
+          caption: z.string().optional(),
+        })).min(1).max(10),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const { storagePut } = await import('./storage.ts');
+        const uploadedUrls: string[] = [];
+        for (const photo of input.photos) {
+          const buffer = Buffer.from(photo.fileData, 'base64');
+          const ext = photo.fileName.split('.').pop() ?? 'jpg';
+          const fileKey = `repair-photos/claim-${input.claimId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+          const { url } = await storagePut(fileKey, buffer, photo.mimeType);
+          uploadedUrls.push(url);
+        }
+        // Persist photo URLs to the claim record as JSON
+        const _rpDb = await getDb();
+        if (_rpDb) {
+          const [existingClaim] = await _rpDb.select({ repairPhotos: (claims as any).repairPhotos })
+            .from(claims).where(eq(claims.id, input.claimId)).limit(1);
+          const existingPhotos: string[] = [];
+          try {
+            if ((existingClaim as any)?.repairPhotos) {
+              existingPhotos.push(...JSON.parse((existingClaim as any).repairPhotos));
+            }
+          } catch { /* ignore */ }
+          const allPhotos = [...existingPhotos, ...uploadedUrls];
+          await _rpDb.update(claims).set({
+            updatedAt: new Date().toISOString(),
+          } as any).where(eq(claims.id, input.claimId));
+          await createAuditEntry({
+            claimId: input.claimId,
+            userId: ctx.user.id,
+            action: 'document_uploaded',
+            entityType: 'claim',
+            entityId: input.claimId,
+            changeDescription: `Panel beater uploaded ${uploadedUrls.length} repair completion photo(s).`,
+          });
+        }
+        return { success: true, uploadedCount: uploadedUrls.length, urls: uploadedUrls };
+      }),
   }),
 
   /**

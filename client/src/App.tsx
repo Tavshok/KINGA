@@ -104,6 +104,7 @@ const PanelBeaterPerformanceDashboard = lazy(() => import("./pages/PanelBeaterPe
 // Claimant pages
 const ClaimantDashboard = lazy(() => import("./pages/ClaimantDashboard"));
 const ClaimantClaimDetail = lazy(() => import("./pages/ClaimantClaimDetail"));
+const ClaimantDocuments = lazy(() => import("./pages/ClaimantDocuments"));
 const SubmitClaim = lazy(() => import("./pages/SubmitClaim"));
 const FleetManagerDashboard = lazy(() => import("./pages/FleetManagerDashboard"));
 const FleetRegister = lazy(() => import("./pages/FleetRegister"));
@@ -751,6 +752,12 @@ function Router() {
         <Route path="/claimant/fleet-register">
           <ProtectedRoute domain="portal">
             <ClaimantPortalLayout><FleetRegister /></ClaimantPortalLayout>
+          </ProtectedRoute>
+        </Route>
+        {/* SR-M01: Claimant documents page — sidebar link /claimant/documents */}
+        <Route path="/claimant/documents">
+          <ProtectedRoute domain="portal">
+            <ClaimantPortalLayout><ClaimantDocuments /></ClaimantPortalLayout>
           </ProtectedRoute>
         </Route>
         {/* SR-C01: Claimant claim detail page — View button from ClaimantDashboard navigates here */}

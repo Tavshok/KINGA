@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from "sonner";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { ClaimIntelligenceHeader } from "@/components/ClaimIntelligenceHeader";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Clock, FileText, Car, Calendar, MapPin, DollarSign, MessageSquare, Shield } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Clock, FileText, Car, Calendar, MapPin, DollarSign, MessageSquare, Shield, Wrench, User } from "lucide-react";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   submitted: { label: "Submitted", color: "blue" },
@@ -60,6 +60,13 @@ export default function ClaimantClaimDetail() {
   );
   const { data: aiAssessment } = trpc.aiAssessments.byClaim.useQuery(
     { claimId }, { enabled: !!claimId }
+  );
+
+  // SR-M07: Fetch repair history for repair tracking
+  const repairStates = ['repair_assigned', 'repair_in_progress', 'repair_complete', 'completed', 'closed'];
+  const { data: repairHistories = [] } = trpc.repairHistory.getByClaim.useQuery(
+    { claimId },
+    { enabled: !!claimId }
   );
   const utils = trpc.useUtils();
 
@@ -298,6 +305,62 @@ export default function ClaimantClaimDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* SR-M07: Repair Tracking Card — shown when claim is in a repair state */}
+            {claim && repairStates.includes(claim.workflowState ?? '') && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Wrench className="h-4 w-4 text-primary" />Repair Tracking
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {repairHistories.length === 0 ? (
+                    <div className="text-center py-4">
+                      <Wrench className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm font-medium">Repair In Progress</p>
+                      <p className="text-xs text-muted-foreground mt-1">Your vehicle is being assessed for repair assignment.</p>
+                    </div>
+                  ) : (
+                    (repairHistories as any[]).map((repair: any) => (
+                      <div key={repair.id} className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <User className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Repair Shop</p>
+                            <p className="text-sm font-medium">Panel Beater #{repair.repairerId}</p>
+                          </div>
+                        </div>
+                        {repair.approvalDate && (
+                          <div className="flex items-start gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Approved</p>
+                              <p className="text-sm font-medium">{new Date(repair.approvalDate).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                        )}
+                        {repair.repairDate ? (
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Completed</p>
+                              <p className="text-sm font-medium text-green-700">{new Date(repair.repairDate).toLocaleDateString()}</p>
+                              {repair.repairDurationDays && <p className="text-xs text-muted-foreground">{repair.repairDurationDays} day(s)</p>}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md">
+                            <Clock className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
+                            <p className="text-xs text-amber-700 font-medium">Repair in progress</p>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </main>
