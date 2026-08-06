@@ -30,6 +30,11 @@ import {
   ShieldCheck,
   XCircle,
   BarChart3,
+  Plus,
+  UserCheck,
+  Phone,
+  Mail,
+  BadgeCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,6 +170,176 @@ interface FleetClaim {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
+
+// ── Drivers Tab ─────────────────────────────────────────────────────────────
+function DriversTab({ fleetAccountId }: { fleetAccountId?: number }) {
+  const { data: drivers, isLoading, refetch } = trpc.fleetAccounts.listDrivers.useQuery(
+    { fleetAccountId },
+    { enabled: true }
+  );
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addForm, setAddForm] = useState({
+    userId: "",
+    driverLicenseNumber: "",
+    licenseExpiry: "",
+    licenseClass: "",
+    hireDate: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+  });
+  const addDriverMutation = trpc.fleetAccounts.addDriver.useMutation({
+    onSuccess: () => { refetch(); setShowAddForm(false); setAddForm({ userId: "", driverLicenseNumber: "", licenseExpiry: "", licenseClass: "", hireDate: "", emergencyContactName: "", emergencyContactPhone: "" }); },
+  });
+
+  const statusColor: Record<string, string> = {
+    active: "bg-emerald-100 text-emerald-800",
+    suspended: "bg-amber-100 text-amber-800",
+    terminated: "bg-red-100 text-red-800",
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-base">Driver Registry</h3>
+          <p className="text-xs text-muted-foreground">{drivers?.length ?? 0} driver(s) registered to this fleet</p>
+        </div>
+        {fleetAccountId && (
+          <Button size="sm" onClick={() => setShowAddForm(v => !v)}>
+            <Plus className="h-4 w-4 mr-1" /> Add Driver
+          </Button>
+        )}
+      </div>
+
+      {showAddForm && fleetAccountId && (
+        <div className="rounded-xl border p-4 bg-muted/30 space-y-3">
+          <h4 className="font-semibold text-sm">Register New Driver</h4>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium">User ID *</label>
+              <input className="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="User account ID" value={addForm.userId} onChange={e => setAddForm(f => ({ ...f, userId: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Licence Number *</label>
+              <input className="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="e.g. ZW123456" value={addForm.driverLicenseNumber} onChange={e => setAddForm(f => ({ ...f, driverLicenseNumber: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Licence Class</label>
+              <input className="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="e.g. Class 4" value={addForm.licenseClass} onChange={e => setAddForm(f => ({ ...f, licenseClass: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Licence Expiry *</label>
+              <input type="date" className="w-full rounded-md border px-3 py-2 text-sm bg-background" value={addForm.licenseExpiry} onChange={e => setAddForm(f => ({ ...f, licenseExpiry: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Hire Date *</label>
+              <input type="date" className="w-full rounded-md border px-3 py-2 text-sm bg-background" value={addForm.hireDate} onChange={e => setAddForm(f => ({ ...f, hireDate: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Emergency Contact Name</label>
+              <input className="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="Full name" value={addForm.emergencyContactName} onChange={e => setAddForm(f => ({ ...f, emergencyContactName: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Emergency Contact Phone</label>
+              <input className="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="+263 77 ..." value={addForm.emergencyContactPhone} onChange={e => setAddForm(f => ({ ...f, emergencyContactPhone: e.target.value }))} />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" size="sm" onClick={() => setShowAddForm(false)}>Cancel</Button>
+            <Button size="sm"
+              disabled={!addForm.userId || !addForm.driverLicenseNumber || !addForm.licenseExpiry || !addForm.hireDate || addDriverMutation.isPending}
+              onClick={() => addDriverMutation.mutate({
+                fleetAccountId: fleetAccountId!,
+                userId: Number(addForm.userId),
+                driverLicenseNumber: addForm.driverLicenseNumber,
+                licenseExpiry: addForm.licenseExpiry,
+                licenseClass: addForm.licenseClass || undefined,
+                hireDate: addForm.hireDate,
+                emergencyContactName: addForm.emergencyContactName || undefined,
+                emergencyContactPhone: addForm.emergencyContactPhone || undefined,
+              })}
+            >
+              {addDriverMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Register Driver
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-muted-foreground text-sm py-8 justify-center"><Loader2 className="h-4 w-4 animate-spin" /> Loading drivers...</div>
+      ) : !drivers?.length ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">No drivers registered yet</p>
+          <p className="text-xs mt-1">Add drivers to track licences, incidents, and compliance.</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left px-4 py-2 font-medium text-xs text-muted-foreground">Driver</th>
+                <th className="text-left px-4 py-2 font-medium text-xs text-muted-foreground">Licence</th>
+                <th className="text-left px-4 py-2 font-medium text-xs text-muted-foreground">Expiry</th>
+                <th className="text-left px-4 py-2 font-medium text-xs text-muted-foreground">Hire Date</th>
+                <th className="text-left px-4 py-2 font-medium text-xs text-muted-foreground">Status</th>
+                <th className="text-left px-4 py-2 font-medium text-xs text-muted-foreground">Emergency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(drivers ?? []).map((d: any) => {
+                const expiry = d.licenseExpiry ? new Date(d.licenseExpiry) : null;
+                const isExpiringSoon = expiry && (expiry.getTime() - Date.now()) < 30 * 24 * 3600 * 1000;
+                return (
+                  <tr key={d.id} className="border-t hover:bg-muted/20">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-full bg-slate-100"><UserCheck className="h-3.5 w-3.5 text-slate-600" /></div>
+                        <div>
+                          <p className="font-medium text-xs">User #{d.userId}</p>
+                          {d.licenseClass && <p className="text-xs text-muted-foreground">{d.licenseClass}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <BadgeCheck className="h-3.5 w-3.5 text-blue-500" />
+                        <span className="font-mono text-xs">{d.driverLicenseNumber}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs ${isExpiringSoon ? 'text-amber-600 font-semibold' : 'text-muted-foreground'}`}>
+                        {expiry ? expiry.toLocaleDateString() : '—'}
+                        {isExpiringSoon && ' ⚠️'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {d.hireDate ? new Date(d.hireDate).toLocaleDateString() : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColor[d.employmentStatus] ?? 'bg-gray-100 text-gray-700'}`}>
+                        {d.employmentStatus}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {d.emergencyContactName ? (
+                        <div className="text-xs">
+                          <p className="font-medium">{d.emergencyContactName}</p>
+                          {d.emergencyContactPhone && <p className="text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3" />{d.emergencyContactPhone}</p>}
+                        </div>
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function FleetManagerDashboard() {
   const { user } = useAuth();
@@ -451,9 +626,7 @@ export default function FleetManagerDashboard() {
           <FleetMaintenanceTab />
         )}
         {mainTab === 'drivers' && (
-          <div style={{ padding: '16px 0', color: '#6b7280', fontSize: 13 }}>
-            Driver management coming soon — backend procedures for listDrivers and addDriver are ready.
-          </div>
+          <DriversTab fleetAccountId={primaryAccount?.id} />
         )}
         {mainTab === 'intelligence' && (
           <div className="p-6">

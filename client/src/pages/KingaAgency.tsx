@@ -26,19 +26,16 @@ import AgencyValuationInbox from "@/pages/AgencyValuationInbox";
 export default function KingaAgency() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState("quotations");
+  const [activeTab, setActiveTab] = useState("client-requests");
   const [showNewQuoteForm, setShowNewQuoteForm] = useState(false);
 
   const tabs = [
-    { id: 'quotations', label: 'Quotations' },
-    { id: 'policies', label: 'Policies' },
-    { id: 'documents', label: 'Documents' },
-    { id: 'vehicle-valuation', label: '🚗 Vehicle Valuation' },
-    { id: 'timeline-intelligence', label: '📅 Timeline Intelligence' },
+    { id: 'client-requests', label: '📥 Client Requests' },
+    { id: 'vehicle-valuation', label: '🚗 Valuations' },
     { id: 'commissions', label: '💰 Commissions' },
-    { id: 'compare', label: '📊 Compare Quotes' },
-  { id: 'performance', label: '📈 Performance' },
-    { id: 'valuation-requests', label: '📥 Valuation Requests' },
+    { id: 'timeline-intelligence', label: '📅 Timeline Intelligence' },
+    { id: 'compare', label: '📊 Quote Comparison' },
+    { id: 'performance', label: '📈 Performance' },
   ];
 
   return (
@@ -63,7 +60,7 @@ export default function KingaAgency() {
           <div>
             <div className="p11-breadcrumb">KINGA · Agency</div>
             <div className="p11-hero-title">Agency Portal</div>
-            <div className="p11-hero-subtitle">Insurance Quotations &amp; Policy Renewals</div>
+            <div className="p11-hero-subtitle">Service Operations — Client Requests, Valuations &amp; Commissions</div>
           </div>
           <div className="p11-hero-actions">
             <button className="p11-btn-ghost" onClick={() => setLocation('/portal')}>
@@ -79,24 +76,24 @@ export default function KingaAgency() {
         {/* KPI Strip */}
         <div className="p11-kpi-grid">
           <div className="p11-kpi-tile headline">
-            <div className="p11-kpi-label">My Quotations</div>
+            <div className="p11-kpi-label">Client Requests</div>
             <div className="p11-kpi-value num">—</div>
-            <div className="p11-kpi-delta">Total submitted</div>
+            <div className="p11-kpi-delta">Pending action</div>
           </div>
           <div className="p11-kpi-tile">
-            <div className="p11-kpi-label">Active Policies</div>
+            <div className="p11-kpi-label">Quotes Sent</div>
             <div className="p11-kpi-value num">—</div>
-            <div className="p11-kpi-delta">In force</div>
+            <div className="p11-kpi-delta">Awaiting acceptance</div>
           </div>
           <div className="p11-kpi-tile">
-            <div className="p11-kpi-label">Pending Review</div>
+            <div className="p11-kpi-label">Valuations Done</div>
             <div className="p11-kpi-value num">—</div>
-            <div className="p11-kpi-delta">Awaiting response</div>
+            <div className="p11-kpi-delta">This month</div>
           </div>
           <div className="p11-kpi-tile">
-            <div className="p11-kpi-label">Documents</div>
+            <div className="p11-kpi-label">Commission Earned</div>
             <div className="p11-kpi-value num">—</div>
-            <div className="p11-kpi-delta">Uploaded</div>
+            <div className="p11-kpi-delta">Month to date</div>
           </div>
         </div>
       </div>
@@ -119,15 +116,12 @@ export default function KingaAgency() {
         <div className="p11-body-2col">
           {/* ── MAIN COLUMN ── */}
           <div>
-            {activeTab === 'quotations' && <QuotationsTab />}
-            {activeTab === 'policies' && <PoliciesTab />}
-            {activeTab === 'documents' && <DocumentsTab />}
+            {activeTab === 'client-requests' && <AgencyValuationInbox />}
             {activeTab === 'vehicle-valuation' && <VehicleValuationTab />}
             {activeTab === 'timeline-intelligence' && <TimelineIntelligenceTab />}
             {activeTab === 'commissions' && (() => { setLocation('/agency/commissions'); return null; })()}
             {activeTab === 'compare' && <QuoteComparisonSection />}
             {activeTab === 'performance' && <AgencyPerformanceSection />}
-            {activeTab === 'valuation-requests' && <AgencyValuationInbox />}
           </div>
           {/* ── SIDEBAR ── */}
           <div className="p11-sidebar">
@@ -144,9 +138,9 @@ export default function KingaAgency() {
                     <Plus style={{ width:13, height:13 }} />
                     Request New Quote
                   </button>
-                  <button className="p11-btn-outline" style={{ width:'100%', justifyContent:'center' }} onClick={() => setActiveTab('documents')}>
-                    <Upload style={{ width:13, height:13 }} />
-                    Upload Document
+                  <button className="p11-btn-outline" style={{ width:'100%', justifyContent:'center' }} onClick={() => setActiveTab('client-requests')}>
+                    <FileText style={{ width:13, height:13 }} />
+                    View Client Requests
                   </button>
                   <button className="p11-btn-outline" style={{ width:'100%', justifyContent:'center' }} onClick={() => setLocation('/agency/valuation/bulk')}>
                     <FileText style={{ width:13, height:13 }} />

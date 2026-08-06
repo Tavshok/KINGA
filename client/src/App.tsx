@@ -595,7 +595,8 @@ function Router() {
           <TeaserReportPage />
         </Route>
         <Route path="/my-profile">
-          <ClientProfile />
+          {/* Retired: unified Client Portal is at /client */}
+          <RedirectToPortal to="/client" />
         </Route>
         <Route path="/client">
           <ClientPortal />
@@ -778,16 +779,12 @@ function Router() {
           </ProtectedRoute>
         </Route>
         <Route path="/claimant/fleet-dashboard">
-          {/* Fleet Manager / Admin Dashboard */}
-          <ProtectedRoute allowedRoles={["claimant", "admin", "fleet_admin", "fleet_manager"]}>
-            <ClaimantPortalLayout><FleetManagerDashboard /></ClaimantPortalLayout>
-          </ProtectedRoute>
-          {/* Fleet Driver Dashboard — role-scoped view for fleet_driver */}
-          <Route path="/fleet/driver">
-            <ProtectedRoute allowedRoles={["fleet_driver", "admin"]}>
-              <FleetDriverDashboard />
-            </ProtectedRoute>
-          </Route>
+          {/* Redirect to unified Fleet Portal */}
+          <RedirectToPortal to="/fleet" />
+        </Route>
+        <Route path="/fleet/driver">
+          {/* Drivers are managed inside FleetManagerDashboard Drivers tab */}
+          <RedirectToPortal to="/fleet" />
         </Route>
         <Route path="/claimant/fleet-register">
           <ProtectedRoute domain="portal">
