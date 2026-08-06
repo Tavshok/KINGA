@@ -145,6 +145,10 @@ export default function KingaAgency() {
                     <Upload style={{ width:13, height:13 }} />
                     Upload Document
                   </button>
+                  <button className="p11-btn-outline" style={{ width:'100%', justifyContent:'center' }} onClick={() => setLocation('/agency/valuation/bulk')}>
+                    <FileText style={{ width:13, height:13 }} />
+                    Bulk CSV Valuation
+                  </button>
                 </div>
               </div>
             </div>

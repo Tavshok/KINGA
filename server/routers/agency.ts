@@ -504,4 +504,43 @@ export const agencyRouter = router({
         valuationDate: valuationDate.toISOString(),
       };
     }),
+  /**
+   * Phase 4A: Bulk vehicle valuation — accepts up to 50 vehicles and
+   * returns a valuation for each using the KINGA valuation engine.
+   */
+  bulkValuate: agencyProcedure
+    .input(z.object({
+      vehicles: z.array(z.object({
+        rowIndex: z.number().int(),
+        make: z.string().min(1).max(100),
+        model: z.string().min(1).max(100),
+        year: z.number().int().min(1950).max(new Date().getFullYear() + 1),
+        registrationNumber: z.string().max(20).optional(),
+        condition: z.enum(["excellent", "good", "fair", "poor"]).optional().default("good"),
+        mileage: z.number().int().min(0).optional(),
+      })).min(1).max(50),
+    }))
+    .mutation(async ({ input }) => {
+      const valuationDate = new Date();
+      const results = await Promise.allSettled(
+        input.vehicles.map(async (v) => {
+          const result = await generateVehicleValuation({
+            make: v.make,
+            model: v.model,
+            year: v.year,
+            registrationNumber: v.registrationNumber,
+            condition: v.condition ?? "good",
+            mileage: v.mileage,
+            valuationDate,
+          });
+          return { rowIndex: v.rowIndex, ...v, ...result, valuationDate: valuationDate.toISOString() };
+        })
+      );
+      return results.map((r, i) =>
+        r.status === "fulfilled"
+          ? { ...r.value, error: null }
+          : { rowIndex: input.vehicles[i]?.rowIndex ?? i, make: input.vehicles[i]?.make ?? "", model: input.vehicles[i]?.model ?? "", year: input.vehicles[i]?.year ?? 0, error: r.reason?.message ?? "Valuation failed" }
+      );
+    }),
+
 });

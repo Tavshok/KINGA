@@ -597,6 +597,16 @@ function Router() {
         </Route>
 
         {/* Fleet RFQ comparison — accessible to any authenticated fleet owner */}
+        <Route path="/agency/valuation">
+          <ProtectedRoute allowedRoles={["agency_broker", "agency_admin", "admin", "platform_super_admin"]}>
+            <KingaAgency />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/agency/valuation/bulk">
+          <ProtectedRoute allowedRoles={["agency_broker", "agency_admin", "admin", "platform_super_admin"]}>
+            <BulkValuation />
+          </ProtectedRoute>
+        </Route>
         <Route path="/agency/quotes">
           <ProtectedRoute>
             <AgencyFleetQuotes />
@@ -1015,3 +1025,4 @@ const NetworkOversight = lazy(() => import("./pages/admin/NetworkOversight"));
 const TenantProvisioning = lazy(() => import("./pages/admin/TenantProvisioning"));
 const AssetPassport = lazy(() => import("./pages/AssetPassport"));
 const EngineeringIntelligenceDashboard = lazy(() => import("./pages/EngineeringIntelligenceDashboard"));
+const BulkValuation = lazy(() => import("./pages/BulkValuation"));
