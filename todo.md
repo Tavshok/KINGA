@@ -1363,3 +1363,62 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] SR-M04: Add repair photo upload to PanelBeaterDashboard
 - [ ] SR-M05: Allow insurer admin to view individual claim detail
 - [ ] SR-M07: Show repair tracking info to claimant in ClaimantClaimDetail
+
+---
+
+## Phase 8 — Unified Customer Identity (Completed Aug 2026)
+
+- [x] P8-1: secondaryRoles column added to users table (DB + schema)
+- [x] P8-2: ProtectedRoute updated to check secondaryRoles + new 'customer' domain
+- [x] P8-3: PortalSelection.tsx replaced with full converged landing page (hero, journey cards, how it works, features, professional portals)
+- [x] P8-4: auth.addSecondaryRole mutation added to routers.ts
+- [x] P8-5: ClientProfile expanded with fleet/vehicles/policies/role coexistence sections
+- [x] P8-6: approveClaim plain-language claimant notification added
+- [x] P8-7: assignToAssessor plain-language claimant notification added
+- [x] P8-8: acceptSettlement plain-language claimant notification added
+- [x] P8-9: insuranceV2.sendQuoteToClient mutation — agency sends quote with premium/excess/notes, client notified in-app
+- [x] P8-10: insuranceV2.acceptQuote mutation — client accepts quote in-platform, agent notified
+- [x] P8-11: AgencyValuationInbox — Send Quote dialog added
+- [x] P8-12: ClientProfile — Pending Quotes section added (amber card, Accept Quote button)
+
+---
+
+## Phase 9 — Unified Client Portal (Next)
+
+### Vision
+One login, one experience. A client can be a claimant, request valuations, request insurance,
+and manage their personal vehicles — all from /client. Distinct from the Fleet Management Portal
+which is for corporate fleet operators.
+
+### Architecture
+- [ ] P9-A01: Create /client route with ClientPortalLayout (persistent sidebar: Dashboard | My Vehicles | Valuations | Insurance | Claims)
+- [ ] P9-A02: Add personal_vehicles table (id, userId, registration, make, model, year, vin, colour, notes, createdAt)
+- [ ] P9-A03: Add personalVehicles tRPC router (addVehicle, listMyVehicles, updateVehicle, deleteVehicle)
+- [ ] P9-A04: ClientPortalLayout accessible to ALL authenticated users regardless of primary role
+
+### Dashboard Tab
+- [ ] P9-D01: Client Dashboard — summary cards: vehicles, open claims, pending quotes, active policies
+- [ ] P9-D02: Recent activity feed (last 5 events across all journeys)
+- [ ] P9-D03: Quick action buttons: Request Valuation, Submit Claim, Add Vehicle
+
+### My Vehicles Tab
+- [ ] P9-PV01: Personal vehicle list — add/edit/delete (reg, make, model, year, VIN, colour)
+- [ ] P9-PV02: Per-vehicle card: last valuation, open claims, policy status, history link
+- [ ] P9-PV03: Link existing valuations and claims to a vehicle by registration match
+
+### Valuations Tab
+- [ ] P9-V01: Valuation history list (all requests by email/userId)
+- [ ] P9-V02: Teaser vs full report status with unlock CTA
+- [ ] P9-V03: New valuation wizard (reuse /get-a-quote flow inline or redirect)
+- [ ] P9-V04: Accept quote from Valuations tab (reuse acceptQuote mutation)
+
+### Insurance Tab
+- [ ] P9-I01: Pending quotes list (status=quoted, amber highlight, Accept Quote button)
+- [ ] P9-I02: Active policies list (status=accepted, premium, expiry, excess)
+- [ ] P9-I03: Policy detail view (coverage, vehicle, documents)
+
+### Claims Tab
+- [ ] P9-C01: Claims list (all claimant's claims with workflow state)
+- [ ] P9-C02: Plain-language claim timeline per claim
+- [ ] P9-C03: Submit new claim button (redirect to /claimant/submit)
+- [ ] P9-C04: Dispute button on closed claims (reuse initiateDispute mutation)

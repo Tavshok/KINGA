@@ -3356,6 +3356,7 @@ export const users = mysqlTable("users", {
 	tierActivatedAt: timestamp("tier_activated_at", { mode: 'string' }),
 	tierExpiresAt: timestamp("tier_expires_at", { mode: 'string' }),
 	performanceScore: int("performance_score").default(70),
+	secondaryRoles: json("secondary_roles").$type<string[]>(),
 	totalAssessmentsCompleted: int("total_assessments_completed").default(0),
 	averageVarianceFromFinal: int("average_variance_from_final"),
 	accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }).default('0.00'),

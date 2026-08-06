@@ -24,6 +24,12 @@ export const DOMAIN_ROLE_MAP: Record<string, string[]> = {
     "fleet_admin", "fleet_manager", "claimant", "user", "platform_super_admin",
   ],
   portal: ["claimant", "admin"],
+  // Phase 8: customer domain — any authenticated user can access customer-facing pages
+  customer: [
+    "claimant", "fleet_manager", "fleet_driver", "fleet_admin",
+    "agency", "insurer", "assessor", "panel_beater", "engineer",
+    "admin", "platform_super_admin", "user",
+  ],
 };
 
 interface ProtectedRouteProps {
@@ -76,7 +82,11 @@ export default function ProtectedRoute({ children, allowedRoles, allowedInsurerR
     allowedRoles ?? (domain ? DOMAIN_ROLE_MAP[domain] : undefined);
 
   // Check role against effective list
-  if (effectiveRoles && !effectiveRoles.includes(user.role)) {
+  // Phase 8: also check secondaryRoles for role coexistence
+  const userSecondaryRoles: string[] = (user as any).secondaryRoles ?? [];
+  const userAllRoles = [user.role, ...userSecondaryRoles];
+
+  if (effectiveRoles && !userAllRoles.some(r => effectiveRoles.includes(r))) {
     console.warn(
       `[ProtectedRoute] 403 — user role "${user.role}" not in [${effectiveRoles.join(", ")}]` +
         (domain ? ` for domain "${domain}"` : "")

@@ -277,4 +277,109 @@ export const insurancePhase7Router = router({
 
       return { success: true };
     }),
+
+  /**
+   * Agency procedure — send a quote to the client for a valuation/insurance request.
+   * Sets status to 'quoted', records premium/excess/notes, and sends an in-app notification.
+   */
+  sendQuoteToClient: protectedProcedure
+    .input(z.object({
+      quotationRequestId: z.number(),
+      quotedPremium: z.number().positive("Premium must be positive"),
+      quotedAnnualPremium: z.number().positive().optional(),
+      quotedExcess: z.number().min(0).optional(),
+      quoteNotes: z.string().optional(),
+      quoteValidDays: z.number().min(1).max(90).default(30),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const allowed = ["insurer", "admin", "platform_super_admin"];
+      if (!allowed.includes(ctx.user.role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only agency/insurer users can send quotes" });
+      }
+      const [request] = await db.select().from(quotationRequests)
+        .where(eq(quotationRequests.id, input.quotationRequestId))
+        .limit(1);
+      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Quotation request not found" });
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + input.quoteValidDays);
+      await db.update(quotationRequests)
+        .set({
+          status: "quoted",
+          quotedPremium: input.quotedPremium,
+          quotedAnnualPremium: input.quotedAnnualPremium ?? input.quotedPremium * 12,
+          quotedExcess: input.quotedExcess ?? 0,
+          quoteNotes: input.quoteNotes ?? null,
+          quoteValidUntil: validUntil.toISOString().slice(0, 19).replace("T", " "),
+          assignedAgentId: ctx.user.id,
+        } as any)
+        .where(eq(quotationRequests.id, input.quotationRequestId));
+      // Send in-app notification to the client if they have a userId
+      if ((request as any).userId) {
+        try {
+          const { createNotification } = await import("../db");
+          await createNotification({
+            userId: (request as any).userId,
+            title: "Your Insurance Quote Is Ready",
+            message: `Your quote for ${request.vehicleMake} ${request.vehicleModel} (${request.vehicleYear}) is ready. Monthly premium: $${input.quotedPremium.toLocaleString()}. Valid for ${input.quoteValidDays} days. Log in to review and accept your quote.`,
+            type: "status_changed",
+            entityType: "quotation_request",
+            entityId: input.quotationRequestId,
+            actionUrl: `/my-profile`,
+            priority: "high",
+          });
+        } catch (_notifyErr) { /* non-fatal */ }
+      }
+      return { success: true, quoteValidUntil: validUntil.toISOString() };
+    }),
+
+  /**
+   * Client procedure — accept a quote that has been sent by an agency.
+   * Sets status to 'accepted' and notifies the assigned agent.
+   */
+  acceptQuote: protectedProcedure
+    .input(z.object({
+      quotationRequestId: z.number(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const [request] = await db.select().from(quotationRequests)
+        .where(eq(quotationRequests.id, input.quotationRequestId))
+        .limit(1);
+      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Quotation request not found" });
+      // Only the client who submitted the request (matched by email) may accept it
+      const isOwner = (request as any).userId === ctx.user.id ||
+        request.email === ctx.user.email;
+      if (!isOwner) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only the client who submitted this request may accept the quote" });
+      }
+      if (request.status !== "quoted") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Quote can only be accepted when status is 'quoted' (current: ${request.status})` });
+      }
+      if (request.quoteValidUntil && new Date(request.quoteValidUntil) < new Date()) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This quote has expired. Please contact your agent for a new quote." });
+      }
+      await db.update(quotationRequests)
+        .set({ status: "accepted" } as any)
+        .where(eq(quotationRequests.id, input.quotationRequestId));
+      // Notify the assigned agent
+      if (request.assignedAgentId) {
+        try {
+          const { createNotification } = await import("../db");
+          await createNotification({
+            userId: request.assignedAgentId,
+            title: "Quote Accepted by Client",
+            message: `The client has accepted the quote for ${request.vehicleMake} ${request.vehicleModel} (${request.vehicleYear}). Request #${request.requestNumber}. Please proceed with policy issuance.`,
+            type: "status_changed",
+            entityType: "quotation_request",
+            entityId: input.quotationRequestId,
+            actionUrl: `/agency/valuation-inbox`,
+            priority: "high",
+          });
+        } catch (_notifyErr) { /* non-fatal */ }
+      }
+      return { success: true };
+    }),
 });

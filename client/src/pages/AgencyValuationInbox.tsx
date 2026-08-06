@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   Car, Search, AlertTriangle, CheckCircle2, Clock, Users,
-  Truck, FileText, Eye, UserCheck, Loader2, Shield, Phone, Mail
+  Truck, FileText, Eye, UserCheck, Loader2, Shield, Phone, Mail, Tag
 } from "lucide-react";
 
 export default function AgencyValuationInbox() {
@@ -22,6 +22,11 @@ export default function AgencyValuationInbox() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<any>(null);
   const [inspectorId, setInspectorId] = useState("");
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
+  const [quoteTarget, setQuoteTarget] = useState<any>(null);
+  const [quotePremium, setQuotePremium] = useState("");
+  const [quoteExcess, setQuoteExcess] = useState("");
+  const [quoteNotes, setQuoteNotes] = useState("");
 
   const { data: requests, isLoading, refetch } = trpc.insuranceV2.getValuationRequests.useQuery({
     limit: 100,
@@ -40,6 +45,15 @@ export default function AgencyValuationInbox() {
       toast.success("Inspector assigned successfully");
       setAssignDialogOpen(false);
       setInspectorId("");
+      refetch();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const sendQuoteMutation = trpc.insuranceV2.sendQuoteToClient.useMutation({
+    onSuccess: () => {
+      toast.success("Quote sent to client successfully");
+      setQuoteDialogOpen(false);
+      setQuoteTarget(null);
       refetch();
     },
     onError: (err) => toast.error(err.message),
@@ -181,6 +195,11 @@ export default function AgencyValuationInbox() {
                     {req.reportGatingStatus === "teaser" && req.vehicleValue && (
                       <Button size="sm" onClick={() => unlockMutation.mutate({ quotationRequestId: req.id })} disabled={unlockMutation.isPending}>
                         <CheckCircle2 className="h-3 w-3 mr-1" /> Unlock Report
+                      </Button>
+                    )}
+                    {req.status !== "quoted" && req.status !== "accepted" && req.vehicleValue && (
+                      <Button size="sm" variant="outline" className="border-green-400 text-green-700 hover:bg-green-50" onClick={() => { setQuoteTarget(req); setQuoteDialogOpen(true); }}>
+                        <Tag className="h-3 w-3 mr-1" /> Send Quote
                       </Button>
                     )}
                   </div>

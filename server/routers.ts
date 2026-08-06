@@ -989,6 +989,23 @@ export const appRouter = router({
             : "Role updated with audit trail. Refreshing session...",
         };
       }),
+    /**
+     * Add Secondary Role (Phase 8 — Unified Customer Identity)
+     * Allows a user to hold multiple customer roles simultaneously.
+     */
+    addSecondaryRole: protectedProcedure
+      .input(z.object({
+        role: z.enum(["claimant", "fleet_manager", "fleet_driver", "fleet_admin", "agency"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+        const currentSecondary: string[] = (ctx.user as any).secondaryRoles ?? [];
+        if (currentSecondary.includes(input.role)) return { success: true, message: "Role already assigned" };
+        const updated = [...currentSecondary, input.role];
+        await db.update(users).set({ secondaryRoles: updated } as any).where(eq(users.id, ctx.user.id));
+        return { success: true, message: `Secondary role ${input.role} added` };
+      }),
   }),
 
   /**
@@ -3058,6 +3075,23 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           eventPayload: { assessorId: input.assessorId },
         });
 
+        // Phase 8: Plain-language in-app notification to claimant on assessor assignment
+        if (claim.claimantId) {
+          try {
+            const { createNotification: _cn9 } = await import('./db');
+            await _cn9({
+              userId: claim.claimantId,
+              title: 'Your Claim Is Being Assessed',
+              message: `Your claim ${claim.claimNumber} has been assigned to an assessor. KINGA has completed its analysis. Your assessor will review the findings within 24 hours. No action is required from you right now.`,
+              type: 'status_changed',
+              claimId: input.claimId,
+              entityType: 'claim',
+              entityId: input.claimId,
+              actionUrl: `/claimant/claims/${input.claimId}`,
+              priority: 'normal',
+            });
+          } catch (_e9) { /* non-fatal */ }
+        }
         return { success: true };
       }),
 
@@ -3596,6 +3630,23 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           approvedAmount,
           tenantId: tenantId || 'default',
         });
+        // Phase 8: Plain-language in-app notification to claimant on approval
+        if (claim.claimantId) {
+          try {
+            const { createNotification: _cn8 } = await import('./db');
+            await _cn8({
+              userId: claim.claimantId,
+              title: 'Good News — Your Claim Has Been Approved',
+              message: `Your claim ${claim.claimNumber} has been approved for repair. ${panelBeater?.businessName || 'Your selected panel beater'} will contact you to schedule the repair. No action is required from you right now.`,
+              type: 'status_changed',
+              claimId: input.claimId,
+              entityType: 'claim',
+              entityId: input.claimId,
+              actionUrl: `/claimant/claims/${input.claimId}`,
+              priority: 'high',
+            });
+          } catch (_e8) { /* non-fatal */ }
+        }
 
         return { 
           success: true, 
@@ -4381,6 +4432,23 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           // Non-blocking — log but do not fail the settlement
           console.error('[acceptSettlement] vehicle_damage_history insert failed:', vdhErr);
         }
+        // Phase 8: Plain-language in-app notification to claimant on settlement acceptance
+        try {
+          const { createNotification: _cn10 } = await import('./db');
+          const settlementAmt = claim.finalApprovedAmount || claim.approvedAmount;
+          const amtStr = settlementAmt ? `$${Number(settlementAmt).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'the agreed amount';
+          await _cn10({
+            userId: ctx.user.id,
+            title: 'Your Claim Has Been Settled',
+            message: `Your claim ${claim.claimNumber} has been settled. The settlement amount of ${amtStr} has been processed. Your claim is now closed. Thank you for choosing KINGA.`,
+            type: 'status_changed',
+            claimId: input.claimId,
+            entityType: 'claim',
+            entityId: input.claimId,
+            actionUrl: `/claimant/claims/${input.claimId}`,
+            priority: 'high',
+          });
+        } catch (_e10) { /* non-fatal */ }
         return { success: true, newState: 'closed' };
       }),
 
