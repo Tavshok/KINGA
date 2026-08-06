@@ -266,7 +266,7 @@ export async function runStartupCleanup(): Promise<void> {
           pipelineCurrentStage: null,
           updatedAt: new Date().toISOString() as any,
         }).where(eq(claims.id, claim.id));
-        console.log(`[StartupCleanup] Reset claim ${claim.claimNumber} (id=${claim.id}) from '${claim.documentProcessingStatus}' → intake_pending (aiAssessmentTriggered=${claim.aiAssessmentTriggered})`);
+        console.log(`[StartupCleanup] Reset claim ${claim.claimNumber} (id=${claim.id}) from '${claim.documentProcessingStatus}' -> intake_pending (aiAssessmentTriggered=${claim.aiAssessmentTriggered})`);
       }
     } else {
       console.log("[StartupCleanup] No orphaned pipeline claims found.");
@@ -374,12 +374,13 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             return db.update(claims).set({
               status: "analysis_complete",
               documentProcessingStatus: "ANALYSIS_COMPLETE",
+              workflowState: "ai_assessment_completed" as any,
               // Reset retry counter on successful completion
               recoveryRetryCount: 0,
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery finalise claim ${claim.id}`);
-          console.log(`[StuckRecovery] Finalised claim ${claim.claimNumber} (id=${claim.id}) → analysis_complete [DRA: pipeline had completed]`);
+          console.log(`[StuckRecovery] Finalised claim ${claim.claimNumber} (id=${claim.id}) -> analysis_complete + workflowState=ai_assessment_completed`);
           totalFixed++;
         } catch (err) {
           console.error(`[StuckRecovery] Failed to finalise claim ${claim.id}:`, err);
@@ -655,7 +656,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
           }, 3, 2000, `StuckRecovery case-7 reset claim ${claim.id}`);
           console.log(
             `[StuckRecovery] CASE 7: Reset claim ${claim.claimNumber} (id=${claim.id}) ` +
-            `[stuck >5min in ${claim.status}/${claim.documentProcessingStatus}] → intake_pending for retry`
+            `[stuck >5min in ${claim.status}/${claim.documentProcessingStatus}] -> intake_pending for retry`
           );
           totalFixed++;
         } catch (err) {
@@ -712,7 +713,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
           }, 3, 2000, `StuckRecovery case-7b reset claim ${claim.id}`);
           console.log(
             `[StuckRecovery] CASE 7b: Reset claim ${claim.claimNumber} (id=${claim.id}) ` +
-            `[dead heartbeat in ${claim.status}/${claim.documentProcessingStatus}] → intake_pending (runUuid preserved for resume)`
+            `[dead heartbeat in ${claim.status}/${claim.documentProcessingStatus}] -> intake_pending (runUuid preserved for resume)`
           );
           totalFixed++;
         } catch (err) {
@@ -802,7 +803,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
           }, 3, 2000, `StuckRecovery case-9 fix claim ${claim.id}`);
           console.log(
             `[StuckRecovery] CASE 9: Fixed claim ${claim.claimNumber} (id=${claim.id}) ` +
-            `dps '${claim.documentProcessingStatus}' → 'ANALYSIS_COMPLETE' (report was already ready)`
+            `dps '${claim.documentProcessingStatus}' -> 'ANALYSIS_COMPLETE' (report was already ready)`
           );
           totalFixed++;
         } catch (err) {
@@ -867,7 +868,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         else totalFixed++;
         console.log(
           `[StuckRecovery] CASE 10: Reset claim ${claim.claimNumber} (id=${claim.id}) ` +
-          `from assessment_pending → intake_pending for AI pipeline re-trigger`
+          `from assessment_pending -> intake_pending for AI pipeline re-trigger`
         );
       }
     }
@@ -928,7 +929,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         else totalFixed++;
         console.log(
           `[StuckRecovery] CASE 11: Reset claim ${claim.claimNumber} (id=${claim.id}) ` +
-          `from document_failed → intake_pending for AI pipeline re-trigger`
+          `from document_failed -> intake_pending for AI pipeline re-trigger`
         );
       }
     }

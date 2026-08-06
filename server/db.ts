@@ -2540,6 +2540,7 @@ export async function triggerAiAssessment(claimId: number) {
     aiAssessmentCompleted: 1,
     status: "analysis_complete",
     documentProcessingStatus: "ANALYSIS_COMPLETE",
+    workflowState: "ai_assessment_completed",
     fraudRiskScore: finalFraudScore,
     fraudFlags: fraudIndicatorsJson,
     estimatedCost: safeInt(estimatedCost) ?? 0,
