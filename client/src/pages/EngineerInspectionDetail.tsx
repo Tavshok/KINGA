@@ -500,13 +500,45 @@ export default function EngineerInspectionDetail() {
                         <Label style={{ fontSize: "12px" }}>Description</Label>
                         <button
                           onClick={() => toast.info("Save the observation first, then use AI Draft to refine it.")}
-                          disabled={draftObs.isPending}
+          disabled={draftObs.isPending}
+          style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "#888", display: "flex", alignItems: "center", gap: "4px" }}
+        >
+          <Brain size={11} />
+          {draftObs.isPending ? "Drafting…" : "AI Draft"}
+        </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                              const recorder = new MediaRecorder(stream);
+                              const chunks: BlobPart[] = [];
+                              recorder.ondataavailable = (e) => chunks.push(e.data);
+                              recorder.onstop = async () => {
+                                stream.getTracks().forEach((t) => t.stop());
+                                const blob = new Blob(chunks, { type: "audio/webm" });
+                                if (blob.size > 16 * 1024 * 1024) { toast.error("Recording too large (max 16MB)"); return; }
+                                const formData = new FormData();
+                                formData.append("file", blob, "voice.webm");
+                                toast.info("Transcribing voice…");
+                                const res = await fetch("/api/trpc/inspections.transcribeVoice", { method: "POST", body: formData });
+                                if (!res.ok) { toast.error("Transcription failed"); return; }
+                                const json = await res.json();
+                                const text = json?.result?.data?.text ?? json?.text ?? "";
+                                if (text) {
+                                  setObsForm((f) => ({ ...f, observationText: f.observationText ? f.observationText + " " + text : text }));
+                                  toast.success("Voice transcribed — review and edit");
+                                }
+                              };
+                              recorder.start();
+                              toast.info("Recording… (30s max, will auto-stop)");
+                              setTimeout(() => { if (recorder.state === "recording") recorder.stop(); }, 30000);
+                            } catch { toast.error("Microphone access denied"); }
+                          }}
                           style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "#888", display: "flex", alignItems: "center", gap: "4px" }}
                         >
-                          <Brain size={11} />
-                          {draftObs.isPending ? "Drafting…" : "AI Draft"}
+                          <Mic size={11} /> Voice
                         </button>
-                      </div>
+      </div>
                       <Textarea value={obsForm.observationText} onChange={(e) => setObsForm((f) => ({ ...f, observationText: e.target.value }))} rows={4} placeholder="Describe the finding…" style={{ marginTop: "4px" }} />
                     </div>
                     <div>

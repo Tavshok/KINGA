@@ -941,6 +941,16 @@ function Router() {
             <EngineerWorkspaceLayout><EngineerInspectionDetail /></EngineerWorkspaceLayout>
           </ProtectedRoute>
         </Route>
+        <Route path="/engineer/intelligence">
+          <ProtectedRoute allowedRoles={["engineer", "risk_surveyor", "admin", "platform_super_admin"]}>
+            <EngineerWorkspaceLayout><EngineeringIntelligenceDashboard /></EngineerWorkspaceLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/engineer/asset-passport">
+          <ProtectedRoute allowedRoles={["engineer", "risk_surveyor", "admin", "platform_super_admin"]}>
+            <EngineerWorkspaceLayout><AssetPassport /></EngineerWorkspaceLayout>
+          </ProtectedRoute>
+        </Route>
         <Route path="/engineer/projects">
           <ProtectedRoute domain="engineer">
             <EngineerWorkspaceLayout><EngineerProjects /></EngineerWorkspaceLayout>
@@ -1003,3 +1013,5 @@ const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const SecurityEvents = lazy(() => import("./pages/admin/SecurityEvents"));
 const NetworkOversight = lazy(() => import("./pages/admin/NetworkOversight"));
 const TenantProvisioning = lazy(() => import("./pages/admin/TenantProvisioning"));
+const AssetPassport = lazy(() => import("./pages/AssetPassport"));
+const EngineeringIntelligenceDashboard = lazy(() => import("./pages/EngineeringIntelligenceDashboard"));

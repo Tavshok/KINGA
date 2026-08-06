@@ -53,6 +53,14 @@ const sections = [
       {
         label: "Projects",
         href: "/engineer/projects",
+      },
+      {
+        label: "Asset Passport",
+        href: "/engineer/asset-passport",
+      },
+      {
+        label: "Intelligence",
+        href: "/engineer/intelligence",
         icon: FolderOpen,
         description: "Group inspections by project",
       },
