@@ -20,8 +20,8 @@ interface NotificationBellProps {
 export function NotificationBell({ className, size = "md" }: NotificationBellProps) {
   const [, setLocation] = useLocation();
   const { data } = trpc.notifications.getUnreadCount.useQuery(undefined, {
-    refetchInterval: 30_000,
-    staleTime: 20_000,
+    refetchInterval: 15_000,
+    staleTime: 10_000,
   });
 
   const count = data?.count ?? 0;

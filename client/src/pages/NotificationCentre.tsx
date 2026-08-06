@@ -36,6 +36,7 @@ import {
   Zap,
   ChevronLeft,
 } from "lucide-react";
+import { ShieldAlert, XCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -66,6 +67,18 @@ const PRIORITY_CONFIG: Record<
   urgent: { label: "Urgent", icon: Zap, className: "text-red-500" },
 };
 
+// Type-specific icons for notification types
+const TYPE_CONFIG: Record<string, { icon: React.FC<{ className?: string }>; className: string; label: string }> = {
+  system_alert:       { icon: ShieldAlert,    className: "text-red-500",     label: "System Alert" },
+  fraud_detected:     { icon: AlertTriangle,  className: "text-amber-500",   label: "Fraud Alert" },
+  assessment_completed: { icon: CheckCircle2, className: "text-green-500",   label: "Assessment" },
+  approval_required:  { icon: AlertCircle,    className: "text-blue-500",    label: "Approval" },
+  status_changed:     { icon: RefreshCw,      className: "text-purple-500",  label: "Status" },
+  claim_assigned:     { icon: Info,           className: "text-blue-400",    label: "Assigned" },
+  quote_submitted:    { icon: Info,           className: "text-teal-500",    label: "Quote" },
+  document_uploaded:  { icon: Info,           className: "text-slate-500",   label: "Document" },
+};
+
 // ─── Notification Item ────────────────────────────────────────────────────────
 
 function NotificationItem({
@@ -79,11 +92,15 @@ function NotificationItem({
 }) {
   const [, setLocation] = useLocation();
   const priority = notif.priority ?? "medium";
-  const PriorityIcon = PRIORITY_CONFIG[priority]?.icon ?? Info;
+  // Use type-specific icon if available, otherwise fall back to priority icon
+  const typeConf = TYPE_CONFIG[notif.type as string];
+  const PriorityIcon = typeConf?.icon ?? PRIORITY_CONFIG[priority]?.icon ?? Info;
+  const iconClass = typeConf?.className ?? PRIORITY_CONFIG[priority]?.className;
   const isUnread = !notif.readAt;
   const isArchived = !!notif.archivedAt;
 
   const moduleLabel =
+    typeConf?.label ??
     MODULE_LABELS[notif.module as string] ??
     (notif.entityType ? String(notif.entityType) : "System");
 
@@ -99,7 +116,7 @@ function NotificationItem({
       {/* Priority icon */}
       <div className="mt-0.5 shrink-0">
         <PriorityIcon
-          className={cn("h-4 w-4", PRIORITY_CONFIG[priority]?.className)}
+          className={cn("h-4 w-4", iconClass)}
         />
       </div>
 
@@ -185,6 +202,7 @@ export default function NotificationCentre() {
   const { toast } = useToast();
   const [filter, setFilter] = useState<NotifFilter>("all");
   const [moduleFilter, setModuleFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   const utils = trpc.useUtils();
 
@@ -194,9 +212,20 @@ export default function NotificationCentre() {
       filter,
       module: moduleFilter === "all" ? undefined : moduleFilter,
       limit: 100,
+    }, {
+      refetchInterval: 15_000,  // Poll every 15 seconds for real-time updates
+      staleTime: 10_000,
     });
 
   const { data: unreadData } = trpc.notifications.getUnreadCount.useQuery();
+
+  // Client-side filter for notification type (system_alert, fraud_detected, etc.)
+  const filteredNotifications = typeFilter === "all"
+    ? notifications
+    : (notifications as any[]).filter((n: any) => n.type === typeFilter);
+
+  const systemAlertCount = (notifications as any[]).filter((n: any) => n.type === "system_alert" && !n.readAt && !n.archivedAt).length;
+
   const unreadCount = unreadData?.count ?? 0;
 
   // Mutations
@@ -291,17 +320,20 @@ export default function NotificationCentre() {
 
             <div className="flex items-center gap-2">
               {/* Module filter */}
-              <Select value={moduleFilter} onValueChange={setModuleFilter}>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger className="h-7 text-xs w-44">
-                  <SelectValue placeholder="All modules" />
+                  <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All modules</SelectItem>
-                  {Object.entries(MODULE_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All types</SelectItem>
+                  <SelectItem value="system_alert">
+                    🔴 System Alerts {systemAlertCount > 0 ? `(${systemAlertCount})` : ""}
+                  </SelectItem>
+                  <SelectItem value="fraud_detected">⚠️ Fraud Alerts</SelectItem>
+                  <SelectItem value="assessment_completed">✅ Assessments</SelectItem>
+                  <SelectItem value="approval_required">🔵 Approvals</SelectItem>
+                  <SelectItem value="status_changed">🔄 Status Changes</SelectItem>
+                  <SelectItem value="claim_assigned">📋 Assignments</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -353,14 +385,12 @@ export default function NotificationCentre() {
                     </p>
                   </div>
                 ) : (
-                  notifications.map((notif: any) => (
+                  filteredNotifications.map((notif: any) => (
                     <NotificationItem
                       key={notif.id}
                       notif={notif}
                       onRead={(id) => markAsRead.mutate({ notificationId: id })}
-                      onArchive={(id) =>
-                        archive.mutate({ notificationId: id })
-                      }
+                      onArchive={(id) => archive.mutate({ notificationId: id })}
                     />
                   ))
                 )}

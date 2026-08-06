@@ -1271,6 +1271,18 @@ export async function triggerAiAssessment(claimId: number) {
       // thousands of emails. Processors review blocked claims via the KINGA Complete tab.
       console.log(`[KINGA Assessment] Claim ${claimId}: Document Health Gate BLOCKED (${_gateResult.decision}). Score: ${_gateResult.overallScore}%. ${_gateResult.summary}`);
 
+      // Send in-app notification to all processors/admins for this tenant (non-blocking)
+      notifyTenantProcessors(claim.tenantId, {
+        title: `⚠️ Gate Block: Claim ${claim.claimNumber || claimId}`,
+        message: `Document Health Gate blocked assessment (score: ${_gateResult.overallScore}%). ${_gateResult.summary} Action: ${_gateResult.recommendedAction}`,
+        type: 'system_alert',
+        priority: isHardBlock ? 'high' : 'medium',
+        claimId,
+        actionUrl: `/insurer/claims/${claimId}`,
+        entityType: 'claim',
+        entityId: claimId,
+      }).catch(() => {});
+
       return {
         success: false,
         message: `Assessment blocked by Document Health Gate (score: ${_gateResult.overallScore}%). ` +
@@ -1475,6 +1487,17 @@ export async function triggerAiAssessment(claimId: number) {
       // Phase 1 Observability: record run as failed (fire-and-forget)
       import('./db-pipeline').then(({ recordRunComplete }) => {
         recordRunComplete({ runId: _pipelineRunId, status: 'failed', totalDurationMs: 0, stagesCompleted: 0, stagesFailed: 1, stagesDegraded: 0 }).catch(() => {});
+      }).catch(() => {});
+      // Send in-app notification to processors (non-blocking, fire-and-forget)
+      notifyTenantProcessors(claim.tenantId, {
+        title: `🔴 Pipeline Failure: Claim ${claim.claimNumber || claimId}`,
+        message: `KINGA pipeline could not complete: ${pipelineErr.message}. Claim routed to document_failed for manual review.`,
+        type: 'system_alert',
+        priority: 'high',
+        claimId,
+        actionUrl: `/insurer/claims/${claimId}`,
+        entityType: 'claim',
+        entityId: claimId,
       }).catch(() => {});
       // DRA: Route PipelineIncompleteError to DRA terminal state, not legacy failed/intake_pending.
       // This ensures the stuck-recovery-job and UI see the correct state.
@@ -4767,4 +4790,90 @@ export async function findSimilarImagesByPHash(
   }
 
   return results.sort((a, b) => a.hammingDistance - b.hammingDistance);
+}
+
+// ============================================================================
+// NOTIFICATION HELPERS
+// ============================================================================
+
+/**
+ * Send an in-app notification to all claims processors, claims managers, and
+ * insurer admins belonging to the given tenant.
+ *
+ * This replaces owner email blasts for automated pipeline events (gate blocks,
+ * pipeline failures, fraud alerts). Each relevant user gets a personal in-app
+ * notification that appears in their NotificationCentre bell.
+ *
+ * @param tenantId  - The tenant whose staff should be notified (null = platform admin only)
+ * @param payload   - Notification fields (title, message, type, priority, claimId, actionUrl)
+ */
+export async function notifyTenantProcessors(
+  tenantId: string | null | undefined,
+  payload: {
+    title: string;
+    message: string;
+    type: typeof notifications.$inferInsert['type'];
+    priority?: typeof notifications.$inferInsert['priority'];
+    claimId?: number;
+    actionUrl?: string;
+    entityType?: string;
+    entityId?: number;
+  }
+): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+
+    // Find all processor/admin users for this tenant
+    const targetRoles = ['claims_processor', 'claims_manager', 'insurer_admin'];
+    const conditions: any[] = [
+      eq(users.role, 'insurer' as any),
+      inArray(users.insurerRole as any, targetRoles as any),
+      eq(users.isActive, 1),
+    ];
+    if (tenantId) {
+      conditions.push(eq(users.tenantId, tenantId));
+    }
+    // Also include platform admins
+    const [processorUsers, adminUsers] = await Promise.all([
+      db.select({ id: users.id }).from(users).where(and(...conditions)),
+      db.select({ id: users.id }).from(users).where(
+        and(
+          inArray(users.role as any, ['admin', 'platform_super_admin'] as any),
+          eq(users.isActive, 1)
+        )
+      ),
+    ]);
+
+    const allTargets = [...processorUsers, ...adminUsers];
+    if (allTargets.length === 0) return;
+
+    // Deduplicate by user ID
+    const seen = new Set<number>();
+    const uniqueTargets = allTargets.filter(u => {
+      if (seen.has(u.id)) return false;
+      seen.add(u.id);
+      return true;
+    });
+
+    // Insert notifications in a single batch (up to 50 recipients)
+    const batch = uniqueTargets.slice(0, 50).map(u => ({
+      userId: u.id,
+      title: payload.title,
+      message: payload.message,
+      type: payload.type,
+      priority: payload.priority ?? 'medium',
+      claimId: payload.claimId ?? null,
+      actionUrl: payload.actionUrl ?? null,
+      entityType: payload.entityType ?? null,
+      entityId: payload.entityId ?? null,
+      isRead: 0,
+      createdAt: new Date().toISOString(),
+    }));
+
+    await db.insert(notifications).values(batch as any[]);
+  } catch (err) {
+    // Non-fatal — notification failure must never break the pipeline
+    console.warn('[notifyTenantProcessors] Failed to send in-app notifications:', err instanceof Error ? err.message : String(err));
+  }
 }

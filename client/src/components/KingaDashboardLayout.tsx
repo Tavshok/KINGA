@@ -42,11 +42,11 @@ export default function KingaDashboardLayout({
   const [, setLocation] = useLocation();
 
   // Fetch unread notifications count
-  const { data: notifications } = trpc.notifications.getAll.useQuery(
-    { limit: 100 },
-    { refetchInterval: 30000 }
-  );
-  const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
+  const { data: unreadData } = trpc.notifications.getUnreadCount.useQuery(undefined, {
+    refetchInterval: 15_000,
+    staleTime: 10_000,
+  });
+  const unreadCount = unreadData?.count ?? 0;
 
   return (
     <div className="min-h-screen pattern-bg">
