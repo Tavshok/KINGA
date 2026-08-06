@@ -4403,6 +4403,25 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           entityId: input.claimId,
           changeDescription: `Payment authorised by ${ctx.user.name || ctx.user.role}. Settlement offer ready for claimant.${input.notes ? ` Notes: ${input.notes}` : ''}`,
         });
+        // SR-H04: Notify claimant that their settlement offer is ready
+        if (claim.claimantId) {
+          try {
+            const { createNotification } = await import('./db');
+            await createNotification({
+              userId: claim.claimantId,
+              title: 'Settlement Offer Ready',
+              message: `Your claim ${claim.claimNumber || `#${input.claimId}`} has been approved. A settlement offer is ready for your review. Please log in to accept or dispute the offer.`,
+              type: 'status_changed',
+              claimId: input.claimId,
+              entityType: 'claim',
+              entityId: input.claimId,
+              actionUrl: `/claims/${input.claimId}`,
+              priority: 'high',
+            });
+          } catch (_notifErr) {
+            // Non-fatal — notification failure must not block payment authorisation
+          }
+        }
         return { success: true, newState: 'payment_authorized' };
       }),
 
@@ -4445,7 +4464,100 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           entityId: input.claimId,
           changeDescription: `Claim rejected by ${ctx.user.name || ctx.user.role}. Category: ${input.rejectionCategory}. Reason: ${input.rejectionReason}`,
         });
+        // SR-H04: Notify claimant that their claim has been rejected
+        if (claim.claimantId) {
+          try {
+            const { createNotification } = await import('./db');
+            await createNotification({
+              userId: claim.claimantId,
+              title: 'Claim Decision: Rejected',
+              message: `Your claim ${claim.claimNumber || `#${input.claimId}`} has been rejected. Reason: ${input.rejectionReason}. If you believe this is incorrect, please contact your insurer or log in to dispute the decision.`,
+              type: 'status_changed',
+              claimId: input.claimId,
+              entityType: 'claim',
+              entityId: input.claimId,
+              actionUrl: `/claims/${input.claimId}`,
+              priority: 'high',
+            });
+          } catch (_notifErr) {
+            // Non-fatal — notification failure must not block rejection
+          }
+        }
         return { success: true, newState: 'rejected', rejectionReason: input.rejectionReason };
+      }),
+
+    /**
+     * SR-H03: Insurer Admin override — allows insurer_admin to override a claim decision.
+     * Can force a claim to payment_authorized (approve) or rejected (reject) from any non-terminal state.
+     * Requires insurer_admin or admin role.
+     */
+    insurerOverride: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        overrideDecision: z.enum(['approve', 'reject']),
+        overrideReason: z.string().min(10, 'Override reason must be at least 10 characters'),
+        settlementAmountCents: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const allowedRoles = ['insurer_admin', 'admin'];
+        if (!allowedRoles.includes(ctx.user.subRole || '') && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only Insurer Administrators can override claim decisions' });
+        }
+        const _overrideDb = await getDb();
+        if (!_overrideDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const claim = await _overrideDb.select().from(claims).where(eq(claims.id, input.claimId)).limit(1).then(r => r[0]);
+        if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
+        const terminalStates = ['closed', 'completed'];
+        if (terminalStates.includes(claim.workflowState as string)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `Cannot override a claim in terminal state: ${claim.workflowState}` });
+        }
+        const newState = input.overrideDecision === 'approve' ? 'payment_authorized' : 'rejected';
+        const newStatus = input.overrideDecision === 'approve' ? 'payment_authorized' : 'rejected';
+        const now = new Date().toISOString();
+        const updateData: Record<string, unknown> = {
+          workflowState: newState,
+          status: newStatus,
+          updatedAt: now,
+        };
+        if (input.overrideDecision === 'reject') {
+          updateData.rejectionReason = input.overrideReason;
+          updateData.rejectionCategory = 'other';
+          updateData.rejectedBy = ctx.user.id;
+          updateData.rejectedAt = now;
+        }
+        if (input.overrideDecision === 'approve' && input.settlementAmountCents) {
+          updateData.finalApprovedAmount = input.settlementAmountCents;
+        }
+        await _overrideDb.update(claims).set(updateData as any).where(eq(claims.id, input.claimId));
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: input.overrideDecision === 'approve' ? 'payment_authorized' : 'claim_rejected',
+          entityType: 'claim',
+          entityId: input.claimId,
+          changeDescription: `INSURER OVERRIDE by ${ctx.user.name || ctx.user.role}: ${input.overrideDecision.toUpperCase()}. Reason: ${input.overrideReason}`,
+        });
+        // SR-H04: Notify claimant of override decision
+        if (claim.claimantId) {
+          try {
+            const { createNotification } = await import('./db');
+            await createNotification({
+              userId: claim.claimantId,
+              title: input.overrideDecision === 'approve' ? 'Claim Approved — Settlement Ready' : 'Claim Decision: Rejected',
+              message: input.overrideDecision === 'approve'
+                ? `Your claim ${claim.claimNumber || `#${input.claimId}`} has been approved by your insurer. A settlement offer is ready for your review.`
+                : `Your claim ${claim.claimNumber || `#${input.claimId}`} has been rejected by your insurer. Reason: ${input.overrideReason}`,
+              type: 'status_changed',
+              claimId: input.claimId,
+              entityType: 'claim',
+              entityId: input.claimId,
+              actionUrl: `/claims/${input.claimId}`,
+              priority: 'high',
+            });
+          } catch (_notifErr) { /* non-fatal */ }
+        }
+        return { success: true, newState, overrideDecision: input.overrideDecision };
       }),
   }),
   // Assessor operationss

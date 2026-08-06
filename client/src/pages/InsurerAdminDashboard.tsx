@@ -20,6 +20,12 @@ import { trpc } from "@/lib/trpc";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { useLocation } from "wouter";
 import React, { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,6 +149,24 @@ export default function InsurerAdminDashboard() {
   const { fmt } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [refreshKey, setRefreshKey] = useState(0);
+  // SR-H03: Insurer override state
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false);
+  const [overrideClaimId, setOverrideClaimId] = useState<number | null>(null);
+  const [overrideClaimNumber, setOverrideClaimNumber] = useState('');
+  const [overrideDecision, setOverrideDecision] = useState<'approve' | 'reject'>('approve');
+  const [overrideReason, setOverrideReason] = useState('');
+  const [overrideAmount, setOverrideAmount] = useState('');
+  const utils = trpc.useUtils();
+  const insurerOverride = trpc.claims.insurerOverride.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Claim ${data.overrideDecision === 'approve' ? 'approved' : 'rejected'} via insurer override`);
+      setShowOverrideDialog(false);
+      setOverrideReason('');
+      setOverrideAmount('');
+      utils.claims.byStatus.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   // KPIs
   const { data: kpis, isLoading: kpisLoading } = trpc.analytics.getKPIs.useQuery(
@@ -355,6 +379,7 @@ export default function InsurerAdminDashboard() {
                         <th>Vehicle</th>
                         <th>Status</th>
                         <th>Date</th>
+                        <th>Override</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -367,6 +392,21 @@ export default function InsurerAdminDashboard() {
                           <td><StatusChip status={claim.status} /></td>
                           <td style={{ color: 'var(--muted)', fontSize: 12 }}>
                             {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
+                          </td>
+                          {/* SR-H03: Override button */}
+                          <td onClick={e => e.stopPropagation()}>
+                            {!['closed', 'completed'].includes(claim.status) && (
+                              <button
+                                onClick={() => {
+                                  setOverrideClaimId(claim.id);
+                                  setOverrideClaimNumber(claim.claimNumber ?? `#${claim.id}`);
+                                  setShowOverrideDialog(true);
+                                }}
+                                style={{ fontSize: 10, fontWeight: 600, color: '#7C3AED', background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
+                              >
+                                Override
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -473,6 +513,64 @@ export default function InsurerAdminDashboard() {
         </div>
       </div>
     </div>
+      {/* SR-H03: Insurer Override Dialog */}
+      {showOverrideDialog && (
+        <Dialog open onOpenChange={() => setShowOverrideDialog(false)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Insurer Override — {overrideClaimNumber}</DialogTitle>
+              <DialogDescription>As Insurer Administrator, you can override the current claim decision. This action is fully audited and the claimant will be notified.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Override Decision</Label>
+                <Select value={overrideDecision} onValueChange={(v) => setOverrideDecision(v as 'approve' | 'reject')}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="approve">Approve — Move to Payment Authorised</SelectItem>
+                    <SelectItem value="reject">Reject — Reject Claim</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {overrideDecision === 'approve' && (
+                <div className="space-y-2">
+                  <Label>Settlement Amount (optional, in cents)</Label>
+                  <Input
+                    type="number"
+                    placeholder="e.g. 500000 for $5,000"
+                    value={overrideAmount}
+                    onChange={e => setOverrideAmount(e.target.value)}
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Override Reason <span className="text-destructive">*</span></Label>
+                <Textarea
+                  placeholder="Provide a clear reason for this override (minimum 10 characters)..."
+                  value={overrideReason}
+                  onChange={e => setOverrideReason(e.target.value)}
+                  rows={4}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowOverrideDialog(false)}>Cancel</Button>
+              <Button
+                variant={overrideDecision === 'approve' ? 'default' : 'destructive'}
+                onClick={() => overrideClaimId && insurerOverride.mutate({
+                  claimId: overrideClaimId,
+                  overrideDecision,
+                  overrideReason,
+                  settlementAmountCents: overrideAmount ? parseInt(overrideAmount) : undefined,
+                })}
+                disabled={overrideReason.length < 10 || insurerOverride.isPending}
+              >
+                {insurerOverride.isPending ? 'Processing…' : `Confirm ${overrideDecision === 'approve' ? 'Approval' : 'Rejection'}`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </InsurerPortalLayout>
   );
 }

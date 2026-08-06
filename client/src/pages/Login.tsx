@@ -155,6 +155,25 @@ export default function Login() {
             <p>Secure authentication powered by Manus OAuth</p>
             <p className="text-xs">For Insurers, Assessors, Panel Beaters, and Claimants</p>
           </div>
+
+          {/* SR-H06: Account recovery link — surfaces the Manus OAuth portal for password reset / account recovery */}
+          <div className="text-center pt-2">
+            <a
+              href={(() => {
+                const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
+                const appId = import.meta.env.VITE_APP_ID;
+                const redirectUri = `${window.location.origin}/api/oauth/callback`;
+                const url = new URL(`${oauthPortalUrl}/app-auth`);
+                url.searchParams.set('appId', appId);
+                url.searchParams.set('redirectUri', redirectUri);
+                url.searchParams.set('type', 'forgotPassword');
+                return url.toString();
+              })()}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            >
+              Forgot password or need account recovery?
+            </a>
+          </div>
         </CardContent>
       </Card>
     </div>
