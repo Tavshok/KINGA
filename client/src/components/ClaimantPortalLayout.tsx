@@ -29,21 +29,21 @@ const sections: Array<{
   {
     title: "My Claims",
     items: [
-      { label: "My Dashboard", href: "/claimant/dashboard", icon: LayoutDashboard, description: "All my claims & status" },
-      { label: "Submit a Claim", href: "/claimant/submit-claim", icon: PlusCircle, description: "Start a new claim" },
+      { label: "My Portal", href: "/client", icon: LayoutDashboard, description: "All my claims & status" },
+      { label: "Submit a Claim", href: "/client/submit-claim", icon: PlusCircle, description: "Start a new claim" },
     ],
   },
   {
     title: "Fleet Management",
     fleetOnly: true,
     items: [
-      { label: "Fleet Dashboard", href: "/claimant/fleet-dashboard", icon: Building2, description: "All company vehicle claims" },
+      { label: "Fleet Dashboard", href: "/fleet", icon: Building2, description: "All company vehicle claims" },
     ],
   },
   {
     title: "Documents",
     items: [
-      { label: "My Documents", href: "/claimant/documents", icon: FileText, description: "Uploaded files & photos" },
+      { label: "My Documents", href: "/client", icon: FileText, description: "Uploaded files & photos" },
     ],
   },
   {

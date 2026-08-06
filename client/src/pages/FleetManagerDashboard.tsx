@@ -472,7 +472,7 @@ export default function FleetManagerDashboard() {
           )}
           <Button
             style={{ background: "#3C7844" }}
-            onClick={() => (window.location.href = "/claimant/fleet-register")}
+            onClick={() => (window.location.href = "/fleet")}
           >
             <Building2 className="mr-2 h-4 w-4" />
             Re-apply
@@ -494,7 +494,7 @@ export default function FleetManagerDashboard() {
           </p>
           <Button
             style={{ background: "#3C7844" }}
-            onClick={() => (window.location.href = "/claimant/fleet-register")}
+            onClick={() => (window.location.href = "/fleet")}
           >
             <Building2 className="mr-2 h-4 w-4" />
             Register Fleet Account

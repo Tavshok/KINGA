@@ -533,7 +533,7 @@ export default function SubmitClaim() {
               </div>
 
               <div className="flex gap-3">
-                <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => setLocation("/claimant/dashboard")}>
+                <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => setLocation("/client")}>
                   View My Claims
                 </Button>
                 <Button variant="outline" onClick={() => window.location.reload()}>
@@ -559,7 +559,7 @@ export default function SubmitClaim() {
                 <p className="text-sm text-muted-foreground">File an insurance claim for vehicle damage</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/claimant/dashboard")}>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/client")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Dashboard
             </Button>
@@ -1472,7 +1472,7 @@ export default function SubmitClaim() {
 
           {/* Submit */}
           <div className="flex gap-3 pb-8">
-            <Button type="button" variant="outline" className="flex-1" onClick={() => setLocation("/claimant/dashboard")}>
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setLocation("/client")}>
               Cancel
             </Button>
             <Button

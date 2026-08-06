@@ -75,8 +75,8 @@ function getMenuItems(
   // Claimant
   if (role === "claimant") {
     return [
-      { icon: LayoutDashboard, label: "My Claims",    path: "/claimant/dashboard" },
-      { icon: FileText,        label: "Submit Claim", path: "/claimant/submit-claim" },
+      { icon: LayoutDashboard, label: "My Claims",    path: "/client" },
+      { icon: FileText,        label: "Submit Claim", path: "/client/submit-claim" },
     ];
   }
 

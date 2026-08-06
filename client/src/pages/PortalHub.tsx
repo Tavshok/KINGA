@@ -67,15 +67,7 @@ export default function PortalHub() {
       color: "from-orange-500 to-amber-500",
       roles: ["panel_beater", "admin"]
     },
-    {
-      id: "claimant",
-      title: "Claimant Portal",
-      description: "Submit and track motor claims",
-      icon: Car,
-      path: "/claimant/dashboard",
-      color: "from-blue-500 to-indigo-500",
-      roles: ["claimant", "admin"]
-    },
+
     {
       id: "fleet",
       title: "Fleet Management",

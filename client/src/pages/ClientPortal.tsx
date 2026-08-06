@@ -214,7 +214,7 @@ export default function ClientPortal() {
               </div>
             </div>
           </Button>
-          <Button variant="outline" className="justify-start h-auto py-3" onClick={() => setLocation("/claimant/submit")}>
+          <Button variant="outline" className="justify-start h-auto py-3" onClick={() => setLocation("/client/submit-claim")}>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-50"><Shield className="h-4 w-4 text-blue-600" /></div>
               <div className="text-left">
@@ -243,7 +243,7 @@ export default function ClientPortal() {
           </CardHeader>
           <CardContent className="space-y-2">
             {(myClaims ?? []).slice(0, 3).map((c: any) => (
-              <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/30 cursor-pointer" onClick={() => setLocation(`/claimant/claims/${c.id}`)}>
+              <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/30 cursor-pointer" onClick={() => setLocation(`/client/claims/${c.id}`)}>
                 <div>
                   <p className="text-sm font-mono font-medium">{c.claimNumber ?? `#${c.id}`}</p>
                   <p className="text-xs text-muted-foreground capitalize">{(c.workflowState ?? "pending").replace(/_/g, " ")}</p>
@@ -508,7 +508,7 @@ export default function ClientPortal() {
           <h2 className="text-xl font-bold">Claims</h2>
           <p className="text-sm text-muted-foreground">Track your motor insurance claims.</p>
         </div>
-        <Button onClick={() => setLocation("/claimant/submit")}>
+        <Button onClick={() => setLocation("/client/submit-claim")}>
           <Plus className="h-4 w-4 mr-2" /> New Claim
         </Button>
       </div>
@@ -518,7 +518,7 @@ export default function ClientPortal() {
             <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-40" />
             <p className="font-medium mb-1">No claims yet</p>
             <p className="text-sm text-muted-foreground mb-4">Submit a claim if you have been involved in an accident or suffered a loss.</p>
-            <Button onClick={() => setLocation("/claimant/submit")}><Plus className="h-4 w-4 mr-2" /> Submit a Claim</Button>
+            <Button onClick={() => setLocation("/client/submit-claim")}><Plus className="h-4 w-4 mr-2" /> Submit a Claim</Button>
           </CardContent>
         </Card>
       ) : (
@@ -541,7 +541,7 @@ export default function ClientPortal() {
                       <p className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      <Button variant="outline" size="sm" onClick={() => setLocation(`/claimant/claims/${c.id}`)}>
+                      <Button variant="outline" size="sm" onClick={() => setLocation(`/client/claims/${c.id}`)}>
                         View <ArrowRight className="h-3 w-3 ml-1" />
                       </Button>
                     </div>

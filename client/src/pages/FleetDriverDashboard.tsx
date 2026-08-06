@@ -186,7 +186,7 @@ export default function FleetDriverDashboard() {
                 <Button
                   className="w-full justify-start"
                   variant="outline"
-                  onClick={() => setLocation("/claimant/submit")}
+                  onClick={() => setLocation("/client/submit-claim")}
                 >
                   <Car className="h-4 w-4 mr-2 text-primary" />
                   Report an Incident
@@ -194,7 +194,7 @@ export default function FleetDriverDashboard() {
                 <Button
                   className="w-full justify-start"
                   variant="outline"
-                  onClick={() => setLocation("/claimant/claims")}
+                  onClick={() => setLocation("/client")}
                 >
                   <FileText className="h-4 w-4 mr-2 text-blue-500" />
                   View My Claims
