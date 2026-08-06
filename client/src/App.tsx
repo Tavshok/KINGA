@@ -865,6 +865,32 @@ function Router() {
             <AdminPortalLayout title="Workflow Settings"><WorkflowSettings /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
+        {/* Sprint B — Platform Administration Control Centre */}
+        <Route path="/admin/platform-health">
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
+            <AdminPortalLayout title="Platform Health"><PlatformHealthDashboard /></AdminPortalLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/admin/engine-monitoring">
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
+            <AdminPortalLayout title="Engine Monitoring"><IntelligenceEngineMonitoring /></AdminPortalLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/admin/tenant-monitoring">
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
+            <AdminPortalLayout title="Tenant Monitoring"><TenantMonitoring /></AdminPortalLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/admin/panel-beaters">
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
+            <AdminPortalLayout title="Panel Beater Management"><PanelBeaterManagement /></AdminPortalLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/admin/activity-timeline">
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
+            <AdminPortalLayout title="Activity Timeline"><ActivityTimeline /></AdminPortalLayout>
+          </ProtectedRoute>
+        </Route>
         
         {/* Engineering Workspace Routes — /engineer domain (Epic 4.5: EngineerWorkspaceLayout applied) */}
         <Route path="/engineer/dashboard">
@@ -939,3 +965,8 @@ function App() {
 }
 
 export default App;
+const PlatformHealthDashboard = lazy(() => import("./pages/admin/PlatformHealthDashboard"));
+const IntelligenceEngineMonitoring = lazy(() => import("./pages/admin/IntelligenceEngineMonitoring"));
+const TenantMonitoring = lazy(() => import("./pages/admin/TenantMonitoring"));
+const PanelBeaterManagement = lazy(() => import("./pages/admin/PanelBeaterManagement"));
+const ActivityTimeline = lazy(() => import("./pages/admin/ActivityTimeline"));

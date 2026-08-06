@@ -54,6 +54,7 @@ import {
   ScrollText,
   UserCheck,
 } from "lucide-react";
+import { Clock } from "lucide-react";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
 
@@ -267,3 +268,8 @@ export default function AdminPortalLayout({ children, title }: AdminPortalLayout
     </div>
   );
 }
+      { label: "Platform Health", href: "/admin/platform-health", icon: Activity, description: "Control room — system health at a glance" },
+      { label: "Panel Beater Registry", href: "/admin/panel-beaters", icon: Wrench, description: "Full lifecycle: pending, approved, suspended, rejected" },
+      { label: "Engine Monitoring", href: "/admin/engine-monitoring", icon: Brain, description: "Per-engine status, activity, quality" },
+      { label: "Tenant Monitoring", href: "/admin/tenant-monitoring", icon: Building2, description: "Per-tenant usage and health" },
+      { label: "Activity Timeline", href: "/admin/activity-timeline", icon: Clock, description: "Operational event stream" },

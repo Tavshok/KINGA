@@ -2340,6 +2340,7 @@ export const panelBeaters = mysqlTable("panel_beaters", {
 	address: text(),
 	city: varchar({ length: 100 }),
 	approved: tinyint().default(1).notNull(),
+	panelBeaterStatus: mysqlEnum("panel_beater_status", ['pending','approved','suspended','rejected']).default('approved').notNull(),
 	userId: int("user_id"),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),

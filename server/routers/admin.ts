@@ -9,7 +9,8 @@ import { TRPCError } from "@trpc/server";
 import { getDb, triggerAiAssessment } from "../db";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { tenants, users } from "../../drizzle/schema";
-import { eq, and, gte, desc } from "drizzle-orm";
+import { eq, and, gte, desc, count } from "drizzle-orm";
+import { panelBeaters, aiAssessments, pipelineJobs, insuranceAuditLogs } from "../../drizzle/schema";
 import { sendInvitation, getInvitationByToken, acceptInvitation } from "../invitation-service";
 import { sql } from "drizzle-orm";
 
@@ -866,4 +867,110 @@ export const adminRouter = router({
       await db.update(users).set(updateData).where(eq(users.id, input.userId));
       return { success: true, userId: input.userId };
     }),
+
+  /**
+   * Sprint B: Unified Platform Health — control room data
+   */
+  getPlatformHealth: superAdminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    const [jobStats] = await db.select({
+      total: count(),
+      running: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'running' THEN 1 ELSE 0 END)`,
+      failed24h: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'failed' AND ${pipelineJobs.startedAt} >= ${hoursAgo(24)} THEN 1 ELSE 0 END)`,
+      pending: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'pending' THEN 1 ELSE 0 END)`,
+      completed24h: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'completed' AND ${pipelineJobs.startedAt} >= ${hoursAgo(24)} THEN 1 ELSE 0 END)`,
+    }).from(pipelineJobs);
+    const stageStats = await db.select({
+      stageId: pipelineJobs.stageId,
+      total: count(),
+      completed: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'completed' THEN 1 ELSE 0 END)`,
+      failed: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'failed' THEN 1 ELSE 0 END)`,
+      running: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'running' THEN 1 ELSE 0 END)`,
+      last1h: sql<number>`SUM(CASE WHEN ${pipelineJobs.startedAt} >= ${hoursAgo(1)} THEN 1 ELSE 0 END)`,
+    }).from(pipelineJobs).where(gte(pipelineJobs.startedAt, daysAgo(7))).groupBy(pipelineJobs.stageId);
+    const [assessStats] = await db.select({
+      total: count(),
+      avgConf: sql<number>`AVG(${aiAssessments.confidenceScore})`,
+      highFraud: sql<number>`SUM(CASE WHEN ${aiAssessments.fraudRiskLevel} IN ('high','elevated','critical') THEN 1 ELSE 0 END)`,
+      last24h: sql<number>`SUM(CASE WHEN ${aiAssessments.createdAt} >= ${hoursAgo(24)} THEN 1 ELSE 0 END)`,
+    }).from(aiAssessments);
+    const tenantStats = await db.select({
+      id: tenants.id,
+      name: tenants.name,
+      tier: (tenants as any).subscriptionTier,
+      currency: (tenants as any).currency,
+      createdAt: tenants.createdAt,
+    }).from(tenants).limit(50);
+    const recentFailed = await db.select({
+      id: pipelineJobs.id,
+      claimId: pipelineJobs.claimId,
+      stageId: pipelineJobs.stageId,
+      startedAt: pipelineJobs.startedAt,
+    }).from(pipelineJobs).where(and(eq(pipelineJobs.status, 'failed'), gte(pipelineJobs.startedAt, hoursAgo(24)))).orderBy(desc(pipelineJobs.startedAt)).limit(10);
+    return { jobStats, stageStats, assessStats, tenantStats, recentFailed, collectedAt: new Date().toISOString() };
+  }),
+
+  /**
+   * Sprint B: Update panel beater status with audit log
+   */
+  updatePanelBeaterStatus: superAdminProcedure
+    .input(z.object({
+      panelBeaterId: z.number().int().positive(),
+      status: z.enum(['pending','approved','suspended','rejected']),
+      reason: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+      const approved = input.status === 'approved' ? 1 : 0;
+      await db.update(panelBeaters).set({
+        panelBeaterStatus: input.status as any,
+        approved,
+        updatedAt: new Date().toISOString(),
+      }).where(eq(panelBeaters.id, input.panelBeaterId));
+      await db.insert(insuranceAuditLogs).values({
+        userId: ctx.user.id,
+        userRole: ctx.user.role,
+        action: `panel_beater_${input.status}`,
+        entityType: 'panel_beater',
+        entityId: String(input.panelBeaterId),
+        tenantId: ctx.user.tenantId ?? 'global',
+        details: JSON.stringify({ status: input.status, reason: input.reason }),
+        timestamp: new Date(),
+      } as any);
+      return { success: true, panelBeaterId: input.panelBeaterId, status: input.status };
+    }),
+
+  /**
+   * Sprint B: Get all panel beaters with full status for admin lifecycle management
+   */
+  getPanelBeatersAdmin: superAdminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    return await db.select().from(panelBeaters).orderBy(desc(panelBeaters.createdAt)).limit(200);
+  }),
+
+  /**
+   * Sprint B: Activity timeline — recent audit events for monitoring stream
+   */
+  getActivityTimeline: superAdminProcedure
+    .input(z.object({ limit: z.number().min(1).max(100).default(50) }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+      return await db.select({
+        id: insuranceAuditLogs.id,
+        userId: insuranceAuditLogs.userId,
+        userRole: insuranceAuditLogs.userRole,
+        action: insuranceAuditLogs.action,
+        entityType: insuranceAuditLogs.entityType,
+        entityId: insuranceAuditLogs.entityId,
+        tenantId: insuranceAuditLogs.tenantId,
+        timestamp: insuranceAuditLogs.timestamp,
+        details: insuranceAuditLogs.details,
+      }).from(insuranceAuditLogs).orderBy(desc(insuranceAuditLogs.timestamp)).limit(input.limit);
+    }),
 });
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000);
+const daysAgo = (d: number) => new Date(Date.now() - d * 86400_000);
