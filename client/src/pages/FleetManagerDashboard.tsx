@@ -446,6 +446,7 @@ export default function FleetManagerDashboard() {
         )}
         {mainTab === 'compliance' && (
           <FleetFuelLicensingTab />
+        )}
         {mainTab === 'maintenance' && (
           <FleetMaintenanceTab />
         )}
@@ -453,7 +454,6 @@ export default function FleetManagerDashboard() {
           <div style={{ padding: '16px 0', color: '#6b7280', fontSize: 13 }}>
             Driver management coming soon — backend procedures for listDrivers and addDriver are ready.
           </div>
-        )}
         )}
         {mainTab === 'intelligence' && (
           <div className="p-6">
