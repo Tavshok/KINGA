@@ -40,7 +40,7 @@ import {
   Calendar, BarChart3, Clock, Search, Eye, ArrowRight,
   TrendingUp, Shield, DollarSign, Target, CheckCheck,
   MapPin, User, Phone, Car, AlertCircle, Loader2,
-  ChevronDown, ChevronUp, Zap, Activity, TrendingDown,
+  ChevronDown, ChevronUp, Zap, Activity, TrendingDown, CreditCard,
 } from "lucide-react";
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { Link, useSearch } from "wouter";
@@ -602,8 +602,17 @@ export default function InternalAssessorDashboard() {
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [search, setSearch] = useState("");
-  const [expandedClaimId, setExpandedClaimId] = useState<number | null>(null);
-
+    const [expandedClaimId, setExpandedClaimId] = useState<number | null>(null);
+  const [authPaymentClaimId, setAuthPaymentClaimId] = useState<number | null>(null);
+  const [authPaymentNotes, setAuthPaymentNotes] = useState("");
+  const authorizePayment = trpc.claims.authorizePayment.useMutation({
+    onSuccess: () => {
+      toast.success("Payment authorised — settlement offer sent to claimant");
+      setAuthPaymentClaimId(null);
+      setAuthPaymentNotes("");
+    },
+    onError: (err) => toast.error(err.message),
+  });
   // ── Data fetching ──────────────────────────────────────────────────────────
 
   // Tab 1: Assessment queue — claims in assessment_pending status
@@ -1045,16 +1054,58 @@ export default function InternalAssessorDashboard() {
             </div>
           ) : completedClaims.length > 0 ? (
             <div className="space-y-3">
+              {/* SR-C03: Authorise Payment dialog */}
+              {authPaymentClaimId && (
+                <Dialog open onOpenChange={() => setAuthPaymentClaimId(null)}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Authorise Payment</DialogTitle>
+                      <DialogDescription>Confirm that the financial decision has been reviewed and authorise the settlement offer to be sent to the claimant.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                      <Label>Notes (optional)</Label>
+                      <Textarea
+                        placeholder="Any notes for the record..."
+                        value={authPaymentNotes}
+                        onChange={e => setAuthPaymentNotes(e.target.value)}
+                        rows={3}
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAuthPaymentClaimId(null)}>Cancel</Button>
+                      <Button
+                        onClick={() => authorizePayment.mutate({ claimId: authPaymentClaimId, notes: authPaymentNotes || undefined })}
+                        disabled={authorizePayment.isPending}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        {authorizePayment.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <CreditCard className="h-4 w-4 mr-1.5" />}
+                        Authorise Payment
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
               {completedClaims.map((claim: any) => (
                 <ClaimRow
                   key={claim.id}
                   claim={claim}
                   actions={
-                    <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
-                      <Button size="sm" variant="outline" className="w-full">
-                        <Eye className="h-4 w-4 mr-1.5" /> View Report
-                      </Button>
-                    </Link>
+                    <>
+                      {claim.workflowState === 'financial_decision' && (
+                        <Button
+                          size="sm"
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                          onClick={() => setAuthPaymentClaimId(claim.id)}
+                        >
+                          <CreditCard className="h-4 w-4 mr-1.5" /> Authorise Payment
+                        </Button>
+                      )}
+                      <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
+                        <Button size="sm" variant="outline" className="w-full">
+                          <Eye className="h-4 w-4 mr-1.5" /> View Report
+                        </Button>
+                      </Link>
+                    </>
                   }
                 />
               ))}

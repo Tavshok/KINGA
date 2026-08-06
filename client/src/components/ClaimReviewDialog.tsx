@@ -1,10 +1,14 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
-import { AlertTriangle, CheckCircle, Clock, DollarSign, FileText, TrendingUp, User, Download, MessageSquareWarning } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, DollarSign, FileText, TrendingUp, User, Download, MessageSquareWarning, XCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { exportClaimReportToPDF, type ClaimReportData } from "@/lib/export-pdf";
 import { toast } from "sonner";
@@ -20,6 +24,18 @@ interface ClaimReviewDialogProps {
 
 export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDialogProps) {
   const { fmt } = useTenantCurrency();
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectCategory, setRejectCategory] = useState<"fraud" | "outside_coverage" | "invalid_claim" | "duplicate" | "other">("other");
+  const rejectClaim = trpc.claims.rejectClaim.useMutation({
+    onSuccess: () => {
+      toast.success("Claim rejected and claimant notified");
+      setShowRejectDialog(false);
+      setRejectReason("");
+      onOpenChange(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
   const { data: disputeInfo } = trpc.claims.getDisputeInfo.useQuery(
     { claimId: claimId! },
     { enabled: !!claimId }
@@ -109,15 +125,74 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                 Comprehensive assessment summary for final review
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportPDF}
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Export PDF Report
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowRejectDialog(true)}
+                className="flex items-center gap-2"
+              >
+                <XCircle className="h-4 w-4" />
+                Reject Claim
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportPDF}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export PDF Report
+              </Button>
+            </div>
+            {/* SR-C02: Reject Claim confirmation dialog */}
+            {showRejectDialog && (
+              <Dialog open onOpenChange={() => setShowRejectDialog(false)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Reject Claim</DialogTitle>
+                    <DialogDescription>This action cannot be undone. The claimant will be notified of the rejection with the reason provided.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-2">
+                    <div className="space-y-2">
+                      <Label>Rejection Category</Label>
+                      <Select value={rejectCategory} onValueChange={(v) => setRejectCategory(v as typeof rejectCategory)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="fraud">Fraud Detected</SelectItem>
+                          <SelectItem value="outside_coverage">Outside Policy Coverage</SelectItem>
+                          <SelectItem value="invalid_claim">Invalid Claim</SelectItem>
+                          <SelectItem value="duplicate">Duplicate Claim</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Rejection Reason <span className="text-destructive">*</span></Label>
+                      <Textarea
+                        placeholder="Provide a clear reason for rejection (minimum 10 characters)..."
+                        value={rejectReason}
+                        onChange={e => setRejectReason(e.target.value)}
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Cancel</Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => claimId && rejectClaim.mutate({ claimId, rejectionReason: rejectReason, rejectionCategory: rejectCategory })}
+                      disabled={rejectReason.length < 10 || rejectClaim.isPending}
+                    >
+                      <XCircle className="h-4 w-4 mr-1.5" />
+                      Confirm Rejection
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </DialogHeader>
 

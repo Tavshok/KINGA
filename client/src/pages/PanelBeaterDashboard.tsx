@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, ScatterController } from 'chart.js';
 import { Bar, Scatter, Doughnut, Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, ScatterController);
@@ -25,6 +25,7 @@ import { KingaReportButton } from "@/components/KingaReportButton";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 import { PortalHeroBand, ProtoAlertBar, ProtoTabBar, ProtoCard, P } from "@/components/PortalHeroBand";
 import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
+import { toast } from "sonner";
 
 function PerformanceTierBadge({ tier }: { tier: string | null | undefined }) {
   const config: Record<string, { label: string; className: string; style?: React.CSSProperties }> = {
@@ -58,6 +59,58 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+/**
+ * SR-C04: Sub-component for a single repair-in-progress row.
+ * Fetches repair history for the claim and shows Mark Repair Complete button.
+ */
+function RepairInProgressRow({
+  claim,
+  onMarkComplete,
+  isPending,
+}: {
+  claim: any;
+  onMarkComplete: (repairHistoryId: number) => void;
+  isPending: boolean;
+}) {
+  const { data: repairRecords = [] } = trpc.repairHistory.getByClaim.useQuery(
+    { claimId: claim.id },
+    { enabled: !!claim.id }
+  );
+  // Find the most recent open repair record (no repairDate set)
+  const openRepair = repairRecords.find((r: any) => !r.repairDate);
+
+  return (
+    <tr>
+      <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--ink)' }}>{claim.claimNumber}</td>
+      <td style={{ color: 'var(--muted)', fontSize: 12 }}>{claim.vehicleDescription || '—'}</td>
+      <td>
+        <span className="p11-badge green">{claim.status.replace(/_/g, ' ')}</span>
+      </td>
+      <td>
+        {openRepair ? (
+          <button
+            onClick={() => onMarkComplete(openRepair.id)}
+            disabled={isPending}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: 11, fontWeight: 600,
+              color: isPending ? '#9CA3AF' : '#065F46',
+              background: isPending ? '#F3F4F6' : '#D1FAE5',
+              border: '1px solid #A7F3D0',
+              borderRadius: 4, padding: '4px 10px', cursor: isPending ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <CheckCircle style={{ width: 11, height: 11 }} />
+            {isPending ? 'Saving…' : 'Mark Complete'}
+          </button>
+        ) : (
+          <span style={{ fontSize: 11, color: 'var(--muted)' }}>No open repair record</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
 export default function PanelBeaterDashboard() {
   const { user, logout } = useAuth();
   const { fmt } = useTenantCurrency();
@@ -74,6 +127,25 @@ export default function PanelBeaterDashboard() {
   const { data: quoteHistory = [], isLoading: historyLoading } =
     trpc.claims.myQuoteHistory.useQuery();
 
+  // SR-C04: Repairs in progress — claims in repair_assigned / repair_in_progress status
+  const repairsInProgress = useMemo(() => {
+    return quoteRequests.filter((c: any) =>
+      ['repair_assigned', 'repair_in_progress'].includes(c.status)
+    );
+  }, [quoteRequests]);
+
+  // SR-C04: Mark repair complete mutation
+  const utils = trpc.useUtils();
+  const markRepairComplete = trpc.repairHistory.markRepairComplete.useMutation({
+    onSuccess: () => {
+      toast.success("Repair marked as complete — quality score updated");
+      utils.claims.myQuoteRequests.invalidate();
+      utils.repairHistory.getByClaim.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  // SR-C04: Per-claim repair history fetch helper — used in RepairRow
   // Performance trend query
   const { data: perfTrend } = trpc.claims.getMyPerformanceTrend.useQuery({
     period: perfPeriod,
@@ -120,6 +192,44 @@ export default function PanelBeaterDashboard() {
         <div className="p11-body-2col">
           {/* ── MAIN COLUMN ── */}
           <div>
+            {/* SR-C04: Repairs In Progress */}
+            {repairsInProgress.length > 0 && (
+              <div className="p11-card" style={{ marginBottom: 16, border: '1px solid #D1FAE5' }}>
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <Hammer style={{ width: 14, height: 14, color: '#059669' }} />
+                    <span style={{ color: '#065F46' }}>Repairs In Progress</span>
+                    <span className="p11-badge green" style={{ marginLeft: 6 }}>{repairsInProgress.length}</span>
+                  </div>
+                </div>
+                <div className="p11-card-body" style={{ padding: 0 }}>
+                  <table className="p11-table">
+                    <thead>
+                      <tr>
+                        <th>Claim #</th>
+                        <th>Vehicle</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {repairsInProgress.map((claim: any) => (
+                        <RepairInProgressRow
+                          key={claim.id}
+                          claim={claim}
+                          onMarkComplete={(repairHistoryId) => {
+                            const today = new Date().toISOString().split('T')[0];
+                            markRepairComplete.mutate({ repairHistoryId, repairDate: today });
+                          }}
+                          isPending={markRepairComplete.isPending}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Quote Queue */}
             <div className="p11-card" style={{ marginBottom: 16 }}>
               <div className="p11-card-header">

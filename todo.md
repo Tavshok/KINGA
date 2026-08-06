@@ -1331,3 +1331,35 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] P1-E2E-04: Fleet journey validation
 - [ ] P1-E2E-05: Insurer Admin journey validation
 - [ ] P1-E2E-06: Platform Admin journey validation
+
+---
+
+## Ship Readiness Remediation (Phase 1.5)
+
+### Sprint 1 — Critical
+- [ ] SR-C03: Add authorizePayment mutation (financial_decision → payment_authorized)
+- [ ] SR-C03: Add Authorise Payment button to InternalAssessorDashboard
+- [ ] SR-C02: Add rejectClaim mutation with rejectionReason parameter
+- [ ] SR-C02: Add Reject Claim button + reason dialog to ClaimReviewDialog
+- [ ] SR-C01: Register /claims/:id route for ClaimantClaimDetail in App.tsx
+- [ ] SR-C04: Add Mark Repair Complete button to PanelBeaterDashboard
+
+### Sprint 2 — High
+- [ ] SR-H05: Add acceptQuote mutation to agency router
+- [ ] SR-H05: Add Accept Quote button to KingaAgency quotations tab
+- [ ] SR-H01: Add engineering inspection report generator
+- [ ] SR-H01: Add Export Report button to EngineerInspectionDetail
+- [ ] SR-H02: Add rejectionReason column to claims table via SQL
+- [ ] SR-H02: Write rejection event to auditTrail on rejectClaim
+
+### Sprint 3 — High
+- [ ] SR-H04: Add claimant notification on claim state change
+- [ ] SR-H03: Add insurer admin claim override/reject procedure
+- [ ] SR-H06: Surface OAuth recovery URL on login page
+
+### Sprint 4 — Medium
+- [ ] SR-M01: Create /claimant/documents page and register route
+- [ ] SR-M03: Wire inspections.list into EngineerAssignments page
+- [ ] SR-M04: Add repair photo upload to PanelBeaterDashboard
+- [ ] SR-M05: Allow insurer admin to view individual claim detail
+- [ ] SR-M07: Show repair tracking info to claimant in ClaimantClaimDetail

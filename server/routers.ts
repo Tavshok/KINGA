@@ -4366,6 +4366,81 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           .then(r => r[0] ?? null);
         return entry;
       }),
+
+    /**
+     * SR-C03: Authorise payment — transitions financial_decision → payment_authorized.
+     * Called by Internal Assessor / Finance Officer after financial decision is made.
+     */
+    authorizePayment: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        settlementAmountCents: z.number().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const _authDb = await getDb();
+        if (!_authDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const claim = await _authDb.select().from(claims).where(eq(claims.id, input.claimId)).limit(1).then(r => r[0]);
+        if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
+        if (claim.workflowState !== 'financial_decision') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `Payment can only be authorised from financial_decision state (current: ${claim.workflowState})` });
+        }
+        const updateData: Record<string, unknown> = {
+          workflowState: 'payment_authorized',
+          status: 'payment_authorized',
+          updatedAt: new Date().toISOString(),
+        };
+        if (input.settlementAmountCents) {
+          updateData.finalApprovedAmount = input.settlementAmountCents;
+        }
+        await _authDb.update(claims).set(updateData as any).where(eq(claims.id, input.claimId));
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: 'payment_authorized',
+          entityType: 'claim',
+          entityId: input.claimId,
+          changeDescription: `Payment authorised by ${ctx.user.name || ctx.user.role}. Settlement offer ready for claimant.${input.notes ? ` Notes: ${input.notes}` : ''}`,
+        });
+        return { success: true, newState: 'payment_authorized' };
+      }),
+
+    /**
+     * SR-C02: Reject claim — transitions to rejected workflowState.
+     * Called by Claims Manager when a claim is invalid, fraudulent, or outside coverage.
+     */
+    rejectClaim: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        rejectionReason: z.string().min(10, 'Rejection reason must be at least 10 characters'),
+        rejectionCategory: z.enum(['fraud', 'outside_coverage', 'invalid_claim', 'duplicate', 'other']).default('other'),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const _rejectDb = await getDb();
+        if (!_rejectDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const claim = await _rejectDb.select().from(claims).where(eq(claims.id, input.claimId)).limit(1).then(r => r[0]);
+        if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
+        const nonRejectableStates = ['closed', 'completed', 'rejected'];
+        if (nonRejectableStates.includes(claim.workflowState as string)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `Cannot reject a claim in ${claim.workflowState} state` });
+        }
+        await _rejectDb.update(claims).set({
+          workflowState: 'rejected' as any,
+          status: 'rejected',
+          updatedAt: new Date().toISOString(),
+        }).where(eq(claims.id, input.claimId));
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: 'claim_rejected',
+          entityType: 'claim',
+          entityId: input.claimId,
+          changeDescription: `Claim rejected by ${ctx.user.name || ctx.user.role}. Category: ${input.rejectionCategory}. Reason: ${input.rejectionReason}`,
+        });
+        return { success: true, newState: 'rejected', rejectionReason: input.rejectionReason };
+      }),
   }),
   // Assessor operationss
   assessors: router({
