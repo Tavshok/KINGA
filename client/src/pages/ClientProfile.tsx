@@ -260,7 +260,7 @@ export default function ClientProfile() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {(myClaims ?? []).slice(0, 5).map((claim: any) => (
-                    <div key={claim.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/30 transition-colors cursor-pointer" onClick={() => setLocation(`/client/claims/${claim.id}`)}>
+                    <div key={claim.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/30 transition-colors cursor-pointer" onClick={() => setLocation(`/claimant/claims/${claim.id}`)}>
                       <div>
                         <p className="text-sm font-medium font-mono">{claim.claimNumber ?? `#${claim.id}`}</p>
                         <p className="text-xs text-muted-foreground capitalize">{(claim.workflowState ?? "pending").replace(/_/g, " ")}</p>
@@ -268,7 +268,7 @@ export default function ClientProfile() {
                       <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   ))}
-                  <Button variant="outline" className="w-full mt-1" onClick={() => setLocation("/client")}>
+                  <Button variant="outline" className="w-full mt-1" onClick={() => setLocation("/claimant/claims")}>
                     View All Claims
                   </Button>
                 </CardContent>
@@ -286,10 +286,10 @@ export default function ClientProfile() {
                 <Button className="w-full justify-start" variant="outline" onClick={() => setLocation("/get-a-quote")}>
                   <Car className="h-4 w-4 mr-2 text-primary" /> New Valuation
                 </Button>
-                <Button className="w-full justify-start" variant="outline" onClick={() => setLocation("/client/submit-claim")}>
+                <Button className="w-full justify-start" variant="outline" onClick={() => setLocation("/claimant/submit")}>
                   <Shield className="h-4 w-4 mr-2 text-blue-500" /> Submit a Claim
                 </Button>
-                <Button className="w-full justify-start" variant="outline" onClick={() => setLocation("/client")}>
+                <Button className="w-full justify-start" variant="outline" onClick={() => setLocation("/claimant/claims")}>
                   <FileText className="h-4 w-4 mr-2 text-muted-foreground" /> My Claims
                 </Button>
                 <Button className="w-full justify-start" variant="outline" onClick={() => setLocation("/notifications")}>

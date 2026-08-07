@@ -106,7 +106,7 @@ export default function ClaimantClaimDetail() {
         <Card className="max-w-md">
           <CardHeader><CardTitle>Claim Not Found</CardTitle></CardHeader>
           <CardContent>
-            <Button onClick={() => setLocation("/client")}>
+            <Button onClick={() => setLocation("/claimant/dashboard")}>
               <ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard
             </Button>
           </CardContent>
@@ -128,7 +128,7 @@ export default function ClaimantClaimDetail() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={() => setLocation("/client")}>
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/claimant/dashboard")}>
                 <ArrowLeft className="h-4 w-4 mr-1" />Back
               </Button>
               <Separator orientation="vertical" className="h-6" />

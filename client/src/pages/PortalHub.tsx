@@ -32,15 +32,6 @@ export default function PortalHub() {
 
   const portals = [
     {
-      id: "client",
-      title: "My Portal",
-      description: "Your personal hub — valuations, insurance requests, claims, and your vehicle history",
-      icon: User,
-      path: "/client",
-      color: "from-purple-500 to-pink-500",
-      roles: ["claimant", "user", "admin", "insurer", "assessor", "panel_beater", "fleet_admin", "fleet_manager", "fleet_driver", "agency_broker", "agency_admin", "engineer"]
-    },
-    {
       id: "insurer",
       title: "Insurer Portal",
       description: "Claims management, executive insights, fraud analytics, and role-based workflows",
@@ -67,24 +58,41 @@ export default function PortalHub() {
       color: "from-orange-500 to-amber-500",
       roles: ["panel_beater", "admin"]
     },
-
+    {
+      id: "claimant",
+      title: "Claimant Portal",
+      description: "Submit claims and track progress",
+      icon: User,
+      path: "/claimant/dashboard",
+      color: "from-purple-500 to-pink-500",
+      roles: ["claimant", "admin"]
+    },
     {
       id: "fleet",
       title: "Fleet Management",
-      description: "Fleet Command Centre — vehicles, drivers, risk analytics, cost intelligence, and claims",
+      description: "Fleet Command Centre — vehicles, risk analytics, cost intelligence, and claims management",
       icon: Truck,
-      path: "/fleet",
+      path: "/claimant/fleet-dashboard",
       color: "from-teal-500 to-cyan-500",
-      roles: ["fleet_admin", "fleet_manager", "fleet_driver", "insurer", "admin"]
+      roles: ["fleet_admin", "fleet_manager", "insurer", "admin"]
+    },
+    {
+      id: "fleet_driver",
+      title: "Driver Workspace",
+      description: "Your assigned vehicle, incident reporting, maintenance alerts, and claims.",
+      icon: Car,
+      path: "/fleet/driver",
+      color: "from-slate-500 to-slate-600",
+      roles: ["fleet_driver", "admin"]
     },
     {
       id: "kinga-agency",
       title: "KINGA Agency",
-      description: "Service operations — client requests, valuations, commissions, and performance",
+      description: "Request insurance quotations, manage policy renewals, and upload documents",
       icon: Building2,
       path: "/agency",
       color: "from-emerald-500 to-teal-500",
-      roles: ["agency_broker", "agency_admin", "admin"]
+      roles: ["insurer", "admin", "claimant", "assessor"]
     },
     {
       id: "engineers",

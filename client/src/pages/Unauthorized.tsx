@@ -48,7 +48,7 @@ export default function Unauthorized() {
         setLocation("/panel-beater/dashboard");
         break;
       case "claimant":
-        setLocation("/client");
+        setLocation("/claimant/dashboard");
         break;
       default:
         setLocation("/");

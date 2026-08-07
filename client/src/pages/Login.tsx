@@ -37,7 +37,7 @@ export default function Login() {
       case "panel_beater":
         return "/panel-beater/dashboard";
       case "claimant":
-        return "/client";
+        return "/claimant/dashboard";
       case "agency":
         return "/agency";
       case "platform_super_admin":

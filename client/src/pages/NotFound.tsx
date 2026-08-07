@@ -20,7 +20,7 @@ export default function NotFound() {
   const quickLinks = [
     { label: "Home Dashboard", path: "/", icon: Home },
     { label: "Claims Overview", path: "/insurer/claims", icon: FileQuestion },
-    { label: "Submit New Claim", path: "/client/submit-claim", icon: FileQuestion },
+    { label: "Submit New Claim", path: "/claimant/submit", icon: FileQuestion },
   ];
 
   return (

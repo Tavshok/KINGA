@@ -34,7 +34,7 @@ export default function FleetRegister() {
     onSuccess: (data) => {
       if (data.status === "approved") {
         toast.success("Your fleet manager access is already approved.");
-        setLocation("/fleet");
+        setLocation("/claimant/fleet-dashboard");
         return;
       }
       setSubmittedCompany(companyName.trim());
@@ -85,10 +85,10 @@ export default function FleetRegister() {
             </ul>
           </div>
           <div className="flex gap-3 justify-center">
-            <Button variant="outline" onClick={() => setLocation("/client")}>
+            <Button variant="outline" onClick={() => setLocation("/claimant/dashboard")}>
               Back to Dashboard
             </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setLocation("/fleet")}>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setLocation("/claimant/fleet-dashboard")}>
               Check Status
             </Button>
           </div>
@@ -101,7 +101,7 @@ export default function FleetRegister() {
     <div className="p-6 max-w-lg mx-auto space-y-6">
       <button
         type="button"
-        onClick={() => setLocation("/client")}
+        onClick={() => setLocation("/claimant/dashboard")}
         className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />

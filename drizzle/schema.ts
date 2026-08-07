@@ -5969,3 +5969,25 @@ export const quotationRequestDocuments = mysqlTable("quotation_request_documents
 ]);
 export type QuotationRequestDocument = typeof quotationRequestDocuments.$inferSelect;
 export type InsertQuotationRequestDocument = typeof quotationRequestDocuments.$inferInsert;
+
+// ─── WhatsApp Integration ─────────────────────────────────────────────────────
+// Session state table for the inbound WhatsApp conversation engine.
+// Each active conversation is a row; state advances as the client answers questions.
+export const whatsappSessions = mysqlTable("whatsapp_sessions", {
+  id:             varchar("id", { length: 36 }).notNull().primaryKey(),
+  phoneNumber:    varchar("phone_number", { length: 30 }).notNull(),
+  intent:         varchar("intent", { length: 50 }),
+  state:          varchar("state", { length: 80 }).notNull().default('IDLE'),
+  data:           json("data"),
+  photoUrls:      json("photo_urls"),
+  status:         mysqlEnum("status", ['active','paused','submitted','expired']).notNull().default('active'),
+  resumeContext:  text("resume_context"),
+  lastMessageAt:  timestamp("last_message_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt:      timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+  index("idx_wa_phone").on(table.phoneNumber),
+  index("idx_wa_status").on(table.status),
+]);
+export type WhatsappSession = typeof whatsappSessions.$inferSelect;
+export type InsertWhatsappSession = typeof whatsappSessions.$inferInsert;

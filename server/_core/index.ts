@@ -54,6 +54,8 @@ import { runStuckAssessmentRecoveryJob, startStuckAssessmentRecoveryJob } from "
 import { checkRecoveryDeadlines } from "../recovery/recoveryDeadlineAlerts";
 import { sdk } from "./sdk";
 import { ENV } from "./env";
+import { initWhatsAppProvider } from "../whatsapp/engine";
+import { whatsappWebhookVerify, whatsappWebhookReceive, whatsappTestEndpoint } from "../whatsapp/webhook";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -283,6 +285,14 @@ async function startServer() {
     }
   });
 
+  // ── WhatsApp Webhook Routes ──────────────────────────────────────────────
+  // Twilio sends form-encoded POST to this URL for inbound messages.
+  // The urlencoded parser must be registered BEFORE the global 1MB parser above.
+  app.get("/api/whatsapp/webhook", whatsappWebhookVerify);
+  app.post("/api/whatsapp/webhook", express.urlencoded({ extended: true, limit: "5mb" }), whatsappWebhookReceive);
+  // Local test endpoint — POST { from, body } to simulate a WhatsApp message without Twilio
+  app.post("/api/whatsapp/test", express.json({ limit: "2mb" }), whatsappTestEndpoint);
+
   // tRPC API
   app.use(
     "/api/trpc",
@@ -294,6 +304,9 @@ async function startServer() {
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
+  // Initialise WhatsApp provider (uses MockAdapter if credentials not set)
+  initWhatsAppProvider();
+
   } else {
     serveStatic(app);
   }
@@ -378,4 +391,3 @@ async function startServer() {
 }
 
 startServer().catch(console.error);
-

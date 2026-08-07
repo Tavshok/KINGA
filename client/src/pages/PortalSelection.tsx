@@ -41,7 +41,7 @@ const CUSTOMER_JOURNEYS = [
     title: "Submit a Claim",
     description: "Had an accident? Submit your claim online. KINGA's AI analyses the damage and guides your claim to settlement.",
     cta: "Submit Claim",
-    href: "/client/submit-claim",
+    href: "/claimant/submit",
     color: "from-amber-500 to-amber-600",
     badge: "Requires sign-in",
     audience: "Policyholders",
