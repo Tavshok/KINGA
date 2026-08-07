@@ -5,7 +5,7 @@
  */
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { eq, and, desc } from "drizzle-orm";
 import { getAllApprovedPanelBeaters, createAuditEntry } from "../db";

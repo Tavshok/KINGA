@@ -53,7 +53,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { logger } from './logger';
-import * as dbPipeline from './db-pipeline';
+import * as dbPipeline from './db-pipeline.ts';
 
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 let _db: MySql2Database<typeof schema> | null = null;
@@ -1337,7 +1337,7 @@ export async function triggerAiAssessment(claimId: number) {
     console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to persist pipelineRunUuid (non-fatal): ${runUuidErr.message}`);
   }
   // Record the run start (fire-and-forget — never blocks the pipeline)
-  import('./db-pipeline').then(({ recordRunStart }) => {
+  import('./db-pipeline.ts').then(({ recordRunStart }) => {
     recordRunStart({
       runId: _pipelineRunId,
       claimId,
@@ -1489,7 +1489,7 @@ export async function triggerAiAssessment(claimId: number) {
       // job re-triggers the pipeline every 20 minutes (infinite loop).
       console.error(`[KINGA Assessment] Claim ${claimId}: Pipeline incomplete — ${pipelineErr.message}`);
       // Phase 1 Observability: record run as failed (fire-and-forget)
-      import('./db-pipeline').then(({ recordRunComplete }) => {
+      import('./db-pipeline.ts').then(({ recordRunComplete }) => {
         recordRunComplete({ runId: _pipelineRunId, status: 'failed', totalDurationMs: 0, stagesCompleted: 0, stagesFailed: 1, stagesDegraded: 0 }).catch(() => {});
       }).catch(() => {});
       // Send in-app notification to processors (non-blocking, fire-and-forget)
@@ -2689,7 +2689,7 @@ export async function triggerAiAssessment(claimId: number) {
   // Clear the watchdog timer — pipeline completed successfully.
   if (watchdogTimer) { clearTimeout(watchdogTimer); watchdogTimer = null; }
   // Phase 1 Observability: record run completion (fire-and-forget)
-  import('./db-pipeline').then(({ recordRunComplete }) => {
+  import('./db-pipeline.ts').then(({ recordRunComplete }) => {
     recordRunComplete({ runId: _pipelineRunId, status: 'completed', totalDurationMs: 0, stagesCompleted: 0, stagesFailed: 0, stagesDegraded: 0 }).catch(() => {});
   }).catch(() => {});
   // ── Learning Table: Automatic Finalization Write (fire-and-forget) ──────────

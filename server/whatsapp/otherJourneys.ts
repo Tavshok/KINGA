@@ -30,6 +30,7 @@ export async function handleStatusJourney(
   provider: IWhatsAppProvider
 ): Promise<void> {
   // Look up most recent active claim by phone number
+  const db = await getDbOrThrow();
   const rows = await db
     .select({
       claimNumber: claims.claimNumber,
@@ -40,7 +41,7 @@ export async function handleStatusJourney(
       incidentDate: claims.incidentDate,
     })
     .from(claims)
-    .where(eq(claims.waPhoneNumber, phoneNumber))
+    .where(eq(claims.claimantPhone, phoneNumber))
     .orderBy(desc(claims.createdAt))
     .limit(3);
 

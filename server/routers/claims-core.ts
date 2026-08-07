@@ -35,7 +35,9 @@ import {
   checkAssignmentCap,
 } from "../db";
 import { validateClaimDetailResponse } from "../apiResponseValidator";
+import { exportClaimPDF } from "../claim-pdf-export";
 import { logger } from "../logger";
+import { nanoid } from "nanoid";
 
 export const claimsRouter = router({
   /**
