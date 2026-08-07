@@ -1442,3 +1442,40 @@ which is for corporate fleet operators.
 - [x] P10-DB05: Create InsuranceRequestWizard.tsx — multi-step wizard: (1) product select, (2) product-specific intake form, (3) review + submit
 - [x] P10-DB06: Wire InsuranceCatalogue into Client Portal Insurance tab "New Request" button
 - [x] P10-DB07: Agency inbox: show productCategory badge on non-motor requests; non-motor requests route to correct handler
+
+---
+
+## Code Maintainability Split — Aug 2026 (Target: every file under 400–600 lines)
+
+### Phase 1: server/routers.ts splits
+- [ ] SPLIT-R01: Extract claims router (3,526 lines) → server/routers/claims-core.ts
+- [ ] SPLIT-R02: Extract aiAssessments router (1,771 lines) → server/routers/ai-assessments-core.ts
+- [ ] SPLIT-R03: Extract quotes router (564 lines) → server/routers/quotes-core.ts
+- [ ] SPLIT-R04: Extract assessors router (385 lines) → server/routers/assessors-core.ts
+- [ ] SPLIT-R05: Extract auth router (247 lines) → server/routers/auth-core.ts
+- [ ] SPLIT-R06: Verify routers.ts is under 600 lines after all extractions
+
+### Phase 2: server/db.ts splits
+- [ ] SPLIT-D01: Extract claim query helpers → server/db-claims.ts
+- [ ] SPLIT-D02: Extract assessment query helpers → server/db-assessments.ts
+- [ ] SPLIT-D03: Extract quote query helpers → server/db-quotes.ts
+- [ ] SPLIT-D04: Extract user/notification helpers → server/db-users.ts
+- [ ] SPLIT-D05: Verify db.ts is under 400 lines after all extractions
+
+### Phase 3: server/pipeline-v2/orchestrator.ts splits
+- [ ] SPLIT-O01: Extract stage 1-5 orchestration → orchestrator-intake.ts
+- [ ] SPLIT-O02: Extract stage 6-10 orchestration → orchestrator-analysis.ts
+- [ ] SPLIT-O03: Extract stage 11-14 orchestration → orchestrator-decision.ts
+- [ ] SPLIT-O04: Keep orchestrator.ts as thin coordinator under 400 lines
+
+### Phase 4: server/reporting splits
+- [ ] SPLIT-REP01: Extract CL report sections → reporting/cl-report/
+- [ ] SPLIT-REP02: Extract CI report sections → reporting/ci-report/
+- [ ] SPLIT-REP03: Extract FR report sections → reporting/fr-report/
+
+### Phase 5: client-side page splits
+- [ ] SPLIT-C01: Split InsurerComparisonView (2,601 lines) into tab sub-components
+- [ ] SPLIT-C02: Split ClaimDecisionReport (2,259 lines) into section sub-components
+- [ ] SPLIT-C03: Split ClaimsProcessorDashboard (1,972 lines) into tab sub-components
+- [ ] SPLIT-C04: Split SubmitClaim (1,500 lines) into step sub-components
+- [ ] SPLIT-C05: Split InternalAssessorDashboard (1,408 lines) into tab sub-components
