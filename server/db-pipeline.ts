@@ -1,360 +1,275 @@
 /**
- * db-pipeline.ts
- *
- * Database helpers for pipeline observability (Phase 1).
- *
- * Provides lightweight read/write functions for:
- *   - pipeline_runs  — one row per full pipeline execution
- *   - pipeline_jobs  — one row per (runId, stageId) pair
- *
- * Design principles:
- *   • All writes are fire-and-forget (non-blocking) — pipeline execution
- *     is NEVER delayed or blocked by observability writes.
- *   • All writes are wrapped in try/catch — a DB failure here must never
- *     propagate to the pipeline and cause a claim to fail.
- *   • All reads are used only by the admin dashboard and tRPC queries —
- *     they are never on the critical path.
+ * KINGA Pipeline Observability Helpers
+ * 
+ * Fire-and-forget write helpers and safe-read helpers for pipeline run tracking.
+ * All write helpers swallow errors (never throw) — pipeline failures must not
+ * cascade into observability failures.
+ * All read helpers return empty/null on DB failure.
+ * 
+ * Tables: pipeline_runs, pipeline_jobs
  */
-
-// @ts-nocheck
-import { eq, and, desc, sql as drizzleSql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { getDb } from "./db";
-import { pipelineJobs, pipelineRuns } from "../drizzle/schema";
+import { pipelineRuns, pipelineJobs } from "../drizzle/schema";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface StageStartPayload {
-  runId: string;
-  claimId: number;
-  stageId: string;
-  stageLabel: string;
-  stageIndex: number;
-  tenantId?: string | null;
-}
-
-export interface StageCompletePayload {
-  runId: string;
-  stageId: string;
-  durationMs: number;
-  isDegraded?: boolean;
-  isTimeout?: boolean;
-  errorMessage?: string | null;
-  llmTokensInput?: number | null;
-  llmTokensOutput?: number | null;
-  llmModel?: string | null;
-  assumptionCount?: number;
-  recoveryActionCount?: number;
-  status: "completed" | "failed" | "skipped" | "degraded";
-}
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface RunStartPayload {
   runId: string;
   claimId: number;
-  tenantId?: string | null;
-  triggeredBy?: string | null;
-  triggerReason?: string | null;
-  isRerun?: boolean;
+  startedAt?: string;
 }
 
 export interface RunCompletePayload {
   runId: string;
   status: "completed" | "failed" | "partial";
   totalDurationMs: number;
-  totalLlmTokens?: number;
   stagesCompleted: number;
   stagesFailed: number;
   stagesDegraded: number;
+  totalLlmTokens?: number;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-
-function nowStr(): string {
-  return new Date().toISOString().slice(0, 19).replace("T", " ");
+export interface StageStartPayload {
+  runId: string;
+  stageId: string;
+  stageIndex: number;
+  stageLabel: string;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RUN HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
+export interface StageCompletePayload {
+  runId: string;
+  stageId: string;
+  status: "completed" | "failed" | "skipped" | "degraded";
+  durationMs: number;
+  isTimeout?: boolean;
+  llmTokensInput?: number;
+  llmTokensOutput?: number;
+  errorMessage?: string;
+}
+
+// ─── Write helpers (fire-and-forget) ─────────────────────────────────────────
 
 export async function recordRunStart(payload: RunStartPayload): Promise<void> {
   try {
     const db = await getDb();
+    if (!db) return;
     await db.insert(pipelineRuns).values({
       runId: payload.runId,
       claimId: payload.claimId,
-      tenantId: payload.tenantId ?? null,
-      triggeredBy: payload.triggeredBy ?? null,
-      triggerReason: payload.triggerReason ?? null,
       status: "running",
-      isRerun: payload.isRerun ? 1 : 0,
-      startedAt: nowStr(),
+      startedAt: payload.startedAt ?? new Date().toISOString(),
     });
-  } catch (err) {
-    console.warn("[db-pipeline] recordRunStart failed (non-fatal):", err instanceof Error ? err.message : String(err));
+  } catch {
+    // Fire-and-forget: never throw
   }
 }
 
 export async function recordRunComplete(payload: RunCompletePayload): Promise<void> {
   try {
     const db = await getDb();
-    await db
-      .update(pipelineRuns)
+    if (!db) return;
+    await db.update(pipelineRuns)
       .set({
         status: payload.status,
         totalDurationMs: payload.totalDurationMs,
-        totalLlmTokens: payload.totalLlmTokens ?? null,
         stagesCompleted: payload.stagesCompleted,
         stagesFailed: payload.stagesFailed,
         stagesDegraded: payload.stagesDegraded,
-        completedAt: nowStr(),
+        totalLlmTokens: payload.totalLlmTokens ?? 0,
+        completedAt: new Date().toISOString(),
       })
       .where(eq(pipelineRuns.runId, payload.runId));
-  } catch (err) {
-    console.warn("[db-pipeline] recordRunComplete failed (non-fatal):", err instanceof Error ? err.message : String(err));
+  } catch {
+    // Fire-and-forget: never throw
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// STAGE HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
 
 export async function recordStageStart(payload: StageStartPayload): Promise<void> {
   try {
     const db = await getDb();
+    if (!db) return;
     await db.insert(pipelineJobs).values({
-      claimId: payload.claimId,
       runId: payload.runId,
       stageId: payload.stageId,
-      stageLabel: payload.stageLabel,
       stageIndex: payload.stageIndex,
+      stageLabel: payload.stageLabel,
       status: "running",
-      startedAt: nowStr(),
-      tenantId: payload.tenantId ?? null,
+      startedAt: new Date().toISOString(),
     });
-  } catch (err) {
-    console.warn("[db-pipeline] recordStageStart failed (non-fatal):", err instanceof Error ? err.message : String(err));
+  } catch {
+    // Fire-and-forget: never throw
   }
 }
 
 export async function recordStageComplete(payload: StageCompletePayload): Promise<void> {
   try {
     const db = await getDb();
-    await db
-      .update(pipelineJobs)
+    if (!db) return;
+    await db.update(pipelineJobs)
       .set({
         status: payload.status,
-        completedAt: nowStr(),
         durationMs: payload.durationMs,
-        isDegraded: payload.isDegraded ? 1 : 0,
         isTimeout: payload.isTimeout ? 1 : 0,
+        llmTokensInput: payload.llmTokensInput ?? 0,
+        llmTokensOutput: payload.llmTokensOutput ?? 0,
         errorMessage: payload.errorMessage ?? null,
-        llmTokensInput: payload.llmTokensInput ?? null,
-        llmTokensOutput: payload.llmTokensOutput ?? null,
-        llmModel: payload.llmModel ?? null,
-        assumptionCount: payload.assumptionCount ?? 0,
-        recoveryActionCount: payload.recoveryActionCount ?? 0,
+        completedAt: new Date().toISOString(),
       })
       .where(
         and(
           eq(pipelineJobs.runId, payload.runId),
-          eq(pipelineJobs.stageId, payload.stageId)
+          eq(pipelineJobs.stageId, payload.stageId),
         )
       );
-  } catch (err) {
-    console.warn("[db-pipeline] recordStageComplete failed (non-fatal):", err instanceof Error ? err.message : String(err));
+  } catch {
+    // Fire-and-forget: never throw
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// READ HELPERS (admin dashboard + tRPC queries)
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Read helpers (return safe defaults on failure) ───────────────────────────
 
-export async function getRunStages(runId: string) {
+export async function getRunStages(runId: string): Promise<typeof pipelineJobs.$inferSelect[]> {
   try {
     const db = await getDb();
-    return await db
-      .select()
+    if (!db) return [];
+    return await db.select()
       .from(pipelineJobs)
       .where(eq(pipelineJobs.runId, runId))
       .orderBy(pipelineJobs.stageIndex);
-  } catch (err) {
-    console.warn("[db-pipeline] getRunStages failed:", err instanceof Error ? err.message : String(err));
+  } catch {
     return [];
   }
 }
 
-export async function getLatestRunForClaim(claimId: number) {
+export async function getLatestRunForClaim(claimId: number): Promise<typeof pipelineRuns.$inferSelect | null> {
   try {
     const db = await getDb();
-    const rows = await db
-      .select()
+    if (!db) return null;
+    const rows = await db.select()
       .from(pipelineRuns)
       .where(eq(pipelineRuns.claimId, claimId))
       .orderBy(desc(pipelineRuns.startedAt))
       .limit(1);
     return rows[0] ?? null;
-  } catch (err) {
-    console.warn("[db-pipeline] getLatestRunForClaim failed:", err instanceof Error ? err.message : String(err));
+  } catch {
     return null;
   }
 }
 
-export async function getRunHistoryForClaim(claimId: number, limit = 10) {
+export async function getRecentRuns(limit = 50): Promise<typeof pipelineRuns.$inferSelect[]> {
   try {
     const db = await getDb();
-    return await db
-      .select()
+    if (!db) return [];
+    return await db.select()
       .from(pipelineRuns)
-      .where(eq(pipelineRuns.claimId, claimId))
       .orderBy(desc(pipelineRuns.startedAt))
       .limit(limit);
-  } catch (err) {
-    console.warn("[db-pipeline] getRunHistoryForClaim failed:", err instanceof Error ? err.message : String(err));
+  } catch {
     return [];
   }
 }
 
-export async function getRecentRuns(tenantId?: string | null, limit = 50) {
+export async function getStageHealthStats(): Promise<{
+  stageId: string;
+  stageLabel: string;
+  totalRuns: number;
+  failedRuns: number;
+  avgDurationMs: number;
+}[]> {
   try {
     const db = await getDb();
-    return await db
-      .select()
-      .from(pipelineRuns)
-      .orderBy(desc(pipelineRuns.startedAt))
-      .limit(limit);
-  } catch (err) {
-    console.warn("[db-pipeline] getRecentRuns failed:", err instanceof Error ? err.message : String(err));
-    return [];
-  }
-}
-
-export async function getStageHealthStats(tenantId?: string | null) {
-  try {
-    const db = await getDb();
-    return await db
-      .select({
-        stageId: pipelineJobs.stageId,
-        stageLabel: pipelineJobs.stageLabel,
-        stageIndex: pipelineJobs.stageIndex,
-        total: drizzleSql`COUNT(*)`,
-        completed: drizzleSql`SUM(CASE WHEN ${pipelineJobs.status} = 'completed' THEN 1 ELSE 0 END)`,
-        failed: drizzleSql`SUM(CASE WHEN ${pipelineJobs.status} = 'failed' THEN 1 ELSE 0 END)`,
-        degraded: drizzleSql`SUM(CASE WHEN ${pipelineJobs.status} = 'degraded' THEN 1 ELSE 0 END)`,
-        timedOut: drizzleSql`SUM(CASE WHEN ${pipelineJobs.isTimeout} = 1 THEN 1 ELSE 0 END)`,
-        avgDurationMs: drizzleSql`ROUND(AVG(${pipelineJobs.durationMs}))`,
-        maxDurationMs: drizzleSql`MAX(${pipelineJobs.durationMs})`,
-        totalTokensIn: drizzleSql`SUM(${pipelineJobs.llmTokensInput})`,
-        totalTokensOut: drizzleSql`SUM(${pipelineJobs.llmTokensOutput})`,
-      })
+    if (!db) return [];
+    const rows = await db.select({
+      stageId: pipelineJobs.stageId,
+      stageLabel: pipelineJobs.stageLabel,
+      totalRuns: sql<number>`COUNT(*)`,
+      failedRuns: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'failed' THEN 1 ELSE 0 END)`,
+      avgDurationMs: sql<number>`AVG(${pipelineJobs.durationMs})`,
+    })
       .from(pipelineJobs)
-      .groupBy(pipelineJobs.stageId, pipelineJobs.stageLabel, pipelineJobs.stageIndex)
-      .orderBy(pipelineJobs.stageIndex);
-  } catch (err) {
-    console.warn("[db-pipeline] getStageHealthStats failed:", err instanceof Error ? err.message : String(err));
+      .groupBy(pipelineJobs.stageId, pipelineJobs.stageLabel)
+      .orderBy(pipelineJobs.stageId);
+    return rows as any;
+  } catch {
     return [];
   }
 }
 
-export async function getPipelineOverallStats() {
+export async function getPipelineOverallStats(): Promise<{
+  totalRuns: number;
+  completedRuns: number;
+  failedRuns: number;
+  avgDurationMs: number;
+} | null> {
   try {
     const db = await getDb();
-    const rows = await db
-      .select({
-        total: drizzleSql`COUNT(*)`,
-        completed: drizzleSql`SUM(CASE WHEN ${pipelineRuns.status} = 'completed' THEN 1 ELSE 0 END)`,
-        failed: drizzleSql`SUM(CASE WHEN ${pipelineRuns.status} = 'failed' THEN 1 ELSE 0 END)`,
-        partial: drizzleSql`SUM(CASE WHEN ${pipelineRuns.status} = 'partial' THEN 1 ELSE 0 END)`,
-        running: drizzleSql`SUM(CASE WHEN ${pipelineRuns.status} = 'running' THEN 1 ELSE 0 END)`,
-        avgDurationMs: drizzleSql`ROUND(AVG(${pipelineRuns.totalDurationMs}))`,
-        totalLlmTokens: drizzleSql`SUM(${pipelineRuns.totalLlmTokens})`,
-      })
-      .from(pipelineRuns);
-    return rows[0] ?? null;
-  } catch (err) {
-    console.warn("[db-pipeline] getPipelineOverallStats failed:", err instanceof Error ? err.message : String(err));
+    if (!db) return null;
+    const rows = await db.select({
+      totalRuns: sql<number>`COUNT(*)`,
+      completedRuns: sql<number>`SUM(CASE WHEN ${pipelineRuns.status} = 'completed' THEN 1 ELSE 0 END)`,
+      failedRuns: sql<number>`SUM(CASE WHEN ${pipelineRuns.status} = 'failed' THEN 1 ELSE 0 END)`,
+      avgDurationMs: sql<number>`AVG(${pipelineRuns.totalDurationMs})`,
+    }).from(pipelineRuns);
+    return (rows[0] as any) ?? null;
+  } catch {
     return null;
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PARTIAL RESUME HELPERS (Phase 5)
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Stage result cache (resume support) ─────────────────────────────────────
 
 /**
- * Serialise and persist a stage's output JSON to the pipeline_jobs row.
- * Called after a stage completes successfully so that a retry can skip it.
- * Fire-and-forget — never throws, never blocks the pipeline.
+ * Persist a completed stage's output JSON so the pipeline can resume
+ * from a checkpoint if interrupted.
+ * Fire-and-forget — never throws.
  */
-export async function saveStageResult(
-  runId: string,
-  stageId: string,
-  resultJson: unknown
-): Promise<void> {
+export async function saveStageResult(runId: string, stageId: string, data: unknown): Promise<void> {
   try {
     const db = await getDb();
-    const serialised = JSON.stringify(resultJson);
-    await db
-      .update(pipelineJobs)
-      .set({ resultJson: serialised })
+    if (!db) return;
+    await db.update(pipelineJobs)
+      .set({ resultJson: JSON.stringify(data) })
       .where(
         and(
           eq(pipelineJobs.runId, runId),
-          eq(pipelineJobs.stageId, stageId)
+          eq(pipelineJobs.stageId, stageId),
         )
       );
-  } catch (err) {
-    console.warn(
-      "[db-pipeline] saveStageResult failed (non-fatal):",
-      err instanceof Error ? err.message : String(err)
-    );
+  } catch {
+    // Fire-and-forget: never throw
   }
 }
 
 /**
- * Load all completed stage results for a given run.
- * Returns a map of stageId → parsed result object (or null if result_json is absent).
- * Used at pipeline start to determine which stages can be skipped on retry.
+ * Load all completed stage results for a run so the pipeline can skip
+ * already-completed stages on resume.
+ * Returns an empty map on failure.
  */
-export async function loadCompletedStages(
-  runId: string
-): Promise<Record<string, unknown>> {
+export async function loadCompletedStages(runId: string): Promise<Record<string, unknown>> {
   try {
     const db = await getDb();
-    const rows = await db
-      .select({
-        stageId: pipelineJobs.stageId,
-        status: pipelineJobs.status,
-        resultJson: pipelineJobs.resultJson,
-      })
+    if (!db) return {};
+    const rows = await db.select({
+      stageId: pipelineJobs.stageId,
+      status: pipelineJobs.status,
+      resultJson: (pipelineJobs as any).resultJson,
+    })
       .from(pipelineJobs)
       .where(
         and(
           eq(pipelineJobs.runId, runId),
-          // Only load rows that completed successfully (not degraded/failed)
-          eq(pipelineJobs.status, "completed")
+          eq(pipelineJobs.status, "completed"),
         )
       );
-
-    const map: Record<string, unknown> = {};
+    const cache: Record<string, unknown> = {};
     for (const row of rows) {
       if (row.resultJson) {
-        try {
-          map[row.stageId] = JSON.parse(row.resultJson as string);
-        } catch {
-          // Corrupt JSON — treat as absent
-        }
+        try { cache[row.stageId] = JSON.parse(row.resultJson as string); } catch { /* skip */ }
       }
     }
-    return map;
-  } catch (err) {
-    console.warn(
-      "[db-pipeline] loadCompletedStages failed (non-fatal):",
-      err instanceof Error ? err.message : String(err)
-    );
+    return cache;
+  } catch {
     return {};
   }
 }

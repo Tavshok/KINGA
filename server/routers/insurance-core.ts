@@ -5,12 +5,12 @@
 
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { eq, and, desc, asc, inArray, gte, lte, or, sql, count, avg } from "drizzle-orm";
 import {
   insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies,
-  claims, auditTrail, notifications
+  claims, auditTrail, notifications, fleetVehicles,
 } from "../../drizzle/schema";
 import { nanoid } from "nanoid";
 import { storagePut } from "../storage";
