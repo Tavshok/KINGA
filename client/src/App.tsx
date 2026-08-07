@@ -171,6 +171,21 @@ const RelationshipIntelligence = lazy(() => import("./pages/RelationshipIntellig
 const ReportsCentre = lazy(() => import("./pages/ReportsCentre"));
 const NotificationCentre = lazy(() => import("./pages/NotificationCentre"));
 const NotificationPreferences = lazy(() => import("./pages/NotificationPreferences"));
+// Admin portal pages (MUST be declared before App/Router — hoisting bug fix for React error #130)
+const PlatformHealthDashboard = lazy(() => import("./pages/admin/PlatformHealthDashboard"));
+const IntelligenceEngineMonitoring = lazy(() => import("./pages/admin/IntelligenceEngineMonitoring"));
+const TenantMonitoring = lazy(() => import("./pages/admin/TenantMonitoring"));
+const PanelBeaterManagement = lazy(() => import("./pages/admin/PanelBeaterManagement"));
+const ActivityTimeline = lazy(() => import("./pages/admin/ActivityTimeline"));
+const AuditLog = lazy(() => import("./pages/admin/AuditLog"));
+const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
+const SecurityEvents = lazy(() => import("./pages/admin/SecurityEvents"));
+const NetworkOversight = lazy(() => import("./pages/admin/NetworkOversight"));
+const TenantProvisioning = lazy(() => import("./pages/admin/TenantProvisioning"));
+// Engineering + valuation pages (MUST be declared before App/Router — hoisting bug fix)
+const AssetPassport = lazy(() => import("./pages/AssetPassport"));
+const EngineeringIntelligenceDashboard = lazy(() => import("./pages/EngineeringIntelligenceDashboard"));
+const BulkValuation = lazy(() => import("./pages/BulkValuation"));
 
 function Router() {
   return (
@@ -1017,16 +1032,3 @@ function App() {
 }
 
 export default App;
-const PlatformHealthDashboard = lazy(() => import("./pages/admin/PlatformHealthDashboard"));
-const IntelligenceEngineMonitoring = lazy(() => import("./pages/admin/IntelligenceEngineMonitoring"));
-const TenantMonitoring = lazy(() => import("./pages/admin/TenantMonitoring"));
-const PanelBeaterManagement = lazy(() => import("./pages/admin/PanelBeaterManagement"));
-const ActivityTimeline = lazy(() => import("./pages/admin/ActivityTimeline"));
-const AuditLog = lazy(() => import("./pages/admin/AuditLog"));
-const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
-const SecurityEvents = lazy(() => import("./pages/admin/SecurityEvents"));
-const NetworkOversight = lazy(() => import("./pages/admin/NetworkOversight"));
-const TenantProvisioning = lazy(() => import("./pages/admin/TenantProvisioning"));
-const AssetPassport = lazy(() => import("./pages/AssetPassport"));
-const EngineeringIntelligenceDashboard = lazy(() => import("./pages/EngineeringIntelligenceDashboard"));
-const BulkValuation = lazy(() => import("./pages/BulkValuation"));
