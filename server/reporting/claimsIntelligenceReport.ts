@@ -792,11 +792,41 @@ ${(() => {
         zone: p.impactZone ?? undefined,
         caption: p.caption ?? undefined,
         usable: Number(p.confidenceScore ?? 0) >= 70,
+        directionContradiction: (p as any).directionContradiction === true,
       })),
       4
     )}
-    <p class="caption" style="margin-top:4px;">Zone labels show pipeline-detected impact zone per image. Red border = confidence below 70%. Full EXIF, manipulation detection, and structural fingerprint analysis are in the Forensic Claim Decision Report.</p>
+    ${enrichedPhotos.some(p => (p as any).directionContradiction === true) ? `<div style="background:#fbf1de;border-left:3px solid #b8720b;padding:6px 10px;margin-top:6px;font-size:10px;color:#b8720b;"><strong>⚠ Direction Contradiction Detected.</strong> One or more photos show damage in a zone that contradicts the narrative-stated collision direction. Review photo zones against the incident narrative before approving settlement. Full forensic analysis in the Forensic Report.</div>` : ""}
+    <p class="caption" style="margin-top:4px;">Zone labels show pipeline-detected impact zone per image. Red border = confidence below 70%. ⚠ amber border = zone contradicts narrative direction (display-only, does not affect scoring). Full EXIF, manipulation detection, and structural fingerprint analysis are in the Forensic Claim Decision Report.</p>
   </div>` : `<p class="small" style="margin-top:8px;">No photographic evidence was submitted or processed by the pipeline. Detailed photo forensics are part of the Forensic Claim Decision Report.</p>`}
+  ${(() => {
+    // Damage zones vs photo coverage — compact table for CI
+    const coveredZonesCi = new Set(enrichedPhotos.map(p => String((p as any).impactZone ?? '').toLowerCase()).filter(Boolean));
+    const allZonesCi = ['front','rear','left','right','underside','interior','roof'];
+    const zoneRows = allZonesCi.map(z => {
+      const covered = coveredZonesCi.has(z);
+      return `<tr style="border-bottom:1px solid #e8e8e8">
+        <td style="padding:3px 8px;text-transform:capitalize;font-size:10px">${z}</td>
+        <td style="padding:3px 8px;font-size:10px">${covered
+          ? `<span style="color:#3C7844;font-weight:700">✓ Covered</span>`
+          : `<span style="color:#8a8a8a">— No photo</span>`
+        }</td>
+      </tr>`;
+    }).join('');
+    const coveredCount = coveredZonesCi.size;
+    return enrichedPhotos.length > 0 ? `
+  <div class="box" style="margin-top:8px;">
+    <h4 style="margin:0 0 6px">Damage Zone Photo Coverage — ${coveredCount} of ${allZonesCi.length} zones</h4>
+    <table style="width:100%;border-collapse:collapse;font-size:10px">
+      <thead><tr style="border-bottom:2px solid #d9d9d9">
+        <th style="text-align:left;padding:3px 8px;font-size:9px;color:#4a4a4a">Zone</th>
+        <th style="text-align:left;padding:3px 8px;font-size:9px;color:#4a4a4a">Photo Coverage</th>
+      </tr></thead>
+      <tbody>${zoneRows}</tbody>
+    </table>
+    ${coveredCount < allZonesCi.length ? `<p style="font-size:9px;color:#8a8a8a;margin-top:4px;">Uncovered zones may indicate undocumented damage or damage outside the claimed impact area.</p>` : ''}
+  </div>` : '';
+  })()}
   ${photoYield < 40 && totalPhotos > 0 ? `
   <div class="callout amber" style="margin-top:8px;"><b>Photo Evidence Below Assessment Threshold.</b> Only ${usablePhotos} of ${totalPhotos} submitted images were confirmed as usable vehicle-damage photographs. Request focused damage photographs — underbody, engine bay, and interior zones required.</div>` : ""}
 </div>

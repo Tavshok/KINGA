@@ -44,7 +44,7 @@ import { generateEngineerInspectionReport } from "./engineerInspectionReport";
 import { generateRiskSurveyReport } from "./riskSurveyReport";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct as kFmtPct,
-  chip, pill, callout, scoreCell, physicsIndicator, safeJson,
+  chip, pill, callout, scoreCell, physicsIndicator, safeJson, photoZonePanel,
 } from "./templates/kingaDesignSystem";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -206,7 +206,8 @@ async function generateClaimAssessmentReport(
               a.model_version, a.created_at AS assessment_date,
               a.decision_authority_json, a.physics_analysis, a.physics_truth_json,
               a.fraud_score_breakdown_json, a.cost_intelligence_json,
-              a.cross_validation_json, a.claim_truth_json
+              a.cross_validation_json, a.claim_truth_json,
+              a.enriched_photos_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
        WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""} ORDER BY a.created_at DESC LIMIT 1`,
@@ -229,6 +230,13 @@ async function generateClaimAssessmentReport(
     // ARCH-01: Canonical CTL call-site for CL tier
     const claimTruthCL  = safeJson(claim.claim_truth_json) as any;
     const cvThreeWayCA = crossValCA?.threeWaySpeedComparison ?? crossValCA?.speedComparison ?? null;
+    // CL Photo section — parse enriched_photos_json (same source as CI and FR)
+    const enrichedPhotosRawCL = safeJson(claim.enriched_photos_json);
+    const enrichedPhotosCL: Array<{url:string;impactZone?:string;caption?:string;confidenceScore?:number;componentCount?:number;directionContradiction?:boolean}> =
+      Array.isArray(enrichedPhotosRawCL) ? (enrichedPhotosRawCL as any[]) : [];
+    const totalPhotosCL = enrichedPhotosCL.length;
+    const usablePhotosCL = enrichedPhotosCL.filter(p => Number(p.confidenceScore ?? 0) >= 70).length;
+    const photoYieldCL = totalPhotosCL > 0 ? Math.round(usablePhotosCL / totalPhotosCL * 100) : 0;
     const claimedSpdCA  = cvThreeWayCA?.claimedSpeedKmh ?? (physics as any)?.velocityKmh ?? null;
     const consensusSpdCA = cvThreeWayCA?.consensusSpeedKmh ?? (physics as any)?.deltaVKmh ?? null;
     const severitySpdCA  = cvThreeWayCA?.severityImpliedSpeedLabel ?? null;
@@ -553,6 +561,29 @@ ${comps.length > 0 ? `
   </table>
 </div>` : ""}
 
+<!-- ── §3b PHOTO EVIDENCE ── -->
+${totalPhotosCL > 0 ? `
+<div class="section">
+  <div class="section-tab sans"><span class="num">03b</span> Photo Evidence</div>
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+    <span style="font-size:11px;color:#4a4a4a"><strong>${totalPhotosCL}</strong> photo${totalPhotosCL !== 1 ? 's' : ''} received</span>
+    <span style="font-size:11px;color:#4a4a4a"><strong>${usablePhotosCL}</strong> usable (≥70% confidence)</span>
+    <span style="font-size:11px;color:#4a4a4a">Yield: <strong>${photoYieldCL}%</strong></span>
+    ${photoYieldCL < 40 ? `<span style="background:#fbf1de;color:#b8720b;font-size:9px;font-weight:700;padding:2px 7px;border-radius:2px;">LOW YIELD — Additional photos required</span>` : `<span style="background:#e9f3ea;color:#3C7844;font-size:9px;font-weight:700;padding:2px 7px;border-radius:2px;">ADEQUATE</span>`}
+  </div>
+  ${photoZonePanel(
+    enrichedPhotosCL.slice(0, 8).map(p => ({
+      url: p.url ?? '',
+      zone: p.impactZone ?? undefined,
+      caption: p.caption ?? undefined,
+      usable: Number(p.confidenceScore ?? 0) >= 70,
+      directionContradiction: p.directionContradiction === true,
+    })),
+    4
+  )}
+  ${photoYieldCL < 40 ? `<div style="background:#fbf1de;border-left:3px solid #b8720b;padding:6px 10px;margin-top:8px;font-size:10px;color:#b8720b;"><strong>Photo Evidence Below Assessment Threshold.</strong> Only ${usablePhotosCL} of ${totalPhotosCL} submitted images were confirmed as usable vehicle-damage photographs. Request focused damage photographs — underbody, engine bay, and interior zones required.</div>` : ""}
+  <p style="font-size:9px;color:#8a8a8a;margin-top:4px;">Zone labels = pipeline-detected impact zone · Red border = confidence &lt;70% · ⚠ = zone contradicts narrative direction (display-only)</p>
+</div>` : ""}
 <!-- ── §4 REPAIR vs REPLACE ── -->
 <div class="section">
   <div class="section-tab sans"><span class="num">04</span> Quotation &amp; Cost Optimisation</div>
