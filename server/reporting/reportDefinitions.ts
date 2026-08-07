@@ -196,7 +196,9 @@ async function generateClaimAssessmentReport(
               c.lodger_name, c.policy_number, c.vehicle_make, c.vehicle_model, c.vehicle_year,
               c.vehicle_registration, c.vehicle_market_value, c.insurer_name, c.status,
               c.workflow_state, c.created_at, c.confidence_score, c.vehicle_vin,
-              c.excess_amount_cents, c.policy_excess, c.deductible,
+              c.excess_amount_cents,
+              c.driver_licence_number, c.licence_age_range, c.driver_is_self,
+              c.weather_conditions, c.gps_lat, c.gps_lng,
               CONCAT(c.vehicle_make,' ',c.vehicle_model,' ',c.vehicle_year) AS vehicle_description,
               a.fraud_score, a.fraud_risk_level, a.recommendation,
               a.estimated_cost, a.parts_cost, a.labor_cost,
@@ -394,6 +396,67 @@ ${(() => {
   </table>
 </div>
 
+<!-- ── DRIVER & INCIDENT CONDITIONS ── -->
+${(() => {
+  const licenceNum = esc(String(claim.driver_licence_number ?? '—'));
+  const licenceAge = esc(String(claim.licence_age_range ?? '—'));
+  const driverIsSelf = claim.driver_is_self != null ? (Number(claim.driver_is_self) === 1 ? 'Yes — Registered Owner' : 'No — Third Party Driver') : '—';
+  const insurerAtTime = esc(String(claim.insurer_name ?? '—'));
+  const weatherCond = esc(String(claim.weather_conditions ?? '—'));
+  const roadSurf = '—'; // road_surface not in claims table yet
+  const gpsLat = claim.gps_lat ? Number(claim.gps_lat).toFixed(6) : null;
+  const gpsLng = claim.gps_lng ? Number(claim.gps_lng).toFixed(6) : null;
+  const hasDriverData = claim.driver_licence_number || claim.licence_age_range || claim.insurer_at_time;
+  const hasConditions = claim.weather_conditions || claim.road_surface;
+  if (!hasDriverData && !hasConditions) return '';
+  return `<div class="section" style="padding:8px 14px;">
+  <table style="width:100%;border-collapse:collapse;font-size:11px">
+    ${hasDriverData ? `<tr>
+      <td style="width:20%;padding:4px 8px 4px 0;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Driver Own Vehicle?</div><div style="font-weight:600">${driverIsSelf}</div></td>
+      <td style="width:20%;padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Licence Number</div><div style="font-weight:600;font-family:monospace">${licenceNum}</div></td>
+      <td style="width:20%;padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Licence Age</div><div style="font-weight:600">${licenceAge}</div></td>
+      <td style="width:20%;padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Insurer at Time</div><div style="font-weight:600">${insurerAtTime}</div></td>
+      <td style="width:20%;padding:4px 8px;vertical-align:top"></td>
+    </tr>` : ''}
+    ${hasConditions ? `<tr>
+      <td style="padding:4px 8px 4px 0;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Road Surface</div><div style="font-weight:600">${roadSurf}</div></td>
+      <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Weather Conditions</div><div style="font-weight:600">${weatherCond}</div></td>
+      <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">GPS Location</div><div style="font-weight:600">${gpsLat && gpsLng ? gpsLat + ', ' + gpsLng : '—'}</div></td>
+      <td style="padding:4px 8px;vertical-align:top"></td>
+      <td style="padding:4px 8px;vertical-align:top"></td>
+    </tr>` : ''}
+  </table>
+</div>`;
+})()}
+<!-- ── CLAIM TIMELINE STRIP ── -->
+${(() => {
+  const submittedMs = claim.created_at ? Number(claim.created_at) : null;
+  const assessedMs  = claim.assessment_date ? Number(claim.assessment_date) : null;
+  const incidentMs  = claim.incident_date ? Number(claim.incident_date) : null;
+  const fmtTs = (ms: number | null) => ms ? new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  const wsNow = String(claim.workflow_state ?? claim.status ?? '');
+  const isDecided = wsNow.includes('approved') || wsNow.includes('rejected') || wsNow.includes('settled') || wsNow.includes('closed');
+  const isAssessed = assessedMs != null || wsNow.includes('assessment') || wsNow.includes('review');
+  const daysToSubmit = (submittedMs && incidentMs) ? Math.round((submittedMs - incidentMs) / 86400000) : null;
+  const lateFlag = daysToSubmit !== null && daysToSubmit > 30;
+  const causationType = claimTruthCL?.causation?.type ?? claimTruthCL?.causationType ?? null;
+  const causationLabel = causationType ? String(causationType).replace(/_/g, ' ').replace(/\b\w/g, (ch: string) => ch.toUpperCase()) : null;
+  const causationConf = claimTruthCL?.causation?.confidence ? ` (confidence: ${Math.round(Number(claimTruthCL.causation.confidence) * 100)}%)` : '';
+  const steps = [
+    { label: 'Incident', date: fmtTs(incidentMs), done: true },
+    { label: 'Submitted', date: fmtTs(submittedMs), done: true },
+    { label: 'Under Assessment', date: '—', done: isAssessed },
+    { label: 'Assessed', date: fmtTs(assessedMs), done: isAssessed },
+    { label: 'Decision', date: '—', done: isDecided },
+  ];
+  return `<div class="section" style="padding:10px 14px;">
+  <div style="display:flex;gap:0;align-items:flex-start;">
+    ${steps.map((s, i) => `<div style="flex:1;text-align:center;position:relative;">${i < steps.length - 1 ? `<div style="position:absolute;top:10px;left:50%;right:-50%;height:2px;background:${steps[i+1].done ? '#3C7844' : '#e0e0e0'};z-index:0;"></div>` : ''}<div style="width:20px;height:20px;border-radius:50%;background:${s.done ? '#3C7844' : '#e0e0e0'};color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;position:relative;z-index:1;">${s.done ? '✓' : ''}</div><div style="font-size:8px;font-weight:600;margin-top:3px;color:${s.done ? '#171717' : '#aaa'}">${s.label}</div><div style="font-size:7px;color:#888;margin-top:1px;">${s.date}</div></div>`).join('')}
+  </div>
+  ${lateFlag ? `<div style="margin-top:8px;padding:5px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:9px;color:#4a4a4a;"><b>⚠ Late Submission:</b> Claim submitted ${daysToSubmit} days after the incident date. Claims submitted more than 30 days after the incident require additional scrutiny. Verify that the delay is documented and justified.</div>` : ''}
+  ${causationLabel ? `<div style="margin-top:6px;padding:5px 10px;background:#f0f7f0;border-left:3px solid #3C7844;font-size:9px;color:#1a3a1a;"><b>Causation:</b> ${causationLabel}${causationConf}</div>` : ''}
+</div>`;
+})()}
 <!-- ── §2 ASSESSMENT SUMMARY ── -->
 <div class="section">
   <div class="section-tab sans"><span class="num">02</span> Assessment Summary</div>

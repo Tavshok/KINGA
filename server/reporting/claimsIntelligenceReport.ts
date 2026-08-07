@@ -83,6 +83,15 @@ export async function generateClaimsIntelligenceReport(
       [claimId]
     ) as [Record<string, unknown>[], unknown];
 
+    // ── 3b. Fetch vehicle claim history ─────────────────────────────────────
+    const vehicleRegRaw = String(c.vehicle_registration ?? c.registration_number ?? '');
+    const [vehicleHistory] = vehicleRegRaw ? await conn.execute(
+      `SELECT c2.claim_reference, c2.incident_date, c2.incident_type, c2.workflow_state, c2.created_at
+       FROM claims c2
+       WHERE c2.vehicle_registration = ? AND c2.id != ?
+       ORDER BY c2.created_at DESC LIMIT 5`,
+      [vehicleRegRaw, claimId]
+    ) as [Record<string, unknown>[], unknown] : [[], null];
     // ── 4. Parse JSON fields ─────────────────────────────────────────────────
     const costIntel  = safeJson(c.cost_intelligence_json as string) as any;
     const repairIntel = safeJson(c.repair_intelligence_json as string) as any;
@@ -112,9 +121,16 @@ export async function generateClaimsIntelligenceReport(
     // ── 5. Derived values ────────────────────────────────────────────────────
     const fraudScore   = Number(c.fraud_score ?? 0);
     const fraudLevel   = String(c.fraud_risk_level ?? "low").toLowerCase();
-    const rtvRatio     = Number(c.repair_to_value_ratio ?? 0);
-    // BUG-01 fix: vehicle_market_value is stored in cents — divide by 100 at point of read
+    // FIX-RTV: If repair_to_value_ratio is null, derive it from estimated_cost / market_value.
+    // This prevents the scorecard showing 0% when the pipeline hasn't written the column.
+    const estimatedCostForRtv = Number(c.estimated_cost ?? 0);
+    const rtvRatioRaw = c.repair_to_value_ratio != null ? Number(c.repair_to_value_ratio) : null;
     const marketValue  = c.vehicle_market_value != null ? Number(c.vehicle_market_value) / 100 : 0;
+    const rtvRatioDerived = (rtvRatioRaw == null && estimatedCostForRtv > 0 && marketValue > 0)
+      ? Math.round((estimatedCostForRtv / marketValue) * 100)
+      : null;
+    const rtvRatio = rtvRatioRaw ?? rtvRatioDerived ?? 0;
+    // BUG-01 fix: vehicle_market_value is stored in cents — divide by 100 at point of read
     const estimatedCost = Number(c.estimated_cost ?? 0);
     const submittedDate = c.created_at ? Number(c.created_at) : null;
     const incidentDate  = c.incident_date ? Number(c.incident_date) : null;
@@ -219,8 +235,11 @@ export async function generateClaimsIntelligenceReport(
     const scoreCardQCls = quoteArr.length >= 3 ? "good" : quoteArr.length >= 2 ? "warn" : "bad";
     const delayFlag = dayDelay !== null && dayDelay > 90;
 
+    // FIX-BLANK-PAGE: Remove the standalone <div class="page"> wrapper from the cover.
+    // The cover content (masthead + scorecard) is merged into the first section (s1) below.
+    // This eliminates the blank first page caused by the PDF renderer treating the cover
+    // as a separate page before the actual content begins.
     const cover = `
-<div class="page">
 <!-- ── MASTHEAD ── -->
 <div class="masthead">
   <div>
@@ -297,7 +316,7 @@ ${(() => {
     <div>KINGA AI · Confidential Claims Intelligence Report</div>
     <div>${docRef} · Page 1 of 2</div>
   </div>
-</div>`;
+`;
 
     // ── §1 CLAIM IDENTITY & POLICY ───────────────────────────────────────────
     const s1 = `
@@ -401,6 +420,38 @@ ${(() => {
     </table>
     ${speedVerdict && speedVerdict !== 'CONSISTENT' ? `<div class="callout amber" style="margin-top:6pt;font-size:8pt;"><b>Speed Discrepancy Detected.</b> Claimed speed diverges from physics consensus. Full three-way analysis available in the Forensic Report.</div>` : `<div class="callout green" style="margin-top:6pt;font-size:8pt;">Speed sources are consistent.</div>`}
   </div>` : ''}
+  ${(() => {
+    const cgi = safeJson(c.cgi_result_json as string) as any;
+    if (!cgi) return '';
+    // IMPL-CONSTRAINT: reads from same cgi_result_json as FR §09b — never recomputed independently
+    const indicators = [
+      { label: 'Contact Patch Ratio', val: cgi.contactPatchRatio?.value, status: cgi.contactPatchRatio?.status, avail: cgi.contactPatchRatio?.available !== false },
+      { label: 'Bumper Height Compatibility', val: cgi.bumperHeightCompatibility?.value, status: cgi.bumperHeightCompatibility?.status, avail: cgi.bumperHeightCompatibility?.available !== false },
+      { label: 'Multi-Image Convergence', val: cgi.multiImageConvergence?.value, status: cgi.multiImageConvergence?.status, avail: cgi.multiImageConvergence?.available !== false },
+      { label: 'Force Density Index', val: cgi.forceDensityIndex?.value, status: cgi.forceDensityIndex?.status, avail: cgi.forceDensityIndex?.available !== false },
+    ].filter(i => i.avail);
+    if (indicators.length === 0) return '';
+    const sc = (s: string) => s === 'PASS' || s === 'CONSISTENT' ? 'var(--green-dark)' : s === 'FAIL' || s === 'INCONSISTENT' ? 'var(--red)' : 'var(--amber)';
+    return `<div style="margin-top:10pt;">
+    <h4 style="margin:0 0 6pt 0;font-size:9pt;">Crash Geometry Intelligence (CGI)</h4>
+    <table style="width:100%;border-collapse:collapse;font-size:8pt;">
+      <thead><tr style="background:var(--rule);"><th style="padding:4pt 6pt;text-align:left;">Indicator</th><th style="padding:4pt 6pt;text-align:right;">Value</th><th style="padding:4pt 6pt;text-align:left;">Status</th></tr></thead>
+      <tbody>${indicators.map((ind, i) => `<tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fa'};"><td style="padding:3pt 6pt;">${ind.label}</td><td style="padding:3pt 6pt;text-align:right;">${ind.val != null ? (typeof ind.val === 'number' ? ind.val.toFixed(2) : String(ind.val)) : '—'}</td><td style="padding:3pt 6pt;font-weight:600;color:${sc(String(ind.status ?? ''))};">${ind.status ?? 'UNAVAILABLE'}</td></tr>`).join('')}</tbody>
+    </table>
+    <p class="caption" style="margin-top:4pt;">CGI cross-references photogrammetric measurements against vehicle geometry benchmarks. Full CGI methodology available in the Forensic Report.</p>
+  </div>`;
+  })()}
+  ${(vehicleHistory as Record<string, unknown>[]).length > 0 ? (() => {
+    const vh = vehicleHistory as Record<string, unknown>[];
+    return `<div style="margin-top:10pt;">
+    <h4 style="margin:0 0 6pt 0;font-size:9pt;">Vehicle Claim History — ${vehicleReg}</h4>
+    <table style="width:100%;border-collapse:collapse;font-size:8pt;">
+      <thead><tr style="background:var(--rule);"><th style="padding:4pt 6pt;text-align:left;">Claim Ref</th><th style="padding:4pt 6pt;text-align:left;">Incident Date</th><th style="padding:4pt 6pt;text-align:left;">Type</th><th style="padding:4pt 6pt;text-align:left;">Status</th></tr></thead>
+      <tbody>${vh.map((h, i) => `<tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fa'};"><td style="padding:3pt 6pt;font-family:monospace;">${esc(String(h.claim_reference ?? '—'))}</td><td style="padding:3pt 6pt;">${h.incident_date ? new Date(Number(h.incident_date)).toLocaleDateString('en-GB') : '—'}</td><td style="padding:3pt 6pt;">${esc(String(h.incident_type ?? '—'))}</td><td style="padding:3pt 6pt;">${esc(String(h.workflow_state ?? h.status ?? '—'))}</td></tr>`).join('')}</tbody>
+    </table>
+    <p class="caption" style="margin-top:4pt;color:var(--amber);">⚠ This vehicle has ${vh.length} prior claim${vh.length !== 1 ? 's' : ''} on record. Review claim history for patterns before authorising settlement.</p>
+  </div>`;
+  })() : ''}
 
 </div>
 </div>

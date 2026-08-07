@@ -70,6 +70,27 @@ export async function generateForensicDecisionReport(
       [claimId]
     ) as [Record<string, unknown>[], unknown];
 
+    // ── 3b. Fetch audit events for approval chain ────────────────────────────
+    const [auditEvents] = await conn.execute(
+      `SELECT action, user_role, user_id, timestamp, changes
+       FROM insurance_audit_logs
+       WHERE entity_id = ? AND entity_type = 'claim'
+       ORDER BY timestamp ASC`,
+      [claimId]
+    ) as [Record<string, unknown>[], unknown];
+    // ── 3c. Fetch dispute records ────────────────────────────────────────────
+    // ── 3c. Fetch dispute records (safe fallback if table doesn't exist) ────
+    let disputes: Record<string, unknown>[] = [];
+    try {
+      const [disputeRows] = await conn.execute(
+        `SELECT id, dispute_reason, dispute_status, created_at, resolved_at, resolution_notes
+         FROM claim_disputes
+         WHERE claim_id = ?
+         ORDER BY created_at DESC`,
+        [claimId]
+      ) as [Record<string, unknown>[], unknown];
+      disputes = disputeRows;
+    } catch { /* table may not exist yet */ }
     // ── 4. Parse JSON fields ─────────────────────────────────────────────────
     const costIntel    = safeJson(c.cost_intelligence_json);
     const repairIntel  = safeJson(c.repair_intelligence_json);
@@ -105,6 +126,10 @@ export async function generateForensicDecisionReport(
     const w3IntegrityFlags: any[]   = w3Integrity?.flags ?? [];
     const w3CriticalCount: number   = w3Integrity?.criticalCount ?? 0;
     const w3WarningCount: number    = w3Integrity?.warningCount ?? 0;
+    // FIX-#11: Include INFO-level flags in the total flag count for the executive summary.
+    // w3WarningCount only counts WARNING severity; INFO flags are real findings and should be visible.
+    const w3InfoCount: number       = w3IntegrityFlags.filter((f: any) => String(f.severity ?? '').toUpperCase() === 'INFO').length;
+    const w3TotalFlagCount: number  = w3CriticalCount + w3WarningCount + w3InfoCount;
     const w3IntegrityClean: boolean = w3Integrity?.clean ?? false;
     const w3CampbellSpeed: any      = w3Uncertainty?.campbellSpeed ?? null;
     const w3KineticEnergy: any      = w3Uncertainty?.kineticEnergy ?? null;
@@ -328,6 +353,9 @@ export async function generateForensicDecisionReport(
     const consensusSpeed = speedEnsemble?.consensusSpeedKmh
       ? Number(speedEnsemble.consensusSpeedKmh)
       : (speedMethods.find(m => m.highlight)?.speed ?? deltaV);
+    // FIX-#16: Round consensusSpeed to 1 decimal place to prevent floating-point artifacts
+    // like 60.99999... rendering in the executive summary and speed discrepancy text.
+    const consensusSpeedRounded = Math.round(consensusSpeed * 10) / 10;
 
     // ── Geometry Evidence Block (VGE Stage 6.5A + VGR Stage 6.5B) ───────────
     // Both are persisted in physics_analysis JSON since the Jul 2026 wiring fix.
@@ -375,7 +403,10 @@ export async function generateForensicDecisionReport(
     // Damage component counts
     // CONSIST-06 fix: removed hardcoded fallback of 62 — use actual pipeline values only.
     // If the pipeline did not produce component counts, show 0 rather than a fabricated number.
-    const totalComponents = Number(repairIntel?.totalComponents ?? costIntel?.totalComponents ?? 0);
+    // FIX-#DamageSeverity: When repairIntel and costIntel have no component counts, derive from
+    // enriched photos' componentCount sum. This prevents "0 COMPONENTS" in the damage severity bar.
+    const enrichedComponentsTotal = enrichedPhotos.reduce((sum, p) => sum + Number(p.componentCount ?? 0), 0);
+    const totalComponents = Number(repairIntel?.totalComponents ?? costIntel?.totalComponents ?? (enrichedComponentsTotal > 0 ? enrichedComponentsTotal : 0));
     const severeCount   = Number(repairIntel?.severeCount ?? 0);
     const moderateCount = Number(repairIntel?.moderateCount ?? 0);
     const minorCount    = Number(repairIntel?.minorCount ?? Math.max(0, totalComponents - severeCount - moderateCount));
@@ -436,12 +467,22 @@ export async function generateForensicDecisionReport(
     const auditGrade = auditScore >= 80 ? "High" : auditScore >= 60 ? "Medium" : "Low";
 
     // Approval workflow stages
+    // PHASE3-M: Wire to real insurance_audit_logs data. Map audit events to approval stages.
+    // Prefer forensicAudit.approvalWorkflow if pipeline wrote it; otherwise derive from audit trail.
+    const auditArr = auditEvents as Record<string, unknown>[];
+    const findAudit = (actions: string[]) => auditArr.find(e => actions.some(a => String(e.action ?? '').toLowerCase().includes(a)));
+    const fmtAuditDate = (e: Record<string, unknown> | undefined) => e?.timestamp ? new Date(String(e.timestamp)).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined;
+    const processorEvent = findAudit(['claim_reviewed', 'claim_processed', 'claim_submitted', 'claim_created']);
+    const assessorEvent  = findAudit(['claim_assessed', 'assessment_complete', 'assigned_to_assessor']);
+    const riskEvent      = findAudit(['risk_signoff', 'risk_approved', 'risk_review']);
+    const managerEvent   = findAudit(['claim_approved', 'claim_rejected', 'manager_approved', 'claims_manager']);
+    const execEvent      = findAudit(['executive_approved', 'gm_approved', 'exec_signoff']);
     const approvalStages = (forensicAudit?.approvalWorkflow as Array<{stage: number; role: string; status: string; officer?: string; date?: string}>) ?? [
-      { stage: 1, role: "Claims Processor Review", status: "Awaiting" },
-      { stage: 2, role: "Internal Assessor Assessment", status: "Pending" },
-      { stage: 3, role: "Risk Manager Sign-off", status: "Pending" },
-      { stage: 4, role: "Claims Manager Approval", status: "Pending" },
-      { stage: 5, role: "Executive / GM Sign-off", status: "Pending" },
+      { stage: 1, role: "Claims Processor Review", status: processorEvent ? "Complete" : "Awaiting", officer: processorEvent ? String(processorEvent.user_role ?? '—') : undefined, date: fmtAuditDate(processorEvent) },
+      { stage: 2, role: "Internal Assessor Assessment", status: assessorEvent ? "Complete" : "Pending", officer: assessorEvent ? String(assessorEvent.user_role ?? '—') : undefined, date: fmtAuditDate(assessorEvent) },
+      { stage: 3, role: "Risk Manager Sign-off", status: riskEvent ? "Complete" : "Pending", officer: riskEvent ? String(riskEvent.user_role ?? '—') : undefined, date: fmtAuditDate(riskEvent) },
+      { stage: 4, role: "Claims Manager Approval", status: managerEvent ? "Complete" : "Pending", officer: managerEvent ? String(managerEvent.user_role ?? '—') : undefined, date: fmtAuditDate(managerEvent) },
+      { stage: 5, role: "Executive / GM Sign-off", status: execEvent ? "Complete" : "Pending", officer: execEvent ? String(execEvent.user_role ?? '—') : undefined, date: fmtAuditDate(execEvent) },
     ];
     const completedStages = approvalStages.filter(s => String(s.status).toLowerCase() === "complete").length;
 
@@ -628,7 +669,7 @@ export async function generateForensicDecisionReport(
     }).join("\n");
 
     const speedDiscrepancy = preImpactSpeed > 0 && consensusSpeed > 0 && preImpactSpeed > consensusSpeed
-      ? Math.round(((preImpactSpeed - consensusSpeed) / consensusSpeed) * 100) : 0;
+      ? Math.round(((preImpactSpeed - consensusSpeedRounded) / consensusSpeedRounded) * 100) : 0;
 
     // ── SVG: Impact direction map ────────────────────────────────────────────
     const impactFromFront = impactDirection.includes("front") || impactDirection.includes("head");
@@ -786,14 +827,14 @@ export async function generateForensicDecisionReport(
       <div class="box">
         <h4>Physics Snapshot</h4>
         <table class="kv">
-          ${w3CampbellSpeed ? kvRow("Campbell speed (calibrated)", `${w3CampbellSpeed.formatted}`) : kvRow("Physics consensus speed", `${consensusSpeed} km/h`)}
+          ${w3CampbellSpeed ? kvRow("Campbell speed (calibrated)", `${w3CampbellSpeed.formatted}`) : kvRow("Physics consensus speed", `${consensusSpeedRounded} km/h`)}
           ${w3KineticEnergy ? kvRow("Kinetic energy", w3KineticEnergy.formatted) : kineticEnergy > 0 ? kvRow("Kinetic energy", `${kineticEnergy.toFixed(1)} kJ`) : ""}
           ${w3DeltaV ? kvRow("Delta-V", w3DeltaV.formatted) : impactForce > 0 ? kvRow("Impact force", `${impactForce.toLocaleString()} kN`) : ""}
           ${w3DeformEff ? kvRow("Deformation efficiency", w3DeformEff.formatted) : deceleration > 0 ? kvRow("Deceleration", `${deceleration.toFixed(2)} g`) : ""}
           ${w3Grade ? kvRow("Evidence quality", `<b>Grade ${w3Grade}</b> — ${w3Grade === 'A' ? 'tight' : w3Grade === 'B' ? 'moderate' : w3Grade === 'C' ? 'wide' : 'very wide'} uncertainty`) : ""}
         </table>
         ${w3VerdictPara ? `<p style="margin:8px 0 0 0;font-size:7.5pt;color:var(--ink-soft);line-height:1.5;">${esc(w3VerdictPara)}</p>` : speedDiscrepancy > 20 ? co(`Driver-stated speed is <b>${speedDiscrepancy}% higher</b> than the physics-derived estimate — verify before settlement.`, "amber") : ""}
-        ${w3CriticalCount > 0 ? co(`<b>${w3CriticalCount} critical physics contradiction${w3CriticalCount !== 1 ? 's' : ''} detected</b> — review integrity flags before settlement.`, "red") : w3WarningCount > 0 ? co(`${w3WarningCount} physics warning${w3WarningCount !== 1 ? 's' : ''} noted — see §04 integrity flags.`, "amber") : w3IntegrityClean ? co("All physics integrity checks passed.", "green") : ""}
+        ${w3CriticalCount > 0 ? co(`<b>${w3CriticalCount} critical physics contradiction${w3CriticalCount !== 1 ? 's' : ''} detected</b> — review integrity flags before settlement.`, "red") : w3TotalFlagCount > 0 ? co(`${w3TotalFlagCount} physics integrity flag${w3TotalFlagCount !== 1 ? 's' : ''} noted (${w3WarningCount} warning${w3WarningCount !== 1 ? 's' : ''}, ${w3InfoCount} info) — see §04 integrity flags.`, "amber") : w3IntegrityClean ? co("All physics integrity checks passed.", "green") : ""}
       </div>
     </div>
   </div>
@@ -902,7 +943,7 @@ export async function generateForensicDecisionReport(
           ${kvRow("Damage consistency", `${physicsScore}/100 — ${physicsScore >= 70 ? "Good" : physicsScore >= 40 ? "Moderate" : "Low"}`)}
           ${ptlBrakingDistanceM !== null ? kvRow(
             "Braking distance",
-            `<b>${ptlBrakingDistanceM.toFixed(1)} m</b> <span class="small" style="color:var(--ink-soft);">at ${consensusSpeed} km/h, μ=${ptlBrakingMu ?? 0.7} (${ptlBrakingMu === 0.4 ? 'wet road' : ptlBrakingMu === 0.3 ? 'gravel/dirt' : 'dry tarmac'})</span>`
+            `<b>${ptlBrakingDistanceM.toFixed(1)} m</b> <span class="small" style="color:var(--ink-soft);">at ${consensusSpeedRounded} km/h, μ=${ptlBrakingMu ?? 0.7} (${ptlBrakingMu === 0.4 ? 'wet road' : ptlBrakingMu === 0.3 ? 'gravel/dirt' : 'dry tarmac'})</span>`
           ) : ""}
         </table>
         ${physicsConstraints.length > 0 && physicsConstraints.some(c => c.result.toLowerCase() !== "pass")
@@ -911,12 +952,12 @@ export async function generateForensicDecisionReport(
       </div>
       <div class="box">
         <h4>Speed Analysis <span class="small">(${speedEnsemble?.overallConfidence?.toLowerCase() ?? auditGrade.toLowerCase()} confidence)</span></h4>
-        <p style="margin:0 0 4px 0;"><span style="font-size:26px; font-weight:700; font-family:'Helvetica Neue',Arial,sans-serif; color:var(--teal);">${consensusSpeed}</span> <span class="small">km/h consensus · ${rannedMethodCount} of ${totalMethodCount} method${totalMethodCount !== 1 ? 's' : ''} produced an estimate</span></p>
+        <p style="margin:0 0 4px 0;"><span style="font-size:26px; font-weight:700; font-family:'Helvetica Neue',Arial,sans-serif; color:var(--teal);">${consensusSpeedRounded}</span> <span class="small">km/h consensus · ${rannedMethodCount} of ${totalMethodCount} method${totalMethodCount !== 1 ? 's' : ''} produced an estimate</span></p>
         <svg width="100%" height="${chartHeight}" viewBox="0 0 ${chartWidth} ${chartHeight}" xmlns="http://www.w3.org/2000/svg">
           <line x1="20" y1="${baselineY}" x2="${chartWidth - 10}" y2="${baselineY}" stroke="#bdbdbd" stroke-width="1"/>
           ${speedBars}
         </svg>
-        ${speedDiscrepancy > 20 ? co(`<b>Speed discrepancy —</b> driver-stated ${preImpactSpeed} km/h is ${speedDiscrepancy}% higher than the ${consensusSpeed} km/h physics estimate. Verify before settlement.`, "red") : ""}
+        ${speedDiscrepancy > 20 ? co(`<b>Speed discrepancy —</b> driver-stated ${preImpactSpeed} km/h is ${speedDiscrepancy}% higher than the ${consensusSpeedRounded} km/h physics estimate. Verify before settlement.`, "red") : ""}
       </div>
     </div>
 
@@ -1009,12 +1050,12 @@ export async function generateForensicDecisionReport(
           )}
           ${ptlCausationCeiling !== null ? kvRow("Speed ceiling",
             ptlCausationBreached
-              ? `<span style="color:var(--red);font-weight:600;">&#9888; Breach — ${ptlCausationCeiling} km/h max, consensus ${consensusSpeed} km/h exceeds physical limit</span>`
+              ? `<span style="color:var(--red);font-weight:600;">&#9888; Breach — ${ptlCausationCeiling} km/h max, consensus ${consensusSpeedRounded} km/h exceeds physical limit</span>`
               : `${ptlCausationCeiling} km/h max <span style="color:var(--green);">&#10003; Within ceiling</span>`
           ) : ""}
           ${ptlBrakingDistanceM !== null ? kvRow(
             "Braking distance",
-            `${ptlBrakingDistanceM.toFixed(1)} m <span class="small" style="color:var(--ink-soft);">to stop from ${consensusSpeed} km/h on ${ptlBrakingMu === 0.4 ? 'wet road' : ptlBrakingMu === 0.3 ? 'gravel/dirt' : 'dry tarmac'} (μ=${ptlBrakingMu ?? 0.7})</span>`
+            `${ptlBrakingDistanceM.toFixed(1)} m <span class="small" style="color:var(--ink-soft);">to stop from ${consensusSpeedRounded} km/h on ${ptlBrakingMu === 0.4 ? 'wet road' : ptlBrakingMu === 0.3 ? 'gravel/dirt' : 'dry tarmac'} (μ=${ptlBrakingMu ?? 0.7})</span>`
           ) : ""}
           ${kvRow("Contradiction flag",
             ptlReversingContradiction
@@ -1022,7 +1063,7 @@ export async function generateForensicDecisionReport(
               : `<span style="color:var(--green);">&#10003; Suppressed — no active third-party conflict</span>`
           )}
         </table>
-        ${ptlCausationBreached ? co(`<b>Physical impossibility —</b> A reversing vehicle cannot exceed ~20 km/h. The consensus speed of ${consensusSpeed} km/h is physically impossible for the stated causation. Adjuster review required before settlement.`, "red") : ""}
+        ${ptlCausationBreached ? co(`<b>Physical impossibility —</b> A reversing vehicle cannot exceed ~20 km/h. The consensus speed of ${consensusSpeedRounded} km/h is physically impossible for the stated causation. Adjuster review required before settlement.`, "red") : ""}
         ${ptlReversingContradiction ? co(`<b>Narrative contradiction —</b> The claimant states they were reversing, but an active third party is also described. Causation may need to be revised to THIRD_PARTY_REAR_STRIKE. Request clarification.`, "amber") : ""}
         <p class="caption" style="margin-top:8px;">Causation is classified from the driver narrative and supporting documents. It determines who was in motion in reverse at the time of impact and imposes physical speed ceilings where applicable.</p>
       </div>
@@ -1049,7 +1090,7 @@ export async function generateForensicDecisionReport(
           ) : ""}
         </table>
         ${ptlCausationBreached
-          ? co(`<b>Physics inconsistency —</b> The physics evidence is inconsistent with the stated scenario. A vehicle in reverse gear cannot reach ${consensusSpeed} km/h. This claim requires adjuster investigation before settlement.`, "red")
+          ? co(`<b>Physics inconsistency —</b> The physics evidence is inconsistent with the stated scenario. A vehicle in reverse gear cannot reach ${consensusSpeedRounded} km/h. This claim requires adjuster investigation before settlement.`, "red")
           : ptlReversingContradiction
           ? co(`<b>Narrative review required —</b> The narrative states the claimant was reversing, but a third party is also named. Clarify whether the third party was also in motion and whether the causation should be reclassified.`, "amber")
           : co("The physics evidence is consistent with the stated scenario. No causation anomalies were detected by the automated forensic engine.", "green")
@@ -1241,7 +1282,7 @@ export async function generateForensicDecisionReport(
     <!-- No SLPE data — show legacy vehicle profile only -->
     <div class="cols-2">
       <div class="box">
-        <h4>${vehicleDesc} — ${vehicleClass}</h4>
+        <h4>${vehicleDesc}${vehicleClass !== "—" ? ` — ${vehicleClass}` : ""}</h4>
         <table class="kv">
           ${ancapRating !== "—" ? kvRow("ANCAP rating", ancapRating) : ""}
           ${adultOccupant !== "—" ? kvRow("Adult / Child occupant", `${adultOccupant}% / ${childOccupant}%`) : ""}
@@ -1249,10 +1290,11 @@ export async function generateForensicDecisionReport(
           ${massRange !== "—" ? kvRow("Typical mass range", `${massRange} kg`) : ""}
           ${kvRow("Safety risk", p(safetyRisk, safetyRisk.toLowerCase() === "low" ? "green" : safetyRisk.toLowerCase() === "medium" ? "amber" : "red"))}
         </table>
+        ${ancapRating === "—" && crash3A === "—" && massRange === "—" ? `<p class="small" style="color:var(--ink-soft);margin:6pt 0 0;">Vehicle geometry data is not available for this make/model/year. Structural load path analysis (SLPE) and ANCAP/CRASH3 benchmarks require vehicle geometry registration. This section will be populated in subsequent reports once the vehicle is registered in the KINGA geometry database.</p>` : ""}
       </div>
       <div class="box">
         <h4>Notes</h4>
-        <p style="margin:0;" class="small">${esc(vehicleNotes)}</p>
+        <p style="margin:0;" class="small">${vehicleNotes !== "No additional structural notes available." ? esc(vehicleNotes) : "No structural notes available. Physical inspection recommended for claims above insurer materiality threshold."}</p>
       </div>
     </div>`}
   </div>
@@ -1479,6 +1521,8 @@ export async function generateForensicDecisionReport(
     <div class="cols-2">
       <div class="box">
         <h4>Fraud Score — ${fraudScoreAdjusted}/100 (${fraudScoreAdjusted >= 70 ? "High" : fraudScoreAdjusted >= 40 ? "Moderate" : "Low"})</h4>
+        ${(!catBreak && fbPhysical === 0 && fbScenario === 0 && fbFinancial === 0 && fbDocumentation === 0 && fbEntity === 0 && fbPhoto === 0) ? `
+        <p class="small" style="color:var(--ink-soft);margin:0 0 8px 0;">Component breakdown not available — the pipeline did not produce category-level fraud scores for this assessment. The headline score of ${fraudScoreAdjusted}/100 is derived from the overall fraud model output.</p>` : ""}
         <table class="kv">
           ${kvRow("Physical consistency", `<span style="color:${fbPhysical >= Math.round(budgetPhysical * 0.5) ? "var(--amber)" : "inherit"}">${fbPhysical}/${budgetPhysical}</span>`)}
           ${kvRow("Scenario intelligence", `<span style="color:${fbScenario >= Math.round(budgetScenario * 0.5) ? "var(--amber)" : "inherit"}">${fbScenario}/${budgetScenario}</span>`)}
@@ -1513,7 +1557,7 @@ export async function generateForensicDecisionReport(
         <h4>Accident Date &amp; Cross-Engine Consistency</h4>
         <table class="kv">
           ${kvRow("Claim form vs. police report", esc(String(forensicAudit?.dateDelta ?? "0 days — consistent")))}
-          ${kvRow("Cross-engine agreement (C1–C9)", `${crossEngineAgreement}/100`)}
+          ${kvRow("Cross-engine agreement (C1–C9)", crossEngineAgreement != null ? `${crossEngineAgreement}/100` : `<span style="color:var(--ink-soft);">Not assessed</span>`)}
         </table>
       </div>
     </div>
@@ -1631,7 +1675,7 @@ export async function generateForensicDecisionReport(
         <h4>Required Next Steps</h4>
         <ul class="tight">
           ${(forensicAudit?.nextSteps as string[] ?? [
-            ...(speedDiscrepancy > 20 ? [`Verify stated impact speed (${preImpactSpeed} km/h) against the ${consensusSpeed} km/h physics estimate before settlement.`] : []),
+            ...(speedDiscrepancy > 20 ? [`Verify stated impact speed (${preImpactSpeed} km/h) against the ${consensusSpeedRounded} km/h physics estimate before settlement.`] : []),
             ...(physicsConstraints.some(c => c.result.toLowerCase() !== "pass") ? [`Investigate physics constraint failures — review airbag and seatbelt deployment thresholds.`] : []),
             ...(missingFromQuote > 0 ? [`Request an itemised quote with unit pricing to enable parts-level cost reconciliation.`] : []),
             ...(criticalStructural.length > 0 ? [`Obtain independent structural assessment for ${criticalStructural.length} flagged structural component${criticalStructural.length !== 1 ? "s" : ""}.`] : []),
@@ -1643,6 +1687,19 @@ export async function generateForensicDecisionReport(
     </div>
   </div>
 
+  <!-- §10b DISPUTE FLAG -->
+  ${disputes.length > 0 ? `<div class="section">
+    ${sectionTab("10b", "Dispute Record", "Dispute Filed", "high")}
+    <table class="grid-t">
+      <tr><th>Dispute ID</th><th>Reason</th><th>Status</th><th>Filed</th><th>Resolved</th><th>Resolution Notes</th></tr>
+      ${disputes.map((d: Record<string, unknown>) => {
+        const status = String(d.dispute_status ?? 'Open');
+        const statusPill = p(status, status.toLowerCase() === 'resolved' ? 'green' : status.toLowerCase() === 'open' ? 'red' : 'amber');
+        return `<tr><td>#${d.id}</td><td>${esc(String(d.dispute_reason ?? '—'))}</td><td>${statusPill}</td><td>${d.created_at ? new Date(String(d.created_at)).toLocaleDateString('en-GB') : '—'}</td><td>${d.resolved_at ? new Date(String(d.resolved_at)).toLocaleDateString('en-GB') : '—'}</td><td class="small">${esc(String(d.resolution_notes ?? '—'))}</td></tr>`;
+      }).join('')}
+    </table>
+    <p class="caption">This claim has an active or historical dispute on record. Settlement must not be finalised until all disputes are resolved and documented.</p>
+  </div>` : ''}
   <!-- §11 APPROVAL CHAIN -->
   <div class="section">
     ${sectionTab("11", "Approval Chain")}
