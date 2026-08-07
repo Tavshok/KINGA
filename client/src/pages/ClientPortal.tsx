@@ -23,6 +23,7 @@ import {
   Plus, Loader2, User, Bell, LogOut, Pencil, Trash2, Star,
   LayoutDashboard, Gauge, AlertCircle, ChevronRight, X
 } from "lucide-react";
+import { Truck, Building2 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import InsuranceRequestWizard from "@/components/InsuranceRequestWizard";
 import { getLoginUrl } from "@/const";
@@ -57,6 +58,8 @@ export default function ClientPortal() {
   const { data: myDocuments } = trpc.insuranceV2.getMyDocuments.useQuery(
     undefined, { enabled: !!user }
   );
+  const { data: myFleets } = trpc.fleet.getMyFleets.useQuery(undefined, { enabled: !!user });
+  const { data: myFleetVehicles } = trpc.fleet.getMyVehicles.useQuery(undefined, { enabled: !!user });
 
   // ── Derived data ────────────────────────────────────────────────────────────
   const pendingQuotes   = (requests ?? []).filter((r: any) => r.status === "quoted");
@@ -263,13 +266,57 @@ export default function ClientPortal() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold">My Vehicles</h2>
-          <p className="text-sm text-muted-foreground">Your personal vehicle registry — not linked to any corporate fleet.</p>
+          <p className="text-sm text-muted-foreground">Your personal and company vehicles.</p>
         </div>
         <Button onClick={() => setAddVehicleOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> Add Vehicle
         </Button>
       </div>
-      {!myVehicles || myVehicles.length === 0 ? (
+      {/* Company fleet section */}
+      {(myFleets as any[] | undefined)?.length ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 pt-1">
+            <Building2 className="h-4 w-4 text-purple-600" />
+            <h3 className="font-semibold text-sm text-purple-700">Company Fleet</h3>
+          </div>
+          {(myFleets as any[]).map((fleet: any) => {
+            const fv = (myFleetVehicles as any[] ?? []).filter((v: any) => v.fleetId === fleet.id);
+            return (
+              <Card key={fleet.id} className="border-purple-100 bg-purple-50/30">
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4 text-purple-600" />
+                      <p className="font-semibold text-sm">{fleet.accountName ?? "Fleet"}</p>
+                    </div>
+                    <Badge variant="outline" className="text-xs border-purple-200 text-purple-700 capitalize">{fleet.status ?? "active"}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">{fv.length} vehicle{fv.length !== 1 ? "s" : ""} registered</p>
+                  {fv.length > 0 && (
+                    <div className="grid grid-cols-2 gap-1.5 mb-3">
+                      {fv.slice(0, 4).map((v: any) => (
+                        <div key={v.id} className="flex items-center gap-1.5 p-1.5 rounded border bg-white text-xs">
+                          <Car className="h-3 w-3 text-muted-foreground shrink-0" />
+                          <span className="truncate">{v.year} {v.make} {v.model}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setLocation("/fleet")}>
+                    <Truck className="h-3.5 w-3.5 mr-1.5" /> Manage in Fleet Portal <ArrowRight className="h-3.5 w-3.5 ml-auto" />
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+          <Separator />
+          <div className="flex items-center gap-2">
+            <Car className="h-4 w-4 text-muted-foreground" />
+            <h3 className="font-semibold text-sm text-muted-foreground">Personal Vehicles</h3>
+          </div>
+        </div>
+      ) : null}
+     {!myVehicles || myVehicles.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-12 text-center">
             <Car className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-40" />

@@ -451,8 +451,14 @@ export default function FleetManagerDashboard() {
           <FleetMaintenanceTab />
         )}
         {mainTab === 'drivers' && (
-          <div style={{ padding: '16px 0', color: '#6b7280', fontSize: 13 }}>
-            Driver management coming soon — backend procedures for listDrivers and addDriver are ready.
+          <div className="p-6 space-y-6">
+            <ManagerReviewDashboard fleetId={primaryAccount?.id} />
+            {primaryAccount?.id && (
+              <div>
+                <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Onboard New Driver</h3>
+                <DriverOnboardingWizard fleetId={primaryAccount.id} />
+              </div>
+            )}
           </div>
         )}
         {mainTab === 'intelligence' && (
@@ -703,3 +709,5 @@ export default function FleetManagerDashboard() {
     </div>
   );
 }
+import { DriverOnboardingWizard } from "@/components/fleet/DriverOnboardingWizard";
+import { ManagerReviewDashboard } from "@/components/fleet/ManagerReviewDashboard";
