@@ -153,6 +153,24 @@ export async function getRawPool(): Promise<mysql.Pool | null> {
 }
 
 /**
+ * getDbOrThrow — same as getDb() but throws a typed error if the DB is unavailable.
+ * Use this in any code path where a null DB should be treated as a hard failure
+ * (e.g. WhatsApp session manager, background jobs, webhook handlers).
+ *
+ * This eliminates TypeScript TS2531 "Object is possibly null" errors at call sites
+ * that chain DB operations without a null guard.
+ *
+ * TECH-01: Added Aug 2026 as part of TypeScript error remediation.
+ */
+export async function getDbOrThrow() {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("[Database] Connection unavailable — DB not initialised or connection failed");
+  }
+  return db;
+}
+
+/**
  * Execute a database operation with automatic retry on transient connection errors.
  * Handles ECONNRESET / PROTOCOL_CONNECTION_LOST by resetting the pool and retrying.
  * Use this wrapper for any DB call that runs outside of a live HTTP request context

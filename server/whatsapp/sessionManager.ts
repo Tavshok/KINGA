@@ -5,7 +5,7 @@
  * Sessions are identified by phone number. Only one active session per phone at a time.
  */
 
-import { getDb } from "../db";
+import { getDbOrThrow } from "../db";
 import { whatsappSessions } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -41,7 +41,7 @@ function rowToSession(row: typeof whatsappSessions.$inferSelect): Session {
 
 /** Load the most recent active/paused session for a phone number */
 export async function loadSession(phoneNumber: string): Promise<Session | null> {
-  const rows = await (await getDb())
+  const rows = await (await getDbOrThrow())
     .select()
     .from(whatsappSessions)
     .where(
@@ -54,7 +54,7 @@ export async function loadSession(phoneNumber: string): Promise<Session | null> 
 
   if (!rows.length) {
     // Also check paused sessions
-    const paused = await (await getDb())
+    const paused = await (await getDbOrThrow())
       .select()
       .from(whatsappSessions)
       .where(
@@ -83,7 +83,7 @@ export async function loadSession(phoneNumber: string): Promise<Session | null> 
 export async function createSession(phoneNumber: string): Promise<Session> {
   const id = randomUUID();
   const now = new Date().toISOString().slice(0, 19).replace("T", " ");
-  await (await getDb()).insert(whatsappSessions).values({
+  await (await getDbOrThrow()).insert(whatsappSessions).values({
     id,
     phoneNumber,
     state: "GREETING",
@@ -109,7 +109,7 @@ export async function createSession(phoneNumber: string): Promise<Session> {
 /** Save session state and data */
 export async function saveSession(session: Session): Promise<void> {
   const now = new Date().toISOString().slice(0, 19).replace("T", " ");
-  await (await getDb())
+  await (await getDbOrThrow())
     .update(whatsappSessions)
     .set({
       intent: session.intent ?? undefined,
@@ -131,7 +131,7 @@ export async function submitSession(session: Session): Promise<void> {
 /** Pause session with resume context */
 export async function pauseSession(sessionId: string, resumeContext: string): Promise<void> {
   const now = new Date().toISOString().slice(0, 19).replace("T", " ");
-  await (await getDb())
+  await (await getDbOrThrow())
     .update(whatsappSessions)
     .set({ status: "paused", resumeContext, lastMessageAt: now })
     .where(eq(whatsappSessions.id, sessionId));
@@ -141,7 +141,7 @@ export async function pauseSession(sessionId: string, resumeContext: string): Pr
 export async function expireOldSessions(): Promise<number> {
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     .toISOString().slice(0, 19).replace("T", " ");
-  const result = await (await getDb())
+  const result = await (await getDbOrThrow())
     .update(whatsappSessions)
     .set({ status: "expired" })
     .where(

@@ -5,7 +5,7 @@
 import type { Session } from "./sessionManager";
 import type { IWhatsAppProvider, WaButton } from "./provider";
 import type { QuoteSessionData, ValuationSessionData, IncomingMessage } from "./types";
-import { getDb } from "../db";
+import { getDbOrThrow } from "../db";
 import { claims, quotationRequests } from "../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 

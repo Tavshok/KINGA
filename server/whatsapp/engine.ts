@@ -14,7 +14,7 @@ import { TwilioAdapter, MockWhatsAppAdapter, type IWhatsAppProvider } from "./pr
 import type { IncomingMessage } from "./types";
 import { handleClaimState } from "./claimJourney";
 import { handleStatusJourney, handleQuoteState, handleValuationState } from "./otherJourneys";
-import { getDb } from "../db";
+import { getDbOrThrow } from "../db";
 import { claims } from "../../drizzle/schema";
 import type { ClaimSessionData } from "./types";
 
@@ -267,7 +267,7 @@ async function submitClaimToDb(
     const claimNumber = `KNG-WA-${Date.now().toString(36).toUpperCase()}`;
     const now = new Date().toISOString().slice(0, 19).replace("T", " ");
 
-    await (await getDb()).insert(claims).values({
+    await (await getDbOrThrow()).insert(claims).values({
       claimNumber,
       status: "submitted" as any,
       claimSource: "whatsapp",
