@@ -5285,6 +5285,42 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           status: "submitted",
         });
         
+
+        // TECH-05A: Write line items to quote_line_items table so the cost optimisation
+        // engine can read per-line prices from the structured table (not just the JSON blob).
+        if (input.itemizedBreakdown && input.itemizedBreakdown.length > 0) {
+          try {
+            const _db05 = await getDb();
+            if (_db05) {
+              const { panelBeaterQuotes: _pbq2 } = await import('../drizzle/schema');
+              const { eq: _eq3, and: _and3, desc: _desc3 } = await import('drizzle-orm');
+              const [_newQuote] = await _db05
+                .select({ id: _pbq2.id })
+                .from(_pbq2)
+                .where(_and3(_eq3(_pbq2.claimId, input.claimId), _eq3(_pbq2.panelBeaterId, input.panelBeaterId)))
+                .orderBy(_desc3(_pbq2.id))
+                .limit(1);
+              if (_newQuote) {
+                const { quoteLineItems: _qli } = await import('../drizzle/schema');
+                const lineItemRows = input.itemizedBreakdown.map((li, idx) => ({
+                  quoteId: _newQuote.id,
+                  itemNumber: idx + 1,
+                  description: li.item,
+                  category: 'parts' as const,
+                  quantity: '1.00',
+                  unitPrice: String(li.cost),
+                  lineTotal: String(li.cost),
+                  currency: 'USD',
+                  isReplacement: 1,
+                }));
+                await _db05.insert(_qli).values(lineItemRows);
+                console.log(`[quotes.submit] Wrote ${lineItemRows.length} line items to quote_line_items for quote ${_newQuote.id}`);
+              }
+            }
+          } catch (_liErr) {
+            console.error('[quotes.submit] Failed to write line items:', _liErr);
+          }
+        }
         // Check if all quotes have been received (3 panel beaters)
         const allQuotes = await getQuotesByClaimId(input.claimId);
         const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
