@@ -248,20 +248,71 @@ async function generateClaimAssessmentReport(
       `SELECT a.damaged_components_json FROM ai_assessments a WHERE a.claim_id=? ORDER BY a.created_at DESC LIMIT 1`,
       [claimId]
     ) as [Record<string, unknown>[], unknown];
+    // Load all panel beater quotes and their line items for the §04b comparison table
+    const [quoteRows] = await conn.execute(
+      `SELECT q.id, q.quoted_amount, q.labor_cost, q.parts_cost, q.status, q.currency_code,
+              pb.business_name AS panel_beater_name
+       FROM panel_beater_quotes q
+       LEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id
+       WHERE q.claim_id = ?
+       ORDER BY q.quoted_amount ASC`,
+      [claimId]
+    ) as [Record<string, unknown>[], unknown];
+    // Load line items for each quote
+    const quoteLineItemsMap = new Map<number, Record<string, unknown>[]>();
+    for (const q of quoteRows) {
+      const [liRows] = await conn.execute(
+        `SELECT description, category, unit_price, line_total FROM quote_line_items WHERE quote_id = ? ORDER BY id ASC`,
+        [q.id]
+      ) as [Record<string, unknown>[], unknown];
+      quoteLineItemsMap.set(Number(q.id), liRows);
+    }
     const rawCompsData = safeJson((damageRows[0] as Record<string,unknown>)?.damaged_components_json);
     const rawComps: Record<string, unknown>[] = Array.isArray(rawCompsData)
       ? (rawCompsData as Record<string,unknown>[])
       : Array.isArray((rawCompsData as Record<string,unknown> | null)?.components)
         ? ((rawCompsData as Record<string,unknown>).components as Record<string,unknown>[])
         : [];
-    // Normalise field names — damage_analysis uses various shapes
-    const comps = rawComps.map(c => ({
-      component_name: String(c.name ?? c.component ?? c.componentName ?? c.partName ?? ""),
-      damage_severity: String(c.severity ?? c.damageSeverity ?? c.damage_severity ?? "unknown"),
-      repair_or_replace: String(c.repairOrReplace ?? c.action ?? c.repair_or_replace ?? "repair"),
-      estimated_cost: Number(c.estimatedCost ?? c.estimated_cost ?? c.cost ?? 0),
-      labour_hours: Number(c.labourHours ?? c.labour_hours ?? 0),
-    })).sort((a, b) => b.estimated_cost - a.estimated_cost);
+    // Normalise field names — damage_analysis uses various shapes.
+    // Per-component prices: cross-reference compositeOptimisation.compositeLineItems first.
+    // The pipeline writes real benchmark/quote prices there; damaged_components_json has
+    // estimatedCost=0 when OCR did not extract per-line prices from the submitted quote PDF.
+    const compositeLineItemsCL: Array<{componentName: string; selectedCostUsd: number}> =
+      Array.isArray((costIntel as any)?.compositeOptimisation?.compositeLineItems)
+        ? (costIntel as any).compositeOptimisation.compositeLineItems
+        : [];
+    // Build a fuzzy lookup: compositeLineItems names may differ from damaged_components_json names
+    // (e.g. "Front bumper" vs "Front Bumper", "Grille" vs "Front Grille", "Bonnet" vs "Bonnet (Hood)")
+    // Strategy: exact match first, then strict contains-based match only.
+    // Deliberately NOT using word-overlap (too many false positives: "bumper mesh" → "Front Bumper").
+    function lookupCompositeCost(rawName: string): number {
+      const key = rawName.toLowerCase().trim();
+      // 1. Exact match (case-insensitive)
+      for (const li of compositeLineItemsCL) {
+        if (li.componentName.toLowerCase().trim() === key) return Number(li.selectedCostUsd ?? 0);
+      }
+      // 2. Composite name is a substring of raw name OR raw name is a substring of composite name
+      //    Only when the shorter string is at least 5 chars (avoids "hood" matching "bonnet (hood)")
+      for (const li of compositeLineItemsCL) {
+        const liKey = li.componentName.toLowerCase().trim();
+        const shorter = key.length < liKey.length ? key : liKey;
+        const longer  = key.length < liKey.length ? liKey : key;
+        if (shorter.length >= 5 && longer.includes(shorter)) return Number(li.selectedCostUsd ?? 0);
+      }
+      return 0;
+    }
+    const comps = rawComps.map(c => {
+      const rawName = String(c.name ?? c.component ?? c.componentName ?? c.partName ?? "");
+      const compositePrice = lookupCompositeCost(rawName);
+      const rawCost = Number(c.estimatedCost ?? c.estimated_cost ?? c.cost ?? 0);
+      return {
+        component_name: rawName,
+        damage_severity: String(c.severity ?? c.damageSeverity ?? c.damage_severity ?? "unknown"),
+        repair_or_replace: String(c.repairOrReplace ?? c.action ?? c.repair_or_replace ?? "repair"),
+        estimated_cost: compositePrice > 0 ? compositePrice : rawCost,
+        labour_hours: Number(c.labourHours ?? c.labour_hours ?? 0),
+      };
+    }).sort((a, b) => b.estimated_cost - a.estimated_cost);
 
     // FRAUD-RECONCILE: Use fraud_score_breakdown_json.overallScore as canonical when available.
     // This ensures the header scorecard and the Appendix A fraud section show the same number.
@@ -271,10 +322,30 @@ async function generateClaimAssessmentReport(
     const fraudScore = fraudBreakOverall != null ? Number(fraudBreakOverall) : fraudScoreRaw;
     const fraudScoreMismatch = fraudBreakOverall != null && Math.abs(Number(fraudBreakOverall) - fraudScoreRaw) >= 5;
     const confidenceScore = Number(claim.confidence_score ?? 0);
-    const estimatedCost = Number(claim.estimated_cost ?? 0);
-    const kingaOptimised = Number((costIntel as Record<string,unknown> | null)?.compositeOptimisation
-      ? ((costIntel as Record<string,unknown>).compositeOptimisation as Record<string,unknown>)?.compositeOptimisedCostUsd ?? 0
-      : 0);
+    // estimatedCost: ai_assessments.estimated_cost is stored in CENTS — divide by 100.
+    // Prefer documentedAgreedCostUsd from costIntelligenceJson (already in dollars, more accurate).
+    const estimatedCostRaw = Number(claim.estimated_cost ?? 0);
+    const estimatedCost = (costIntel as any)?.documentedAgreedCostUsd
+      ? Number((costIntel as any).documentedAgreedCostUsd)
+      : estimatedCostRaw > 0
+        ? estimatedCostRaw / 100
+        : 0;
+    // KINGA Optimised: l2CompositeOptimisedCostUsd is the actual field written by the engine.
+    // compositeOptimisedCostUsd does not exist in current DB data — l2 is the canonical field name.
+    const kingaOptimised = (() => {
+      const comp = (costIntel as any)?.compositeOptimisation;
+      if (comp?.l2CompositeOptimisedCostUsd && Number(comp.l2CompositeOptimisedCostUsd) > 0)
+        return Number(comp.l2CompositeOptimisedCostUsd);
+      if (comp?.compositeOptimisedCostUsd && Number(comp.compositeOptimisedCostUsd) > 0)
+        return Number(comp.compositeOptimisedCostUsd);
+      if ((costIntel as any)?.quoteOptimisation?.optimised_cost_usd &&
+          Number((costIntel as any).quoteOptimisation.optimised_cost_usd) > 0)
+        return Number((costIntel as any).quoteOptimisation.optimised_cost_usd);
+      if ((costIntel as any)?.kingaSavingsL2OptimisedUsd &&
+          Number((costIntel as any).kingaSavingsL2OptimisedUsd) > 0)
+        return Number((costIntel as any).kingaSavingsL2OptimisedUsd);
+      return estimatedCost;
+    })();
     const repairToValue = Number(claim.repair_to_value_ratio ?? 0);
     const isTotalLoss = Boolean(claim.total_loss_indicated);
     // BUG-02 fix: prefer excess_amount_cents (canonical cents column) over legacy policy_excess
@@ -595,10 +666,73 @@ ${totalPhotosCL > 0 ? `
     </td>
   </tr></table>
   ${kingaOptimised > 0 ? `<p style="font-size:10px;color:#4a4a4a;margin-top:8px;">
-    KINGA Optimised estimate: <strong>${fmtUSD(kingaOptimised)}</strong> — derived from per-component L2 composite pricing across all submitted quotes.
-    Component sub-total in §3 above (${fmtUSD(compTotal)}) reflects damage-assessment costs only and may differ where quote line items include additional labour, consumables, or scope items not captured in the component list.
-    Full line-item breakdown and quote comparison available at Protect tier.
+    KINGA Optimised estimate: <strong>${fmtUSD(kingaOptimised)}</strong> — derived from per-component L2 composite pricing across ${compositeLineItemsCL.length} priced components.
+    ${compositeLineItemsCL.length < comps.length ? `<span style="color:#b8720b;font-weight:600;">Note: ${compositeLineItemsCL.length} of ${comps.length} components were priced by the engine — paint, labour, and sundries are excluded from this figure. Refer to the lowest submitted quote (${ fmtUSD((costIntel as any)?.documentedAgreedCostUsd ?? (costIntel as any)?.l1LowestSubmittedCostUsd ?? (costIntel as any)?.compositeOptimisation?.l1LowestSubmittedCostUsd ?? 0)}) as the recommended settlement reference.</span>` : ""}
   </p>` : ""}
+  ${quoteRows.length > 0 ? (() => {
+    // Build a union of all line item descriptions across all quotes
+    const allDescs = new Set<string>();
+    quoteLineItemsMap.forEach(items => items.forEach(i => allDescs.add(String(i.description ?? ""))));
+    const descList = Array.from(allDescs).filter(d => d.length > 0);
+    // Find the composite selected price for each description
+    const compositeMap = new Map<string, {cost: number; source: string}>(
+      compositeLineItemsCL.map(li => [li.componentName, {cost: Number(li.selectedCostUsd), source: (li as any).selectedFromQuote ?? ""}])
+    );
+    function findComposite(desc: string): {cost: number; source: string} | null {
+      const key = desc.toLowerCase().trim();
+      for (const [name, val] of compositeMap) {
+        const nk = name.toLowerCase().trim();
+        const shorter = key.length < nk.length ? key : nk;
+        const longer  = key.length < nk.length ? nk : key;
+        if (shorter === longer || (shorter.length >= 5 && longer.includes(shorter))) return val;
+      }
+      return null;
+    }
+    const quoteNames = quoteRows.map(q => String((q as any).panel_beater_name ?? `Quote ${q.id}`));
+    const colW = Math.floor(55 / quoteRows.length);
+    return `
+<div style="margin-top:14px;">
+  <div style="font-size:10px;font-weight:700;color:#4a4a4a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Quote Comparison — Line Item Breakdown</div>
+  <table style="width:100%;border-collapse:collapse;font-size:10px;">
+    <thead>
+      <tr style="background:#f0f0f0;border-bottom:2px solid #d9d9d9;">
+        <th style="text-align:left;padding:4px 8px;width:25%;font-size:9px;color:#4a4a4a;">Line Item</th>
+        ${quoteRows.map((q, i) => `<th style="text-align:right;padding:4px 6px;width:${colW}%;font-size:9px;color:#4a4a4a;">${esc(quoteNames[i])}<br><span style="font-weight:400;color:#8a8a8a">${fmtUSD(Number((q as any).quoted_amount ?? 0) / 100)}</span></th>`).join("")}
+        <th style="text-align:right;padding:4px 6px;width:12%;font-size:9px;color:#3C7844;font-weight:700;">KINGA Opt.</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${descList.map(desc => {
+        const comp = findComposite(desc);
+        const cells = quoteRows.map(q => {
+          const items = quoteLineItemsMap.get(Number(q.id)) ?? [];
+          const match = items.find(i => String(i.description ?? "").toLowerCase() === desc.toLowerCase());
+          const val = match ? Number(match.line_total ?? match.unit_price ?? 0) : null;
+          return val != null && val > 0
+            ? `<td style="padding:3px 6px;text-align:right;font-family:monospace;">${fmtUSD(val)}</td>`
+            : `<td style="padding:3px 6px;text-align:right;color:#bbb;">—</td>`;
+        }).join("");
+        const kingaCell = comp && comp.cost > 0
+          ? `<td style="padding:3px 6px;text-align:right;font-family:monospace;color:#3C7844;font-weight:700;">${fmtUSD(comp.cost)}<br><span style="font-size:8px;color:#8a8a8a;font-weight:400;">${esc(comp.source === "kinga_benchmark" ? "benchmark" : comp.source)}</span></td>`
+          : `<td style="padding:3px 6px;text-align:right;color:#bbb;">—</td>`;
+        return `<tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:3px 8px;font-weight:600;">${esc(desc)}</td>
+          ${cells}
+          ${kingaCell}
+        </tr>`;
+      }).join("")}
+    </tbody>
+    <tfoot>
+      <tr style="border-top:2px solid #d9d9d9;background:#fafafa;font-weight:700;">
+        <td style="padding:4px 8px;font-size:10px;">TOTAL</td>
+        ${quoteRows.map(q => `<td style="padding:4px 6px;text-align:right;font-family:monospace;">${fmtUSD(Number((q as any).quoted_amount ?? 0) / 100)}</td>`).join("")}
+        <td style="padding:4px 6px;text-align:right;font-family:monospace;color:#3C7844;">${fmtUSD(kingaOptimised)}<br><span style="font-size:8px;color:#8a8a8a;font-weight:400;">${compositeLineItemsCL.length} components</span></td>
+      </tr>
+    </tfoot>
+  </table>
+  <p style="font-size:9px;color:#8a8a8a;margin-top:4px;">KINGA Opt. = per-component minimum of lowest credible submitted price and benchmark P50. Components not priced by the engine show —. Lowest submitted quote total is the recommended settlement reference when KINGA Optimised covers fewer than all components.</p>
+</div>` ;
+  })() : ""}
 </div>
 
 <!-- ── §5 PHYSICS / FRAUD ── -->

@@ -131,7 +131,14 @@ export async function generateClaimsIntelligenceReport(
       : null;
     const rtvRatio = rtvRatioRaw ?? rtvRatioDerived ?? 0;
     // BUG-01 fix: vehicle_market_value is stored in cents — divide by 100 at point of read
-    const estimatedCost = Number(c.estimated_cost ?? 0);
+    // BUG-COST: ai_assessments.estimated_cost is also stored in CENTS — divide by 100.
+    // Prefer documentedAgreedCostUsd from costIntelligenceJson (already in dollars, more accurate).
+    const estimatedCostRawCI = Number(c.estimated_cost ?? 0);
+    const estimatedCost = (costIntel as any)?.documentedAgreedCostUsd
+      ? Number((costIntel as any).documentedAgreedCostUsd)
+      : estimatedCostRawCI > 0
+        ? estimatedCostRawCI / 100
+        : 0;
     const submittedDate = c.created_at ? Number(c.created_at) : null;
     const incidentDate  = c.incident_date ? Number(c.incident_date) : null;
     const dayDelay = (submittedDate && incidentDate)
@@ -144,18 +151,26 @@ export async function generateClaimsIntelligenceReport(
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
     const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
     // KINGA Optimised Estimate — L2 composite (per-component min(lowest credible, model P50))
-    // Primary: compositeOptimisation.compositeOptimisedCostUsd (canonical field from buildCompositeQuote)
+    // Primary: l2CompositeOptimisedCostUsd — the actual field written by the engine.
+    // compositeOptimisedCostUsd does not exist in current DB data (field name mismatch).
     const kingaOptimised: number = (() => {
       const comp = (costIntel?.compositeOptimisation as Record<string, unknown> | null | undefined);
-      // Primary: compositeOptimisedCostUsd — canonical L2 field written by buildCompositeQuote
+      // L2 composite: l2CompositeOptimisedCostUsd is the canonical field in the DB
+      if ((comp as any)?.l2CompositeOptimisedCostUsd && Number((comp as any).l2CompositeOptimisedCostUsd) > 0)
+        return Number((comp as any).l2CompositeOptimisedCostUsd);
+      // Legacy alias kept for forward compatibility
       if (comp?.compositeOptimisedCostUsd && Number(comp.compositeOptimisedCostUsd) > 0)
         return Number(comp.compositeOptimisedCostUsd);
+      // quoteOptimisation.optimised_cost_usd — weighted average across submitted quotes
+      if ((costIntel as any)?.quoteOptimisation?.optimised_cost_usd &&
+          Number((costIntel as any).quoteOptimisation.optimised_cost_usd) > 0)
+        return Number((costIntel as any).quoteOptimisation.optimised_cost_usd);
       // Top-level backfill (set by Stage 9 after composite is built)
       if ((costIntel as any)?.kingaSavingsL2OptimisedUsd && Number((costIntel as any).kingaSavingsL2OptimisedUsd) > 0)
         return Number((costIntel as any).kingaSavingsL2OptimisedUsd);
       if (costIntel?.totalEstimatedCost) return Number(costIntel.totalEstimatedCost);
       if (costIntel?.expectedRepairCostCents) return Number(costIntel.expectedRepairCostCents) / 100;
-      return estimatedCost; // already in dollars
+      return estimatedCost;
     })();
     const savings = highestQuote > 0 ? highestQuote - kingaOptimised : 0;
     const savingsPct = highestQuote > 0 ? (savings / highestQuote * 100) : 0;

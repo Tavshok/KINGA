@@ -192,7 +192,14 @@ export async function generateForensicDecisionReport(
     const rtvRatio    = Number(c.repair_to_value_ratio ?? 0);
     // vehicle_market_value is stored in cents — divide by 100 for display
     const marketValue = Number(c.vehicle_market_value ?? 0) / 100;
-    const estimatedCost = Number(c.estimated_cost ?? 0);
+    // ai_assessments.estimated_cost is stored in CENTS — divide by 100.
+    // Prefer documentedAgreedCostUsd from costIntelligenceJson (already in dollars, more accurate).
+    const estimatedCostRawFR = Number(c.estimated_cost ?? 0);
+    const estimatedCost = (costIntel as any)?.documentedAgreedCostUsd
+      ? Number((costIntel as any).documentedAgreedCostUsd)
+      : estimatedCostRawFR > 0
+        ? estimatedCostRawFR / 100
+        : 0;
 
     const quoteArr = quotes as Record<string, unknown>[];
     const quoteAmounts = quoteArr.map(q => Number(q.quoted_amount ?? 0) / 100);
@@ -208,14 +215,21 @@ export async function generateForensicDecisionReport(
     ).toUpperCase();
 
     // KINGA Optimised Estimate — L2 composite (per-component min(lowest credible, model P50))
-    // Primary source: compositeOptimisation.compositeOptimisedCostUsd (written by Stage 9 buildCompositeQuote)
-    // Also available as top-level kingaSavingsL2OptimisedUsd for direct access
+    // Primary source: l2CompositeOptimisedCostUsd — the actual field written by the engine.
+    // compositeOptimisedCostUsd does not exist in current DB data (field name mismatch).
     const kingaOptimised: number = (() => {
       const comp = (costIntel?.compositeOptimisation as Record<string, unknown> | null | undefined);
-      // Primary: compositeOptimisedCostUsd — the canonical L2 field written by buildCompositeQuote
+      // L2 composite: l2CompositeOptimisedCostUsd is the canonical field in the DB
+      if ((comp as any)?.l2CompositeOptimisedCostUsd && Number((comp as any).l2CompositeOptimisedCostUsd) > 0)
+        return Number((comp as any).l2CompositeOptimisedCostUsd);
+      // Legacy alias kept for forward compatibility
       if (comp?.compositeOptimisedCostUsd && Number(comp.compositeOptimisedCostUsd) > 0)
         return Number(comp.compositeOptimisedCostUsd);
-      // Also available as top-level field (backfilled by Stage 9 after composite is built)
+      // quoteOptimisation.optimised_cost_usd — weighted average across submitted quotes
+      if ((costIntel as any)?.quoteOptimisation?.optimised_cost_usd &&
+          Number((costIntel as any).quoteOptimisation.optimised_cost_usd) > 0)
+        return Number((costIntel as any).quoteOptimisation.optimised_cost_usd);
+      // Top-level backfill (set by Stage 9 after composite is built)
       if ((costIntel as any)?.kingaSavingsL2OptimisedUsd && Number((costIntel as any).kingaSavingsL2OptimisedUsd) > 0)
         return Number((costIntel as any).kingaSavingsL2OptimisedUsd);
       if (costIntel?.totalEstimatedCost && Number(costIntel.totalEstimatedCost) > 0)
