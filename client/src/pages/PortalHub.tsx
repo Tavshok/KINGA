@@ -16,7 +16,7 @@ import {
   UserCog,
   HardHat
 } from "lucide-react";
-import { Car } from "lucide-react";
+import { Home } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { useRoleDashboardRoute } from "@/components/RoleRouteGuard";
@@ -59,40 +59,31 @@ export default function PortalHub() {
       roles: ["panel_beater", "admin"]
     },
     {
-      id: "claimant",
-      title: "Claimant Portal",
-      description: "Submit claims and track progress",
-      icon: User,
-      path: "/claimant/dashboard",
-      color: "from-purple-500 to-pink-500",
-      roles: ["claimant", "admin"]
+      id: "my-portal",
+      title: "My Portal",
+      description: "Your personal hub — valuations, insurance, claims, and personal vehicles",
+      icon: Home,
+      path: "/client",
+      color: "from-violet-500 to-purple-600",
+      roles: ["user", "claimant", "fleet_admin", "fleet_manager", "fleet_driver", "insurer", "assessor", "panel_beater", "engineer", "admin", "agency_broker", "agency_admin"]
     },
     {
       id: "fleet",
       title: "Fleet Management",
       description: "Fleet Command Centre — vehicles, risk analytics, cost intelligence, and claims management",
       icon: Truck,
-      path: "/claimant/fleet-dashboard",
+      path: "/fleet",
       color: "from-teal-500 to-cyan-500",
-      roles: ["fleet_admin", "fleet_manager", "insurer", "admin"]
-    },
-    {
-      id: "fleet_driver",
-      title: "Driver Workspace",
-      description: "Your assigned vehicle, incident reporting, maintenance alerts, and claims.",
-      icon: Car,
-      path: "/fleet/driver",
-      color: "from-slate-500 to-slate-600",
-      roles: ["fleet_driver", "admin"]
+      roles: ["fleet_admin", "fleet_manager", "fleet_driver", "admin"]
     },
     {
       id: "kinga-agency",
       title: "KINGA Agency",
-      description: "Request insurance quotations, manage policy renewals, and upload documents",
+      description: "Client request inbox, valuations, commissions, and agency performance",
       icon: Building2,
       path: "/agency",
       color: "from-emerald-500 to-teal-500",
-      roles: ["insurer", "admin", "claimant", "assessor"]
+      roles: ["agency_broker", "agency_admin", "admin"]
     },
     {
       id: "engineers",

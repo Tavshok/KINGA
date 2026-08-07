@@ -767,43 +767,18 @@ function Router() {
         </Route>
         
         {/* Claimant Routes — /portal domain */}
-        <Route path="/claimant/dashboard">
-          <ProtectedRoute domain="portal">
-            <ClaimantPortalLayout><ClaimantDashboard /></ClaimantPortalLayout>
-          </ProtectedRoute>
-        </Route>
-        <Route path="/claimant/submit-claim">
-          <ProtectedRoute domain="portal">
-            <ClaimantPortalLayout><SubmitClaim /></ClaimantPortalLayout>
-          </ProtectedRoute>
-        </Route>
-        <Route path="/claimant/fleet-dashboard">
-          {/* Fleet Manager / Admin Dashboard */}
-          <ProtectedRoute allowedRoles={["claimant", "admin", "fleet_admin", "fleet_manager"]}>
-            <ClaimantPortalLayout><FleetManagerDashboard /></ClaimantPortalLayout>
-          </ProtectedRoute>
-          {/* Fleet Driver Dashboard — role-scoped view for fleet_driver */}
-          <Route path="/fleet/driver">
-            <ProtectedRoute allowedRoles={["fleet_driver", "admin"]}>
-              <FleetDriverDashboard />
-            </ProtectedRoute>
-          </Route>
-        </Route>
-        <Route path="/claimant/fleet-register">
-          <ProtectedRoute domain="portal">
-            <ClaimantPortalLayout><FleetRegister /></ClaimantPortalLayout>
-          </ProtectedRoute>
-        </Route>
-        {/* SR-M01: Claimant documents page — sidebar link /claimant/documents */}
-        <Route path="/claimant/documents">
-          <ProtectedRoute domain="portal">
-            <ClaimantPortalLayout><ClaimantDocuments /></ClaimantPortalLayout>
-          </ProtectedRoute>
-        </Route>
-        {/* SR-C01: Claimant claim detail page — View button from ClaimantDashboard navigates here */}
+        {/* Legacy claimant routes — all redirect to My Portal (/client) */}
+        <Route path="/claimant/dashboard"><RedirectToPortal to="/client" /></Route>
+        <Route path="/claimant/submit-claim"><RedirectToPortal to="/client/submit-claim" /></Route>
+        <Route path="/claimant/fleet-dashboard"><RedirectToPortal to="/fleet" /></Route>
+        <Route path="/claimant/fleet-register"><RedirectToPortal to="/fleet" /></Route>
+        <Route path="/claimant/documents"><RedirectToPortal to="/client" /></Route>
+        {/* Legacy fleet driver route — redirect to Fleet Management */}
+        <Route path="/fleet/driver"><RedirectToPortal to="/fleet" /></Route>
+        {/* Claim detail — accessible from My Portal without old shell */}
         <Route path="/claims/:id">
           <ProtectedRoute domain="portal">
-            <ClaimantPortalLayout><ClaimantClaimDetail /></ClaimantPortalLayout>
+            <ClaimantClaimDetail />
           </ProtectedRoute>
         </Route>
 
