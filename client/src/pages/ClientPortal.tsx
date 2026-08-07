@@ -29,7 +29,7 @@ import InsuranceRequestWizard from "@/components/InsuranceRequestWizard";
 import { getLoginUrl } from "@/const";
 import { toast } from "sonner";
 
-type Tab = "dashboard" | "vehicles" | "valuations" | "insurance" | "claims";
+type Tab = "dashboard" | "vehicles" | "valuations" | "insurance" | "claims" | "company";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "dashboard",   label: "Dashboard",   icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -37,6 +37,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "valuations",  label: "Valuations",   icon: <Gauge className="h-4 w-4" /> },
   { id: "insurance",   label: "Insurance",    icon: <Shield className="h-4 w-4" /> },
   { id: "claims",      label: "Claims",       icon: <FileText className="h-4 w-4" /> },
+  { id: "company",     label: "Company",      icon: <Building2 className="h-4 w-4" /> },
 ];
 
 export default function ClientPortal() {
@@ -58,8 +59,12 @@ export default function ClientPortal() {
   const { data: myDocuments } = trpc.insuranceV2.getMyDocuments.useQuery(
     undefined, { enabled: !!user }
   );
-  const { data: myFleets } = trpc.fleet.getMyFleets.useQuery(undefined, { enabled: !!user });
-  const { data: myFleetVehicles } = trpc.fleet.getMyVehicles.useQuery(undefined, { enabled: !!user });
+  const { data: myFleetAccounts } = trpc.fleetAccounts.listMyAccounts.useQuery({}, { enabled: !!user });
+  const primaryFleetAccount = (myFleetAccounts as any)?.accounts?.[0] ?? null;
+  const { data: fleetClaimsData } = trpc.fleetAccounts.getClaimsForAccount.useQuery(
+    { accountId: primaryFleetAccount?.id ?? 0 },
+    { enabled: !!primaryFleetAccount?.id }
+  );
 
   // ── Derived data ────────────────────────────────────────────────────────────
   const pendingQuotes   = (requests ?? []).filter((r: any) => r.status === "quoted");
@@ -272,50 +277,6 @@ export default function ClientPortal() {
           <Plus className="h-4 w-4 mr-2" /> Add Vehicle
         </Button>
       </div>
-      {/* Company fleet section */}
-      {(myFleets as any[] | undefined)?.length ? (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 pt-1">
-            <Building2 className="h-4 w-4 text-purple-600" />
-            <h3 className="font-semibold text-sm text-purple-700">Company Fleet</h3>
-          </div>
-          {(myFleets as any[]).map((fleet: any) => {
-            const fv = (myFleetVehicles as any[] ?? []).filter((v: any) => v.fleetId === fleet.id);
-            return (
-              <Card key={fleet.id} className="border-purple-100 bg-purple-50/30">
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Truck className="h-4 w-4 text-purple-600" />
-                      <p className="font-semibold text-sm">{fleet.accountName ?? "Fleet"}</p>
-                    </div>
-                    <Badge variant="outline" className="text-xs border-purple-200 text-purple-700 capitalize">{fleet.status ?? "active"}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-3">{fv.length} vehicle{fv.length !== 1 ? "s" : ""} registered</p>
-                  {fv.length > 0 && (
-                    <div className="grid grid-cols-2 gap-1.5 mb-3">
-                      {fv.slice(0, 4).map((v: any) => (
-                        <div key={v.id} className="flex items-center gap-1.5 p-1.5 rounded border bg-white text-xs">
-                          <Car className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <span className="truncate">{v.year} {v.make} {v.model}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setLocation("/fleet")}>
-                    <Truck className="h-3.5 w-3.5 mr-1.5" /> Manage in Fleet Portal <ArrowRight className="h-3.5 w-3.5 ml-auto" />
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-          <Separator />
-          <div className="flex items-center gap-2">
-            <Car className="h-4 w-4 text-muted-foreground" />
-            <h3 className="font-semibold text-sm text-muted-foreground">Personal Vehicles</h3>
-          </div>
-        </div>
-      ) : null}
      {!myVehicles || myVehicles.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-12 text-center">
@@ -602,12 +563,132 @@ export default function ClientPortal() {
     </div>
   );
 
-  const CONTENT: Record<Tab, React.ReactNode> = {
+  // ── Tab: Company ────────────────────────────────────────────────────────────
+  const CompanyTab = () => {
+    const fleetClaims = (fleetClaimsData as any)?.claims ?? [];
+    // Group claims by vehicle registration
+    const byVehicle: Record<string, any[]> = {};
+    for (const c of fleetClaims) {
+      const key = c.vehicleRegistration ?? `vehicle-${c.id}`;
+      if (!byVehicle[key]) byVehicle[key] = [];
+      byVehicle[key].push(c);
+    }
+    const stageLabel = (c: any) => {
+      const s = c.workflowState ?? c.status ?? "";
+      const map: Record<string, string> = {
+        intake_queue: "Received",
+        intake_pending: "Being Reviewed",
+        in_review: "Under Review",
+        ai_assessment_in_progress: "Being Assessed by KINGA",
+        ai_assessment_completed: "Assessment Complete",
+        ai_complete: "Assessment Complete",
+        pending_authorisation: "Awaiting Authorisation",
+        authorised: "Authorised — Awaiting Repair",
+        repair_in_progress: "Under Repair",
+        repair_completed: "Repair Complete",
+        settled: "Settled",
+        closed: "Closed",
+        completed: "Completed",
+        rejected: "Rejected",
+      };
+      return map[s] ?? s.replace(/_/g, " ");
+    };
+    const stageColor = (c: any) => {
+      const s = c.workflowState ?? c.status ?? "";
+      if (["settled","closed","completed"].includes(s)) return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      if (["rejected"].includes(s)) return "bg-red-50 text-red-700 border-red-200";
+      if (["repair_in_progress","repair_completed"].includes(s)) return "bg-blue-50 text-blue-700 border-blue-200";
+      if (["pending_authorisation","authorised"].includes(s)) return "bg-amber-50 text-amber-700 border-amber-200";
+      return "bg-slate-50 text-slate-700 border-slate-200";
+    };
+    if (!primaryFleetAccount) return (
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold">Company</h2>
+          <p className="text-sm text-muted-foreground">Track your company vehicles and their claims.</p>
+        </div>
+        <Card className="border-dashed">
+          <CardContent className="py-12 text-center">
+            <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-40" />
+            <p className="font-medium mb-1">No company fleet linked</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              When you submit a claim as a company vehicle, it will appear here for your fleet manager to track.
+            </p>
+            <Button onClick={() => setLocation("/fleet")}><Truck className="h-4 w-4 mr-2" /> Go to Fleet Management</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold">Company</h2>
+            <p className="text-sm text-muted-foreground">{primaryFleetAccount.accountName} — vehicle claims tracker</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setLocation("/fleet")}>
+            <Truck className="h-4 w-4 mr-2" /> Fleet Portal
+          </Button>
+        </div>
+        {fleetClaims.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="py-12 text-center">
+              <Car className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-40" />
+              <p className="font-medium mb-1">No vehicle claims yet</p>
+              <p className="text-sm text-muted-foreground">When drivers submit claims for company vehicles, they will appear here grouped by vehicle.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(byVehicle).map(([reg, claims]) => {
+              const latest = claims[0];
+              return (
+                <Card key={reg}>
+                  <CardHeader className="pb-2 pt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Car className="h-4 w-4 text-primary" />
+                        <div>
+                          <CardTitle className="text-sm">{latest.vehicleYear} {latest.vehicleMake} {latest.vehicleModel}</CardTitle>
+                          <p className="text-xs font-mono text-muted-foreground">{reg}</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className={`text-xs ${stageColor(latest)}`}>{stageLabel(latest)}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-4">
+                    <div className="space-y-2">
+                      {claims.map((c: any) => (
+                        <div key={c.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 text-xs">
+                          <div>
+                            <p className="font-mono font-medium">{c.claimNumber ?? `#${c.id}`}</p>
+                            <p className="text-muted-foreground">{c.incidentDate ? new Date(c.incidentDate).toLocaleDateString() : "—"} · {c.incidentType ?? "Incident"}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={`text-xs ${stageColor(c)}`}>{stageLabel(c)}</Badge>
+                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setLocation(`/claimant/claims/${c.id}`)}>
+                              View <ArrowRight className="h-3 w-3 ml-1" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+    const CONTENT: Record<Tab, React.ReactNode> = {
     dashboard: <DashboardTab />,
     vehicles: <VehiclesTab />,
     valuations: <ValuationsTab />,
     insurance: <InsuranceTab />,
     claims: <ClaimsTab />,
+    company: <CompanyTab />,
   };
 
   return (
