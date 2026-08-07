@@ -208,13 +208,13 @@ export async function generateForensicDecisionReport(
     ).toUpperCase();
 
     // KINGA Optimised Estimate — L2 composite (per-component min(lowest credible, model P50))
-    // Primary source: compositeOptimisation.l2CompositeOptimisedCostUsd (written by Stage 9 buildCompositeQuote)
+    // Primary source: compositeOptimisation.compositeOptimisedCostUsd (written by Stage 9 buildCompositeQuote)
     // Also available as top-level kingaSavingsL2OptimisedUsd for direct access
     const kingaOptimised: number = (() => {
       const comp = (costIntel?.compositeOptimisation as Record<string, unknown> | null | undefined);
-      // Primary: l2CompositeOptimisedCostUsd — the canonical L2 field written by buildCompositeQuote
-      if (comp?.l2CompositeOptimisedCostUsd && Number(comp.l2CompositeOptimisedCostUsd) > 0)
-        return Number(comp.l2CompositeOptimisedCostUsd);
+      // Primary: compositeOptimisedCostUsd — the canonical L2 field written by buildCompositeQuote
+      if (comp?.compositeOptimisedCostUsd && Number(comp.compositeOptimisedCostUsd) > 0)
+        return Number(comp.compositeOptimisedCostUsd);
       // Also available as top-level field (backfilled by Stage 9 after composite is built)
       if ((costIntel as any)?.kingaSavingsL2OptimisedUsd && Number((costIntel as any).kingaSavingsL2OptimisedUsd) > 0)
         return Number((costIntel as any).kingaSavingsL2OptimisedUsd);

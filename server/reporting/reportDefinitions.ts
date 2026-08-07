@@ -273,7 +273,7 @@ async function generateClaimAssessmentReport(
     const confidenceScore = Number(claim.confidence_score ?? 0);
     const estimatedCost = Number(claim.estimated_cost ?? 0);
     const kingaOptimised = Number((costIntel as Record<string,unknown> | null)?.compositeOptimisation
-      ? ((costIntel as Record<string,unknown>).compositeOptimisation as Record<string,unknown>)?.l2CompositeOptimisedCostUsd ?? 0
+      ? ((costIntel as Record<string,unknown>).compositeOptimisation as Record<string,unknown>)?.compositeOptimisedCostUsd ?? 0
       : 0);
     const repairToValue = Number(claim.repair_to_value_ratio ?? 0);
     const isTotalLoss = Boolean(claim.total_loss_indicated);
@@ -548,15 +548,15 @@ ${comps.length > 0 ? `
           <td style="padding:4px 8px;font-weight:600">${esc(String(c.component_name))}</td>
           <td style="padding:4px 8px"><span style="background:${sevBg};color:${sevColour};font-size:9px;font-weight:700;padding:2px 6px;border-radius:2px;text-transform:uppercase">${esc(sev)}</span></td>
           <td style="padding:4px 8px;color:#4a4a4a">${esc(String(c.repair_or_replace ?? "—"))}</td>
-          <td style="padding:4px 8px;text-align:right;font-family:monospace">${fmtUSD(c.estimated_cost)}</td>
-          <td style="padding:4px 8px;text-align:right;font-family:monospace">${c.labour_hours ?? "—"}</td>
+          <td style="padding:4px 8px;text-align:right;font-family:monospace">${(c.estimated_cost && Number(c.estimated_cost) > 0) ? fmtUSD(c.estimated_cost) : '<span style="color:#aaa">—</span>'}</td>
+          <td style="padding:4px 8px;text-align:right;font-family:monospace">${(c.labour_hours && Number(c.labour_hours) > 0) ? c.labour_hours : '<span style="color:#aaa">—</span>'}</td>
         </tr>`;
       }).join("")}
     </tbody>
     <tfoot><tr style="border-top:2px solid #d9d9d9;background:#fafafa">
       <td colspan="3" style="padding:4px 8px;font-weight:700;font-size:11px">TOTAL</td>
-      <td style="padding:4px 8px;text-align:right;font-weight:700;font-family:monospace">${fmtUSD(compTotal)}</td>
-      <td style="padding:4px 8px;text-align:right;font-weight:700;font-family:monospace">${labourTotal.toFixed(1)}</td>
+      <td style="padding:4px 8px;text-align:right;font-weight:700;font-family:monospace">${compTotal > 0 ? fmtUSD(compTotal) : '<span style="color:#888;font-weight:400;font-size:10px">See §04 Cost Intelligence</span>'}</td>
+      <td style="padding:4px 8px;text-align:right;font-weight:700;font-family:monospace">${labourTotal > 0 ? labourTotal.toFixed(1) : '<span style="color:#aaa">—</span>'}</td>
     </tr></tfoot>
   </table>
 </div>` : ""}

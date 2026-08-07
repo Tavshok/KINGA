@@ -78,27 +78,43 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     expect(result.negotiationSavingsUsd).toBe(0);
   });
 
-  it("uses benchmark P50 when it is cheaper and within 30% of lowestSubmitted", () => {
+  it("uses benchmark P50 when it is cheaper and within 15% of lowestSubmitted", () => {
     // "front bumper" normalises to "Front Bumper"
-    // lowestSubmitted = 1000, K = 800 (20% below → within 30%) → L2 = 800
+    // lowestSubmitted = 1000, K = 900 (10% below → within 15%) → L2 = 900
     const quotes = [
       makeQuoteWithItems("Repairer A", [{ name: "front bumper", costUsd: 1000 }]),
       makeQuoteWithItems("Repairer B", [{ name: "front bumper", costUsd: 1200 }]),
     ];
     // Benchmark key must use canonical name
-    const benchmarks = makeBenchmarks([{ name: "Front Bumper", p25: 700, p50: 800, p75: 900 }]);
+    const benchmarks = makeBenchmarks([{ name: "Front Bumper", p25: 800, p50: 900, p75: 1000 }]);
     const result = buildCompositeQuote(quotes, benchmarks, 1000);
 
     const item = result.compositeLineItems.find(i => i.componentName === "Front Bumper");
     expect(item).toBeDefined();
-    expect(item!.selectedCostUsd).toBe(800); // K = 800
+    expect(item!.selectedCostUsd).toBe(900); // K = 900
     expect(item!.isBenchmarkFill).toBe(true);
     expect(item!.kingaOptimisedTier).toBe("T1");
     expect(item!.scopeDecisionRule).toBe("BENCHMARK_WITHIN_30PCT");
   });
 
-  it("uses lowestSubmitted when benchmark deviation exceeds 30% floor", () => {
-    // lowestSubmitted = 1400, K = 400 (71% below → exceeds 30%) → L2 = 1400
+  it("uses lowestSubmitted when benchmark deviation is between 15% and 30% (new floor)", () => {
+    // lowestSubmitted = 1000, K = 800 (20% below → exceeds new 15% floor) → L2 = 1000
+    const quotes = [
+      makeQuoteWithItems("Repairer A", [{ name: "front bumper", costUsd: 1000 }]),
+      makeQuoteWithItems("Repairer B", [{ name: "front bumper", costUsd: 1200 }]),
+    ];
+    const benchmarks = makeBenchmarks([{ name: "Front Bumper", p25: 700, p50: 800, p75: 900 }]);
+    const result = buildCompositeQuote(quotes, benchmarks, 1000);
+
+    const item = result.compositeLineItems.find(i => i.componentName === "Front Bumper");
+    expect(item).toBeDefined();
+    expect(item!.selectedCostUsd).toBe(1000); // lowestSubmitted — 20% > 15% floor
+    expect(item!.isBenchmarkFill).toBe(false);
+    expect(item!.scopeDecisionRule).toBe("BENCHMARK_FLOOR_EXCEEDED");
+  });
+
+  it("uses lowestSubmitted when benchmark deviation exceeds 15% floor (large deviation)", () => {
+    // lowestSubmitted = 1400, K = 400 (71% below → exceeds 15%) → L2 = 1400
     const quotes = [
       makeQuoteWithItems("Repairer A", [{ name: "front bumper", costUsd: 1400 }]),
       makeQuoteWithItems("Repairer B", [{ name: "front bumper", costUsd: 1600 }]),
@@ -287,8 +303,8 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     expect(result.negotiationSavingsUsd).toBe(0);
   });
 
-  it("returns correct result for 3-quote scenario with Zimbabwe benchmarks (30% floor on all)", () => {
-    // 3 quotes, Zimbabwe benchmarks far below market → 30% floor on all components
+  it("returns correct result for 3-quote scenario with Zimbabwe benchmarks (15% floor on all)", () => {
+    // 3 quotes, Zimbabwe benchmarks far below market → 15% floor on all components
     // "front bumper" → "Front Bumper", "bonnet" → "Bonnet (Hood)", "headlamp" → "Headlight Assembly (Left)"
     const quotes = [
       makeQuoteWithItems("Cedric Jonker", [
@@ -308,9 +324,9 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
       ]),
     ];
     // Zimbabwe benchmarks: far below market (P50 << lowestSubmitted)
-    // deviation_front_bumper = |1350 - 400| / 1350 = 70.4% > 30% → floor
-    // deviation_bonnet = |780 - 220| / 780 = 71.8% > 30% → floor
-    // deviation_headlamp = |340 - 100| / 340 = 70.6% > 30% → floor
+    // deviation_front_bumper = |1350 - 400| / 1350 = 70.4% > 15% → floor
+    // deviation_bonnet = |780 - 220| / 780 = 71.8% > 15% → floor
+    // deviation_headlamp = |340 - 100| / 340 = 70.6% > 15% → floor
     const benchmarks = makeBenchmarks([
       { name: "Front Bumper", p25: 300, p50: 400, p75: 500 },
       { name: "Bonnet (Hood)", p25: 180, p50: 220, p75: 280 },
@@ -319,7 +335,7 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     // L1 = Grand Auto total = 2470
     const result = buildCompositeQuote(quotes, benchmarks, 2470);
 
-    // All components: 30% floor → L2_c = lowestSubmitted_c
+    // All components: 15% floor → L2_c = lowestSubmitted_c
     // L2_front_bumper = 1350, L2_bonnet = 780, L2_headlamp = 340
     // L2_total = 2470 = L1
     expect(result.compositeOptimisedCostUsd).toBe(2470);

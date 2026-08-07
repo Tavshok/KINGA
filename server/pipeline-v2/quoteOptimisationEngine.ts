@@ -1113,7 +1113,11 @@ export function buildCompositeQuote(
   // For each component, collect all normalised prices from all quotes.
   // This enables per-component comparison across all repairers.
 
-  const MAX_MODEL_DISCOUNT_PCT = 0.30;
+  // CALIBRATION (Aug 2026): Reduced from 0.30 to 0.15.
+  // At 30%, the engine was selecting benchmark P50 values up to 26% below the
+  // lowest market quote — a cost no repairer in Zimbabwe would accept. At 15%,
+  // the benchmark must be very close to market before it overrides submitted quotes.
+  const MAX_MODEL_DISCOUNT_PCT = 0.15;
 
   // componentMatrix[normName] = array of { repairer, costUsd, scope }
   type ComponentEntry = { repairer: string; costUsd: number; scope: 'repair' | 'replace' | 'bundled' };
@@ -1135,8 +1139,8 @@ export function buildCompositeQuote(
   //     lowestSubmitted = min price across all quotes for this component
   //     K = benchmark P50 for this component
   //     deviation = |lowestSubmitted - K| / lowestSubmitted
-  //     If K < lowestSubmitted AND deviation <= 30%: L2_component = K
-  //     Else: L2_component = lowestSubmitted  (30% floor or no benchmark)
+  //     If K < lowestSubmitted AND deviation <= 15%: L2_component = K
+  //     Else: L2_component = lowestSubmitted  (15% floor or no benchmark)
   //
   // L2_component <= lowestSubmitted for every component.
   // L2_total = sum of L2_component across all components.
@@ -1176,19 +1180,19 @@ export function buildCompositeQuote(
       benchmarkCoverageCount++;
       const deviation = Math.abs(lowestSubmitted - p50) / lowestSubmitted;
       if (p50 < lowestSubmitted && deviation <= MAX_MODEL_DISCOUNT_PCT) {
-        // Benchmark is cheaper and within 30% — use benchmark
+        // Benchmark is cheaper and within 15% — use benchmark
         l2Component = Math.round(p50 * 100) / 100;
         isBenchmarkFill = true;
         tier = 'T1';
         tierLabel = `KINGA Benchmark P50 · ${Math.round(deviation * 100)}% below lowest quote`;
         scopeDecisionRule = 'BENCHMARK_WITHIN_30PCT';
       } else {
-        // 30% floor engaged or benchmark above market — use lowest submitted
+        // 15% floor engaged or benchmark above market — use lowest submitted
         l2Component = Math.round(lowestSubmitted * 100) / 100;
         tier = 'T3';
         tierLabel = p50 >= lowestSubmitted
           ? `Lowest Quote · ${lowestEntry.repairer} (benchmark above market)`
-          : `Lowest Quote · ${lowestEntry.repairer} (deviation ${Math.round(deviation * 100)}% > 30% floor)`;
+          : `Lowest Quote · ${lowestEntry.repairer} (deviation ${Math.round(deviation * 100)}% > 15% floor)`;
         scopeDecisionRule = p50 >= lowestSubmitted ? 'BENCHMARK_ABOVE_MARKET' : 'BENCHMARK_FLOOR_EXCEEDED';
       }
     } else {
@@ -1256,6 +1260,22 @@ export function buildCompositeQuote(
   }
 
   compositeOptimisedCostUsd = Math.round(compositeOptimisedCostUsd * 100) / 100;
+
+  // ── MINIMUM FLOOR GUARD ──────────────────────────────────────────────────────
+  // KINGA optimised total must never fall below the lowest submitted quote total.
+  // This prevents the per-component cherry-pick from producing a figure that no
+  // repairer in the market would accept (e.g. when benchmark P50 covers only a
+  // subset of components and the uncovered components are excluded from the sum).
+  const lowestSubmittedTotal = Math.min(...validNormalisedQuotes.map(q => q.normalisedTotalUsd));
+  // Only apply the floor when benchmark fills are present. A pure cherry-pick composite
+  // (all T3 items from submitted quotes, benchmarkCoverageCount === 0) is intentionally
+  // allowed to be lower than any single repairer's total — that is the core value proposition
+  // of L2 optimisation. The floor prevents benchmark P50 values from pushing the total below
+  // what any repairer in the market would actually accept.
+  const hasBenchmarkFills = benchmarkCoverageCount > 0;
+  if (hasBenchmarkFills && lowestSubmittedTotal > 0 && compositeOptimisedCostUsd < lowestSubmittedTotal) {
+    compositeOptimisedCostUsd = Math.round(lowestSubmittedTotal * 100) / 100;
+  }
 
   // ── 4. L1 for savings calculation ──────────────────────────────────────────
   // L1 = lowest normalised quote total (best real package deal)
