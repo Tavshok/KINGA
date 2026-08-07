@@ -1980,6 +1980,58 @@ export async function runCostOptimisationStage(
               `NegotiationSavings=$${compositeResult.negotiationSavingsUsd.toFixed(2)} ` +
               `NFS=${compositeResult.negotiationFeasibilityScore} (${compositeResult.negotiationFeasibilityLabel}) ` +
               `HiddenDamageAdvisories=${hiddenDamageAdvisories.length}`);
+
+            // ── BENCHMARK LEARNING FEED ──────────────────────────────────────────────
+            // Write every compositeLineItem.selectedCostUsd back to component_repair_outcomes
+            // so the benchmark database grows with each processed claim.
+            // This covers paint, sundries, strip & assemble, and any component that was
+            // priced from a submitted quote (T3/T4) rather than a pre-existing benchmark.
+            // Non-benchmark fills (T3) are the most valuable learning signal because they
+            // represent real market prices from Zimbabwean repairers.
+            // Fire-and-forget: never blocks the pipeline.
+            setImmediate(async () => {
+              try {
+                const { recordFinalizedOutcome, inferCategory } = await import('./repairReplaceEngine');
+                const _learningDb = await import('../db').then(m => m.getDb());
+                if (!_learningDb) return;
+                const _assessmentRows = await _learningDb.select({ id: (await import('../drizzle/schema')).aiAssessments.id })
+                  .from((await import('../drizzle/schema')).aiAssessments)
+                  .where((await import('drizzle-orm')).eq((await import('../drizzle/schema')).aiAssessments.claimId, claimRecord.claimId))
+                  .limit(1);
+                const _assessmentId = _assessmentRows[0]?.id;
+                if (!_assessmentId) return;
+                const _vehicleMake = claimRecord.vehicle?.make ?? undefined;
+                const _vehicleModel = claimRecord.vehicle?.model ?? undefined;
+                const _vehicleYear = claimRecord.vehicle?.year ?? undefined;
+                let feedCount = 0;
+                for (const li of compositeResult.compositeLineItems) {
+                  if (!li.componentName || li.selectedCostUsd <= 0 || li.dataGap) continue;
+                  // Skip benchmark fills — those prices came FROM the benchmark, not from market data
+                  if (li.isBenchmarkFill) continue;
+                  const outcome: 'repair' | 'replace' | 'write_off' =
+                    li.selectedScope === 'replace' ? 'replace' : 'repair';
+                  await recordFinalizedOutcome({
+                    claimId: claimRecord.claimId,
+                    assessmentId: _assessmentId,
+                    componentName: li.componentName,
+                    componentCategory: inferCategory(li.componentName),
+                    severityAtDecision: 'moderate', // default — we don't have per-line-item severity
+                    vehicleMake: _vehicleMake,
+                    vehicleModel: _vehicleModel,
+                    vehicleYear: _vehicleYear,
+                    outcome,
+                    aiSuggestion: outcome,
+                    repairCostUsd: outcome === 'repair' ? li.selectedCostUsd : undefined,
+                    replaceCostUsd: outcome === 'replace' ? li.selectedCostUsd : undefined,
+                    isAdjusterCorrection: false,
+                  }).catch(() => { /* non-fatal */ });
+                  feedCount++;
+                }
+                ctx.log('Stage 9', `Benchmark learning feed: ${feedCount} composite line item(s) written to component_repair_outcomes`);
+              } catch (feedErr: any) {
+                ctx.log('Stage 9', `Benchmark learning feed failed (non-fatal): ${feedErr?.message ?? feedErr}`);
+              }
+            });
           }
         } catch (compositeErr) {
           ctx.log('Stage 9', `Composite optimisation failed (non-fatal): ${String(compositeErr)}`);

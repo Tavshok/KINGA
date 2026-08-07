@@ -350,3 +350,81 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     expect(result.negotiationSavingsUsd).toBe(0);
   });
 });
+
+  it("includes paint and sundries in composite when isNonPartCost=true (no benchmark needed)", () => {
+    // Verifies the fix: paint/sundries must NOT be excluded from the component matrix.
+    // When no benchmark exists, the engine uses the lowest submitted price (T3).
+    const quotes: InputQuoteWithLineItems[] = [
+      {
+        panel_beater: "Repairer A",
+        total_cost: 890,
+        currency: "USD",
+        components: ["Front Bumper", "paint", "sundries"],
+        labour_defined: false,
+        parts_defined: true,
+        confidence: "high",
+        lineItems: [
+          { componentName: "Front Bumper", costUsd: 540, isRepair: false, isReplacement: false, isNonPartCost: false },
+          { componentName: "paint",        costUsd: 300, isRepair: false, isReplacement: false, isNonPartCost: true },
+          { componentName: "sundries",     costUsd: 50,  isRepair: false, isReplacement: false, isNonPartCost: true },
+        ],
+      },
+      {
+        panel_beater: "Repairer B",
+        total_cost: 1060,
+        currency: "USD",
+        components: ["Front Bumper", "paint", "sundries"],
+        labour_defined: false,
+        parts_defined: true,
+        confidence: "high",
+        lineItems: [
+          { componentName: "Front Bumper", costUsd: 620, isRepair: false, isReplacement: false, isNonPartCost: false },
+          { componentName: "paint",        costUsd: 380, isRepair: false, isReplacement: false, isNonPartCost: true },
+          { componentName: "sundries",     costUsd: 60,  isRepair: false, isReplacement: false, isNonPartCost: true },
+        ],
+      },
+    ];
+    const result = buildCompositeQuote(quotes, {}, 890);
+    // All 3 components should appear in the composite
+    const names = result.compositeLineItems.map(i => i.componentName);
+    expect(names).toContain("Front Bumper");
+    expect(names).toContain("paint");
+    expect(names).toContain("sundries");
+    // Each should use lowest submitted price (no benchmark)
+    const bumper = result.compositeLineItems.find(i => i.componentName === "Front Bumper")!;
+    expect(bumper.selectedCostUsd).toBe(540);
+    expect(bumper.isBenchmarkFill).toBe(false);
+    const paint = result.compositeLineItems.find(i => i.componentName === "paint")!;
+    expect(paint.selectedCostUsd).toBe(300);
+    expect(paint.isBenchmarkFill).toBe(false);
+    const sundries = result.compositeLineItems.find(i => i.componentName === "sundries")!;
+    expect(sundries.selectedCostUsd).toBe(50);
+    expect(sundries.isBenchmarkFill).toBe(false);
+    // L2 total = 540 + 300 + 50 = 890
+    expect(result.compositeOptimisedCostUsd).toBe(890);
+  });
+
+  it("VAT and workshop fee overhead rows are excluded from composite", () => {
+    // Verifies standalone overhead exclusion still works correctly.
+    const quotes: InputQuoteWithLineItems[] = [
+      {
+        panel_beater: "Repairer A",
+        total_cost: 700,
+        currency: "USD",
+        components: ["Front Bumper"],
+        labour_defined: false,
+        parts_defined: true,
+        confidence: "high",
+        lineItems: [
+          { componentName: "Front Bumper", costUsd: 540, isRepair: false, isReplacement: false, isNonPartCost: false },
+          { componentName: "vat",          costUsd: 100, isRepair: false, isReplacement: false, isNonPartCost: true },
+          { componentName: "workshop fee", costUsd: 60,  isRepair: false, isReplacement: false, isNonPartCost: true },
+        ],
+      },
+    ];
+    const result = buildCompositeQuote(quotes, {}, 700);
+    // Only Front Bumper should be in the composite
+    expect(result.compositeLineItems.length).toBe(1);
+    expect(result.compositeLineItems[0].componentName).toBe("Front Bumper");
+    expect(result.compositeOptimisedCostUsd).toBe(540);
+  });

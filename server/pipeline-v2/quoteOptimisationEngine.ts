@@ -1016,8 +1016,21 @@ export function buildCompositeQuote(
     for (const item of items) {
       if (!item.costUsd || item.costUsd <= 0) continue;
       if (!item.componentName || item.componentName.trim() === '') continue;
-      // Skip standalone non-component overhead rows
-      if (item.isNonPartCost && !item.isRepair) continue;
+      // Skip only truly standalone overhead rows that are not tied to a specific
+      // repair component — e.g. VAT, workshop fee, administration charge.
+      // Paint, sundries, strip & assemble, and labour lines ARE legitimate repair
+      // line items and must be included so the composite covers the full repair scope.
+      // Rule: skip when isNonPartCost AND the normalised name matches a known
+      // overhead-only pattern (no component identity).
+      if (item.isNonPartCost && !item.isRepair && !item.isReplacement) {
+        const normCheck = normalise(item.componentName).toLowerCase();
+        const isStandaloneOverhead =
+          /^(vat|value added tax|tax|gst|admin|administration|administration fee|workshop fee|workshop charge|handling|handling fee|environmental fee|disposal fee|waste disposal|miscellaneous|misc|overhead)$/.test(normCheck);
+        if (isStandaloneOverhead) continue;
+        // Also skip rows whose name is purely numeric or empty after normalisation
+        if (!normCheck || /^\d+(\.\d+)?$/.test(normCheck)) continue;
+        // Otherwise include: paint, sundries, strip & assemble, diagnostic, etc.
+      }
 
       const normName = normalise(item.componentName);
       const rowScope: 'repair' | 'replace' | 'bundled' =
