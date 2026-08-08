@@ -2,47 +2,36 @@ import type { CookieOptions, Request } from "express";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
-function isIpAddress(host: string) {
-  // Basic IPv4 check and IPv6 presence detection.
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return true;
-  return host.includes(":");
-}
-
-function isSecureRequest(req: Request) {
-  if (req.protocol === "https") return true;
-
-  const forwardedProto = req.headers["x-forwarded-proto"];
-  if (!forwardedProto) return false;
-
-  const protoList = Array.isArray(forwardedProto)
-    ? forwardedProto
-    : forwardedProto.split(",");
-
-  return protoList.some(proto => proto.trim().toLowerCase() === "https");
+function isLocalhost(req: Request): boolean {
+  const host = req.hostname ?? "";
+  return LOCAL_HOSTS.has(host) || host === "127.0.0.1" || host === "::1";
 }
 
 export function getSessionCookieOptions(
   req: Request
 ): Pick<CookieOptions, "domain" | "httpOnly" | "path" | "sameSite" | "secure"> {
-  // const hostname = req.hostname;
-  // const shouldSetDomain =
-  //   hostname &&
-  //   !LOCAL_HOSTS.has(hostname) &&
-  //   !isIpAddress(hostname) &&
-  //   hostname !== "127.0.0.1" &&
-  //   hostname !== "::1";
+  const local = isLocalhost(req);
 
-  // const domain =
-  //   shouldSetDomain && !hostname.startsWith(".")
-  //     ? `.${hostname}`
-  //     : shouldSetDomain
-  //       ? hostname
-  //       : undefined;
+  // Cookie strategy:
+  // - On localhost (dev): SameSite=lax, Secure=false — works for local HTTP
+  // - On deployed site (HTTPS): SameSite=lax, Secure=true
+  //
+  // WHY NOT SameSite=none:
+  //   SameSite=none REQUIRES Secure=true. If the server incorrectly detects the
+  //   request as HTTP (e.g. X-Forwarded-Proto not trusted by Express), it sets
+  //   Secure=false, and the browser silently drops the cookie — causing the
+  //   login loop. This was the root cause of the persistent login loop.
+  //
+  // WHY SameSite=lax works for OAuth:
+  //   The OAuth callback is a top-level GET redirect (302) from manus.im back to
+  //   our domain. SameSite=lax allows cookies to be SET on top-level navigations,
+  //   so the Set-Cookie in the callback response is accepted by the browser.
+  //   Subsequent /api/trpc requests (same-origin XHR) also send lax cookies.
 
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req),
+    sameSite: "lax",
+    secure: !local,
   };
 }
