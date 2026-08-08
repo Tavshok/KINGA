@@ -9,7 +9,7 @@ export default function RoleSwitcher() {
     <Button 
       variant="outline" 
       size="sm"
-      onClick={() => setLocation("/portal-hub")}
+      onClick={() => setLocation("/insurer-portal")}
       className="gap-2"
     >
       <LayoutGrid className="h-4 w-4" />

@@ -35,7 +35,7 @@ export default function KingaDashboardLayout({
   title,
   subtitle,
   showBackButton = false,
-  backPath = "/portal-hub",
+  backPath = "/",
   actions,
 }: KingaDashboardLayoutProps) {
   const { user, logout } = useAuth();
@@ -138,7 +138,7 @@ export default function KingaDashboardLayout({
             <p>© 2026 KINGA. All rights reserved.</p>
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setLocation("/portal-hub")}
+                onClick={() => window.history.back()}
                 className="hover:text-primary transition-colors"
               >
                 Switch Portal

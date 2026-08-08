@@ -26,7 +26,7 @@ export const ROLE_PORTAL_MAP: Record<string, string> = {
   fleet_manager: "/claimant/fleet-dashboard", // Epic 4.5: routed to FleetManagerDashboard (Epic 4 tabs)
   fleet_driver: "/fleet-management",
   engineer: "/engineer/dashboard",             // Epic 4.5: Engineering Workspace (Epic 3)
-  user: "/portal-hub",                  // No portal assigned yet
+  user: "/client",                  // No portal assigned yet
 };
 
 /** Map from insurerRole → canonical insurer sub-portal landing page */
@@ -147,20 +147,20 @@ export function isPortalNavigationAllowed(
 
 /**
  * Returns the canonical landing page for a user given their role and optional
- * insurerRole.  Falls back to "/portal-hub" for any unrecognised combination.
+ * insurerRole.  Falls back to "/insurer-portal" for any unrecognised combination.
  */
 export function getRoleDashboardPath(
   role: string | undefined,
   insurerRole?: string | null
 ): string {
-  if (!role) return "/portal-hub";
+  if (!role) return "/insurer-portal";
 
   // Insurer users are further routed by their sub-role
   if (role === "insurer" && insurerRole) {
     return INSURER_ROLE_PORTAL_MAP[insurerRole] ?? "/insurer-portal";
   }
 
-  return ROLE_PORTAL_MAP[role] ?? "/portal-hub";
+  return ROLE_PORTAL_MAP[role] ?? "/insurer-portal";
 }
 
 /**

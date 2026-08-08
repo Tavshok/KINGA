@@ -232,7 +232,7 @@ export default function FleetManagement() {
             <div className="p11-hero-subtitle">Register, manage and track your vehicle fleet</div>
           </div>
           <div className="p11-hero-actions">
-            <button className="p11-btn-ghost" onClick={() => window.location.href = "/portal-hub"}>
+            <button className="p11-btn-ghost" onClick={() => window.location.href = "/fleet"}>
               Portal Hub
             </button>
             <button className="p11-btn-gold" onClick={() => setIsRegisterDialogOpen(true)}>

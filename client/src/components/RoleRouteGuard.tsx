@@ -31,7 +31,7 @@ export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) 
 
     // If user has no insurer role, redirect to portal hub
     if (!userRole) {
-      setLocation("/portal-hub");
+      window.history.back();
       return;
     }
 
@@ -73,7 +73,7 @@ export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) 
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => window.location.href = "/portal-hub"} className="w-full">
+            <Button onClick={() => window.history.back()} className="w-full">
               Go to Portal Hub
             </Button>
           </CardContent>
@@ -97,7 +97,7 @@ export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) 
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => window.location.href = "/portal-hub"} className="w-full">
+            <Button onClick={() => window.history.back()} className="w-full">
               Return to Portal Hub
             </Button>
           </CardContent>

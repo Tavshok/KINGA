@@ -181,7 +181,7 @@ function UnassignedUserView({ currentRole }: { currentRole: string }) {
           <div className="flex justify-center gap-3 pt-2">
             <Button
               variant="outline"
-              onClick={() => setLocation("/portal-hub")}
+              onClick={() => setLocation("/insurer-portal")}
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -228,7 +228,7 @@ function AssignedUserView({ currentRole, insurerRole }: { currentRole: string; i
             </div>
           </div>
           <div className="flex justify-center pt-2">
-            <Button onClick={() => setLocation("/portal-hub")} className="gap-2">
+            <Button onClick={() => setLocation("/insurer-portal")} className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Go to Portal Hub
             </Button>
@@ -518,7 +518,7 @@ export default function RoleSetup() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setLocation("/portal-hub")}
+                onClick={() => setLocation("/insurer-portal")}
                 className="gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />

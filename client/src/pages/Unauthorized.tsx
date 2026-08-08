@@ -100,7 +100,7 @@ export default function Unauthorized() {
             <Button 
               className="w-full" 
               variant={reason === 'no_role' ? 'outline' : 'default'}
-              onClick={() => setLocation('/portal-hub')}
+              onClick={() => window.history.back()}
             >
               <Home className="w-4 h-4 mr-2" />
               Return to Portal Hub

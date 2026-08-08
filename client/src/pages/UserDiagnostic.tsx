@@ -151,7 +151,7 @@ export default function UserDiagnostic() {
                   <Button onClick={() => refetch()} variant="outline">
                     Refresh Data
                   </Button>
-                  <Button onClick={() => window.location.href = '/portal-hub'} variant="outline">
+                  <Button onClick={() => window.history.back()} variant="outline">
                     Portal Hub
                   </Button>
                   <Button onClick={() => window.location.href = '/role-setup'} variant="outline">

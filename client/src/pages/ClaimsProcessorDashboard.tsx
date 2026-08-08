@@ -132,7 +132,7 @@ export default function ClaimsProcessorDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => window.location.href = "/portal-hub"} className="w-full">
+            <Button onClick={() => window.location.href = "/insurer-portal"} className="w-full">
               Return to Portal Hub
             </Button>
           </CardContent>

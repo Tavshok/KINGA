@@ -146,7 +146,7 @@ export default function InsurerRoleSelection() {
                 <p className="text-sm text-muted-foreground">Insurer Portal</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/portal-hub")}>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/insurer-portal")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Portal Hub
             </Button>

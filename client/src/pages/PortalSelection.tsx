@@ -110,7 +110,7 @@ export default function PortalSelection() {
             <button onClick={() => setLocation("/client")} className="hover:text-foreground transition-colors">My Profile</button>
           </nav>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = getLoginUrl("/portal-hub")}>Sign In</Button>
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = getLoginUrl()}>Sign In</Button>
             <Button size="sm" onClick={() => setLocation("/get-a-quote")}>Get Started</Button>
           </div>
         </div>
@@ -134,7 +134,7 @@ export default function PortalSelection() {
               <Button size="lg" className="bg-white text-slate-900 hover:bg-white/90" onClick={() => setLocation("/get-a-quote")}>
                 Get a Free Valuation <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
-              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => window.location.href = getLoginUrl("/portal-hub")}>
+              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => window.location.href = getLoginUrl()}>
                 Sign In to Your Account
               </Button>
             </div>
@@ -258,7 +258,7 @@ export default function PortalSelection() {
             <Button size="lg" className="bg-white text-primary hover:bg-white/90" onClick={() => setLocation("/get-a-quote")}>
               Get a Free Valuation <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
-            <Button size="lg" variant="outline" className="border-white/40 text-white hover:bg-white/10" onClick={() => window.location.href = getLoginUrl("/portal-hub")}>
+            <Button size="lg" variant="outline" className="border-white/40 text-white hover:bg-white/10" onClick={() => window.location.href = getLoginUrl()}>
               Sign In
             </Button>
           </div>
@@ -276,7 +276,7 @@ export default function PortalSelection() {
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground">Valuations</button>
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground">Insurance</button>
             <button onClick={() => setLocation("/client")} className="hover:text-foreground">My Profile</button>
-            <button onClick={() => window.location.href = getLoginUrl("/portal-hub")} className="hover:text-foreground">Sign In</button>
+            <button onClick={() => window.location.href = getLoginUrl()} className="hover:text-foreground">Sign In</button>
           </div>
         </div>
       </footer>

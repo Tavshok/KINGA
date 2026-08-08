@@ -66,7 +66,7 @@ export default function HistoricalClaimsPipeline() {
       <div className="border-b bg-card">
         <div className="container py-4">
           <div className="flex items-center gap-3 mb-2">
-            <Link href="/portal-hub">
+            <Link href="/insurer-portal">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back

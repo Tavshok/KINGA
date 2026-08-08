@@ -1271,7 +1271,7 @@ export default function AssessmentResults() {
           <Link href="/insurer/external-assessment">
             <Button variant="outline" size="lg">Upload Another Assessment</Button>
           </Link>
-          <Link href="/portal-hub">
+          <Link href="/insurer-portal">
             <Button variant="ghost" size="lg">Back to Portal</Button>
           </Link>
         </div>
