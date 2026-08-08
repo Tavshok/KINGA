@@ -91,13 +91,10 @@ export default function PortalSelection() {
       {/* Navigation */}
       <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur border-b">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <KingaLogo size="sm" />
-            <div className="hidden sm:block">
-              <p className="text-sm font-bold leading-none">KINGA AutoVerify AI</p>
-              <p className="text-xs text-muted-foreground">Motor Intelligence Platform</p>
-            </div>
-          </div>
+         <div className="flex items-center gap-3">
+            <KingaLogo size="md" showText={false} />
+            <p className="hidden sm:block text-xs text-muted-foreground tracking-wide">Risk Intelligence Platform</p>
+         </div>
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground transition-colors">Valuations</button>
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground transition-colors">Insurance</button>
@@ -262,10 +259,10 @@ export default function PortalSelection() {
       {/* Footer */}
       <footer className="border-t py-8">
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <KingaLogo size="sm" />
-            <span className="text-sm text-muted-foreground">KINGA AutoVerify AI · Zimbabwe · © 2026</span>
-          </div>
+         <div className="flex items-center gap-2">
+            <KingaLogo size="sm" showText={false} />
+            <span className="text-sm text-muted-foreground">KINGA · Zimbabwe · © 2026</span>
+         </div>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground">Valuations</button>
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground">Insurance</button>

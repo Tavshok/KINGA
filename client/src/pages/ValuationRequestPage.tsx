@@ -129,13 +129,10 @@ export default function ValuationRequestPage() {
       {/* Header */}
       <header className="bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setLocation("/")}>
-            <KingaLogo size="sm" />
-            <div>
-              <h1 className="text-lg font-bold">KINGA AutoVerify</h1>
-              <p className="text-xs text-muted-foreground">Vehicle Valuation & Insurance</p>
-            </div>
-          </div>
+         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setLocation("/")}>
+            <KingaLogo size="md" showText={false} />
+            <p className="text-xs text-muted-foreground tracking-wide">Risk Intelligence Platform</p>
+         </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => setLocation("/login")}>Sign In</Button>
             <Button size="sm" onClick={() => setLocation("/login")}>My Account</Button>
