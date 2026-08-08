@@ -15,6 +15,9 @@ export default function Login() {
   // Get role from URL query parameter
   const urlParams = new URLSearchParams(window.location.search);
   const roleParam = urlParams.get('role');
+  // Read returnPath from URL (set by ProtectedRoute when redirecting unauthenticated users to login)
+  const returnPathParam = urlParams.get('returnPath');
+  const decodedReturnPath = returnPathParam ? decodeURIComponent(returnPathParam) : undefined;
   
   const roleLabels: Record<string, string> = {
     insurer: 'Insurer Portal',
@@ -170,7 +173,8 @@ export default function Login() {
             className="w-full" 
             size="lg"
             onClick={() => {
-              window.location.href = getLoginUrl();
+              // Pass returnPath so OAuth callback redirects user to the page they tried to access
+              window.location.href = getLoginUrl(decodedReturnPath);
             }}
           >
             Sign In with Manus

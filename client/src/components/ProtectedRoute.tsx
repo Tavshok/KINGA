@@ -1,5 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Redirect } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 
 /**
@@ -55,6 +55,7 @@ interface ProtectedRouteProps {
  */
 export default function ProtectedRoute({ children, allowedRoles, allowedInsurerRoles, domain }: ProtectedRouteProps) {
   const { user, loading, isAuthenticated } = useAuth();
+  const [location] = useLocation();
 
   // Show loading spinner while auth is being verified (including retry backoff)
   // NOTE: useAuth() already handles retry logic internally — do NOT create a
@@ -74,7 +75,11 @@ export default function ProtectedRoute({ children, allowedRoles, allowedInsurerR
 
   // Redirect to login only once auth has fully settled with no authenticated user
   if (!isAuthenticated || !user) {
-    return <Redirect to="/login" />;
+    // Pass the current path as returnPath so the Login page can encode it into the
+    // OAuth state. After OAuth completes, the callback redirects the user back here
+    // instead of landing on /portal-hub and requiring a second navigation.
+    const returnPath = encodeURIComponent(location);
+    return <Redirect to={`/login?returnPath=${returnPath}`} />;
   }
 
   // Resolve effective role list: explicit allowedRoles > domain > none
