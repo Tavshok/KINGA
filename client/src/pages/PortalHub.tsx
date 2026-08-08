@@ -23,12 +23,30 @@ import { useRoleDashboardRoute } from "@/components/RoleRouteGuard";
 import ThemeToggle from "@/components/ThemeToggle";
 
 export default function PortalHub() {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const [, setLocation] = useLocation();
   const roleDashboardRoute = useRoleDashboardRoute();
 
   // Auto-redirect removed: users should always see the portal hub first
   // to choose their role. They can navigate to their dashboard from here.
+
+  // Show spinner while auth.me is resolving after OAuth redirect
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading KINGA...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated after loading, redirect to login
+  if (!user) {
+    setLocation("/login");
+    return null;
+  }
 
   const portals = [
     {
