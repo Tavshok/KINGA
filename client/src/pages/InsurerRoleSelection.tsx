@@ -130,7 +130,7 @@ export default function InsurerRoleSelection() {
   // Auto-redirect users who already have an insurerRole to their own portal.
   // This prevents the role-selection page from being used as a portal-switching
   // mechanism by non-admin users.
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "platform_super_admin";
   const userInsurerRole = user?.insurerRole ?? null;
 
   return (

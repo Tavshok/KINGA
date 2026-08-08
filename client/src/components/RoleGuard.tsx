@@ -44,7 +44,7 @@ export function RoleGuard({ children, allowedRoles, requireTenant = true }: Role
   }
 
   // ── Admin override: bypass role checks but show a visible indicator ──────
-  if (user.role === "admin") {
+  if (user.role === "admin" || user.role === "platform_super_admin") {
     return (
       <>
         {/* Admin override banner — always visible so cross-portal access is auditable */}

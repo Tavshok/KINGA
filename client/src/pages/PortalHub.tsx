@@ -128,7 +128,7 @@ export default function PortalHub() {
       icon: Shield,
       path: "/admin",
       color: "from-red-500 to-rose-500",
-      roles: ["admin"]
+      roles: ["admin", "platform_super_admin"]
     }
   ];
 
