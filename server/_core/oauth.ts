@@ -58,14 +58,18 @@ export function registerOAuthRoutes(app: Express) {
     }
 
     try {
+      console.log("[OAuth] Step 1: exchangeCodeForToken starting, state length=" + state.length);
       const tokenResponse = await sdk.exchangeCodeForToken(code, state);
+      console.log("[OAuth] Step 2: exchangeCodeForToken OK");
       const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
+      console.log(`[OAuth] Step 3: getUserInfo OK openId=${userInfo.openId} name="${userInfo.name}" email="${userInfo.email}"`);
 
       if (!userInfo.openId) {
         res.status(400).json({ error: "openId missing from user info" });
         return;
       }
 
+      console.log("[OAuth] Step 4: upsertUser starting");
       await db.upsertUser({
         openId: userInfo.openId,
         name: userInfo.name || null,
@@ -73,14 +77,15 @@ export function registerOAuthRoutes(app: Express) {
         loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
         lastSignedIn: new Date().toISOString(),
       });
+      console.log("[OAuth] Step 5: upsertUser OK, creating session token");
 
       // Use email or openId as fallback so the JWT name field is never empty.
-      // An empty name causes verifySession to reject the token (isNonEmptyString check).
       const displayName = userInfo.name || userInfo.email || userInfo.openId || "user";
       const sessionToken = await sdk.createSessionToken(userInfo.openId, {
         name: displayName,
         expiresInMs: ONE_YEAR_MS,
       });
+      console.log("[OAuth] Step 6: session token created");
 
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
@@ -89,9 +94,11 @@ export function registerOAuthRoutes(app: Express) {
       // /portal-hub for role selection.
       const { returnPath } = parseState(state);
       const destination = isSafeReturnPath(returnPath) ? returnPath : "/portal-hub";
+      console.log(`[OAuth] Step 7: redirecting to ${destination}, cookie secure=${cookieOptions.secure} sameSite=${cookieOptions.sameSite}`);
       res.redirect(302, destination);
     } catch (error) {
-      console.error("[OAuth] Callback failed", error);
+      console.error("[OAuth] Callback FAILED:", String(error));
+      if (error instanceof Error) console.error("[OAuth] Stack:", error.stack?.split('\n').slice(0, 5).join(' | '));
       res.status(500).json({ error: "OAuth callback failed" });
     }
   });
