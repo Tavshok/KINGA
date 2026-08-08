@@ -143,7 +143,11 @@ export function useAuth(options?: UseAuthOptions) {
 
     return {
       user: resolvedUser,
-      loading: meQuery.isLoading || logoutMutation.isPending,
+      // Include isFetching so ProtectedRoute shows the spinner during ALL in-flight
+      // auth.me requests — not just the very first load. Without this, a background
+      // refetch (isFetching=true, isLoading=false) causes loading=false while
+      // resolvedUser is still null, making ProtectedRoute redirect to /login.
+      loading: meQuery.isLoading || meQuery.isFetching || logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
       isAuthenticated,
       isDevOverride: false,
