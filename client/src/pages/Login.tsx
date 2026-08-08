@@ -53,7 +53,7 @@ export default function Login() {
       case "user":
         return "/client";
       case "platform_super_admin":
-        return "/platform/overview";
+        return "/portal-hub";
       default:
         return "/portal-hub";
     }
