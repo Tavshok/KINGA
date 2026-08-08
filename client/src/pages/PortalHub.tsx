@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Home } from "lucide-react";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRoleDashboardRoute } from "@/components/RoleRouteGuard";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -30,8 +30,23 @@ export default function PortalHub() {
   // Auto-redirect removed: users should always see the portal hub first
   // to choose their role. They can navigate to their dashboard from here.
 
-  // Show spinner while auth.me is resolving after OAuth redirect
-  if (loading) {
+  // Track when auth has fully settled to avoid premature redirect
+  const [authSettled, setAuthSettled] = useState(false);
+  useEffect(() => {
+    if (!loading) setAuthSettled(true);
+  }, [loading]);
+
+  // Redirect to login only AFTER auth has settled with no user (via useEffect,
+  // not during render — calling setLocation during render causes React errors
+  // and fires before the auth.me query has a chance to return)
+  useEffect(() => {
+    if (authSettled && !user) {
+      setLocation("/login");
+    }
+  }, [authSettled, user, setLocation]);
+
+  // Show spinner while loading OR before auth has settled
+  if (loading || !authSettled || (!user && authSettled)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -40,12 +55,6 @@ export default function PortalHub() {
         </div>
       </div>
     );
-  }
-
-  // If not authenticated after loading, redirect to login
-  if (!user) {
-    setLocation("/login");
-    return null;
   }
 
   const portals = [
