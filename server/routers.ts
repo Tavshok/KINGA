@@ -163,6 +163,7 @@ import { assessorsRouter } from "./routers/assessors-core"; // SPLIT-R04: extrac
 import { authRouter } from "./routers/auth-core"; // SPLIT-R05: extracted Aug 2026
 import { panelBeatersRouter } from "./routers/panel-beaters-core"; // SPLIT-R06: extracted Aug 2026
 import { claimReportsRouter } from "./routers/claim-reports-core"; // SPLIT-R07: extracted Aug 2026
+import { impersonationRouter } from "./routers/impersonation"; // Batch 2: superadmin impersonation
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1569,5 +1570,6 @@ If any value is not found, use null or 0. Line items category must be one of: pa
   treGovernance: treGovernanceRouter,
   treV4Governance: treV4GovernanceRouter,
   recovery: recoveryRouter,
+  impersonation: impersonationRouter,
 });
 export type AppRouter = typeof appRouter;

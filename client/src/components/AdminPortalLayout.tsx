@@ -127,6 +127,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText, description: "Full tamper-evident audit trail" },
       { label: "User Management", href: "/admin/users", icon: UserCog, description: "All users, roles, deactivation" },
       { label: "Security Events", href: "/admin/security-events", icon: Shield, description: "Role changes, access denials, overrides" },
+      { label: "View As", href: "/admin/view-as", icon: Eye, description: "Impersonate any user for QA testing" },
     ],
   },
   {

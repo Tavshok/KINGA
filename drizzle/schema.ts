@@ -3153,6 +3153,9 @@ export const tenants = mysqlTable("tenants", {
 	kingaSequence: int("kinga_sequence").default(0).notNull(),
 	/** The calendar year for which kingaSequence is valid. When the current year differs from this value, sequence resets to 1. */
 	kingaSequenceYear: int("kinga_sequence_year").default(0).notNull(),
+	/** Flag for synthetic/QA tenants — excluded from real analytics, dashboards, and reporting.
+	 *  Set to 1 for the kinga-qa-internal tenant used for superadmin impersonation testing. */
+	isSyntheticTenant: tinyint("is_synthetic_tenant").default(0).notNull(),
 },
 (table) => [
 	index("idx_tenants_name").on(table.name),
@@ -3369,6 +3372,12 @@ export const users = mysqlTable("users", {
 	/** UTC timestamp of when an admin set isActive=0. Null for accounts that have never been
 	 *  deactivated. Provides an audit trail without requiring a separate audit table entry. */
 	deactivatedAt: timestamp("deactivated_at", { mode: 'string' }),
+	/** Default insurer sub-role for multi-role insurer accounts. When set, post-login redirect
+	 *  goes directly to this role's dashboard without showing the role-selection screen. */
+	defaultRole: varchar("default_role", { length: 100 }),
+	/** When 1, this account was created for QA/impersonation testing only.
+	 *  Direct login is disabled; account exists to be impersonated by superadmin. */
+	isQaAccount: tinyint("is_qa_account").default(0),
 },
 (table) => [
 		index("users_openId_unique").on(table.openId),

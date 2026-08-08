@@ -89,6 +89,12 @@ export default function PortalSelection() {
     }
   };
 
+  // Professional portal links: always go through OAuth with returnPath
+  // so the user lands directly in their portal after login
+  const handlePortalClick = (href: string) => {
+    window.location.href = getLoginUrl(href);
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Navigation */}
@@ -235,7 +241,7 @@ export default function PortalSelection() {
           </div>
           <div className="flex flex-wrap justify-center gap-3">
             {PORTAL_LINKS.map(({ role, title, icon: Icon, href }) => (
-              <Button key={role} variant="outline" onClick={() => setLocation(href)} className="flex items-center gap-2">
+              <Button key={role} variant="outline" onClick={() => handlePortalClick(href)} className="flex items-center gap-2">
                 <Icon className="h-4 w-4" /> {title}
               </Button>
             ))}

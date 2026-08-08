@@ -1,6 +1,7 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
+import { createAuditEntry } from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 
@@ -78,6 +79,22 @@ export function registerOAuthRoutes(app: Express) {
         lastSignedIn: new Date().toISOString(),
       });
       console.log("[OAuth] Step 5: upsertUser OK, creating session token");
+      // Batch 1: Log role resolution at login to audit trail (non-fatal)
+      try {
+        const resolvedUser = await db.getUserByOpenId(userInfo.openId);
+        if (resolvedUser) {
+          await createAuditEntry({
+            userId: resolvedUser.id,
+            action: "LOGIN_ROLE_RESOLVED",
+            entityType: "user",
+            entityId: resolvedUser.id,
+            changeDescription: `Login: role=${resolvedUser.role}${resolvedUser.insurerRole ? `/${resolvedUser.insurerRole}` : ""} tenantId=${resolvedUser.tenantId ?? "none"}`,
+            newValue: JSON.stringify({ role: resolvedUser.role, insurerRole: resolvedUser.insurerRole, tenantId: resolvedUser.tenantId }),
+          });
+        }
+      } catch (auditErr) {
+        console.warn("[OAuth] Audit log failed (non-fatal):", String(auditErr));
+      }
 
       // Use email or openId as fallback so the JWT name field is never empty.
       const displayName = userInfo.name || userInfo.email || userInfo.openId || "user";

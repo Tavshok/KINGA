@@ -84,6 +84,7 @@ const VehicleRegistry = lazy(() => import("./pages/VehicleRegistry"));
 import PlatformLayout from "./components/PlatformLayout";
 import InsurerPortalLayout from "./components/InsurerPortalLayout";
 import AdminPortalLayout from "./components/AdminPortalLayout";
+import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import AssessorPortalLayout from "./components/AssessorPortalLayout";
 import PanelBeaterPortalLayout from "./components/PanelBeaterPortalLayout";
 import ClaimantPortalLayout from "./components/ClaimantPortalLayout";
@@ -180,6 +181,7 @@ const ActivityTimeline = lazy(() => import("./pages/admin/ActivityTimeline"));
 const AuditLog = lazy(() => import("./pages/admin/AuditLog"));
 const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const SecurityEvents = lazy(() => import("./pages/admin/SecurityEvents"));
+const ViewAsPage = lazy(() => import("./pages/admin/ViewAsPage"));
 const NetworkOversight = lazy(() => import("./pages/admin/NetworkOversight"));
 const TenantProvisioning = lazy(() => import("./pages/admin/TenantProvisioning"));
 // Engineering + valuation pages (MUST be declared before App/Router — hoisting bug fix)
@@ -932,6 +934,11 @@ function Router() {
             <AdminPortalLayout title="Security Events"><SecurityEvents /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
+        <Route path="/admin/view-as">
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
+            <AdminPortalLayout title="View As"><ViewAsPage /></AdminPortalLayout>
+          </ProtectedRoute>
+        </Route>
         {/* Engineering Workspace Routes — /engineer domain (Epic 4.5: EngineerWorkspaceLayout applied) */}
         <Route path="/engineer/dashboard">
           <ProtectedRoute domain="engineer">
@@ -1004,6 +1011,7 @@ function App() {
       >
         <TooltipProvider>
           <OnboardingManager>
+            <ImpersonationBanner />
             <DevRoleBadge />
             <Toaster />
             <Router />
