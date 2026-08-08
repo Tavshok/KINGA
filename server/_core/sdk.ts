@@ -394,15 +394,11 @@ class SDKServer {
         // admin.deactivateUser (sets isActive=0) rather than hard-deleting the row.
         console.info(`[Auth] User openId=${sessionUserId} not in DB — attempting OAuth re-sync`);
         try {
-          const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
           await db.upsertUser({
-            openId: userInfo.openId,
-            name: userInfo.name || null,
-            email: userInfo.email ?? null,
-            loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+            openId: sessionUserId,
             lastSignedIn: signedInAt,
           });
-          user = await db.getUserByOpenId(userInfo.openId);
+          user = await db.getUserByOpenId(sessionUserId);
           console.info(`[Auth] Re-sync successful for openId=${sessionUserId}`);
         } catch (error) {
           console.error("[Auth] Failed to re-sync user from OAuth:", error);
