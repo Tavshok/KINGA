@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, LogOut, ArrowRight } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { useLocation } from "wouter";
+import { useEffect } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Login() {
@@ -74,8 +75,24 @@ export default function Login() {
     );
   }
 
-  // If user is already authenticated, show logout option
+  // Auto-redirect authenticated users to their dashboard immediately
+  useEffect(() => {
+    if (isAuthenticated && user && !loading) {
+      setLocation(getDashboardPath(user.role));
+    }
+  }, [isAuthenticated, user, loading, setLocation]);
+
+  // If user is already authenticated, show a brief loading state while redirecting
   if (isAuthenticated && user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // DEAD CODE - kept for reference, auto-redirect handles this case above
+  if (false && isAuthenticated && user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5 p-4">
         <Card className="w-full max-w-md">
