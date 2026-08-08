@@ -4,13 +4,15 @@
  * Authentication, session management, and user profile procedures.
  */
 import { COOKIE_NAME } from "@shared/const";
-import { resolveDashboardRoute, getRolePermissions } from "@shared/role-permissions";
+import { resolveDashboardRoute, getRolePermissions, ANALYTICS_ALLOWED_ROLES, GOVERNANCE_ALLOWED_ROLES, REPORT_SCHEDULE_ALLOWED_ROLES } from "@shared/role-permissions";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { getDb } from "../db";
 import { eq } from "drizzle-orm";
+import { REPORT_ACCESS } from "../reporting/reportDefinitions";
+import { canAccessReport } from "./reporting";
 export const authRouter = router({
   me: publicProcedure.query(({ ctx }) => {
     const user = ctx.user;
