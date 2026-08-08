@@ -62,10 +62,10 @@ const CUSTOMER_JOURNEYS = [
 ];
 
 const PORTAL_LINKS = [
-  { role: "insurer", title: "Insurer Portal", icon: Building2, href: "/login?role=insurer" },
-  { role: "assessor", title: "Assessor Portal", icon: ClipboardCheck, href: "/login?role=assessor" },
-  { role: "panel_beater", title: "Panel Beater Portal", icon: Wrench, href: "/login?role=panel_beater" },
-  { role: "agency", title: "Agency Portal", icon: User, href: "/login?role=agency" },
+  { role: "insurer", title: "Insurer Portal", icon: Building2, href: "/insurer-portal" },
+  { role: "assessor", title: "Assessor Portal", icon: ClipboardCheck, href: "/assessor/dashboard" },
+  { role: "panel_beater", title: "Panel Beater Portal", icon: Wrench, href: "/panel-beater/dashboard" },
+  { role: "agency", title: "Agency Portal", icon: User, href: "/agency" },
 ];
 
 const STATS = [
