@@ -303,8 +303,8 @@ export async function getPlatformOverview() {
     .select({
       range: sql<string>`
         CASE
-          WHEN ${aiAssessments.confidenceScore} >= 80 THEN 'high'
-          WHEN ${aiAssessments.confidenceScore} >= 50 THEN 'medium'
+          WHEN ai_assessments.confidence_score >= 80 THEN 'high'
+          WHEN ai_assessments.confidence_score >= 50 THEN 'medium'
           ELSE 'low'
         END
       `,
@@ -313,8 +313,8 @@ export async function getPlatformOverview() {
     .from(aiAssessments)
     .groupBy(sql`
       CASE
-        WHEN ${aiAssessments.confidenceScore} >= 80 THEN 'high'
-        WHEN ${aiAssessments.confidenceScore} >= 50 THEN 'medium'
+        WHEN ai_assessments.confidence_score >= 80 THEN 'high'
+        WHEN ai_assessments.confidence_score >= 50 THEN 'medium'
         ELSE 'low'
       END
     `);
