@@ -1,7 +1,7 @@
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   isDevRoleOverrideEnabled,
   getDevRoleFromURL,
@@ -15,20 +15,6 @@ type UseAuthOptions = {
   redirectPath?: string;
 };
 
-/** Read the last known user from localStorage so we can show a non-null user
- *  while the server is warming up (cold start / restart). This prevents the
- *  ProtectedRoute from immediately redirecting to /login during transient
- *  server unavailability. The value is cleared on explicit logout. */
-function getCachedUser(): any | null {
-  try {
-    const raw = localStorage.getItem("manus-runtime-user-info");
-    if (!raw || raw === "null" || raw === "undefined") return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
 export function useAuth(options?: UseAuthOptions) {
   const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
     options ?? {};
@@ -36,9 +22,6 @@ export function useAuth(options?: UseAuthOptions) {
 
   // Dev role override state (only active in development)
   const [devMockUser, setDevMockUser] = useState<MockUser | null>(null);
-  // Hard timeout: if auth.me hasn't resolved in 15s, treat as unauthenticated
-  const [authTimedOut, setAuthTimedOut] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Check for dev role override on mount
   useEffect(() => {
@@ -52,47 +35,16 @@ export function useAuth(options?: UseAuthOptions) {
     }
   }, []);
 
-  // Start the hard timeout on mount; clear it when auth resolves
-  useEffect(() => {
-    timeoutRef.current = setTimeout(() => {
-      setAuthTimedOut(true);
-    }, 15000);
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
   const meQuery = trpc.auth.me.useQuery(undefined, {
-    // Retry on network/server errors (5xx, cold starts) but NOT on 401 Unauthorized
-    retry: (failureCount, error) => {
-      if (failureCount >= 3) return false;
-      // Don't retry on explicit 401 (user is genuinely not authenticated)
-      if (error && (error as any)?.data?.httpStatus === 401) return false;
-      if (error && (error as any)?.data?.code === "UNAUTHORIZED") return false;
-      // Retry on network errors / server restarts (503, 500, ECONNREFUSED, etc.)
-      return true;
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 8000),
+    retry: false,
     refetchOnWindowFocus: false,
     // Skip real auth query if dev role override is active
     enabled: !devMockUser,
   });
 
-  // Clear timeout when auth.me resolves (success or error)
-  useEffect(() => {
-    if (!meQuery.isLoading && !meQuery.isFetching) {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      setAuthTimedOut(false);
-    }
-  }, [meQuery.isLoading, meQuery.isFetching]);
-
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
       utils.auth.me.setData(undefined, null);
-      // Clear cached user on explicit logout
       localStorage.removeItem("manus-runtime-user-info");
     },
   });
@@ -101,13 +53,11 @@ export function useAuth(options?: UseAuthOptions) {
     // If dev role override is active, just clear the mock user and reload
     if (devMockUser) {
       setDevMockUser(null);
-      // Remove devRole query parameter and reload
       const url = new URL(window.location.href);
       url.searchParams.delete("devRole");
       window.location.href = url.toString();
       return;
     }
-
     // Normal logout flow
     try {
       await logoutMutation.mutateAsync();
@@ -123,7 +73,6 @@ export function useAuth(options?: UseAuthOptions) {
       utils.auth.me.setData(undefined, null);
       localStorage.removeItem("manus-runtime-user-info");
       await utils.auth.me.invalidate();
-      // Redirect to home page after logout
       window.location.href = "/";
     }
   }, [logoutMutation, utils, devMockUser]);
@@ -131,10 +80,7 @@ export function useAuth(options?: UseAuthOptions) {
   const state = useMemo(() => {
     // If dev role override is active, use mock user
     if (devMockUser) {
-      localStorage.setItem(
-        "manus-runtime-user-info",
-        JSON.stringify(devMockUser)
-      );
+      localStorage.setItem("manus-runtime-user-info", JSON.stringify(devMockUser));
       return {
         user: devMockUser,
         loading: false,
@@ -144,37 +90,16 @@ export function useAuth(options?: UseAuthOptions) {
       };
     }
 
-    // While the query is loading (including retries), use cached user from
-    // localStorage so ProtectedRoute doesn't redirect during cold starts.
-    const isQueryLoading = meQuery.isLoading || meQuery.isFetching;
-    // On timeout, don't use cached user — force re-auth
-    const cachedUser = (isQueryLoading && !authTimedOut) ? getCachedUser() : null;
-    const resolvedUser = meQuery.data ?? cachedUser ?? null;
-
-    // Persist the resolved user to localStorage (cleared on logout)
+    // Normal auth state — simple, no caching, no retries
     if (meQuery.data) {
-      localStorage.setItem(
-        "manus-runtime-user-info",
-        JSON.stringify(meQuery.data)
-      );
+      localStorage.setItem("manus-runtime-user-info", JSON.stringify(meQuery.data));
     }
 
-    // Only consider unauthenticated once the query has settled (not loading/retrying)
-    // AND there is no cached user to fall back on.
-    const settled = !meQuery.isLoading && !meQuery.isFetching || authTimedOut;
-    const isAuthenticated = settled
-      ? Boolean(meQuery.data)
-      : Boolean(resolvedUser);
-
     return {
-      user: resolvedUser,
-      // Include isFetching so ProtectedRoute shows the spinner during ALL in-flight
-      // auth.me requests — not just the very first load. Without this, a background
-      // refetch (isFetching=true, isLoading=false) causes loading=false while
-      // resolvedUser is still null, making ProtectedRoute redirect to /login.
-      loading: (meQuery.isLoading || meQuery.isFetching || logoutMutation.isPending) && !authTimedOut,
+      user: meQuery.data ?? null,
+      loading: meQuery.isLoading || logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
-      isAuthenticated,
+      isAuthenticated: Boolean(meQuery.data),
       isDevOverride: false,
     };
   }, [
@@ -182,26 +107,22 @@ export function useAuth(options?: UseAuthOptions) {
     meQuery.data,
     meQuery.error,
     meQuery.isLoading,
-    meQuery.isFetching,
     logoutMutation.error,
     logoutMutation.isPending,
-    authTimedOut,
   ]);
 
   useEffect(() => {
     if (!redirectOnUnauthenticated) return;
-    if (meQuery.isLoading || meQuery.isFetching || logoutMutation.isPending) return;
+    if (meQuery.isLoading || logoutMutation.isPending) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
     if (window.location.pathname === redirectPath) return;
-
     window.location.href = redirectPath;
   }, [
     redirectOnUnauthenticated,
     redirectPath,
     logoutMutation.isPending,
     meQuery.isLoading,
-    meQuery.isFetching,
     state.user,
   ]);
 
