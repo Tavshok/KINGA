@@ -362,7 +362,7 @@ class SDKServer {
     // now because missing users are rejected rather than re-created.
     if (!user) {
       if (sessionUserId === ENV.ownerOpenId) {
-        // Owner auto-sync: the platform owner may not be in the DB on first login.
+        // Owner auto-sync path (kept for backward compatibility)
         try {
           const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
           await db.upsertUser({
@@ -378,11 +378,36 @@ class SDKServer {
           throw ForbiddenError("Failed to sync owner info");
         }
       } else {
-        // Non-owner not in DB: fail closed.
-        // Hard-deleted users whose JWT is still valid are rejected here.
-        // They must be re-invited through the normal registration flow.
-        console.warn(`[Auth] Rejected unknown user openId=${sessionUserId} — not in DB and not the platform owner`);
-        throw ForbiddenError("User not found");
+        // KINGA-AUTH-02: First-login auto-sync for all OAuth-verified users.
+        //
+        // The OAuth callback calls upsertUser before setting the cookie, but there
+        // is a race condition on the deployed Cloud Run instance: the DB write may
+        // not be visible to the next request (different instance, read replica lag,
+        // or the callback errored silently after setting the cookie).
+        //
+        // Since the JWT was signed by our own server (JWT_SECRET), the user's
+        // identity is already verified. We can safely re-sync them from the OAuth
+        // server rather than permanently locking them out.
+        //
+        // Hard-deleted users: the isActive=0 revocation check below handles this.
+        // If an admin wants to permanently revoke access, they should use
+        // admin.deactivateUser (sets isActive=0) rather than hard-deleting the row.
+        console.info(`[Auth] User openId=${sessionUserId} not in DB — attempting OAuth re-sync`);
+        try {
+          const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
+          await db.upsertUser({
+            openId: userInfo.openId,
+            name: userInfo.name || null,
+            email: userInfo.email ?? null,
+            loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+            lastSignedIn: signedInAt,
+          });
+          user = await db.getUserByOpenId(userInfo.openId);
+          console.info(`[Auth] Re-sync successful for openId=${sessionUserId}`);
+        } catch (error) {
+          console.error("[Auth] Failed to re-sync user from OAuth:", error);
+          throw ForbiddenError("User not found and re-sync failed");
+        }
       }
     }
 
