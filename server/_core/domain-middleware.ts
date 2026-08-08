@@ -27,8 +27,8 @@ const t = initTRPC.context<TrpcContext>().create({ transformer: superjson });
 const PLATFORM_ROLES = ["platform_super_admin"] as const;
 // platform_super_admin included for system testing access (confirmed product requirement 2026-07-30)
 const AGENCY_ROLES = ["agency", "admin", "platform_super_admin"] as const;
-const INSURER_ROLES = ["insurer", "admin"] as const;
-const FLEET_ROLES = ["fleet_admin", "fleet_manager", "fleet_driver", "admin"] as const;
+const INSURER_ROLES = ["insurer", "admin", "platform_super_admin"] as const;
+const FLEET_ROLES = ["fleet_admin", "fleet_manager", "fleet_driver", "admin", "platform_super_admin"] as const;
 // Marketplace: any authenticated user can browse; profile owners manage their own
 const MARKETPLACE_ROLES = [
   "admin",

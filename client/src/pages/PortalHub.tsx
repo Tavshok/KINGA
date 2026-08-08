@@ -38,7 +38,7 @@ export default function PortalHub() {
       icon: Building2,
       path: "/insurer-portal",
       color: "from-primary to-accent",
-      roles: ["insurer", "admin"]
+      roles: ["insurer", "admin", "platform_super_admin"]
     },
     {
       id: "assessor",
@@ -47,7 +47,7 @@ export default function PortalHub() {
       icon: ClipboardCheck,
       path: "/assessor/dashboard",
       color: "from-green-500 to-emerald-500",
-      roles: ["assessor", "admin"]
+      roles: ["assessor", "admin", "platform_super_admin"]
     },
     {
       id: "panel-beater",
@@ -56,7 +56,7 @@ export default function PortalHub() {
       icon: Wrench,
       path: "/panel-beater/dashboard",
       color: "from-orange-500 to-amber-500",
-      roles: ["panel_beater", "admin"]
+      roles: ["panel_beater", "admin", "platform_super_admin"]
     },
     {
       id: "my-portal",
@@ -65,7 +65,7 @@ export default function PortalHub() {
       icon: Home,
       path: "/client",
       color: "from-violet-500 to-purple-600",
-      roles: ["user", "claimant", "fleet_admin", "fleet_manager", "fleet_driver", "insurer", "assessor", "panel_beater", "engineer", "admin", "agency_broker", "agency_admin"]
+      roles: ["user", "claimant", "fleet_admin", "fleet_manager", "fleet_driver", "fleet_driver", "insurer", "assessor", "panel_beater", "engineer", "admin", "agency", "platform_super_admin"]
     },
     {
       id: "fleet",
@@ -74,7 +74,7 @@ export default function PortalHub() {
       icon: Truck,
       path: "/fleet",
       color: "from-teal-500 to-cyan-500",
-      roles: ["fleet_admin", "fleet_manager", "fleet_driver", "admin"]
+      roles: ["fleet_admin", "fleet_manager", "fleet_driver", "admin", "platform_super_admin"]
     },
     {
       id: "kinga-agency",
@@ -83,7 +83,7 @@ export default function PortalHub() {
       icon: Building2,
       path: "/agency",
       color: "from-emerald-500 to-teal-500",
-      roles: ["agency_broker", "agency_admin", "admin"]
+      roles: ["agency", "agency_broker", "agency_admin", "admin", "platform_super_admin"]
     },
     {
       id: "engineers",
@@ -92,7 +92,7 @@ export default function PortalHub() {
       icon: HardHat,
       path: "/engineer/dashboard",
       color: "from-yellow-500 to-orange-500",
-      roles: ["engineer", "admin"]
+      roles: ["engineer", "admin", "platform_super_admin"]
     },
     {
       id: "admin",

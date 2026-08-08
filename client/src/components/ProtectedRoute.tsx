@@ -16,9 +16,9 @@ import { Loader2 } from "lucide-react";
 export const DOMAIN_ROLE_MAP: Record<string, string[]> = {
   platform: ["platform_super_admin"],
   agency: ["agency", "admin", "platform_super_admin"], // platform_super_admin: system testing access (confirmed 2026-07-30)
-  insurer: ["insurer", "admin"],
-  fleet: ["fleet_admin", "fleet_manager", "fleet_driver", "admin"],
-  engineer: ["engineer", "admin"], // Epic 3 — Engineering Workspace (wired Epic 4.5)
+  insurer: ["insurer", "admin", "platform_super_admin"],
+  fleet: ["fleet_admin", "fleet_manager", "fleet_driver", "admin", "platform_super_admin"],
+  engineer: ["engineer", "admin", "platform_super_admin"], // Epic 3 — Engineering Workspace (wired Epic 4.5)
   marketplace: [
     "admin", "insurer", "assessor", "panel_beater", "agency",
     "fleet_admin", "fleet_manager", "claimant", "user", "platform_super_admin",

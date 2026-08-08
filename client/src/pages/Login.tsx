@@ -26,7 +26,8 @@ export default function Login() {
   
   const roleLabel = roleParam ? roleLabels[roleParam] || 'KINGA Portal' : 'KINGA Portal';
 
-  // Get dashboard path based on user role
+  // IMPORTANT: Every role in the DB enum must be listed here.
+  // Missing roles fall through to /portal-hub which requires auth → redirect loop.
   const getDashboardPath = (userRole: string) => {
     switch (userRole) {
       case "insurer":
@@ -36,14 +37,21 @@ export default function Login() {
         return "/assessor/dashboard";
       case "panel_beater":
         return "/panel-beater/dashboard";
-      case "claimant":
-        return "/claimant/dashboard";
+      case "fleet_manager":
+      case "fleet_admin":
+      case "fleet_driver":
+        return "/fleet";
       case "agency":
         return "/agency";
+      case "engineer":
+        return "/engineer/dashboard";
+      case "claimant":
+      case "user":
+        return "/client";
       case "platform_super_admin":
-        return "/platform/overview"; // primary dashboard; /agency accessible for system testing
+        return "/platform/overview";
       default:
-        return "/";
+        return "/portal-hub";
     }
   };
 
