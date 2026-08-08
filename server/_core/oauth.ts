@@ -74,8 +74,11 @@ export function registerOAuthRoutes(app: Express) {
         lastSignedIn: new Date().toISOString(),
       });
 
+      // Use email or openId as fallback so the JWT name field is never empty.
+      // An empty name causes verifySession to reject the token (isNonEmptyString check).
+      const displayName = userInfo.name || userInfo.email || userInfo.openId || "user";
       const sessionToken = await sdk.createSessionToken(userInfo.openId, {
-        name: userInfo.name || "",
+        name: displayName,
         expiresInMs: ONE_YEAR_MS,
       });
 

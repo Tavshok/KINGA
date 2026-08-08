@@ -281,10 +281,12 @@ class SDKServer {
 
       if (
         !isNonEmptyString(openId) ||
-        !isNonEmptyString(appId) ||
-        !isNonEmptyString(name)
+        !isNonEmptyString(appId)
+        // NOTE: name is intentionally NOT required — users without a display name
+        // on their Manus account will have name="" in the JWT. Rejecting empty name
+        // permanently locks those users out. Name is not a security-critical field.
       ) {
-        console.warn("[Auth] Session payload missing required fields");
+        console.warn("[Auth] Session payload missing required fields (openId or appId)");
         return null;
       }
 
