@@ -1,5 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
+import { getLoginUrl, RETURN_PATH_STORAGE_KEY } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, LogOut, ArrowRight } from "lucide-react";
@@ -71,9 +71,19 @@ export default function Login() {
   };
 
   // Auto-redirect authenticated users to their dashboard immediately
+  // Also check localStorage for a returnPath set before the OAuth redirect
   useEffect(() => {
     if (isAuthenticated && user && !loading) {
-      setLocation(getDashboardPath(user.role));
+      // Check if there's a stored returnPath from before the OAuth redirect
+      let destination = getDashboardPath(user.role);
+      try {
+        const stored = localStorage.getItem(RETURN_PATH_STORAGE_KEY);
+        if (stored && stored.startsWith("/") && stored !== "/login" && stored !== "/portal-hub") {
+          destination = stored;
+          localStorage.removeItem(RETURN_PATH_STORAGE_KEY); // consume it
+        }
+      } catch { /* localStorage unavailable */ }
+      setLocation(destination);
     }
   }, [isAuthenticated, user, loading, setLocation]);
   if (loading) {

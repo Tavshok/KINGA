@@ -86,27 +86,10 @@ class OAuthService {
   }
 
   private decodeState(state: string): string {
-    // Support both state formats:
-    // Legacy: base64(redirectUri)                              → plain string
-    // New:    base64(JSON{ redirectUri, returnPath? })         → JSON object
-    //
-    // The frontend (getLoginUrl in const.ts) now encodes state as JSON so it
-    // can carry both the redirectUri AND the returnPath. This function must
-    // extract only the redirectUri for the OAuth token exchange — passing the
-    // entire JSON string as redirectUri causes the Manus OAuth server to reject
-    // the token exchange with a 500 error, which is the root cause of the login
-    // loop that has been occurring since the returnPath feature was added.
-    try {
-      const decoded = atob(state);
-      if (decoded.trimStart().startsWith("{")) {
-        const parsed = JSON.parse(decoded) as { redirectUri?: string };
-        if (parsed.redirectUri) return parsed.redirectUri;
-      }
-      // Legacy format: the decoded string IS the redirectUri
-      return decoded;
-    } catch {
-      return "";
-    }
+    // state = btoa(redirectUri) — the Manus OAuth server always sends back the
+    // same state that was passed to /app-auth. getLoginUrl in const.ts uses the
+    // original plain-base64 format. Do NOT change this to JSON parsing.
+    return atob(state);
   }
 
   async getTokenByCode(

@@ -1,35 +1,37 @@
 export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+// Key used to store the post-login return path in localStorage.
+// Written before the OAuth redirect; read by Login.tsx after the callback.
+export const RETURN_PATH_STORAGE_KEY = "kinga_post_login_return_path";
 
 /**
  * Generate login URL at runtime so redirect URI reflects the current origin.
  *
- * The `state` parameter now encodes both the redirectUri (required by the
- * OAuth server) and an optional `returnPath` so the callback handler can
- * redirect the user back to the page they were trying to reach instead of
- * always landing on /portal-hub.
+ * IMPORTANT: The Manus OAuth server requires state = btoa(redirectUri) — a plain
+ * base64 of the redirect URI. Do NOT encode JSON in state; the OAuth server uses
+ * state to validate the redirectUri in the token exchange and rejects anything
+ * that doesn't decode to a valid URI (returns 401).
  *
- * Encoding: base64(JSON.stringify({ redirectUri, returnPath }))
+ * returnPath is stored in localStorage (RETURN_PATH_STORAGE_KEY) before the
+ * OAuth redirect so Login.tsx can read it after the callback completes.
  *
  * @param returnPath  Optional path to redirect to after login.
- *                    Defaults to the current pathname + search string.
  */
 export const getLoginUrl = (returnPath?: string) => {
   const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
   const appId = import.meta.env.VITE_APP_ID;
   const redirectUri = `${window.location.origin}/api/oauth/callback`;
 
-  // Capture the page the user was on so we can return them there after login.
-  // Exclude /login and /portal-hub from the returnPath to avoid redirect loops.
-  const currentPath = window.location.pathname + window.location.search;
-  const safePath =
-    returnPath ??
-    (currentPath === "/login" || currentPath === "/portal-hub" ? undefined : currentPath);
+  // Store returnPath in localStorage so it survives the OAuth redirect.
+  // Exclude /login and /portal-hub to avoid redirect loops.
+  const safePath = returnPath && returnPath !== "/login" && returnPath !== "/portal-hub"
+    ? returnPath
+    : undefined;
+  if (safePath) {
+    try { localStorage.setItem(RETURN_PATH_STORAGE_KEY, safePath); } catch { /* ignore */ }
+  }
 
-  const statePayload = JSON.stringify({
-    redirectUri,
-    ...(safePath ? { returnPath: safePath } : {}),
-  });
-  const state = btoa(statePayload);
+  // Keep state as btoa(redirectUri) — the original format the Manus OAuth server expects.
+  const state = btoa(redirectUri);
 
   const url = new URL(`${oauthPortalUrl}/app-auth`);
   url.searchParams.set("appId", appId);

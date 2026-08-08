@@ -94,7 +94,7 @@ export function registerOAuthRoutes(app: Express) {
       // /portal-hub for role selection.
       const { returnPath } = parseState(state);
       const destination = isSafeReturnPath(returnPath) ? returnPath : "/portal-hub";
-      console.log(`[OAuth] Step 7: redirecting to ${destination}, cookie secure=${cookieOptions.secure} sameSite=${cookieOptions.sameSite}`);
+      console.log(`[OAuth] Step 7: redirecting to ${destination}`);
       res.redirect(302, destination);
     } catch (error) {
       console.error("[OAuth] Callback FAILED:", String(error));
