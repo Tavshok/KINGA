@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Car, Shield, FileText, Truck, ArrowRight, Zap, Eye,
   BarChart3, Lock, ChevronRight, Building2, ClipboardCheck,
-  Wrench, User
+  Wrench, User, HardHat, Settings
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { getLoginUrl } from "@/const";
@@ -66,6 +66,9 @@ const PORTAL_LINKS = [
   { role: "assessor", title: "Assessor Portal", icon: ClipboardCheck, href: "/assessor/dashboard" },
   { role: "panel_beater", title: "Panel Beater Portal", icon: Wrench, href: "/panel-beater/dashboard" },
   { role: "agency", title: "Agency Portal", icon: User, href: "/agency" },
+  { role: "engineer", title: "KINGA Engineers", icon: HardHat, href: "/engineer/dashboard" },
+  { role: "fleet", title: "Fleet Management", icon: Truck, href: "/fleet" },
+  { role: "admin", title: "Platform Admin", icon: Settings, href: "/platform/overview" },
 ];
 
 const STATS = [
