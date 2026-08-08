@@ -204,26 +204,6 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
-        {/* Monetization Dashboard (Super-Admin Only) */}
-        <Route path="/admin/monetization">
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <MonetizationDashboard />
-          </ProtectedRoute>
-        </Route>
-        {/* Admin Revenue Dashboard (Super-Admin Only) */}
-        <Route path="/admin/revenue">
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <AdminRevenueDashboard />
-          </ProtectedRoute>
-        </Route>
-        
-        {/* Operational Health Dashboard (Super-Admin Only) */}
-        <Route path="/admin/operational-health">
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <OperationalHealthDashboard />
-          </ProtectedRoute>
-        </Route>
-
         <Route path="/insurer-portal/exception-intelligence">
           <ProtectedRoute allowedRoles={["insurer", "admin", "platform_super_admin"]}>
             <RoleGuard allowedRoles={["risk_manager", "claims_manager", "executive", "insurer_admin"]}>
