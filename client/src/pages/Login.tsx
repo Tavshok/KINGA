@@ -31,7 +31,7 @@ export default function Login() {
   const roleLabel = roleParam ? roleLabels[roleParam] || 'KINGA Portal' : 'KINGA Portal';
 
   // IMPORTANT: Every role in the DB enum must be listed here.
-  // Missing roles fall through to /portal-hub which requires auth → redirect loop.
+  // Missing roles fall through to /insurer-portal. Portal hub is no longer used in post-login flow.
   const getDashboardPath = (userRole: string) => {
     switch (userRole) {
       case "insurer":
@@ -53,9 +53,9 @@ export default function Login() {
       case "user":
         return "/client";
       case "platform_super_admin":
-        return "/portal-hub";
+        return "/platform/overview";
       default:
-        return "/portal-hub";
+        return "/insurer-portal";
     }
   };
 
@@ -78,7 +78,7 @@ export default function Login() {
       let destination = getDashboardPath(user.role);
       try {
         const stored = localStorage.getItem(RETURN_PATH_STORAGE_KEY);
-        if (stored && stored.startsWith("/") && stored !== "/login" && stored !== "/portal-hub") {
+        if (stored && stored.startsWith("/") && stored !== "/login") {
           destination = stored;
           localStorage.removeItem(RETURN_PATH_STORAGE_KEY); // consume it
         }
