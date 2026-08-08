@@ -251,9 +251,12 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       values.role = user.role;
       updateSet.role = user.role;
     } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }    if (!values.lastSignedIn) {
+      // Owner gets platform_super_admin on INSERT only — do NOT override on UPDATE
+      // so an explicit role change in the admin UI is preserved across logins.
+      values.role = 'platform_super_admin';
+      // Intentionally NOT added to updateSet
+    }
+    if (!values.lastSignedIn) {
       values.lastSignedIn = new Date().toISOString();
     }
     if (Object.keys(updateSet).length === 0) {
