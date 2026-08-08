@@ -29,12 +29,14 @@ export async function createContext(
   try {
     user = await sdk.authenticateRequest(opts.req);
   } catch (authErr: unknown) {
-    // Authentication is optional for public procedures — failures here are expected
-    // for unauthenticated requests. Log at debug level only to avoid log noise.
-    if (process.env.NODE_ENV !== "production") {
-      console.debug(
-        `[context] Auth check returned no user: ${authErr instanceof Error ? authErr.message : String(authErr)}`
-      );
+    // Log auth failures at warn level in ALL environments so we can diagnose
+    // production login loops. These are expected for unauthenticated requests
+    // but must be visible when debugging persistent auth failures.
+    const errMsg = authErr instanceof Error ? authErr.message : String(authErr);
+    const hasCookie = !!(opts.req.headers.cookie);
+    if (hasCookie) {
+      // Only log when a cookie was present — unauthenticated requests are noise
+      console.warn(`[Auth] authenticateRequest failed (cookie present): ${errMsg}`);
     }
     user = null;
   }

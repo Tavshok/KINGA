@@ -137,7 +137,44 @@ async function startServer() {
   
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
-  
+
+  // Diagnostic endpoint — shows cookie presence and auth state on deployed server
+  // Remove after login loop is resolved
+  app.get("/api/auth-test", async (req: express.Request, res: express.Response) => {
+    const { COOKIE_NAME } = await import("@shared/const");
+    const rawCookie = req.headers.cookie ?? "";
+    const cookieMap: Record<string, string> = {};
+    rawCookie.split(";").forEach(c => {
+      const idx = c.indexOf("=");
+      if (idx > 0) cookieMap[c.slice(0, idx).trim()] = c.slice(idx + 1).trim();
+    });
+    const sessionCookie = cookieMap[COOKIE_NAME];
+    const result: Record<string, unknown> = {
+      hasCookie: !!sessionCookie,
+      cookieName: COOKIE_NAME,
+      allCookieKeys: Object.keys(cookieMap),
+      host: req.hostname,
+      protocol: req.protocol,
+      xForwardedProto: req.headers["x-forwarded-proto"],
+      secure: req.secure,
+    };
+    if (!sessionCookie) {
+      res.json({ ...result, step: "NO_COOKIE" });
+      return;
+    }
+    try {
+      const session = await sdk.verifySession(sessionCookie);
+      result.session = session ? { openId: session.openId, hasName: !!session.name } : null;
+      if (!session) { res.json({ ...result, step: "VERIFY_FAILED" }); return; }
+      const { getUserByOpenId } = await import("../db");
+      const user = await getUserByOpenId(session.openId);
+      result.user = user ? { id: user.id, role: user.role, isActive: user.isActive } : null;
+      res.json({ ...result, step: user ? "AUTH_OK" : "USER_NOT_IN_DB" });
+    } catch (err) {
+      res.json({ ...result, step: "ERROR", error: String(err) });
+    }
+  });
+
   // Assessment upload endpoint (the REAL processor with LLM extraction)
   app.use("/api", uploadAssessmentRouter);
   // Multipart document upload endpoint — bypasses Cloud Run 30s JSON body timeout
