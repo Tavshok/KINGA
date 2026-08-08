@@ -67,6 +67,12 @@ export default function Login() {
     }
   };
 
+  // Auto-redirect authenticated users to their dashboard immediately
+  useEffect(() => {
+    if (isAuthenticated && user && !loading) {
+      setLocation(getDashboardPath(user.role));
+    }
+  }, [isAuthenticated, user, loading, setLocation]);
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
@@ -75,12 +81,6 @@ export default function Login() {
     );
   }
 
-  // Auto-redirect authenticated users to their dashboard immediately
-  useEffect(() => {
-    if (isAuthenticated && user && !loading) {
-      setLocation(getDashboardPath(user.role));
-    }
-  }, [isAuthenticated, user, loading, setLocation]);
 
   // If user is already authenticated, show a brief loading state while redirecting
   if (isAuthenticated && user) {
