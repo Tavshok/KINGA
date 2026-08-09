@@ -78,7 +78,12 @@ const STATS = [
   { value: "< 5 min", label: "KINGA Analysis Time" },
 ];
 
-export default function PortalSelection() {
+interface PortalSelectionProps {
+  loggedInUser?: { role: string; name?: string } | null;
+  onGoToPortal?: () => void;
+}
+
+export default function PortalSelection({ loggedInUser, onGoToPortal }: PortalSelectionProps = {}) {
   const [, setLocation] = useLocation();
 
   const handleJourneyClick = (journey: typeof CUSTOMER_JOURNEYS[0]) => {
@@ -93,6 +98,14 @@ export default function PortalSelection() {
   // so the user lands directly in their portal after login
   const handlePortalClick = (href: string) => {
     window.location.href = getLoginUrl(href);
+  };
+
+  const handleSignIn = () => {
+    if (loggedInUser && onGoToPortal) {
+      onGoToPortal();
+    } else {
+      window.location.href = getLoginUrl();
+    }
   };
 
   return (
@@ -110,8 +123,16 @@ export default function PortalSelection() {
             <button onClick={() => setLocation("/client")} className="hover:text-foreground transition-colors">My Profile</button>
           </nav>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = getLoginUrl()}>Sign In</Button>
-            <Button size="sm" onClick={() => setLocation("/get-a-quote")}>Get Started</Button>
+            {loggedInUser ? (
+              <Button size="sm" onClick={onGoToPortal} className="bg-primary text-white">
+                Go to My Portal
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" onClick={handleSignIn}>Sign In</Button>
+                <Button size="sm" onClick={() => setLocation("/get-a-quote")}>Get Started</Button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -134,8 +155,8 @@ export default function PortalSelection() {
               <Button size="lg" className="bg-white text-slate-900 hover:bg-white/90" onClick={() => setLocation("/get-a-quote")}>
                 Get a Free Valuation <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
-              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => window.location.href = getLoginUrl()}>
-                Sign In to Your Account
+              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={handleSignIn}>
+                {loggedInUser ? "Go to My Portal" : "Sign In to Your Account"}
               </Button>
             </div>
           </div>
@@ -258,8 +279,8 @@ export default function PortalSelection() {
             <Button size="lg" className="bg-white text-primary hover:bg-white/90" onClick={() => setLocation("/get-a-quote")}>
               Get a Free Valuation <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
-            <Button size="lg" variant="outline" className="border-white/40 text-white hover:bg-white/10" onClick={() => window.location.href = getLoginUrl()}>
-              Sign In
+            <Button size="lg" variant="outline" className="border-white/40 text-white hover:bg-white/10" onClick={handleSignIn}>
+              {loggedInUser ? "Go to My Portal" : "Sign In"}
             </Button>
           </div>
         </div>
@@ -276,7 +297,7 @@ export default function PortalSelection() {
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground">Valuations</button>
             <button onClick={() => setLocation("/get-a-quote")} className="hover:text-foreground">Insurance</button>
             <button onClick={() => setLocation("/client")} className="hover:text-foreground">My Profile</button>
-            <button onClick={() => window.location.href = getLoginUrl()} className="hover:text-foreground">Sign In</button>
+            <button onClick={handleSignIn} className="hover:text-foreground">{loggedInUser ? "My Portal" : "Sign In"}</button>
           </div>
         </div>
       </footer>

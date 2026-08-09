@@ -1,11 +1,9 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { Loader2 } from "lucide-react";
 import PortalSelection from "./PortalSelection";
 
 export default function Home() {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const [, setLocation] = useLocation();
 
   const getDashboardPath = (role: string) => {
@@ -22,30 +20,7 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    if (!loading && isAuthenticated && user) {
-      setLocation(getDashboardPath(user.role));
-    }
-  }, [loading, isAuthenticated, user, setLocation]);
-
-  // Show loading spinner while checking auth
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Show portal selection for unauthenticated users
-  if (!isAuthenticated) {
-    return <PortalSelection />;
-  }
-
-  // Show loading while redirecting authenticated users
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-  );
+  // Always show the landing page — Option A
+  // If logged in, PortalSelection receives the user and shows a "Go to My Portal" button
+  return <PortalSelection loggedInUser={user ?? null} onGoToPortal={() => user && setLocation(getDashboardPath(user.role))} />;
 }
