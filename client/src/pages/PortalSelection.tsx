@@ -97,7 +97,11 @@ export default function PortalSelection({ loggedInUser, onGoToPortal }: PortalSe
   // Professional portal links: always go through OAuth with returnPath
   // so the user lands directly in their portal after login
   const handlePortalClick = (href: string) => {
-    window.location.href = getLoginUrl(href);
+    if (loggedInUser) {
+      setLocation(href);
+    } else {
+      window.location.href = getLoginUrl(href);
+    }
   };
 
   const handleSignIn = () => {
