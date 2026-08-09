@@ -5,7 +5,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { OnboardingManager } from "./components/OnboardingManager";
 import DevRoleBadge from "./components/DevRoleBadge";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { RoleGuard } from "./components/RoleGuard";
 
@@ -151,6 +151,12 @@ const FraudAnalyticsDashboard = lazy(() => import("./pages/FraudAnalyticsDashboa
 const BatchExport = lazy(() => import("@/pages/BatchExport"));
 const ClaimDocuments = lazy(() => import("./pages/ClaimDocuments"));
 const PortalHub = lazy(() => import("./pages/PortalHub"));
+// Redirect /portal-hub to / (portal hub removed from user flow)
+function PortalHubRedirect() {
+  const [, setLocation] = useLocation();
+  useEffect(() => { setLocation("/"); }, [setLocation]);
+  return null;
+}
 const AddAssessor = lazy(() => import("./pages/AddAssessor"));
 const JoinAsAssessor = lazy(() => import("./pages/JoinAsAssessor"));
 const AssessorList = lazy(() => import("./pages/AssessorList"));
@@ -334,7 +340,7 @@ function Router() {
         </Route>
         
         {/* Portal Hub - Role Selection */}
-        <Route path="/portal-hub"><Redirect to="/" /></Route>
+        <Route path="/portal-hub"><PortalHubRedirect /></Route>
         
         {/* Insurer Portal - Role Selection */}
         <Route path="/insurer-portal">
