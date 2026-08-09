@@ -500,3 +500,13 @@ export function resolveDashboardRoute(
   }
   return "/insurer-portal";
 }
+
+/**
+ * Returns true for roles that have platform-wide admin access.
+ * Both "admin" and "platform_super_admin" are treated as admins
+ * throughout the system — they bypass tenant isolation checks
+ * and get cross-tenant views.
+ */
+export function isAdminRole(role: string | undefined | null): boolean {
+  return role === "admin" || role === "platform_super_admin";
+}

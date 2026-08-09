@@ -10,6 +10,7 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { 
+import { isAdminRole } from "@shared/role-permissions";
   createAutomationPolicy, 
   getActiveAutomationPolicy, 
   getTenantPolicies,
@@ -62,7 +63,7 @@ export const automationPoliciesRouter = router({
    * Get the active automation policy for the current tenant
    */
   getActivePolicy: protectedProcedure.query(async ({ ctx }) => {
-    const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+    const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
     const policy = await getActiveAutomationPolicy(tenantId);
     return policy;
   }),
@@ -71,7 +72,7 @@ export const automationPoliciesRouter = router({
    * Get policy history for the current tenant
    */
   getPolicyHistory: protectedProcedure.query(async ({ ctx }) => {
-    const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+    const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
     const history = await getTenantPolicies(tenantId);
     return history;
   }),

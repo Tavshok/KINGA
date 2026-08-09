@@ -164,6 +164,7 @@ import { authRouter } from "./routers/auth-core"; // SPLIT-R05: extracted Aug 20
 import { panelBeatersRouter } from "./routers/panel-beaters-core"; // SPLIT-R06: extracted Aug 2026
 import { claimReportsRouter } from "./routers/claim-reports-core"; // SPLIT-R07: extracted Aug 2026
 import { impersonationRouter } from "./routers/impersonation"; // Batch 2: superadmin impersonation
+import { isAdminRole } from "@shared/role-permissions";
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -871,7 +872,7 @@ export const appRouter = router({
         });
 
         // Emit event for analytics
-        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
         await emitClaimEvent({
           claimId: input.claimId,
           eventType: "evaluation_submitted",
@@ -893,7 +894,7 @@ export const appRouter = router({
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
         return await getAssessorEvaluationByClaimId(input.claimId, tenantId);
       }),
   }),
@@ -1295,7 +1296,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         }
 
         // Get claim details for cross-validation
-        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
 

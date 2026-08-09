@@ -9,6 +9,7 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { eq, and, desc } from "drizzle-orm";
 import {
+import { isAdminRole } from "@shared/role-permissions";
   getClaimById,
   updateClaimStatus,
   createAuditEntry,
@@ -30,7 +31,7 @@ export const assessorsRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       
       // Get all claims assigned to this assessor
       const assessments = await getClaimsByAssessor(input.assessorId, tenantId);

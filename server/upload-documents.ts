@@ -30,6 +30,7 @@ import { getDb, generateKingaRef } from "./db";
 import { storagePut } from "./storage";
 import { ingestionBatches, ingestionDocuments, claims } from "../drizzle/schema";
 import { eq, and } from "drizzle-orm";
+import { isAdminRole } from "@shared/role-permissions";
 
 // Multer: stream files to memory (no temp files, no disk I/O)
 const upload = multer({
@@ -89,7 +90,7 @@ uploadDocumentsRouter.post(
 
       // Resolve tenant
       let tenantId = user.tenantId;
-      if (!tenantId && user.role === "admin") tenantId = "demo-insurance";
+      if (!tenantId && isAdminRole(user.role)) tenantId = "test-ops-001";
       if (!tenantId) {
         return res.status(403).json({
           error: "User must be associated with a tenant. Please contact your administrator.",

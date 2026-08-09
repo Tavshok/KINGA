@@ -30,6 +30,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
 import { safeNumber, safePercentage, getDateRange } from "../governance-helpers";
+import { isAdminRole } from "@shared/role-permissions";
 
 
 /**
@@ -45,7 +46,7 @@ const governanceDashboardProcedure = protectedProcedure.use(({ ctx, next }) => {
 
   // Allow platform admin + all roles in GOVERNANCE_ALLOWED_ROLES (shared/role-permissions.ts)
   const hasAccess =
-    ctx.user.role === "admin" ||
+    isAdminRole(ctx.user.role) ||
     (ctx.user.insurerRole != null && GOVERNANCE_ALLOWED_ROLES.includes(ctx.user.insurerRole as any));
 
   if (!hasAccess) {

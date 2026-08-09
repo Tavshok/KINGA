@@ -18,6 +18,7 @@ import { getDb } from "../db";
 import { claims, aiAssessments } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { scoreAllComponents, recordFinalizedOutcome, inferCategory } from "../pipeline-v2/repairReplaceEngine";
+import { isAdminRole } from "@shared/role-permissions";
 
 export const repairReplaceRouter = router({
   /**
@@ -36,7 +37,7 @@ export const repairReplaceRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const { user } = ctx;
-      const isSuperUser = user.role === "admin" || user.role === "platform_super_admin";
+      const isSuperUser = isAdminRole(user.role) || user.role === "platform_super_admin";
       const tenantId = isSuperUser ? undefined : (user.tenantId ?? undefined);
 
       const db = await getDb();

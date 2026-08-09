@@ -6,6 +6,7 @@ import { ingestionBatches, ingestionDocuments, extractedDocumentData, claims } f
 import { storagePut } from "../storage";
 import { eq, and, desc, isNull } from "drizzle-orm";
 import crypto from "crypto";
+import { isAdminRole } from "@shared/role-permissions";
 
 /**
  * Generate a unique claim number for document-ingested claims.
@@ -59,8 +60,8 @@ export const documentIngestionRouter = router({
         let tenantId = ctx.user.tenantId;
 
         // Auto-assign default tenant for admin users during testing
-        if (!tenantId && ctx.user.role === "admin") {
-          tenantId = "demo-insurance";
+        if (!tenantId && isAdminRole(ctx.user.role)) {
+          tenantId = "test-ops-001";
         }
 
         if (!tenantId) {
@@ -338,7 +339,7 @@ export const documentIngestionRouter = router({
     )
     .query(async ({ input, ctx }) => {
       let tenantId = ctx.user.tenantId;
-      if (!tenantId && ctx.user.role === "admin") tenantId = "demo-insurance";
+      if (!tenantId && isAdminRole(ctx.user.role)) tenantId = "test-ops-001";
 
       if (!tenantId) {
         throw new TRPCError({ code: "FORBIDDEN", message: "User must be associated with a tenant" });
@@ -370,7 +371,7 @@ export const documentIngestionRouter = router({
     )
     .query(async ({ input, ctx }) => {
       let tenantId = ctx.user.tenantId;
-      if (!tenantId && ctx.user.role === "admin") tenantId = "demo-insurance";
+      if (!tenantId && isAdminRole(ctx.user.role)) tenantId = "test-ops-001";
 
       if (!tenantId) {
         throw new TRPCError({ code: "FORBIDDEN", message: "User must be associated with a tenant" });
@@ -405,7 +406,7 @@ export const documentIngestionRouter = router({
     )
     .query(async ({ input, ctx }) => {
       let tenantId = ctx.user.tenantId;
-      if (!tenantId && ctx.user.role === "admin") tenantId = "demo-insurance";
+      if (!tenantId && isAdminRole(ctx.user.role)) tenantId = "test-ops-001";
 
       if (!tenantId) {
         throw new TRPCError({ code: "FORBIDDEN", message: "User must be associated with a tenant" });
@@ -466,7 +467,7 @@ export const documentIngestionRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       let tenantId = ctx.user.tenantId;
-      if (!tenantId && ctx.user.role === "admin") tenantId = "demo-insurance";
+      if (!tenantId && isAdminRole(ctx.user.role)) tenantId = "test-ops-001";
 
       if (!tenantId) {
         throw new TRPCError({ code: "FORBIDDEN", message: "User must be associated with a tenant" });
@@ -521,7 +522,7 @@ export const documentIngestionRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       let tenantId = ctx.user.tenantId;
-      if (!tenantId && ctx.user.role === "admin") tenantId = "demo-insurance";
+      if (!tenantId && isAdminRole(ctx.user.role)) tenantId = "test-ops-001";
 
       if (!tenantId) {
         throw new TRPCError({ code: "FORBIDDEN", message: "User must be associated with a tenant" });

@@ -13,6 +13,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { generateIntelligenceReport } from "./quote-intelligence";
+import { isAdminRole } from "@shared/role-permissions";
 
 export const quoteIntelligenceRouter = router({
   /**
@@ -35,7 +36,7 @@ export const quoteIntelligenceRouter = router({
 
       // Allow all authenticated users (insurer sub-roles, assessors, admins, and regular users)
       // This is an advisory read-only panel — no data modification occurs
-      const isSuperUser = user.role === "admin" || user.role === "platform_super_admin";
+      const isSuperUser = isAdminRole(user.role) || user.role === "platform_super_admin";
       const tenantId = isSuperUser ? null : user.tenantId;
 
       const report = await generateIntelligenceReport(

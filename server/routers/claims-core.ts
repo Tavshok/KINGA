@@ -38,6 +38,7 @@ import { validateClaimDetailResponse } from "../apiResponseValidator";
 import { exportClaimPDF } from "../claim-pdf-export";
 import { logger } from "../logger";
 import { nanoid } from "nanoid";
+import { isAdminRole } from "@shared/role-permissions";
 
 export const claimsRouter = router({
   /**
@@ -444,7 +445,7 @@ export const claimsRouter = router({
   // Get claims by claimant
   myClaims: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user) throw new Error("Not authenticated");
-    const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+    const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
     return await getClaimsByClaimant(ctx.user.id, tenantId);
   }),
 
@@ -454,7 +455,7 @@ export const claimsRouter = router({
     .input(z.object({ query: z.string().min(1).max(100) }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const isClaimant = ctx.user.role === "claimant" || ctx.user.role === "user";
       return await searchClaimsByIdentifier({
         query: input.query,
@@ -466,7 +467,7 @@ export const claimsRouter = router({
   // Get claims assigned to assessor
   myAssignments: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user) throw new Error("Not authenticated");
-    const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+    const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
     return await getClaimsByAssessor(ctx.user.id, tenantId);
   }),
 
@@ -475,7 +476,7 @@ export const claimsRouter = router({
     .input(z.object({ assessorId: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       return await getClaimsByAssessor(input.assessorId, tenantId);
     }),
 
@@ -1751,7 +1752,7 @@ export const claimsRouter = router({
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const claim = await getClaimById(input.id, tenantId);
       
       // Extend response with parsed physics validation data (forensic-grade quantitative physics)
@@ -1987,7 +1988,7 @@ export const claimsRouter = router({
       if (!ctx.user) throw new Error("Not authenticated");
       
       // Get current claim status to handle multi-step transitions
-      const tenantIdForStatus = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantIdForStatus = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const currentClaim = await getClaimById(input.claimId, tenantIdForStatus);
       if (!currentClaim) throw new Error("Claim not found");
       
@@ -2028,7 +2029,7 @@ export const claimsRouter = router({
       const asyncUserEmail = ctx.user.email || "";
       const asyncUserName = ctx.user.name || "Insurer";
       const asyncUserRole = ctx.user.role;
-      const asyncTenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const asyncTenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       // Detect re-run: if aiAssessmentCompleted=1 this is a re-analysis, not a first run.
       const isRerun = currentClaim.aiAssessmentCompleted === 1;
 
@@ -2184,7 +2185,7 @@ export const claimsRouter = router({
       if (!allowedRoles.includes(ctx.user.role || "")) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient permissions" });
       }
-      const tenantId = ctx.user.role === "admin" || ctx.user.role === "platform_super_admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) || ctx.user.role === "platform_super_admin" ? undefined : (ctx.user.tenantId || "default");
       const claim = await getClaimById(input.claimId, tenantId);
       if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
 
@@ -2231,7 +2232,7 @@ export const claimsRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const tenantId = ctx.user.role === "admin" || ctx.user.role === "platform_super_admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) || ctx.user.role === "platform_super_admin" ? undefined : (ctx.user.tenantId || "default");
       const claim = await getClaimById(input.claimId, tenantId);
       if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
 
@@ -2296,7 +2297,7 @@ export const claimsRouter = router({
       if (!ctx.user) throw new Error("Not authenticated");
       
       // Get claim and quote details
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const claim = await getClaimById(input.claimId, tenantId);
       if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
       
@@ -2795,7 +2796,7 @@ export const claimsRouter = router({
       }
       
       // Get claim
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const claim = await getClaimById(input.claimId, tenantId);
       if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
       
@@ -2850,7 +2851,7 @@ export const claimsRouter = router({
     .input(z.object({ claimId: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || ctx.user.tenantId || "default");
       const claim = await getClaimById(input.claimId, tenantId);
       if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
 
@@ -2967,7 +2968,7 @@ export const claimsRouter = router({
       if (!allowedRoles.includes(ctx.user.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers and processors can update claim currency" });
       }
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || ctx.user.tenantId || "default");
       // Verify claim exists and belongs to tenant
       const claim = await getClaimById(input.claimId, tenantId);
       if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });

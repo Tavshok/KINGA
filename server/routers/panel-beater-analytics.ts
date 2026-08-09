@@ -29,6 +29,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
 import { safeNumber, safePercentage } from "../governance-helpers";
+import { isAdminRole } from "@shared/role-permissions";
 
 /**
  * Middleware to enforce insurer staff access only
@@ -43,7 +44,7 @@ const panelBeaterAnalyticsProcedure = protectedProcedure.use(({ ctx, next }) => 
 
   // Check if user has appropriate role
   const hasAccess = 
-    ctx.user.role === "admin" || 
+    isAdminRole(ctx.user.role) || 
     ctx.user.insurerRole === "executive" ||
     ctx.user.insurerRole === "insurer_admin" ||
     ctx.user.insurerRole === "claims_manager";

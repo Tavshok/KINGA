@@ -15,6 +15,7 @@ import { eq, and, count, inArray, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import type { InsurerRole, WorkflowState } from "../rbac";
 import { getDb } from "../db";
+import { isAdminRole } from "@shared/role-permissions";
 
 // Role-based state access control matrix
 const ROLE_STATE_ACCESS: Record<InsurerRole, readonly string[]> = {
@@ -104,7 +105,7 @@ export const workflowQueriesRouter = router({
       }
 
       // Role-based state access (admin users bypass role check)
-      const isAdmin = ctx.user.role === "admin";
+      const isAdmin = isAdminRole(ctx.user.role);
       if (!isAdmin && ctx.user.insurerRole) {
         const state = input.state as WorkflowState;
         if (!canAccessState(ctx.user.insurerRole, state)) {

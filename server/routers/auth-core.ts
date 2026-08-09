@@ -13,6 +13,7 @@ import { getDb } from "../db";
 import { eq } from "drizzle-orm";
 import { REPORT_ACCESS } from "../reporting/reportDefinitions";
 import { canAccessReport } from "./reporting";
+import { isAdminRole } from "@shared/role-permissions";
 export const authRouter = router({
   me: publicProcedure.query(({ ctx }) => {
     const user = ctx.user;
@@ -29,9 +30,9 @@ export const authRouter = router({
     ).length;
 
     // Feature flags derived from role
-    const canAccessAnalytics = user.role === "admin" || (insurerRole != null && ANALYTICS_ALLOWED_ROLES.includes(insurerRole));
-    const canAccessGovernance = user.role === "admin" || (insurerRole != null && GOVERNANCE_ALLOWED_ROLES.includes(insurerRole));
-    const canScheduleReports  = user.role === "admin" || (insurerRole != null && REPORT_SCHEDULE_ALLOWED_ROLES.includes(insurerRole));
+    const canAccessAnalytics = isAdminRole(user.role) || (insurerRole != null && ANALYTICS_ALLOWED_ROLES.includes(insurerRole));
+    const canAccessGovernance = isAdminRole(user.role) || (insurerRole != null && GOVERNANCE_ALLOWED_ROLES.includes(insurerRole));
+    const canScheduleReports  = isAdminRole(user.role) || (insurerRole != null && REPORT_SCHEDULE_ALLOWED_ROLES.includes(insurerRole));
 
     return {
       ...user,

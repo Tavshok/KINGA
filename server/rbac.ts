@@ -11,6 +11,7 @@
 
 import { TRPCError } from "@trpc/server";
 import type { User } from "../drizzle/schema";
+import { isAdminRole } from "@shared/role-permissions";
 
 export type InsurerRole = 
   | "claims_processor"
@@ -214,7 +215,7 @@ export function hasPermission(
   if (!user) return false;
   
   // System admin role has all permissions (superuser)
-  if (user.role === "admin") return true;
+  if (isAdminRole(user.role)) return true;
   
   const role = user.insurerRole as InsurerRole | null;
   if (!role) return false;
@@ -322,7 +323,7 @@ export function canViewClaim(
   if (!user) return false;
   
   // System admin role can view all claims (superuser)
-  if (user.role === "admin") return true;
+  if (isAdminRole(user.role)) return true;
   
   const role = user.insurerRole as InsurerRole | null;
   if (!role) return false;

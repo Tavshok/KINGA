@@ -13,6 +13,7 @@ import {
   auditTrail, notifications
 } from "../../drizzle/schema";
 import { nanoid } from "nanoid";
+import { isAdminRole } from "@shared/role-permissions";
 export const vehicleValuationCoreRouter = router({
   // Trigger vehicle valuation
   trigger: protectedProcedure
@@ -28,7 +29,7 @@ export const vehicleValuationCoreRouter = router({
       }
 
       // Get claim details
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const claim = await getClaimById(input.claimId, tenantId);
       if (!claim) throw new Error("Claim not found");
 

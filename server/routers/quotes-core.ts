@@ -10,6 +10,7 @@ import { getDb } from "../db";
 import { panelBeaterQuotes, claims } from "../../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import {
+import { isAdminRole } from "@shared/role-permissions";
   getClaimById,
   getQuotesByClaimId,
   createPanelBeaterQuote,
@@ -128,7 +129,7 @@ export const quotesRouter = router({
       }
       // Check if all quotes have been received (3 panel beaters)
       const allQuotes = await getQuotesByClaimId(input.claimId);
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const claim = await getClaimById(input.claimId, tenantId);
       
       if (allQuotes.length >= 3) {
@@ -311,7 +312,7 @@ export const quotesRouter = router({
     .input(z.object({ claimId: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       return await getQuotesByClaimId(input.claimId, tenantId);
     }),
 

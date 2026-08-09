@@ -17,6 +17,7 @@ import { eq, and, desc, or, ilike, sql, count } from "drizzle-orm";
 import { notifyOwner } from "../_core/notification";
 import { sendFleetManagerApprovedEmail, sendFleetManagerRejectedEmail, sendFleetManagerSubmittedEmail } from "../safe-email";
 import { logRoleAssignment } from "../services/role-assignment-audit";
+import { isAdminRole } from "@shared/role-permissions";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -434,7 +435,7 @@ export const fleetAccountsRouter = router({
 
       const isOwner = account.ownerUserId === ctx.user.id;
       const isFleetManager = ["fleet_manager", "fleet_admin"].includes(ctx.user.role) && ctx.user.organizationId === account.ownerUserId;
-      const isAdmin = ctx.user.role === "admin";
+      const isAdmin = isAdminRole(ctx.user.role);
 
       if (!isOwner && !isFleetManager && !isAdmin) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Access denied. You are not associated with this fleet account." });

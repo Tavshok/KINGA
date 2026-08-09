@@ -16,6 +16,7 @@ import { getDb } from "../db";
 import { aiAssessments, claims } from "../../drizzle/schema";
 import { eq, and, desc, sql, gte, lte, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { isAdminRole } from "@shared/role-permissions";
 
 // ─── Exception category definitions ──────────────────────────────────────────
 
@@ -137,7 +138,7 @@ export const exceptionIntelligenceRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      const effectiveTenantId = ctx.user.role === "admin" ? input.tenantId : (ctx.user.tenantId ?? undefined);
+      const effectiveTenantId = isAdminRole(ctx.user.role) ? input.tenantId : (ctx.user.tenantId ?? undefined);
 
       // Fetch recent assessments
       const whereConditions = effectiveTenantId
@@ -205,7 +206,7 @@ export const exceptionIntelligenceRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      const effectiveTenantId = ctx.user.role === "admin" ? input.tenantId : (ctx.user.tenantId ?? undefined);
+      const effectiveTenantId = isAdminRole(ctx.user.role) ? input.tenantId : (ctx.user.tenantId ?? undefined);
       const since = new Date(Date.now() - input.daysBack * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
 
       const whereConditions = effectiveTenantId
@@ -310,7 +311,7 @@ export const exceptionIntelligenceRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      const effectiveTenantId = ctx.user.role === "admin" ? input.tenantId : (ctx.user.tenantId ?? undefined);
+      const effectiveTenantId = isAdminRole(ctx.user.role) ? input.tenantId : (ctx.user.tenantId ?? undefined);
 
       // Current window
       const nowMs = Date.now();
@@ -490,7 +491,7 @@ export const exceptionIntelligenceRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      const effectiveTenantId = ctx.user.role === "admin" ? input.tenantId : (ctx.user.tenantId ?? undefined);
+      const effectiveTenantId = isAdminRole(ctx.user.role) ? input.tenantId : (ctx.user.tenantId ?? undefined);
       const since = new Date(Date.now() - input.daysBack * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
 
       const whereConditions = effectiveTenantId

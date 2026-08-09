@@ -25,13 +25,14 @@ import { validateAiAssessmentResponse } from "../apiResponseValidator";
 import { validateClaimAnalysisResponse } from "../services/apiResponseValidator";
 import { sanitiseReportNarrative, buildBlockError } from "../services/externalReportSanitiser";
 import { logger } from "../logger";
+import { isAdminRole } from "@shared/role-permissions";
 
 export const aiAssessmentsRouter = router({
   byClaim: protectedProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
       if (!assessment) return null;
 
@@ -364,7 +365,7 @@ export const aiAssessmentsRouter = router({
       if (!ctx.user) throw new Error("Not authenticated");
       const { applyIntelligenceEnforcement } = await import("../intelligence-enforcement");
       const { getAiAssessmentByClaimId, getQuotesByClaimId } = await import("../db");
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
       if (!assessment) return null;
       const quotes = await getQuotesByClaimId(input.claimId, tenantId);
@@ -1549,7 +1550,7 @@ export const aiAssessmentsRouter = router({
       const { aiAssessments: aiAssessmentsTable } = await import("../../drizzle/schema");
       const { eq } = await import("drizzle-orm");
       const { claims: claimsTable } = await import("../../drizzle/schema");
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
@@ -1611,7 +1612,7 @@ export const aiAssessmentsRouter = router({
     .query(async ({ input, ctx }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const { getAiAssessmentByClaimId } = await import("../db");
-      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
       if (!assessment) return { sharedWithRoles: [] as string[] };
       let roles: string[] = [];
@@ -1626,7 +1627,7 @@ export const aiAssessmentsRouter = router({
     if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
     const insurerRole = (ctx.user as any).insurerRole as string | null;
     if (!insurerRole) return { claims: [] as any[] };
-    const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+    const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
     const { getDb: _getDb } = await import("../db");
     const db2 = await _getDb();
     if (!db2) return { claims: [] as any[] };
@@ -1702,7 +1703,7 @@ export const aiAssessmentsRouter = router({
       const { getDb: _getDb2, getAiAssessmentByClaimId: _getAssessment } = await import("../db");
       const { aiAssessments: _aiAssessmentsTable } = await import("../../drizzle/schema");
       const { eq: _eq } = await import("drizzle-orm");
-      const _tenantId = ctx.user.role === "admin" ? undefined : ((ctx.user as any).tenantId || "default");
+      const _tenantId = isAdminRole(ctx.user.role) ? undefined : ((ctx.user as any).tenantId || "default");
       const _db = await _getDb2();
       if (!_db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
