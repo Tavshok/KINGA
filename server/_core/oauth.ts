@@ -32,7 +32,7 @@ function parseState(state: string): { redirectUri: string; returnPath?: string }
     // Legacy format: plain redirectUri string
     return { redirectUri: decoded };
   } catch {
-    return { redirectUri: "/portal-hub" };
+    return { redirectUri: "/" };
   }
 }
 
@@ -44,7 +44,7 @@ function parseState(state: string): { redirectUri: string; returnPath?: string }
 function isSafeReturnPath(path: string | undefined): path is string {
   if (!path) return false;
   if (!path.startsWith("/")) return false;
-  if (path === "/login" || path === "/portal-hub") return false;
+  if (path === "/login" || path === "/portal-hub" || path === "/") return false;
   return true;
 }
 
@@ -108,9 +108,9 @@ export function registerOAuthRoutes(app: Express) {
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
       // Redirect to the page the user was on before login, or fall back to
-      // /portal-hub for role selection.
+      // / (landing page) as fallback.
       const { returnPath } = parseState(state);
-      const destination = isSafeReturnPath(returnPath) ? returnPath : "/portal-hub";
+      const destination = isSafeReturnPath(returnPath) ? returnPath : "/";
       console.log(`[OAuth] Step 7: redirecting to ${destination}`);
       res.redirect(302, destination);
     } catch (error) {

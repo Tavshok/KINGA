@@ -334,14 +334,7 @@ function Router() {
         </Route>
         
         {/* Portal Hub - Role Selection */}
-        <Route path="/portal-hub">
-          {/* No ProtectedRoute here — /portal-hub is the OAuth landing page.
-              Wrapping it in ProtectedRoute caused a redirect loop: OAuth sets the
-              cookie and redirects here, but ProtectedRoute fires before auth.me
-              resolves and sends the user back to /login. PortalHub handles its own
-              auth state internally (shows login prompt if not authenticated). */}
-          <PortalHub />
-        </Route>
+        <Route path="/portal-hub"><Redirect to="/" /></Route>
         
         {/* Insurer Portal - Role Selection */}
         <Route path="/insurer-portal">
