@@ -36,14 +36,14 @@ import {
 } from "../db";
 import {
   getAiAssessmentByClaimId,
-  notifyAiAssessmentComplete,
   getTenantRates,
-  extractClaimFormData,
 } from "../db";
 import {
   getPanelBeaterById,
   getUserById
 } from "../db";
+import { notifyAiAssessmentComplete } from "../notifications";
+import { extractClaimFormData } from "../claim-form-extractor";
 import { validateClaimDetailResponse } from "../apiResponseValidator";
 import { exportClaimPDF } from "../claim-pdf-export";
 import { logger } from "../logger";
