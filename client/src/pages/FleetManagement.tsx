@@ -9,9 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, Upload, Plus, Car, FileSpreadsheet, Trash2, Edit, Shield } from "lucide-react";
+import { Download, Upload, Plus, Car, FileSpreadsheet, Trash2, Edit, Shield, Users, Wrench, AlertTriangle, BarChart2, UserPlus, RefreshCw, ChevronRight, CheckCircle, XCircle, Clock } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function FleetManagement() {
+  const { user } = useAuth();
   const [selectedFleet, setSelectedFleet] = useState<number | null>(null);
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const [isCreateFleetDialogOpen, setIsCreateFleetDialogOpen] = useState(false);
@@ -22,6 +24,10 @@ export default function FleetManagement() {
   // Queries
   const { data: fleets, refetch: refetchFleets } = trpc.fleet.getMyFleets.useQuery();
   const { data: vehicles, refetch: refetchVehicles } = trpc.fleet.getMyVehicles.useQuery();
+  const { data: drivers = [], refetch: refetchDrivers } = trpc.fleet.getMyDrivers.useQuery();
+  const { data: maintenanceAlerts = [] } = trpc.fleet.getMaintenanceAlerts.useQuery({});
+  const isDriver = user?.role === "fleet_driver";
+  const isManager = user?.role === "fleet_manager" || user?.role === "fleet_admin";
 
   // Mutations
   const createFleet = trpc.fleet.createFleet.useMutation({
@@ -269,6 +275,11 @@ export default function FleetManagement() {
       <nav className="p11-tab-bar">
         {[
           { id: "vehicles", label: "Vehicles", count: totalVehicles },
+          { id: "drivers", label: "Drivers", count: isDriver ? undefined : (drivers?.length ?? 0) },
+          { id: "maintenance", label: "Maintenance", count: (maintenanceAlerts as any[]).filter((a: any) => a.severity === 'critical').length || undefined },
+          { id: "claims", label: "Claims" },
+          { id: "compliance", label: "Compliance" },
+          { id: "analytics", label: "Analytics" },
           { id: "bulk", label: "Bulk Operations" },
         ].map(t => (
           <div
@@ -498,6 +509,205 @@ export default function FleetManagement() {
             )}
 
           </div>
+
+
+            {/* ── Drivers Tab ── */}
+            {activeFleetTab === "drivers" && (
+              <div>
+                <div className="p11-card">
+                  <div className="p11-card-header">
+                    <div className="p11-card-title">
+                      <Users style={{ width: 14, height: 14, color: "var(--g-600)" }} />
+                      Fleet Drivers
+                      <span className="p11-badge green" style={{ marginLeft: 6 }}>{drivers.length}</span>
+                    </div>
+                  </div>
+                  <div className="p11-card-body" style={{ padding: 0 }}>
+                    {drivers.length === 0 ? (
+                      <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+                        <Users style={{ width: 32, height: 32, margin: "0 auto 12px", opacity: 0.3 }} />
+                        <p>No drivers registered yet.</p>
+                        {isManager && <p style={{ fontSize: 11, marginTop: 4 }}>Use the Onboard Driver option to add drivers to your fleet.</p>}
+                      </div>
+                    ) : (
+                      <table className="p11-table">
+                        <thead><tr><th>Driver</th><th>License #</th><th>Class</th><th>Expiry</th><th>Fleet</th></tr></thead>
+                        <tbody>
+                          {drivers.map((d: any) => {
+                            const expiry = d.licenseExpiry ? new Date(d.licenseExpiry) : null;
+                            const isExpired = expiry && expiry < new Date();
+                            const isExpiringSoon = expiry && !isExpired && (expiry.getTime() - Date.now()) < 30 * 24 * 60 * 60 * 1000;
+                            return (
+                              <tr key={d.id}>
+                                <td><div style={{ fontWeight: 600, fontSize: 12 }}>{d.userName ?? `User #${d.userId}`}</div><div style={{ fontSize: 11, color: "var(--muted)" }}>{d.userEmail ?? ""}</div></td>
+                                <td style={{ fontFamily: "monospace", fontSize: 12 }}>{d.driverLicenseNumber}</td>
+                                <td>{d.licenseClass ?? "—"}</td>
+                                <td><span className={`p11-badge ${isExpired ? "red" : isExpiringSoon ? "amber" : "green"}`}>{d.licenseExpiry ?? "—"}</span></td>
+                                <td style={{ fontSize: 11, color: "var(--muted)" }}>{(d as any).fleetName ?? `Fleet #${d.fleetId}`}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Maintenance Tab ── */}
+            {activeFleetTab === "maintenance" && (
+              <div>
+                <div className="p11-card">
+                  <div className="p11-card-header">
+                    <div className="p11-card-title">
+                      <Wrench style={{ width: 14, height: 14, color: "var(--g-600)" }} />
+                      Maintenance Alerts
+                      {(maintenanceAlerts as any[]).length > 0 && <span className="p11-badge amber" style={{ marginLeft: 6 }}>{(maintenanceAlerts as any[]).length}</span>}
+                    </div>
+                  </div>
+                  <div className="p11-card-body" style={{ padding: 0 }}>
+                    {(maintenanceAlerts as any[]).length === 0 ? (
+                      <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+                        <CheckCircle style={{ width: 32, height: 32, margin: "0 auto 12px", color: "#059669", opacity: 0.6 }} />
+                        <p>All vehicles are up to date on maintenance.</p>
+                      </div>
+                    ) : (
+                      <table className="p11-table">
+                        <thead><tr><th>Vehicle</th><th>Service</th><th>Due Date</th><th>Severity</th></tr></thead>
+                        <tbody>
+                          {(maintenanceAlerts as any[]).map((alert: any, i: number) => (
+                            <tr key={i}>
+                              <td style={{ fontWeight: 600, fontSize: 12 }}>{alert.vehicleRegistration ?? `Vehicle #${alert.vehicleId}`}</td>
+                              <td>{alert.serviceType}</td>
+                              <td style={{ fontSize: 11 }}>{alert.nextDueDate ?? "—"}</td>
+                              <td><span className={`p11-badge ${alert.severity === "critical" ? "red" : alert.severity === "high" ? "amber" : "green"}`}>{alert.severity ?? "low"}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Claims Tab ── */}
+            {activeFleetTab === "claims" && (
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <AlertTriangle style={{ width: 14, height: 14, color: "var(--g-600)" }} />
+                    Fleet Claims
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  <div style={{ padding: "24px 0", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+                    <AlertTriangle style={{ width: 32, height: 32, margin: "0 auto 12px", opacity: 0.3 }} />
+                    <p style={{ fontWeight: 600, marginBottom: 6 }}>Fleet Claims Overview</p>
+                    <p style={{ fontSize: 12, marginBottom: 16, lineHeight: 1.6 }}>
+                      Claims submitted by your drivers through My Portal will appear here. Go to My Portal to view company claims.
+                    </p>
+                    <button className="p11-btn-gold" style={{ margin: "0 auto" }} onClick={() => window.location.href = "/client"}>
+                      <ChevronRight style={{ width: 13, height: 13 }} />
+                      Go to My Portal — Company Claims
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Compliance Tab ── */}
+            {activeFleetTab === "compliance" && (
+              <div>
+                <div className="p11-card">
+                  <div className="p11-card-header">
+                    <div className="p11-card-title">
+                      <Shield style={{ width: 14, height: 14, color: "var(--g-600)" }} />
+                      Fleet Compliance
+                    </div>
+                  </div>
+                  <div className="p11-card-body" style={{ padding: 0 }}>
+                    {!vehicles || vehicles.length === 0 ? (
+                      <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+                        <Shield style={{ width: 32, height: 32, margin: "0 auto 12px", opacity: 0.3 }} />
+                        <p>No vehicles registered yet.</p>
+                      </div>
+                    ) : (
+                      <table className="p11-table">
+                        <thead><tr><th>Vehicle</th><th>Status</th><th>Risk</th><th>Compliance</th><th>Policy Expiry</th></tr></thead>
+                        <tbody>
+                          {vehicles.map((v: any) => {
+                            const policyExpiry = v.policyEndDate ? new Date(v.policyEndDate) : null;
+                            const policyExpired = policyExpiry && policyExpiry < new Date();
+                            const policyExpiringSoon = policyExpiry && !policyExpired && (policyExpiry.getTime() - Date.now()) < 30 * 24 * 60 * 60 * 1000;
+                            return (
+                              <tr key={v.id}>
+                                <td><div style={{ fontWeight: 600, fontSize: 12 }}>{v.registrationNumber}</div><div style={{ fontSize: 11, color: "var(--muted)" }}>{v.make} {v.model} {v.year}</div></td>
+                                <td><span className={`p11-badge ${v.status === "active" ? "green" : "amber"}`}>{v.status}</span></td>
+                                <td><span className={`p11-badge ${(v.riskScore ?? 50) > 70 ? "red" : (v.riskScore ?? 50) > 50 ? "amber" : "green"}`}>{v.riskScore ?? 50}/100</span></td>
+                                <td><span className={`p11-badge ${(v.maintenanceComplianceScore ?? 70) >= 80 ? "green" : (v.maintenanceComplianceScore ?? 70) >= 60 ? "amber" : "red"}`}>{v.maintenanceComplianceScore ?? 70}%</span></td>
+                                <td>{policyExpiry ? <span className={`p11-badge ${policyExpired ? "red" : policyExpiringSoon ? "amber" : "green"}`}>{policyExpiry.toLocaleDateString()}</span> : <span style={{ color: "var(--muted)", fontSize: 11 }}>No policy</span>}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Analytics Tab ── */}
+            {activeFleetTab === "analytics" && (
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <BarChart2 style={{ width: 14, height: 14, color: "var(--g-600)" }} />
+                    Fleet Analytics
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+                    {[
+                      { label: "Total Vehicles", value: totalVehicles, color: "var(--g-600)" },
+                      { label: "Active Vehicles", value: activeVehicles, color: "#059669" },
+                      { label: "Total Drivers", value: drivers.length, color: "#2563EB" },
+                      { label: "Avg Risk Score", value: `${avgRisk}/100`, color: avgRisk > 70 ? "#DC2626" : avgRisk > 50 ? "#D97706" : "#059669" },
+                    ].map(stat => (
+                      <div key={stat.label} style={{ background: "var(--surface)", borderRadius: 8, padding: "16px", border: "1px solid var(--line)" }}>
+                        <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6 }}>{stat.label}</div>
+                        <div style={{ fontSize: 24, fontWeight: 700, color: stat.color }}>{stat.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {vehicles && vehicles.length > 0 && (
+                    <div style={{ background: "var(--surface)", borderRadius: 8, padding: "16px", border: "1px solid var(--line)" }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12, color: "var(--text)" }}>Vehicle Status Distribution</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {["active", "inactive", "under_repair", "sold", "written_off"].map(status => {
+                          const cnt = vehicles.filter((v: any) => v.status === status).length;
+                          const pct = totalVehicles > 0 ? Math.round((cnt / totalVehicles) * 100) : 0;
+                          if (cnt === 0) return null;
+                          return (
+                            <div key={status}>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
+                                <span style={{ color: "var(--muted)", textTransform: "capitalize" }}>{status.replace("_", " ")}</span>
+                                <span style={{ fontWeight: 600 }}>{cnt} ({pct}%)</span>
+                              </div>
+                              <div style={{ height: 6, background: "var(--line)", borderRadius: 3 }}>
+                                <div style={{ height: "100%", width: `${pct}%`, background: status === "active" ? "var(--g-600)" : status === "under_repair" ? "#D97706" : "#9CA3AF", borderRadius: 3 }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
           {/* ── SIDEBAR ── */}
           <div className="p11-sidebar">

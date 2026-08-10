@@ -83,7 +83,7 @@ function RecentActivityFeed({ inspections }: { inspections: any[] }) {
         <div
           key={insp.id}
           className="flex items-center justify-between py-3 px-1 hover:bg-muted/30 rounded cursor-pointer transition-colors"
-          onClick={() => setLocation(`/engineer/inspection/${insp.id}`)}
+          onClick={() => setLocation(`/engineer/inspections/${insp.id}`)}
         >
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -176,7 +176,7 @@ function InspectionsListTab() {
                 <tr
                   key={insp.id}
                   className="hover:bg-muted/30 cursor-pointer transition-colors"
-                  onClick={() => setLocation(`/engineer/inspection/${insp.id}`)}
+                  onClick={() => setLocation(`/engineer/inspections/${insp.id}`)}
                 >
                   <td className="px-4 py-3 font-mono text-xs">{insp.inspectionRef ?? `INS-${insp.id}`}</td>
                   <td className="px-4 py-3">{insp.vehicleRegistration ?? insp.assetRef ?? "—"}</td>

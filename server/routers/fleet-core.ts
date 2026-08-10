@@ -498,4 +498,66 @@ export const fleetCoreRouter = router({
       const { completeServiceRequest } = await import('../fleet/service-marketplace');
       return completeServiceRequest(input.serviceRequestId, input.rating);
     }),
+
+  /** Get all drivers for a specific fleet */
+  getFleetDrivers: protectedProcedure
+    .input(z.object({ fleetId: z.number().int().positive() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const { users } = await import('../../drizzle/schema');
+      const drivers = await db
+        .select({
+          id: fleetDrivers.id,
+          fleetId: fleetDrivers.fleetId,
+          userId: fleetDrivers.userId,
+          driverLicenseNumber: fleetDrivers.driverLicenseNumber,
+          licenseExpiry: fleetDrivers.licenseExpiry,
+          licenseClass: fleetDrivers.licenseClass,
+          hireDate: fleetDrivers.hireDate,
+          emergencyContactName: fleetDrivers.emergencyContactName,
+          emergencyContactPhone: fleetDrivers.emergencyContactPhone,
+          createdAt: fleetDrivers.createdAt,
+          userName: users.name,
+          userEmail: users.email,
+        })
+        .from(fleetDrivers)
+        .leftJoin(users, eq(fleetDrivers.userId, users.id))
+        .where(eq(fleetDrivers.fleetId, input.fleetId));
+      return drivers;
+    }),
+
+  /** Get all drivers across all fleets owned by the current user */
+  getMyDrivers: protectedProcedure
+    .query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const { users, fleets } = await import('../../drizzle/schema');
+      const myFleets = await db
+        .select({ id: fleets.id, fleetName: fleets.fleetName })
+        .from(fleets)
+        .where(eq(fleets.ownerId, ctx.user.id));
+      if (!myFleets.length) return [];
+      const fleetIds = myFleets.map((f: any) => f.id);
+      const allDrivers = await db
+        .select({
+          id: fleetDrivers.id,
+          fleetId: fleetDrivers.fleetId,
+          userId: fleetDrivers.userId,
+          driverLicenseNumber: fleetDrivers.driverLicenseNumber,
+          licenseExpiry: fleetDrivers.licenseExpiry,
+          licenseClass: fleetDrivers.licenseClass,
+          hireDate: fleetDrivers.hireDate,
+          emergencyContactName: fleetDrivers.emergencyContactName,
+          emergencyContactPhone: fleetDrivers.emergencyContactPhone,
+          createdAt: fleetDrivers.createdAt,
+          userName: users.name,
+          userEmail: users.email,
+          fleetName: fleets.fleetName,
+        })
+        .from(fleetDrivers)
+        .leftJoin(users, eq(fleetDrivers.userId, users.id))
+        .leftJoin(fleets, eq(fleetDrivers.fleetId, fleets.id));
+      return allDrivers.filter((d: any) => fleetIds.includes(d.fleetId));
+    }),
 });
