@@ -57,9 +57,9 @@ export default function InsurerComparisonView() {
   const claimId = params?.id ? parseInt(params.id) : 0;
 
   // Get claim details
-  const { data: claim, isLoading: claimLoading } = trpc.claims.getById.useQuery(
+  const { data: claim, isLoading: claimLoading, error: claimError } = trpc.claims.getById.useQuery(
     { id: claimId },
-    { enabled: !!claimId }
+    { enabled: !!claimId, retry: false }
   );
 
   // Get KINGA assessment — poll every 5 s while the claim is in assessment_in_progress
@@ -408,13 +408,15 @@ export default function InsurerComparisonView() {
     );
   }
 
-  if (!claim) {
+  if (!claim && !claimLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle>Claim Not Found</CardTitle>
-            <CardDescription>The requested claim could not be found</CardDescription>
+            <CardDescription>
+              {claimError ? `Error: ${claimError.message}` : `Claim #${claimId} could not be found or you do not have access.`}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => setLocation(INSURER_CLAIMS_LIST_PATH)}>
