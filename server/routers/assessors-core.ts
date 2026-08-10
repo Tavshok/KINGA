@@ -19,6 +19,11 @@ import {
   assignClaimToAssessor,
   checkAssignmentCap,
 } from "../db";
+import {
+  getAiAssessmentByClaimId,
+  getClaimsByAssessor,
+  getQuotesByClaimId
+} from "../db";
 export const assessorsRouter = router({
   list: protectedProcedure.query(async () => {
     return await getUsersByRole("assessor");

@@ -7,6 +7,14 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
+import {
+  createAuditEntry,
+  createVehicleMarketValuation,
+  getAiAssessmentByClaimId,
+  getAssessorEvaluationByClaimId,
+  getClaimById,
+  getVehicleMarketValuationByClaimId
+} from "../db";
 import { eq, and, desc, asc, inArray, gte, lte, or, sql, count, avg } from "drizzle-orm";
 import {
   claims, aiAssessments as aiAssessmentsTable, vehicleMarketValuations,
