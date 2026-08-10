@@ -10,6 +10,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../_core/trpc";
 import { enqueueReport, getJobStatus, recordDownload, getUserJobs } from "../reporting/reportQueue";
 import { REPORT_ACCESS } from "../reporting/reportDefinitions";
+import { isAdminRole } from "../../shared/role-permissions";
 import mysql from "mysql2/promise";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -22,21 +23,23 @@ async function getConn() { return mysql.createConnection(DB_URL); }
 // access to all claim-level reports. Access is role-based only.
 // insurerRole takes precedence over top-level role so that admin accounts
 // with an insurer sub-role (e.g. the platform owner) can access insurer reports.
-export function canAccessReport(reportKey: string, userRole: string, insurerRole?: string | null): boolean {
+  export function canAccessReport(reportKey: string, userRole: string, insurerRole?: string | null): boolean {
   const allowed = REPORT_ACCESS[reportKey];
   if (!allowed) return false;
+  // Platform super admin has unrestricted access to all reports
+  if (isAdminRole(userRole) && !insurerRole) return true;
   // If the user has an insurer sub-role, use it for access checks regardless
   // of their top-level role (handles admin accounts with insurer sub-roles).
   if (insurerRole) return allowed.includes(insurerRole);
   // Platform admins without an insurerRole see only platform-admin-scoped reports
-  if (userRole === "admin") return allowed.includes("admin");
+  if (isAdminRole(userRole)) return allowed.includes("admin");
   // Non-insurer roles (assessor, panel_beater) use top-level role
   return allowed.includes(userRole);
 }
 
 // ─── Admin-only guard ─────────────────────────────────────────────────────────
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") {
+  if (!isAdminRole(ctx.user.role)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
   }
   return next({ ctx });

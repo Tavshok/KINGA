@@ -1793,11 +1793,16 @@ export async function triggerAiAssessment(claimId: number) {
   // The AI estimate is unreliable when no market data exists — prefer the actual quote.
   // NOTE: documentedAgreedCostUsd and documentedOriginalQuoteUsd are already declared above (line ~593).
   const aiEstimateCents = costAnalysis?.expectedRepairCostCents ?? 0;
-  const estimatedCost = documentedAgreedCostUsd && documentedAgreedCostUsd > 0
-    ? Math.round(documentedAgreedCostUsd)
+  // estimated_cost column is stored in CENTS throughout the system.
+  // documentedAgreedCostUsd / documentedOriginalQuoteUsd are in dollars → multiply by 100.
+  // aiEstimateCents is already in cents → use directly.
+  const estimatedCostCents = documentedAgreedCostUsd && documentedAgreedCostUsd > 0
+    ? Math.round(documentedAgreedCostUsd * 100)
     : documentedOriginalQuoteUsd && documentedOriginalQuoteUsd > 0
-      ? Math.round(documentedOriginalQuoteUsd)
-      : Math.round(aiEstimateCents / 100);
+      ? Math.round(documentedOriginalQuoteUsd * 100)
+      : Math.round(aiEstimateCents);
+  // estimatedCost in dollars for ratio calculations (kept for backward compat with local vars below)
+  const estimatedCost = estimatedCostCents / 100;
   // Only write parts/labour breakdown when the data comes from a real source
   // (submitted quote line items or learning DB). Never write hardcoded index estimates.
   const aiEstimateSource = (costAnalysis as any)?.aiEstimateSource as string | undefined;
@@ -1905,10 +1910,10 @@ export async function triggerAiAssessment(claimId: number) {
 
   // Insert new assessment — sanitize the entire object to prevent NaN column errors
   const _rawInsertValues = {
-    claimId,
-    tenantId: claim.tenantId ?? null,
-    estimatedCost: safeInt(estimatedCost),
-    damageDescription: damageDesc,
+  claimId,
+  tenantId: claim.tenantId ?? null,
+  estimatedCost: safeInt(estimatedCostCents),
+  damageDescription: damageDesc,
     detectedDamageTypes: damageAnalysis
       ? JSON.stringify([...new Set(damageAnalysis.damagedParts.map(p => p.damageType))])
       : '[]',
@@ -2557,13 +2562,13 @@ export async function triggerAiAssessment(claimId: number) {
   // The claim then transitions to assessment_complete for the adjuster workflow.
   const claimUpdate: Record<string, any> = {
     aiAssessmentCompleted: 1,
-    status: "analysis_complete",
-    documentProcessingStatus: "ANALYSIS_COMPLETE",
-    workflowState: "ai_assessment_completed",
-    fraudRiskScore: finalFraudScore,
-    fraudFlags: fraudIndicatorsJson,
-    estimatedCost: safeInt(estimatedCost) ?? 0,
-    aiAssessmentCompletedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+  status: "analysis_complete",
+  documentProcessingStatus: "ANALYSIS_COMPLETE",
+  workflowState: "ai_assessment_completed",
+  fraudRiskScore: finalFraudScore,
+  fraudFlags: fraudIndicatorsJson,
+  estimatedCost: safeInt(estimatedCostCents) ?? 0,
+  aiAssessmentCompletedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
     updatedAt: new Date().toISOString(),
     pipelineCurrentStage: null, // Clear stage label once assessment is complete
     pipelineRunUuid: null, // Clear run UUID — pipeline completed successfully, no resume needed
@@ -2793,7 +2798,7 @@ export async function triggerAiAssessment(claimId: number) {
         const ftTenantId = ftTenantRows[0]?.tenantId ?? 'default';
         const ftConfidence = Math.round((safeFloat(costAnalysis?.costDecision?.confidence) ?? 0) * 100);
         const ftFraud = Math.round((safeFloat(fraudAnalysis?.fraudRiskScore) ?? 0) * 100);
-        const ftClaimValue = safeInt(estimatedCost) ?? 0;
+        const ftClaimValue = safeInt(estimatedCostCents) ?? 0;
         const ftClaimType = (claimRecord as any)?.accidentDetails?.incidentType ?? 'collision';
         const ftEval = await evaluateFastTrack({
           claimId, tenantId: ftTenantId,
@@ -2874,7 +2879,7 @@ export async function triggerAiAssessment(claimId: number) {
           panelBeaterEmail: repairerInfo?.email ?? undefined,
           panelBeaterVatNumber: repairerInfo?.vatNumber ?? undefined,
           // Cost data
-          submittedCostUsd: estimatedCost ? estimatedCost / 100 : undefined,
+          submittedCostUsd: estimatedCost > 0 ? estimatedCost : undefined,
           trueCostUsd: (result as any).stage9Data?.trueCostUsd ?? undefined,
           structuralGapCount: (result as any).stage9Data?.structuralGapCount ?? undefined,
         },
@@ -2888,7 +2893,7 @@ export async function triggerAiAssessment(claimId: number) {
             airbagDeployed: (result as any).stage5Data.airbagDeployed ?? undefined,
           } : undefined,
           costData: (result as any).stage9Data ? {
-            submittedCostUsd: estimatedCost ? estimatedCost / 100 : undefined,
+            submittedCostUsd: estimatedCost > 0 ? estimatedCost : undefined,
             trueCostUsd: (result as any).stage9Data.trueCostUsd ?? undefined,
             costDeviationPct: (result as any).stage9Data.costDeviationPct ?? undefined,
             structuralGapCount: (result as any).stage9Data.structuralGapCount ?? undefined,
@@ -2940,7 +2945,7 @@ export async function triggerAiAssessment(claimId: number) {
         powertrainType: v.powertrain ?? null,
         vehicleMassKg: v.massKg ?? null,
         vehicleMassSource: v.massTier ?? null,
-        repairCostCents: estimatedCost > 0 ? estimatedCost : undefined,
+        repairCostCents: estimatedCostCents > 0 ? estimatedCostCents : undefined,
         impactZone: acc?.impactPoint ?? null,
       });
     } catch (e: any) {
