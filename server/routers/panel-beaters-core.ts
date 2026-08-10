@@ -9,6 +9,7 @@ import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { eq, and, desc } from "drizzle-orm";
 import { getAllApprovedPanelBeaters, createAuditEntry } from "../db";
+import { claims } from "../../drizzle/schema";
 export const panelBeatersRouter = router({
   list: publicProcedure.query(async () => {
     return await getAllApprovedPanelBeaters();

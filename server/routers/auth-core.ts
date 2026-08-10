@@ -248,6 +248,7 @@ export const authRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const { users } = await import("../../drizzle/schema");
       const currentSecondary: string[] = (ctx.user as any).secondaryRoles ?? [];
       if (currentSecondary.includes(input.role)) return { success: true, message: "Role already assigned" };
       const updated = [...currentSecondary, input.role];
