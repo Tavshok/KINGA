@@ -629,6 +629,12 @@ function Router() {
             <BulkValuation />
           </ProtectedRoute>
         </Route>
+        {/* Client portal bulk valuation — accessible to all authenticated users */}
+        <Route path="/client/valuation/bulk">
+          <ProtectedRoute>
+            <BulkValuation />
+          </ProtectedRoute>
+        </Route>
         <Route path="/agency/quotes">
           <ProtectedRoute>
             <AgencyFleetQuotes />

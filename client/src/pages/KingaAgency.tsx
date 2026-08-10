@@ -12,11 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import {
+  import {
   Loader2, Plus, FileText, Shield, Clock, CheckCircle, XCircle,
   Upload, Car, DollarSign, RefreshCw, ArrowLeft, Search, Eye,
   Trash2, Download, Calendar, Phone, Mail, User, Building2,
-  AlertTriangle, ShieldCheck, ScanLine
+  AlertTriangle, ShieldCheck, ScanLine, Users, TrendingUp, ChevronRight,
 } from "lucide-react";
 import { TimelineIntelligenceTab } from "@/components/TimelineIntelligenceTab";
 import { QuoteComparisonView } from "@/components/QuoteComparisonView";
@@ -30,15 +30,14 @@ export default function KingaAgency() {
   const [showNewQuoteForm, setShowNewQuoteForm] = useState(false);
 
   const tabs = [
+    { id: 'clients', label: 'Client Management' },
     { id: 'quotations', label: 'Quotations' },
     { id: 'policies', label: 'Policies' },
     { id: 'documents', label: 'Documents' },
-    { id: 'vehicle-valuation', label: '🚗 Vehicle Valuation' },
-    { id: 'timeline-intelligence', label: '📅 Timeline Intelligence' },
-    { id: 'commissions', label: '💰 Commissions' },
-    { id: 'compare', label: '📊 Compare Quotes' },
-  { id: 'performance', label: '📈 Performance' },
-    { id: 'valuation-requests', label: '📥 Valuation Requests' },
+    { id: 'timeline-intelligence', label: 'Timeline Intelligence' },
+    { id: 'commissions', label: 'Commissions' },
+    { id: 'compare', label: 'Compare Quotes' },
+    { id: 'performance', label: 'Performance' },
   ];
 
   return (
@@ -63,7 +62,7 @@ export default function KingaAgency() {
           <div>
             <div className="p11-breadcrumb">KINGA · Agency</div>
             <div className="p11-hero-title">Agency Portal</div>
-            <div className="p11-hero-subtitle">Insurance Quotations &amp; Policy Renewals</div>
+          <div className="p11-hero-subtitle">Professional Insurance Service Portal — Manage Clients, Quotes &amp; Policies</div>
           </div>
           <div className="p11-hero-actions">
             <button className="p11-btn-ghost" onClick={() => setLocation('/portal')}>
@@ -119,15 +118,14 @@ export default function KingaAgency() {
         <div className="p11-body-2col">
           {/* ── MAIN COLUMN ── */}
           <div>
-            {activeTab === 'quotations' && <QuotationsTab />}
-            {activeTab === 'policies' && <PoliciesTab />}
-            {activeTab === 'documents' && <DocumentsTab />}
-            {activeTab === 'vehicle-valuation' && <VehicleValuationTab />}
-            {activeTab === 'timeline-intelligence' && <TimelineIntelligenceTab />}
-            {activeTab === 'commissions' && (() => { setLocation('/agency/commissions'); return null; })()}
-            {activeTab === 'compare' && <QuoteComparisonSection />}
-            {activeTab === 'performance' && <AgencyPerformanceSection />}
-            {activeTab === 'valuation-requests' && <AgencyValuationInbox />}
+          {activeTab === 'quotations' && <QuotationsTab />}
+          {activeTab === 'policies' && <PoliciesTab />}
+          {activeTab === 'documents' && <DocumentsTab />}
+          {activeTab === 'timeline-intelligence' && <TimelineIntelligenceTab />}
+          {activeTab === 'commissions' && (() => { setLocation('/agency/commissions'); return null; })()}
+          {activeTab === 'compare' && <QuoteComparisonSection />}
+          {activeTab === 'performance' && <AgencyPerformanceSection />}
+          {activeTab === 'clients' && <ClientManagementTab />}
           </div>
           {/* ── SIDEBAR ── */}
           <div className="p11-sidebar">
@@ -148,9 +146,9 @@ export default function KingaAgency() {
                     <Upload style={{ width:13, height:13 }} />
                     Upload Document
                   </button>
-                  <button className="p11-btn-outline" style={{ width:'100%', justifyContent:'center' }} onClick={() => setLocation('/agency/valuation/bulk')}>
-                    <FileText style={{ width:13, height:13 }} />
-                    Bulk CSV Valuation
+                  <button className="p11-btn-outline" style={{ width:'100%', justifyContent:'center' }} onClick={() => setActiveTab('clients')}>
+                    <Users style={{ width:13, height:13 }} />
+                    View Clients
                   </button>
                 </div>
               </div>
@@ -1112,7 +1110,7 @@ function QuoteComparisonSection() {
 
 // ─── Agency Performance Section ───────────────────────────────────────────────
 
-function AgencyPerformanceSection() {
+  function AgencyPerformanceSection() {
   return (
     <div className="p11-card">
       <div style={{ padding: '16px 0 8px' }}>
@@ -1121,6 +1119,127 @@ function AgencyPerformanceSection() {
           Conversion rates, revenue pipeline, and insurer breakdown.
         </p>
         <AgencyPerformanceTab />
+      </div>
+    </div>
+  );
+}
+
+// ========== CLIENT MANAGEMENT TAB ==========
+function ClientManagementTab() {
+  const { data: quotations, isLoading } = trpc.agency.myQuotations.useQuery();
+
+  // Derive unique clients from quotations (by vehicleRegistration or name)
+  const clients = quotations ? Array.from(
+    quotations.reduce((map: Map<string, any>, q: any) => {
+      const key = q.vehicleRegistration || q.requestNumber;
+      if (!map.has(key)) {
+        map.set(key, {
+          id: key,
+          vehicle: `${q.vehicleYear ?? ''} ${q.vehicleMake ?? ''} ${q.vehicleModel ?? ''}`.trim(),
+          registration: q.vehicleRegistration,
+          status: q.status,
+          premium: q.quotedPremium,
+          insuranceType: q.insuranceType,
+          createdAt: q.createdAt,
+          requestNumber: q.requestNumber,
+        });
+      }
+      return map;
+    }, new Map()).values()
+  ) : [];
+
+  return (
+    <div className="space-y-4 mt-4">
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(135deg, #0A2218 0%, #0D3B2A 100%)', borderRadius: 10, padding: '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Users size={18} style={{ color: '#34D399' }} />
+          </div>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#F9FAFB' }}>Client Pipeline</p>
+            <p style={{ fontSize: 12, color: '#9CA3AF' }}>Manage clients you service on behalf of insurers</p>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {[
+            { label: 'Total Clients', value: clients.length },
+            { label: 'Active Quotes', value: clients.filter((c: any) => ['pending', 'under_review', 'quoted'].includes(c.status)).length },
+            { label: 'Accepted', value: clients.filter((c: any) => c.status === 'accepted').length },
+          ].map(stat => (
+            <div key={stat.label} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '10px 14px' }}>
+              <p style={{ fontSize: 20, fontWeight: 700, color: '#F9FAFB' }}>{stat.value}</p>
+              <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Client List */}
+      <div className="p11-card">
+        <div className="p11-card-header">
+          <div className="p11-card-title">
+            <Users style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+            Client Requests
+          </div>
+        </div>
+        <div className="p11-card-body" style={{ padding: 0 }}>
+          {isLoading ? (
+            <div style={{ padding: 20 }}>
+              {[1, 2, 3].map(i => (
+                <div key={i} style={{ height: 56, background: '#F3F4F6', borderRadius: 6, marginBottom: 8 }} />
+              ))}
+            </div>
+          ) : clients.length === 0 ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+              <Users size={32} style={{ color: '#D1D5DB', margin: '0 auto 12px' }} />
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>No clients yet</p>
+              <p style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
+                Submit quotation requests on behalf of your clients to see them here.
+              </p>
+            </div>
+          ) : (
+            clients.map((client: any) => {
+              const statusColor: Record<string, string> = {
+                pending: '#F59E0B', under_review: '#3B82F6', quoted: '#10B981',
+                accepted: '#059669', rejected: '#EF4444', expired: '#9CA3AF',
+              };
+              const color = statusColor[client.status] ?? '#9CA3AF';
+              return (
+                <div key={client.id} style={{ padding: '14px 20px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{client.vehicle || 'Unknown Vehicle'}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 3 }}>
+                      {client.registration && (
+                        <span style={{ fontSize: 11, color: '#6B7280' }}>{client.registration}</span>
+                      )}
+                      <span style={{ fontSize: 11, color: '#6B7280' }}>{client.insuranceType?.replace(/_/g, ' ')}</span>
+                      <span style={{ fontSize: 11, color: '#6B7280' }}>{new Date(client.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {client.premium && (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#059669' }}>${client.premium.toFixed(2)}/mo</span>
+                    )}
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: `${color}15`, color }}>
+                      {client.status?.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Service Note */}
+      <div style={{ background: '#EFF6FF', borderRadius: 8, padding: '14px 16px', border: '1px solid #BFDBFE' }}>
+        <p style={{ fontSize: 12, fontWeight: 600, color: '#1D4ED8', marginBottom: 4 }}>Agency Service Note</p>
+        <p style={{ fontSize: 12, color: '#3B82F6', lineHeight: 1.6 }}>
+          As an agency, you manage insurance on behalf of your clients. Vehicle valuations requested by your clients 
+          are accessible through their <strong>My Portal</strong> accounts. Use the Quotations tab to submit new 
+          insurance requests and track their progress through the insurer pipeline.
+        </p>
       </div>
     </div>
   );

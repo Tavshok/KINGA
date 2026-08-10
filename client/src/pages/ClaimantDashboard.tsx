@@ -9,7 +9,7 @@ import {
   FileText, Clock, CheckCircle, Plus, ChevronRight, AlertCircle,
   Car, MapPin, Calendar, RefreshCw, Shield, FileCheck, Banknote,
   Wrench, Eye, ArrowRight, Search, X, Building2, ChevronDown, ThumbsUp, MessageSquareWarning, BarChart3,
-  Loader2
+  Loader2, BarChart2, Upload
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -233,6 +233,7 @@ export default function ClaimantDashboard() {
     { id: "completed", label: "Completed", badge: completedClaims.length > 0 ? completedClaims.length : undefined },
     { id: "quotations", label: "Quotations", badge: (myQuotations as any[]).length > 0 ? (myQuotations as any[]).length : undefined },
     { id: "policies", label: "Policies", badge: activePolicies.length > 0 ? activePolicies.length : undefined },
+    { id: "valuations", label: "Valuations" },
     { id: "quick-actions", label: "Quick Actions" },
   ];
 
@@ -338,6 +339,91 @@ export default function ClaimantDashboard() {
                 </div>
               </div>
             )}
+
+            {/* Valuations Tab */}
+            {activeTab === "valuations" && (
+              <div className="space-y-4 mt-4">
+                {/* Header */}
+                <div style={{ background: 'linear-gradient(135deg, #0A2218 0%, #0D3B2A 100%)', borderRadius: 10, padding: '20px 24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Car size={18} style={{ color: '#34D399' }} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#F9FAFB' }}>Vehicle Valuation Services</p>
+                      <p style={{ fontSize: 12, color: '#9CA3AF' }}>Request a KINGA-powered vehicle valuation report</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Single Vehicle Valuation */}
+                <div className="p11-card">
+                  <div className="p11-card-header">
+                    <div className="p11-card-title">
+                      <Car style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                      Single Vehicle Valuation
+                    </div>
+                  </div>
+                  <div className="p11-card-body">
+                    <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.6 }}>
+                      Request a valuation for your vehicle. A KINGA report will be generated using photo forensics, 
+                      market data, and condition assessment. A teaser report is available immediately; the full report 
+                      is unlocked when a policy is issued or via a standalone $25 payment.
+                    </p>
+                    <button
+                      className="p11-btn-gold"
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={() => setLocation('/client/valuation')}
+                    >
+                      <Car style={{ width: 13, height: 13 }} />
+                      Request Vehicle Valuation
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bulk CSV Valuation */}
+                <div className="p11-card">
+                  <div className="p11-card-header">
+                    <div className="p11-card-title">
+                      <BarChart2 style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                      Bulk Fleet Valuation
+                      <span className="p11-badge amber" style={{ marginLeft: 6 }}>CSV Upload</span>
+                    </div>
+                  </div>
+                  <div className="p11-card-body">
+                    <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.6 }}>
+                      Have multiple vehicles to value? Upload a CSV file with your fleet details and receive 
+                      a batch valuation report. Ideal for fleet managers and car dealers.
+                    </p>
+                    <div style={{ background: '#F9FAFB', borderRadius: 8, padding: '12px 14px', marginBottom: 14, border: '1px dashed #D1D5DB' }}>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: '#374151', marginBottom: 6 }}>CSV Format Required</p>
+                      <code style={{ fontSize: 11, color: '#6B7280', display: 'block', lineHeight: 1.8 }}>
+                        make, model, year, registration_number, condition, mileage
+                      </code>
+                    </div>
+                    <button
+                      className="p11-btn-outline"
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={() => setLocation('/client/valuation/bulk')}
+                    >
+                      <Upload style={{ width: 13, height: 13 }} />
+                      Upload CSV for Bulk Valuation
+                    </button>
+                  </div>
+                </div>
+
+                {/* Valuation Policy Note */}
+                <div style={{ background: '#FFF7ED', borderRadius: 8, padding: '12px 14px', border: '1px solid #FED7AA' }}>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#C2410C', marginBottom: 4 }}>Valuation Report Access</p>
+                  <p style={{ fontSize: 11, color: '#EA580C', lineHeight: 1.6 }}>
+                    A teaser valuation is available immediately. The full detailed report is unlocked automatically 
+                    when a motor insurance policy is issued through KINGA, or can be purchased as a standalone 
+                    report for $25.
+                  </p>
+                </div>
+              </div>
+            )}
+
 
             {/* Claims Table — shown on my-claims, completed, and quick-actions tabs */}
             {(activeTab === "my-claims" || activeTab === "completed" || activeTab === "quick-actions") && (
