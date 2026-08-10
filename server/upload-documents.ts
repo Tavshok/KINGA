@@ -90,7 +90,8 @@ uploadDocumentsRouter.post(
 
       // Resolve tenant
       let tenantId = user.tenantId;
-      if (!tenantId && isAdminRole(user.role)) tenantId = "test-ops-001";
+      // For admin/platform_super_admin: use their own tenantId if set, otherwise fall back to kinga-default
+      if (!tenantId && isAdminRole(user.role)) tenantId = "kinga-default";
       if (!tenantId) {
         return res.status(403).json({
           error: "User must be associated with a tenant. Please contact your administrator.",
