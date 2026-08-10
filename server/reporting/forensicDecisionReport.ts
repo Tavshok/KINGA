@@ -271,7 +271,9 @@ export async function generateForensicDecisionReport(
 
     const lowestRef = lowestQuote > 0 ? lowestQuote : highestQuote;
     const savings = lowestRef > 0 ? lowestRef - kingaOptimised : 0;
-    const savingsPct = lowestRef > 0 ? (savings / lowestRef * 100) : 0;
+    // Bug #5: Only show savings when kingaOptimised > 0 (prevents 100% savings label when estimate is $0.00)
+    const savingsPct = (lowestRef > 0 && kingaOptimised > 0) ? Math.max(0, savings / lowestRef * 100) : 0;
+    const hasSavings = savings > 0 && kingaOptimised > 0;
 
     // Bug #10: DB column is excess_amount_cents (integer cents), not policy_excess
     const excess = c.excess_amount_cents != null
@@ -779,12 +781,12 @@ export async function generateForensicDecisionReport(
       <div class="value">${fmtCurrency(kingaOptimised, claimCurrency)}</div>
       <div class="sub">${(costIntel as any)?._isPartialBenchmark
         ? `⚠ ${(costIntel as any)._pricedComponentCount}/${(costIntel as any)._totalComponentCount} components priced — partial estimate`
-        : savings > 0 ? `↓ ${fmtCurrency(savings, claimCurrency)} · ${savingsPct.toFixed(1)}% savings` : "Best-price estimate"}</div>
+        : hasSavings ? `↓ ${fmtCurrency(savings, claimCurrency)} · ${savingsPct.toFixed(1)}% savings` : "Best-price estimate"}</div>
     </div>
     <div class="verdict-cell">
       <div class="label">Settlement Agreed</div>
       <div class="value">${fmtCurrency(recommendedSettlement, claimCurrency)}</div>
-      <div class="sub">${savings > 0 ? `−${savingsPct.toFixed(1)}% vs. original` : "Pending negotiation"}</div>
+      <div class="sub">${hasSavings ? `−${savingsPct.toFixed(1)}% vs. original` : "Pending negotiation"}</div>
     </div>
     <div class="verdict-cell">
       <div class="label">Repair Ratio</div>
@@ -832,7 +834,7 @@ export async function generateForensicDecisionReport(
         <ul class="tight">
           ${highIssues.length > 0
             ? highIssues.map(i => `<li>${esc(i.title)}</li>`).join("")
-            : `<li>Data completeness ${Number(ife?.overallScore ?? 75)}% — ${Number(ife?.overallScore ?? 75) < 90 ? "below 90% required threshold" : "above threshold"}</li>
+            : `<li>Data completeness ${ifeCompletenessScore}% — ${ifeCompletenessScore < 90 ? "below 90% required threshold" : "above threshold"}</li>
                ${physicsScore < 70 ? `<li>Physics consistency anomaly (${physicsScore}%) — damage pattern vs. reported direction</li>` : ""}
                ${auditScore < 60 ? `<li>Cost verdict requires manual review — quote deviates from AI benchmark</li>` : ""}`
           }
@@ -1372,13 +1374,13 @@ export async function generateForensicDecisionReport(
 <div class="page page-break">
   <!-- §06 FINANCIAL VALIDATION -->
   <div class="section">
-    ${sectionTab("06", "Financial Validation", savings > 0 ? "Savings opportunity" : "Review", savings > 0 ? "ok" : "high")}
+    ${sectionTab("06", "Financial Validation", hasSavings ? "Savings opportunity" : "Review", hasSavings ? "ok" : "high")}
     <div class="cols-2">
       <div class="box">
         <h4>Quote Comparison</h4>
         ${quoteBars}
         <div class="qbar-row sans"><div class="name" style="font-weight:700;">KINGA Optimised (L2)</div><div class="track"><div class="fill" style="width:${kingaPct}%; background:var(--green);"></div></div><div class="amt" style="color:var(--green-dark);">${fmtUSD(kingaOptimised)}</div></div>
-        ${savings > 0 ? co(`<b>Savings opportunity —</b> ${fmtUSD(savings)} (${savingsPct.toFixed(1)}%) below lowest submitted quote, based on best price per component.`, "green") : ""}
+        ${hasSavings ? co(`<b>Savings opportunity —</b> ${fmtUSD(savings)} (${savingsPct.toFixed(1)}%) below lowest submitted quote, based on best price per component.`, "green") : ""}
       </div>
       <div class="box">
         <h4>Cost Intelligence &amp; Settlement</h4>
@@ -1386,7 +1388,7 @@ export async function generateForensicDecisionReport(
           ${lowestRef > 0 ? kvRow("Lowest submitted (L1)", fmtUSD(lowestRef)) : ""}
           ${kingaOptimised > 0 ? kvRow("KINGA optimised (L2)", fmtUSD(kingaOptimised)) : ""}
           ${kvRow("Settlement — agreed", fmtUSD(recommendedSettlement))}
-          ${savings > 0 ? kvRow("Adjustment", `<span style="color:var(--red);">−${fmtUSD(savings)} (${savingsPct.toFixed(1)}%)</span>`) : ""}
+          ${hasSavings ? kvRow("Adjustment", `<span style="color:var(--red);">−${fmtUSD(savings)} (${savingsPct.toFixed(1)}%)</span>`) : ""}
         </table>
         ${highIssues.some(i => i.title.toLowerCase().includes("cost") || i.title.toLowerCase().includes("quote"))
           ? co(`<b>Cost verdict: Review</b> (${auditGrade.toLowerCase()} confidence). ${esc(highIssues.find(i => i.title.toLowerCase().includes("cost"))?.description ?? "Quote contains components inconsistent with the accident mechanism.")}`, "red")
@@ -1675,7 +1677,7 @@ export async function generateForensicDecisionReport(
         <h4>Forensic Audit Validation — ${auditScore}/100 (${auditGrade} confidence)</h4>
         <table class="kv">
           ${(forensicAudit?.validationChecks as Array<{name: string; status: string}> ?? [
-            { name: "Data extraction", status: Number(ife?.overallScore ?? 75) >= 90 ? "Pass" : "Warning" },
+            { name: "Data extraction", status: ifeCompletenessScore >= 90 ? "Pass" : "Warning" },
             { name: "Incident classification", status: "Pass" },
             { name: "Image analysis", status: totalPhotos > 0 ? "Pass" : "Warning" },
             { name: "Physics engine", status: physicsScore >= 70 ? "Pass" : "Warning" },

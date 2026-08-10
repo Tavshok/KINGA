@@ -1415,6 +1415,7 @@ export async function runPipelineV2(
   // Runs BEFORE Stage 7 (physics) so the calibrated crush depth is available to M1.
   // Non-fatal: if VGE fails, Stage 7 falls back to the raw LLM visionCrushDepthM.
   ctx.onStageStart?.("Stage 6.5A — Vision Geometry Engine");
+  const _t65A = Date.now();
   try {
     const { runVGECalibration } = await import('./stage-6-5a-vge');
     const vgeResult = await runVGECalibration(ctx);
@@ -1429,15 +1430,18 @@ export async function runPipelineV2(
     } else {
       ctx.log('Stage 6.5A', `VGE: no reference objects detected in any image — Stage 7 will use raw LLM estimate`);
     }
+    recordStage("6_5a_vision_geo", { status: "success", durationMs: Date.now() - _t65A, savedToDb: false, degraded: !ctx.vgeCalibrationResult?.calibrationAvailable });
   } catch (vgeErr) {
     ctx.log('Stage 6.5A', `VGE error (non-fatal): ${String(vgeErr)} — Stage 7 will use raw LLM estimate`);
     ctx.vgeCalibrationResult = null;
+    recordStage("6_5a_vision_geo", { status: "degraded", durationMs: Date.now() - _t65A, savedToDb: false, error: String(vgeErr), degraded: true });
   }
 
   // ── STAGE 6.5B — VISION GEOMETRY RECONCILIATION ───────────────────────────────────────
   // Cross-image weighted consensus. Runs only when Stage 6.5A produced at least
   // one calibrated image. Non-fatal: falls back to Stage 6.5A single-best estimate.
   ctx.onStageStart?.("Stage 6.5B — Vision Geometry Reconciliation");
+  const _t65B = Date.now();
   try {
     const vge65A = ctx.vgeCalibrationResult;
     if (vge65A?.calibrationAvailable && vge65A.perImageResults.length > 0) {
@@ -1459,9 +1463,11 @@ export async function runPipelineV2(
       ctx.vgeReconciliationResult = null;
       ctx.log('Stage 6.5B', 'VGR skipped — no calibrated images from Stage 6.5A');
     }
+    recordStage("6_5b_vision_reconcile", { status: "success", durationMs: Date.now() - _t65B, savedToDb: false, degraded: !ctx.vgeReconciliationResult?.reconciliationAvailable });
   } catch (vgrErr) {
     ctx.log('Stage 6.5B', `VGR error (non-fatal): ${String(vgrErr)} — Stage 7 will use Stage 6.5A single-best estimate`);
     ctx.vgeReconciliationResult = null;
+    recordStage("6_5b_vision_reconcile", { status: "degraded", durationMs: Date.now() - _t65B, savedToDb: false, error: String(vgrErr), degraded: true });
   }
 
   // ── STAGE 6.5C: STRUCTURAL LOAD PATH ENGINE ─────────────────────────────
