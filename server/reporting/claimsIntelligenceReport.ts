@@ -15,6 +15,7 @@
  */
 
 import mysql from "mysql2/promise";
+import { fraudIndicators } from "../../drizzle/schema";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct, safeJson, scoreColour, chip, badge, photoZonePanel,
 } from "./templates/kingaDesignSystem";

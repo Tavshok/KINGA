@@ -7,6 +7,7 @@
  */
 
 import type { ClaimIntelligence } from "./report-intelligence-aggregator";
+import { panelBeaterQuotes } from "../../drizzle/schema";
 
 export interface ConfidenceGaugeData {
   type: "gauge";

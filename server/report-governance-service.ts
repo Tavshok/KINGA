@@ -8,7 +8,8 @@
 
 import { eq, and } from 'drizzle-orm';
 import { getDb } from './db';
-import { reportSnapshots, pdfReports, reportAccessAudit } from '../drizzle/schema';
+import { reportSnapshots, pdfReports, reportAccessAudit,
+  users,} from '../drizzle/schema';
 import { hasPermission } from './rbac';
 import type { users } from '../drizzle/schema';
 

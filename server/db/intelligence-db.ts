@@ -7,7 +7,7 @@ import { eq, and, desc, sql, inArray, gte, lte, or, count, avg } from "drizzle-o
 import {
   claimEvents, InsertClaimEvent, decisionSnapshots, DecisionSnapshot,
   tenants, users, claims,
-} from "../../drizzle/schema";
+  ingestionDocuments,} from "../../drizzle/schema";
 import { getDb } from "../db-core";
 
 export async function emitClaimEvent(params: {

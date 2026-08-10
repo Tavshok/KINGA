@@ -25,8 +25,8 @@ import {
   claims, users, aiAssessments, assessorEvaluations, 
   panelBeaterQuotes, panelBeaters, workflowAuditTrail,
   claimInvolvementTracking, roleAssignmentAudit,
-  recoveryCases, tenants
-} from "../../drizzle/schema";
+  recoveryCases, tenants,
+  assessors,} from "../../drizzle/schema";
 import { eq, and, or, desc, sql, count, avg, sum, gte, lte, gt, lt } from "drizzle-orm";
 import { 
   createAnalyticsResponse, 

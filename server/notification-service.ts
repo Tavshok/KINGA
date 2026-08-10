@@ -14,7 +14,8 @@
  */
 
 import { getDb } from "./db";
-import { governanceNotifications, users } from "../drizzle/schema";
+import { governanceNotifications, users,
+  notifications,} from "../drizzle/schema";
 import { eq, and, desc, isNull, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 

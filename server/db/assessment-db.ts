@@ -4,9 +4,10 @@
  * Extracted from server/db.ts — Aug 2026.
  */
 import { eq, and, desc, inArray } from "drizzle-orm";
-import {
+  import {
   aiAssessments, InsertAiAssessment, assessorEvaluations, InsertAssessorEvaluation,
   panelBeaterQuotes, InsertPanelBeaterQuote, appointments, InsertAppointment,
+  claims, panelBeaters,
 } from "../../drizzle/schema";
 import { getDb } from "../db-core";
 
@@ -213,4 +214,3 @@ export async function updateAppointmentStatus(id: number, status: typeof appoint
 // ============================================================================
 // AUDIT TRAIL OPERATIONS
 // ============================================================================
-

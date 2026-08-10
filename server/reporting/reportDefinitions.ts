@@ -42,6 +42,7 @@ import { generateVehicleVerificationReport } from "./vehicleVerificationReport";
 import { generateVehicleValuationReport } from "./vehicleValuationReport";
 import { generateEngineerInspectionReport } from "./engineerInspectionReport";
 import { generateRiskSurveyReport } from "./riskSurveyReport";
+import { assessors, fraudIndicators, tenants, users } from "../../drizzle/schema";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct as kFmtPct,
   chip, pill, callout, scoreCell, physicsIndicator, safeJson, photoZonePanel,

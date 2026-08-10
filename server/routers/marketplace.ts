@@ -20,7 +20,7 @@ import {
   insurerMarketplaceLinks,
   insurerMarketplaceRelationships,
   users,
-} from "../../drizzle/schema";
+  assessors, claims, panelBeaters,} from "../../drizzle/schema";
 import { randomUUID } from "crypto";
 
 // ─── Input Schemas ────────────────────────────────────────────────────────────

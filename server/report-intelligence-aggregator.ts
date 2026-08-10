@@ -14,7 +14,7 @@ import {
   panelBeaterQuotes,
   users,
   panelBeaters,
-} from "../drizzle/schema";
+  auditTrail,} from "../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 
 export interface ClaimIntelligence {

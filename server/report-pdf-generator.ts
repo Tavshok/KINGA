@@ -16,6 +16,7 @@ import {
   generateHeatScaleSVG,
 } from "./report-visualization-generator";
 import puppeteer from "puppeteer-core";
+import { panelBeaterQuotes } from "../../drizzle/schema";
 
 export interface ReportPDFOptions {
   role: "insurer" | "assessor" | "regulatory";

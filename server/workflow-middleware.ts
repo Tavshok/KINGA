@@ -9,6 +9,7 @@
  */
 
 import type { SQL } from "drizzle-orm";
+import { claims } from "../../drizzle/schema";
 
 /**
  * Check if an update object contains direct state field modifications
