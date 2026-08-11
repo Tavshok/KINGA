@@ -32,6 +32,7 @@ type PeriodInsight = { period: string; claimCount: number; totalCostCents: numbe
 
 export type FleetClaimsReportData = {
   periodDays: 30 | 90 | 365;
+  periodLabel?: string;
   summary: FleetSummary;
   vehicleInsights: VehicleInsight[];
   driverInsights: DriverInsight[];
@@ -56,6 +57,7 @@ export function exportFleetClaimsSummaryToPdf(
   data: FleetClaimsReportData,
   formatCurrency: (amountCents: number) => string,
 ): boolean {
+  const selectedPeriodLabel = data.periodLabel ?? periodLabel(data.periodDays);
   const reportWindow = window.open("", "_blank", "noopener,noreferrer");
   if (!reportWindow) return false;
 
@@ -80,7 +82,7 @@ export function exportFleetClaimsSummaryToPdf(
     : `<tr><td colspan="3" class="empty">No cost trend is available for this period.</td></tr>`;
 
   reportWindow.document.write(`<!doctype html><html><head><meta charset="utf-8" />
-    <title>KINGA Fleet Claims Summary — ${escapeHtml(periodLabel(data.periodDays))}</title>
+    <title>KINGA Fleet Claims Summary — ${escapeHtml(selectedPeriodLabel)}</title>
     <style>
       @page { size: A4; margin: 14mm; } * { box-sizing: border-box; }
       body { margin: 0; color: #17372B; font: 11px Arial, sans-serif; } h1,h2,p { margin: 0; }
@@ -93,7 +95,7 @@ export function exportFleetClaimsSummaryToPdf(
       .risk,.ok { border-radius:10px; display:inline-block; font-size:8px; font-weight:700; padding:3px 6px; } .risk { background:#FCE7E7; color:#9D2727; } .ok { background:#E8F4EA; color:#176A36; } .empty { color:#687A6E; text-align:center; padding:14px; }
       footer { border-top:1px solid #D9E5DA; color:#687A6E; font-size:8px; margin-top:20px; padding-top:8px; } @media print { .no-print { display:none; } }
     </style></head><body>
-      <header><div class="eyebrow">KINGA · Risk Intelligence Platform</div><h1>Fleet Claims Summary</h1><p class="sub">${escapeHtml(periodLabel(data.periodDays))} · Generated ${escapeHtml(new Date().toLocaleString())}</p></header>
+      <header><div class="eyebrow">KINGA · Risk Intelligence Platform</div><h1>Fleet Claims Summary</h1><p class="sub">${escapeHtml(selectedPeriodLabel)} · Generated ${escapeHtml(new Date().toLocaleString())}</p></header>
       <section class="kpis">
         <div class="kpi"><b>Total claims</b><span>${data.summary.totalClaims}</span></div><div class="kpi"><b>Open claims</b><span>${data.summary.openClaims}</span></div>
         <div class="kpi"><b>Cost exposure</b><span>${escapeHtml(formatCurrency(data.summary.totalCostCents))}</span></div><div class="kpi"><b>Average claim</b><span>${escapeHtml(formatCurrency(data.summary.averageCostCents))}</span></div>

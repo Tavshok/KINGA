@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +25,9 @@ export default function FleetManagement() {
   const [driverForm, setDriverForm] = useState({ fleetId: "", driverEmail: "", driverLicenseNumber: "", licenseExpiry: "", licenseClass: "", hireDate: "" });
   const [activeFleetTab, setActiveFleetTab] = useState("vehicles");
   const [analysisPeriodDays, setAnalysisPeriodDays] = useState<30 | 90 | 365>(365);
+  const [analysisRangeMode, setAnalysisRangeMode] = useState<"preset" | "custom">("preset");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isDriver = user?.role === "fleet_driver";
@@ -35,7 +38,21 @@ export default function FleetManagement() {
   const { data: vehicles, refetch: refetchVehicles } = trpc.fleet.getMyVehicles.useQuery();
   const { data: drivers = [], refetch: refetchDrivers } = trpc.fleet.getMyDrivers.useQuery();
   const { data: maintenanceAlerts = [] } = trpc.fleet.getMaintenanceAlerts.useQuery({});
-  const { data: managerIntelligence, isLoading: isIntelligenceLoading } = trpc.fleet.getManagerIntelligence.useQuery({ periodDays: analysisPeriodDays }, { enabled: isManager });
+  const customRangeIsValid = Boolean(customStartDate && customEndDate && customStartDate <= customEndDate);
+  const managerIntelligenceInput = useMemo(() => {
+    if (analysisRangeMode === "custom" && customRangeIsValid) {
+      return {
+        periodDays: 365 as const,
+        startDate: new Date(`${customStartDate}T00:00:00.000Z`).toISOString(),
+        endDate: new Date(`${customEndDate}T23:59:59.999Z`).toISOString(),
+      };
+    }
+    return { periodDays: analysisPeriodDays };
+  }, [analysisPeriodDays, analysisRangeMode, customEndDate, customRangeIsValid, customStartDate]);
+  const reportPeriodLabel = analysisRangeMode === "custom" && customRangeIsValid
+    ? `${customStartDate} to ${customEndDate}`
+    : analysisPeriodDays === 365 ? "Last 12 months" : `Last ${analysisPeriodDays} days`;
+  const { data: managerIntelligence, isLoading: isIntelligenceLoading } = trpc.fleet.getManagerIntelligence.useQuery(managerIntelligenceInput, { enabled: isManager });
 
   const exportFleetClaimsReport = () => {
     if (!managerIntelligence) {
@@ -44,6 +61,7 @@ export default function FleetManagement() {
     }
     const opened = exportFleetClaimsSummaryToPdf({
       periodDays: analysisPeriodDays,
+      periodLabel: reportPeriodLabel,
       summary: managerIntelligence.summary,
       vehicleInsights: managerIntelligence.vehicleInsights,
       driverInsights: managerIntelligence.driverInsights,
@@ -630,11 +648,16 @@ export default function FleetManagement() {
                   <div className="p11-card-title"><AlertTriangle style={{ width: 14, height: 14, color: "var(--g-600)" }} />Fleet Claims & Cost Exposure</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 11, color: "var(--muted)" }}>Vehicle registration matched</span>
-                    <Select value={String(analysisPeriodDays)} onValueChange={(value) => setAnalysisPeriodDays(Number(value) as 30 | 90 | 365)}>
+                    <Select value={analysisRangeMode === "custom" ? "custom" : String(analysisPeriodDays)} onValueChange={(value) => {
+                      if (value === "custom") { setAnalysisRangeMode("custom"); return; }
+                      setAnalysisRangeMode("preset");
+                      setAnalysisPeriodDays(Number(value) as 30 | 90 | 365);
+                    }}>
                       <SelectTrigger style={{ height: 28, width: 118, fontSize: 11 }}><SelectValue /></SelectTrigger>
-                      <SelectContent><SelectItem value="30">Last 30 days</SelectItem><SelectItem value="90">Last 90 days</SelectItem><SelectItem value="365">Last 12 months</SelectItem></SelectContent>
+                      <SelectContent><SelectItem value="30">Last 30 days</SelectItem><SelectItem value="90">Last 90 days</SelectItem><SelectItem value="365">Last 12 months</SelectItem><SelectItem value="custom">Custom range</SelectItem></SelectContent>
                     </Select>
-                    <Button variant="outline" size="sm" onClick={exportFleetClaimsReport} disabled={!managerIntelligence || isIntelligenceLoading}>
+                    {analysisRangeMode === "custom" && <><Input aria-label="Fleet report start date" type="date" value={customStartDate} onChange={(event) => setCustomStartDate(event.target.value)} style={{ height: 28, width: 136, fontSize: 11 }} /><Input aria-label="Fleet report end date" type="date" value={customEndDate} onChange={(event) => setCustomEndDate(event.target.value)} style={{ height: 28, width: 136, fontSize: 11 }} /></>}
+                    <Button variant="outline" size="sm" onClick={exportFleetClaimsReport} disabled={!managerIntelligence || isIntelligenceLoading || (analysisRangeMode === "custom" && !customRangeIsValid)}>
                       <Download className="mr-1 h-3.5 w-3.5" /> Export PDF
                     </Button>
                   </div>
@@ -650,7 +673,7 @@ export default function FleetManagement() {
                           { label: "Average Claim", value: fmt(managerIntelligence?.summary.averageCostCents ?? 0) },
                         ].map((metric) => <div key={metric.label} style={{ padding: 12, border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface)" }}><div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" }}>{metric.label}</div><div style={{ marginTop: 4, fontSize: 18, fontWeight: 700, color: "var(--text)" }}>{metric.value}</div></div>)}
                       </div>
-                      {(managerIntelligence?.vehicleInsights.length ?? 0) === 0 ? <div style={{ padding: "24px 0", textAlign: "center", color: "var(--muted)", fontSize: 13 }}><CheckCircle style={{ width: 30, height: 30, margin: "0 auto 10px", color: "#059669", opacity: 0.7 }} /><p>No fleet-linked claims were recorded in the last 12 months.</p></div> : <table className="p11-table"><thead><tr><th>Vehicle</th><th>Claims</th><th>Open</th><th>Cost</th><th>Risk Signal</th></tr></thead><tbody>{managerIntelligence?.vehicleInsights.map((vehicle) => <tr key={vehicle.vehicleId}><td><div style={{ fontWeight: 600 }}>{vehicle.registrationNumber}</div><div style={{ fontSize: 11, color: "var(--muted)" }}>{vehicle.vehicle} · {vehicle.year}</div></td><td>{vehicle.claimCount}</td><td>{vehicle.openClaimCount}</td><td>{fmt(vehicle.totalCostCents)}</td><td><span className={`p11-badge ${vehicle.highRisk ? "red" : "green"}`}>{vehicle.highRisk ? (vehicle.elevatedFrequency ? "Elevated frequency" : `${vehicle.riskScore}/100 risk`) : "Within threshold"}</span></td></tr>)}</tbody></table>}
+                      {analysisRangeMode === "custom" && !customRangeIsValid ? <div style={{ padding: "24px 0", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>Select both valid dates to run custom Fleet intelligence.</div> : (managerIntelligence?.vehicleInsights.length ?? 0) === 0 ? <div style={{ padding: "24px 0", textAlign: "center", color: "var(--muted)", fontSize: 13 }}><CheckCircle style={{ width: 30, height: 30, margin: "0 auto 10px", color: "#059669", opacity: 0.7 }} /><p>No fleet-linked claims were recorded for {reportPeriodLabel.toLowerCase()}.</p></div> : <table className="p11-table"><thead><tr><th>Vehicle</th><th>Claims</th><th>Open</th><th>Cost</th><th>Risk Signal</th></tr></thead><tbody>{managerIntelligence?.vehicleInsights.map((vehicle) => <tr key={vehicle.vehicleId}><td><div style={{ fontWeight: 600 }}>{vehicle.registrationNumber}</div><div style={{ fontSize: 11, color: "var(--muted)" }}>{vehicle.vehicle} · {vehicle.year}</div></td><td>{vehicle.claimCount}</td><td>{vehicle.openClaimCount}</td><td>{fmt(vehicle.totalCostCents)}</td><td><span className={`p11-badge ${vehicle.highRisk ? "red" : "green"}`}>{vehicle.highRisk ? (vehicle.elevatedFrequency ? "Elevated frequency" : `${vehicle.riskScore}/100 risk`) : "Within threshold"}</span></td></tr>)}</tbody></table>}
                     </>
                   )}
                 </div>

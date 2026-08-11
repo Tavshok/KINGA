@@ -190,4 +190,17 @@ describe("portal conformance regressions", () => {
     expect(fleetExport).toContain("Driver claim signals");
     expect(fleetExport).toContain("Cost by period");
   });
+
+  it("supports a validated custom Fleet date range across intelligence and PDF export", () => {
+    const fleetManagement = readClient("pages/FleetManagement.tsx");
+    const fleetExport = readClient("lib/fleetReportExport.ts");
+
+    expect(fleetManagement).toContain('analysisRangeMode === "custom"');
+    expect(fleetManagement).toContain("customStartDate");
+    expect(fleetManagement).toContain("customEndDate");
+    expect(fleetManagement).toContain("Custom range");
+    expect(fleetManagement).toContain("Fleet report start date");
+    expect(fleetManagement).toContain("Fleet report end date");
+    expect(fleetExport).toContain("periodLabel?: string");
+  });
 });
