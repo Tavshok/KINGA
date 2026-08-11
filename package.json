@@ -9,6 +9,7 @@
     "check:server": "esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=/tmp/kinga-check && echo 'Server bundle OK'",
     "start": "NODE_OPTIONS='--expose-gc' NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
+    "check:conflicts": "node scripts/check-conflict-markers.mjs",
     "format": "prettier --write .",
     "test": "vitest run",
     "test:portal": "vitest run server/portal-conformance.test.ts",
@@ -19,7 +20,8 @@
     "lint": "eslint server/**/*.ts",
     "lint:governance": "eslint --config .eslintrc.json server/**/*.ts",
     "governance:check": "bash scripts/governance-check.sh",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "prepare": "node scripts/install-git-hooks.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",

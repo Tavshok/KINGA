@@ -18,7 +18,7 @@
 ## Stabilization Pass — July 2026
 
 - [x] Fix document visibility: add documents.allByClaim tRPC procedure merging ingestion_documents + claim_documents; update DocumentList component
-- [ ] CI hardening: pre-commit hook blocking commits with git conflict markers
+- [x] CI hardening: pre-commit hook blocking commits with git conflict markers — `.githooks/pre-commit`, portable installer, staged-content scanner, and regression tests verified
 - [ ] Pipeline observability: pipeline_execution_logs table + telemetry hooks in orchestrator
 - [ ] End-to-end regression test suite: upload → analysis → report lifecycle
 
