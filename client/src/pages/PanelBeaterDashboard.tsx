@@ -239,6 +239,22 @@ export default function PanelBeaterDashboard() {
         <div className="p11-body-2col">
           {/* ── MAIN COLUMN ── */}
           <div>
+            {!profile && (
+              <div className="p11-card" style={{ marginBottom: 16, border: '1px solid #FCD34D', background: '#FFFBEB' }}>
+                <div className="p11-card-body" style={{ padding: '16px 18px' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <AlertTriangle style={{ width: 18, height: 18, color: '#B45309', flexShrink: 0, marginTop: 1 }} />
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: '#92400E' }}>No repairer profile is linked to this account</p>
+                      <p style={{ fontSize: 12, lineHeight: 1.55, color: '#A16207', marginTop: 3 }}>
+                        Quote requests can only be shown after a Panel Beater business profile is linked to the signed-in repair-partner account. A platform administrator viewing this portal is seeing a role preview, not a repairer’s live queue.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* SR-C04: Repairs In Progress */}
             {repairsInProgress.length > 0 && (
               <div className="p11-card" style={{ marginBottom: 16, border: '1px solid #D1FAE5' }}>
@@ -304,7 +320,7 @@ export default function PanelBeaterDashboard() {
                   <div style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--muted)' }}>
                     <Wrench style={{ width: 32, height: 32, margin: '0 auto 8px', color: '#D1D5DB' }} />
                     <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>No active quote requests</p>
-                    <p style={{ fontSize: 12, marginTop: 4 }}>When claimants select you, their claims will appear here</p>
+                    <p style={{ fontSize: 12, marginTop: 4 }}>{profile ? 'When claimants select you or a repair is allocated to your business, it will appear here.' : 'Link a repairer profile to this account before allocated requests can be shown.'}</p>
                   </div>
                 ) : (
                   <table className="p11-table">

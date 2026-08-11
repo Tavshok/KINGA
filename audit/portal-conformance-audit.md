@@ -47,11 +47,11 @@ Legacy Agency valuation routes must be redirected to My Portal or replaced with 
 
 ### Panel Beater Portal
 
-The screenshot shows an operationally valid empty state: no repairs have been allocated to the current panel-beater account. However, the portal is incomplete because the allocated quote row currently routes to a URL that does not exist. The complete workflow is:
+The screenshot shows an operationally valid empty state: no repairs have been allocated to the current panel-beater account. It also revealed an ambiguity: when the signed-in user has no linked repairer profile, the prior interface presented the same empty-state message. The portal now explicitly distinguishes a missing repairer profile from an empty operational queue. The complete workflow is:
 
 > Allocated repair request → review vehicle/evidence/damage scope → build direct itemised quote → VAT and terms → submit → approval/revision → upload repair evidence → mark repair complete.
 
-The direct quote builder exists after the latest implementation but must be wired from the queue and the queue requires a deliberate insurer/allocation mechanism.
+The direct VAT-capable quote builder is now wired from the queue. Queue retrieval recognises both claimant quote invitations (`selectedPanelBeaterIds`) and approved repair allocations (`assignedPanelBeaterId`), including historical string-form IDs. Live validation still requires a genuine Panel Beater account with a linked profile and a claim selected or allocated to that repairer.
 
 ### Fleet Management
 

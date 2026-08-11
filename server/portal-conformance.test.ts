@@ -56,4 +56,14 @@ describe("portal conformance regressions", () => {
     expect(fleetRouter).toContain("getMyDriverWorkspace: protectedProcedure");
     expect(fleetRouter).toContain("FLEET_DRIVER_ASSIGNED");
   });
+
+  it("keeps Panel Beater work visible for both quote invitations and approved repair allocations", () => {
+    const panelBeater = readClient("pages/PanelBeaterDashboard.tsx");
+    const db = readFileSync(resolve(project, "server", "db.ts"), "utf8");
+
+    expect(db).toContain("assignedPanelBeaterId");
+    expect(db).toContain("selectedIds.some((id) => Number(id) === Number(panelBeaterId))");
+    expect(panelBeater).toContain("No repairer profile is linked to this account");
+    expect(panelBeater).toContain("allocated to your business");
+  });
 });

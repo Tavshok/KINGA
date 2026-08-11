@@ -515,7 +515,9 @@ export async function getClaimsForPanelBeater(panelBeaterId: number, tenantId?: 
   const db = await getDb();
   if (!db) return [];
 
-  // Get claims where this panel beater was selected by the claimant
+  // Quote invitations are persisted as JSON during intake while an approved
+  // repair allocation is persisted as assignedPanelBeaterId. A repair partner
+  // must see either state in the same operational queue.
   const query = tenantId
     ? db.select().from(claims).where(eq(claims.tenantId, tenantId)).orderBy(desc(claims.createdAt))
     : db.select().from(claims).orderBy(desc(claims.createdAt));
@@ -523,10 +525,11 @@ export async function getClaimsForPanelBeater(panelBeaterId: number, tenantId?: 
   const allClaims = await query;
   
   return allClaims.filter(claim => {
+    if (Number(claim.assignedPanelBeaterId) === Number(panelBeaterId)) return true;
     if (!claim.selectedPanelBeaterIds) return false;
     try {
-      const selectedIds = JSON.parse(claim.selectedPanelBeaterIds);
-      return selectedIds.includes(panelBeaterId);
+      const selectedIds = JSON.parse(claim.selectedPanelBeaterIds) as unknown[];
+      return Array.isArray(selectedIds) && selectedIds.some((id) => Number(id) === Number(panelBeaterId));
     } catch {
       return false;
     }
