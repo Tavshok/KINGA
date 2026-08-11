@@ -21,7 +21,6 @@ import { toast } from "sonner";
 import { TimelineIntelligenceTab } from "@/components/TimelineIntelligenceTab";
 import { QuoteComparisonView } from "@/components/QuoteComparisonView";
 import { AgencyPerformanceTab } from "@/components/AgencyPerformanceTab";
-import AgencyValuationInbox from "@/pages/AgencyValuationInbox";
 
 export default function KingaAgency() {
   const { user } = useAuth();
@@ -30,7 +29,7 @@ export default function KingaAgency() {
 
   const tabs = [
     { id: 'clients', label: 'Client Management' },
-    { id: 'quotations', label: 'Quotations' },
+    { id: 'quotations', label: 'Client Requests & Quotes' },
     { id: 'policies', label: 'Policies' },
     { id: 'documents', label: 'Documents' },
     { id: 'timeline-intelligence', label: 'Timeline Intelligence' },
@@ -60,26 +59,26 @@ export default function KingaAgency() {
         <div className="p11-hero-top">
           <div>
             <div className="p11-breadcrumb">KINGA · Agency</div>
-            <div className="p11-hero-title">Agency Portal</div>
-          <div className="p11-hero-subtitle">Professional Insurance Service Portal — Manage Clients, Quotes &amp; Policies</div>
+            <div className="p11-hero-title">Agency Service Workspace</div>
+          <div className="p11-hero-subtitle">Manage client instructions, insurer quote responses, policies, and agency revenue</div>
           </div>
           <div className="p11-hero-actions">
-            <button className="p11-btn-ghost" onClick={() => setLocation('/portal')}>
+            <button className="p11-btn-ghost" onClick={() => setLocation('/')}>
               <ArrowLeft style={{ width:13, height:13 }} />
-              Portal Hub
+              Landing Page
             </button>
             <button className="p11-btn-gold" onClick={() => setActiveTab('clients')}>
               <Users style={{ width:13, height:13 }} />
-              Manage Clients
+              Start Client Service
             </button>
           </div>
         </div>
         {/* KPI Strip */}
         <div className="p11-kpi-grid">
           <div className="p11-kpi-tile headline">
-            <div className="p11-kpi-label">My Quotations</div>
+            <div className="p11-kpi-label">Client Service Requests</div>
             <div className="p11-kpi-value num">—</div>
-            <div className="p11-kpi-delta">Total submitted</div>
+            <div className="p11-kpi-delta">Created for managed clients</div>
           </div>
           <div className="p11-kpi-tile">
             <div className="p11-kpi-label">Active Policies</div>
@@ -87,7 +86,7 @@ export default function KingaAgency() {
             <div className="p11-kpi-delta">In force</div>
           </div>
           <div className="p11-kpi-tile">
-            <div className="p11-kpi-label">Pending Review</div>
+            <div className="p11-kpi-label">Insurer Responses Pending</div>
             <div className="p11-kpi-value num">—</div>
             <div className="p11-kpi-delta">Awaiting response</div>
           </div>
@@ -161,14 +160,14 @@ export default function KingaAgency() {
               <div className="p11-card-header">
                 <div className="p11-card-title">
                   <Shield style={{ width:14, height:14, color:'var(--g-600)' }} />
-                  Coverage Types
+                  Product Reference
                 </div>
               </div>
               <div className="p11-card-body">
                 {[
-                  { label: 'Comprehensive', desc: 'Full vehicle cover' },
-                  { label: 'Third Party', desc: 'Liability only' },
-                  { label: 'Third Party Fire & Theft', desc: 'Extended liability' },
+                  { label: 'Comprehensive', desc: 'Discuss full vehicle cover with a client' },
+                  { label: 'Third Party', desc: 'Discuss third-party liability cover' },
+                  { label: 'Third Party Fire & Theft', desc: 'Discuss extended liability cover' },
                 ].map(item => (
                   <div key={item.label} style={{ padding:'7px 0', borderBottom:'1px solid var(--line)' }}>
                     <div style={{ fontSize:12, fontWeight:600, color:'var(--ink)' }}>{item.label}</div>
@@ -186,7 +185,7 @@ export default function KingaAgency() {
               </div>
               <div className="p11-card-body">
                 <div style={{ fontSize:12, color:'var(--muted)', lineHeight:1.6 }}>
-                  Need help with your quotation or policy? Contact our agency support team.
+                  Need help with a client instruction or an insurer response? Contact agency support.
                 </div>
                 <div style={{ marginTop:10, fontSize:12, fontWeight:600, color:'var(--g-700)' }}>agency@kinga.co.zw</div>
               </div>

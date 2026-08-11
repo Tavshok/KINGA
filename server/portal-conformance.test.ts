@@ -118,4 +118,16 @@ describe("portal conformance regressions", () => {
     expect(app).toContain('path="/platform/overview"');
     expect(app).toContain('<Route path="/portal-hub"><PortalHubRedirect /></Route>');
   });
+
+  it("presents Agency as a broker client-service workspace rather than client self-service", () => {
+    const agency = readClient("pages/KingaAgency.tsx");
+
+    expect(agency).toContain("Agency Service Workspace");
+    expect(agency).toContain("Client Requests & Quotes");
+    expect(agency).toContain("Client Service Requests");
+    expect(agency).toContain("Open Client Workspace");
+    expect(agency).toContain("Add a client and create a service request before dispatching selected insurer quote requests.");
+    expect(agency).toContain("setLocation('/')");
+    expect(agency).not.toContain("setLocation('/portal')");
+  });
 });
