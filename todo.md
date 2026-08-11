@@ -19,8 +19,8 @@
 
 - [x] Fix document visibility: add documents.allByClaim tRPC procedure merging ingestion_documents + claim_documents; update DocumentList component
 - [x] CI hardening: pre-commit hook blocking commits with git conflict markers — `.githooks/pre-commit`, portable installer, staged-content scanner, and regression tests verified
-- [ ] Pipeline observability: pipeline_execution_logs table + telemetry hooks in orchestrator
-- [ ] End-to-end regression test suite: upload → analysis → report lifecycle
+- [ ] Pipeline observability: decide whether to retain the verified `pipeline_runs` + `pipeline_jobs` model as canonical or add a separate `pipeline_execution_logs` table; audit/pipeline-observability-audit.md documents the current evidence and duplication risk
+- [ ] End-to-end regression test suite: upload → analysis → report lifecycle — deterministic lifecycle wiring contract added in `server/claim-lifecycle-contract.test.ts`; isolated-tenant external-service OAT remains required
 
 ## Portal Conformance & Runtime Stability — August 2026
 
