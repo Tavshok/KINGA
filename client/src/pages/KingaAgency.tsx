@@ -26,8 +26,7 @@ import AgencyValuationInbox from "@/pages/AgencyValuationInbox";
 export default function KingaAgency() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState("quotations");
-  const [showNewQuoteForm, setShowNewQuoteForm] = useState(false);
+  const [activeTab, setActiveTab] = useState("clients");
 
   const tabs = [
     { id: 'clients', label: 'Client Management' },
@@ -69,9 +68,9 @@ export default function KingaAgency() {
               <ArrowLeft style={{ width:13, height:13 }} />
               Portal Hub
             </button>
-            <button className="p11-btn-gold" onClick={() => setShowNewQuoteForm(true)}>
-              <Plus style={{ width:13, height:13 }} />
-              Request Quote
+            <button className="p11-btn-gold" onClick={() => setActiveTab('clients')}>
+              <Users style={{ width:13, height:13 }} />
+              Manage Clients
             </button>
           </div>
         </div>
@@ -106,7 +105,13 @@ export default function KingaAgency() {
           <div
             key={tab.id}
             className={`p11-tab-item${activeTab === tab.id ? ' active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              if (tab.id === 'commissions') {
+                setLocation('/agency/commissions');
+                return;
+              }
+              setActiveTab(tab.id);
+            }}
           >
             {tab.label}
           </div>
@@ -122,7 +127,6 @@ export default function KingaAgency() {
           {activeTab === 'policies' && <PoliciesTab />}
           {activeTab === 'documents' && <DocumentsTab />}
           {activeTab === 'timeline-intelligence' && <TimelineIntelligenceTab />}
-          {activeTab === 'commissions' && (() => { setLocation('/agency/commissions'); return null; })()}
           {activeTab === 'compare' && <QuoteComparisonSection />}
           {activeTab === 'performance' && <AgencyPerformanceSection />}
           {activeTab === 'clients' && <ClientManagementTab />}
@@ -138,9 +142,9 @@ export default function KingaAgency() {
               </div>
               <div className="p11-card-body">
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  <button className="p11-btn-gold" style={{ width:'100%', justifyContent:'center' }} onClick={() => setShowNewQuoteForm(true)}>
-                    <Plus style={{ width:13, height:13 }} />
-                    Request New Quote
+                  <button className="p11-btn-gold" style={{ width:'100%', justifyContent:'center' }} onClick={() => setActiveTab('clients')}>
+                    <Users style={{ width:13, height:13 }} />
+                    Open Client Workspace
                   </button>
                   <button className="p11-btn-outline" style={{ width:'100%', justifyContent:'center' }} onClick={() => setActiveTab('documents')}>
                     <Upload style={{ width:13, height:13 }} />
@@ -190,21 +194,17 @@ export default function KingaAgency() {
           </div>
         </div>
       </div>
-
-      {/* New Quote Dialog */}
-      <NewQuoteDialog open={showNewQuoteForm} onOpenChange={setShowNewQuoteForm} />
     </div>
   );
 }
 
 // ========== QUOTATIONS TAB ==========
 function QuotationsTab() {
-  const { data: quotations, isLoading, refetch } = trpc.agency.myQuotations.useQuery();
-
-  // SR-H05: Accept a quoted premium — transitions status from 'quoted' to 'accepted'
-  const acceptQuote = trpc.agency.updateQuotation.useMutation({
+  const { data, isLoading, refetch } = trpc.agencyBroker.myQuoteRequests.useQuery({ limit: 50, offset: 0 });
+  const quoteRequests = data?.quotes ?? [];
+  const recordClientInstruction = trpc.agencyBroker.acceptOrRejectQuote.useMutation({
     onSuccess: () => {
-      toast.success("Quote accepted! Your insurer will contact you to finalise the policy.");
+      toast.success("Client instruction recorded. The policy workflow can now proceed.");
       refetch();
     },
     onError: (err: any) => toast.error(err.message),
@@ -231,14 +231,14 @@ function QuotationsTab() {
     return <Badge variant={info.variant}>{info.label}</Badge>;
   };
 
-  if (!quotations || quotations.length === 0) {
+  if (quoteRequests.length === 0) {
     return (
       <Card className="border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-16">
           <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Quotation Requests</h3>
+          <h3 className="text-lg font-semibold mb-2">No Insurer Responses Yet</h3>
           <p className="text-muted-foreground text-center max-w-md">
-            You haven't submitted any insurance quotation requests yet. Click "Request Quote" to get started.
+            Add a client and create a service request before dispatching selected insurer quote requests.
           </p>
         </CardContent>
       </Card>
@@ -248,40 +248,34 @@ function QuotationsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Your Quotation Requests</h2>
-        <Badge variant="outline">{quotations.length} total</Badge>
+        <h2 className="text-xl font-semibold">Insurer Response Worklist</h2>
+        <Badge variant="outline">{data?.total ?? 0} total</Badge>
       </div>
-      {quotations.map((q: any) => (
+      {quoteRequests.map((q: any) => (
         <Card key={q.id} className="hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm font-semibold">{q.requestNumber}</span>
+                  <span className="font-mono text-sm font-semibold">Claim #{q.claimId}</span>
                   {getStatusBadge(q.status)}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {q.vehicleYear} {q.vehicleMake} {q.vehicleModel}
-                  {q.vehicleRegistration && ` • ${q.vehicleRegistration}`}
+                  Insurer tenant: {q.insurerTenantId}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {q.insuranceType.replace(/_/g, " ")} cover • Submitted {new Date(q.createdAt).toLocaleDateString()}
+                  Quote request dispatched {new Date(q.createdAt).toLocaleDateString()}
                 </p>
               </div>
               <div className="text-right">
-                {q.quotedPremium ? (
+                {q.quoteAmount ? (
                   <div>
                     <p className="text-lg font-bold text-emerald-600">
-                      ${q.quotedPremium.toFixed(2)}/mo
+                      {q.quoteCurrency ?? "USD"} {Number(q.quoteAmount).toLocaleString()}
                     </p>
-                    {q.quotedAnnualPremium && (
-                      <p className="text-xs text-muted-foreground">
-                        ${q.quotedAnnualPremium.toFixed(2)}/year
-                      </p>
-                    )}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Awaiting quote</p>
+                  <p className="text-sm text-muted-foreground">Awaiting insurer response</p>
                 )}
               </div>
             </div>
@@ -290,27 +284,20 @@ function QuotationsTab() {
                 <p className="text-sm text-secondary">{q.quoteNotes}</p>
               </div>
             )}
-            {/* SR-H05: Accept Quote button — shown only when insurer has provided a quoted premium */}
-            {q.status === 'quoted' && q.quotedPremium && (
+            {q.status === 'quoted' && q.quoteAmount && (
               <div className="mt-3 flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
                 <div>
-                  <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Quote ready for acceptance</p>
-                  <p className="text-xs text-emerald-700 dark:text-emerald-300">Accept to proceed with policy issuance</p>
+                  <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Awaiting client instruction</p>
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">Record the client’s approval or decline; the Agency does not make the client decision.</p>
                 </div>
-                <Button
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={() => acceptQuote.mutate({ id: q.id, status: 'accepted' })}
-                  disabled={acceptQuote.isPending}
-                >
-                  {acceptQuote.isPending ? 'Accepting…' : 'Accept Quote'}
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => recordClientInstruction.mutate({ quoteRequestId: q.id, action: 'rejected' })} disabled={recordClientInstruction.isPending}>Record Decline</Button>
+                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => recordClientInstruction.mutate({ quoteRequestId: q.id, action: 'accepted' })} disabled={recordClientInstruction.isPending}>
+                    {recordClientInstruction.isPending ? 'Saving…' : 'Record Approval'}
+                  </Button>
+                </div>
               </div>
             )}
-            {/* H-01: Vehicle history risk intelligence from KINGA registry */}
-            <VehicleRiskIntelligencePanel registrationNumber={q.vehicleRegistration} />
-            {/* C-02: Show vehicle forensics analysis if vehicle photos were uploaded */}
-            <VehicleForensicsPanel quotationRequestId={q.id} />
           </CardContent>
         </Card>
       ))}
@@ -1126,27 +1113,20 @@ function QuoteComparisonSection() {
 
 // ========== CLIENT MANAGEMENT TAB ==========
 function ClientManagementTab() {
-  const { data: quotations, isLoading } = trpc.agency.myQuotations.useQuery();
-
-  // Derive unique clients from quotations (by vehicleRegistration or name)
-  const clients = quotations ? Array.from(
-    quotations.reduce((map: Map<string, any>, q: any) => {
-      const key = q.vehicleRegistration || q.requestNumber;
-      if (!map.has(key)) {
-        map.set(key, {
-          id: key,
-          vehicle: `${q.vehicleYear ?? ''} ${q.vehicleMake ?? ''} ${q.vehicleModel ?? ''}`.trim(),
-          registration: q.vehicleRegistration,
-          status: q.status,
-          premium: q.quotedPremium,
-          insuranceType: q.insuranceType,
-          createdAt: q.createdAt,
-          requestNumber: q.requestNumber,
-        });
-      }
-      return map;
-    }, new Map()).values()
-  ) : [];
+  const utils = trpc.useUtils();
+  const { data, isLoading } = trpc.agencyBroker.listClients.useQuery({ limit: 50, offset: 0 });
+  const clients = data?.clients ?? [];
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ fullName: '', email: '', phone: '', vehicleRegistration: '', vehicleMake: '', vehicleModel: '' });
+  const createClient = trpc.agencyBroker.createClient.useMutation({
+    onSuccess: () => {
+      toast.success('Agency client added. You can now manage their insurance service journey.');
+      utils.agencyBroker.listClients.invalidate();
+      setShowCreate(false);
+      setForm({ fullName: '', email: '', phone: '', vehicleRegistration: '', vehicleMake: '', vehicleModel: '' });
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   return (
     <div className="space-y-4 mt-4">
@@ -1164,8 +1144,8 @@ function ClientManagementTab() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {[
             { label: 'Total Clients', value: clients.length },
-            { label: 'Active Quotes', value: clients.filter((c: any) => ['pending', 'under_review', 'quoted'].includes(c.status)).length },
-            { label: 'Accepted', value: clients.filter((c: any) => c.status === 'accepted').length },
+            { label: 'With Vehicle Details', value: clients.filter((c: any) => c.vehicleRegistration || c.vehicleMake).length },
+            { label: 'Contactable', value: clients.filter((c: any) => c.email || c.phone).length },
           ].map(stat => (
             <div key={stat.label} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '10px 14px' }}>
               <p style={{ fontSize: 20, fontWeight: 700, color: '#F9FAFB' }}>{stat.value}</p>
@@ -1180,8 +1160,9 @@ function ClientManagementTab() {
         <div className="p11-card-header">
           <div className="p11-card-title">
             <Users style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
-            Client Requests
+            Agency Clients
           </div>
+          <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" /> Add Client</Button>
         </div>
         <div className="p11-card-body" style={{ padding: 0 }}>
           {isLoading ? (
@@ -1195,35 +1176,25 @@ function ClientManagementTab() {
               <Users size={32} style={{ color: '#D1D5DB', margin: '0 auto 12px' }} />
               <p style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>No clients yet</p>
               <p style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
-                Submit quotation requests on behalf of your clients to see them here.
+                Add the first client you service. Client records are separate from the agency user account.
               </p>
             </div>
           ) : (
             clients.map((client: any) => {
-              const statusColor: Record<string, string> = {
-                pending: '#F59E0B', under_review: '#3B82F6', quoted: '#10B981',
-                accepted: '#059669', rejected: '#EF4444', expired: '#9CA3AF',
-              };
-              const color = statusColor[client.status] ?? '#9CA3AF';
               return (
                 <div key={client.id} style={{ padding: '14px 20px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{client.vehicle || 'Unknown Vehicle'}</p>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{client.fullName}</p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 3 }}>
-                      {client.registration && (
-                        <span style={{ fontSize: 11, color: '#6B7280' }}>{client.registration}</span>
+                      {client.vehicleRegistration && (
+                        <span style={{ fontSize: 11, color: '#6B7280' }}>{client.vehicleRegistration}</span>
                       )}
-                      <span style={{ fontSize: 11, color: '#6B7280' }}>{client.insuranceType?.replace(/_/g, ' ')}</span>
+                      {(client.vehicleMake || client.vehicleModel) && <span style={{ fontSize: 11, color: '#6B7280' }}>{client.vehicleMake} {client.vehicleModel}</span>}
                       <span style={{ fontSize: 11, color: '#6B7280' }}>{new Date(client.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {client.premium && (
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#059669' }}>${client.premium.toFixed(2)}/mo</span>
-                    )}
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: `${color}15`, color }}>
-                      {client.status?.replace(/_/g, ' ')}
-                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#ECFDF5', color: '#047857' }}>{client.email || client.phone || 'Contact pending'}</span>
                   </div>
                 </div>
               );
@@ -1236,11 +1207,21 @@ function ClientManagementTab() {
       <div style={{ background: '#EFF6FF', borderRadius: 8, padding: '14px 16px', border: '1px solid #BFDBFE' }}>
         <p style={{ fontSize: 12, fontWeight: 600, color: '#1D4ED8', marginBottom: 4 }}>Agency Service Note</p>
         <p style={{ fontSize: 12, color: '#3B82F6', lineHeight: 1.6 }}>
-          As an agency, you manage insurance on behalf of your clients. Vehicle valuations requested by your clients 
-          are accessible through their <strong>My Portal</strong> accounts. Use the Quotations tab to submit new 
-          insurance requests and track their progress through the insurer pipeline.
+          As an agency, you manage insurance service on behalf of your clients. Personal and bulk vehicle valuations are 
+          client self-service functions in <strong>My Portal</strong>. The Agency workspace maintains client records, dispatches insurer requests, records client instructions, and tracks policy and commission outcomes.
         </p>
       </div>
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add Agency Client</DialogTitle><DialogDescription>Create a service record for a client you will manage on their behalf.</DialogDescription></DialogHeader>
+          <div className="grid gap-3">
+            <div><Label>Full Name *</Label><Input value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} placeholder="Client full name" /></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="client@example.com" /></div><div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+263…" /></div></div>
+            <div className="grid grid-cols-3 gap-3"><div><Label>Registration</Label><Input value={form.vehicleRegistration} onChange={e => setForm({ ...form, vehicleRegistration: e.target.value })} placeholder="ABC 1234" /></div><div><Label>Make</Label><Input value={form.vehicleMake} onChange={e => setForm({ ...form, vehicleMake: e.target.value })} placeholder="Toyota" /></div><div><Label>Model</Label><Input value={form.vehicleModel} onChange={e => setForm({ ...form, vehicleModel: e.target.value })} placeholder="Hilux" /></div></div>
+            <Button disabled={!form.fullName || createClient.isPending} onClick={() => createClient.mutate({ fullName: form.fullName, email: form.email || undefined, phone: form.phone || undefined, vehicleRegistration: form.vehicleRegistration || undefined, vehicleMake: form.vehicleMake || undefined, vehicleModel: form.vehicleModel || undefined })}>{createClient.isPending ? 'Creating…' : 'Create Client Record'}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

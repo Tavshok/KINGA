@@ -143,7 +143,7 @@ function InspectionsListTab() {
           </Button>
         ))}
         <div className="ml-auto">
-          <Button size="sm" onClick={() => setLocation("/engineer/new-inspection")}>
+          <Button size="sm" onClick={() => setLocation("/engineer/inspections")}>
             <Plus className="h-4 w-4 mr-1" /> New Inspection
           </Button>
         </div>
@@ -298,7 +298,7 @@ export default function EngineerDashboard() {
       </Button>
       <Button
         size="sm"
-        onClick={() => setLocation("/engineer/new-inspection")}
+        onClick={() => setLocation("/engineer/inspections")}
         className="bg-white text-primary hover:bg-white/90"
       >
         <Plus className="h-4 w-4 mr-1" />

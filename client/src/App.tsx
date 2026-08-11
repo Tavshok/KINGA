@@ -600,6 +600,13 @@ function Router() {
           <ClientPortal />
         </Route>
 
+        {/* Client self-service valuation */}
+        <Route path="/client/valuation">
+          <ProtectedRoute>
+            <ValuationRequestPage />
+          </ProtectedRoute>
+        </Route>
+
         <Route path="/agency">
           <ProtectedRoute domain="agency">
             <KingaAgency />
@@ -613,21 +620,15 @@ function Router() {
           </ProtectedRoute>
         </Route>
 
-        {/* Fleet RFQ comparison — accessible to any authenticated fleet owner */}
+        {/* Legacy Agency valuation URLs: valuation self-service belongs in My Portal. */}
         <Route path="/agency/valuation">
-          <ProtectedRoute allowedRoles={["agency_broker", "agency_admin", "admin", "platform_super_admin"]}>
-            <KingaAgency />
-          </ProtectedRoute>
+          <RedirectToPortal to="/client/valuation" />
         </Route>
         <Route path="/agency/valuation-requests">
-          <ProtectedRoute domain="agency">
-            <KingaAgency />
-          </ProtectedRoute>
+          <RedirectToPortal to="/client/valuation" />
         </Route>
         <Route path="/agency/valuation/bulk">
-          <ProtectedRoute allowedRoles={["agency_broker", "agency_admin", "admin", "platform_super_admin"]}>
-            <BulkValuation />
-          </ProtectedRoute>
+          <RedirectToPortal to="/client/valuation/bulk" />
         </Route>
         {/* Client portal bulk valuation — accessible to all authenticated users */}
         <Route path="/client/valuation/bulk">

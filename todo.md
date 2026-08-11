@@ -22,6 +22,15 @@
 - [ ] Pipeline observability: pipeline_execution_logs table + telemetry hooks in orchestrator
 - [ ] End-to-end regression test suite: upload → analysis → report lifecycle
 
+## Portal Conformance & Runtime Stability — August 2026
+
+- [ ] P0: Diagnose and eliminate the React runtime crash shown on the live portal route (minified React error #130)
+- [ ] P0: Complete live end-to-end route verification for every portal; audit/portal-conformance-audit.md records the current static findings and remaining failures
+- [ ] P0: Implement and verify the role-to-workflow conformance map for My Portal, Insurer, Assessor, Panel Beater, Agency, Fleet, Engineers, and Platform Administration
+- [ ] P1: Correct Agency Portal so it is an agent/broker service workspace for managing clients, quotes, policies, documents, and commissions—not a client self-service quote page
+- [ ] P1: Verify Panel Beater workflow end-to-end with allocated work: direct quote submission, VAT persistence, repair evidence upload, and repair completion
+- [ ] P1: Verify Fleet and KINGA Engineers portal workflows against their intended roles, including route and capability coverage
+
 ---
 
 ## Codebase Maintainability — Phase 1 (Active)

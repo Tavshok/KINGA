@@ -326,10 +326,10 @@ export default function PanelBeaterDashboard() {
                           <td><SLADeadlineChip createdAt={claim.createdAt} slaHours={48} /></td>
                           <td>
                             <button
-                              onClick={() => setLocation(`/panel-beater/claims/${claim.id}`)}
+                              onClick={() => setLocation(`/panel-beater/claims/${claim.id}/quote`)}
                               style={{ fontSize: 11, color: 'var(--g-600)', background: 'none', border: '1px solid var(--g-300)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
                             >
-                              View
+                              Build Quote
                             </button>
                           </td>
                         </tr>
