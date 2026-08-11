@@ -222,4 +222,15 @@ describe("portal conformance regressions", () => {
     expect(insurance).toContain("getMyQuotes: protectedProcedure");
     expect(insurance).toContain("quote.customerId !== ctx.user.id");
   });
+
+  it("enforces quote ownership for payment proof and tenant scope for insurer payment decisions", () => {
+    const insurance = readFileSync(resolve(project, "server", "routers", "insurance-core.ts"), "utf8");
+
+    expect(insurance).toContain("submitPaymentProof: protectedProcedure");
+    expect(insurance).toContain("quote.customerId !== ctx.user.id");
+    expect(insurance).toContain("getPendingPayments: protectedProcedure");
+    expect(insurance).toContain("eq(insuranceQuotes.tenantId, ctx.user.tenantId ?? '__unassigned__')");
+    expect(insurance).toContain("This quote belongs to another insurer tenant.");
+    expect(insurance).toContain("if (!isAdminRole(ctx.user.role) && policy.customerId !== ctx.user.id)");
+  });
 });

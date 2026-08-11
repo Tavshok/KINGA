@@ -17,6 +17,7 @@ import {
 } from "../../drizzle/schema";
 import { nanoid } from "nanoid";
 import { storagePut } from "../storage";
+import { isAdminRole } from "../../shared/role-permissions";
 export const insuranceCoreRouter = router({
   // Get vehicle valuation estimate
   getVehicleValuation: publicProcedure
@@ -148,7 +149,7 @@ export const insuranceCoreRouter = router({
     }),
 
   // Submit payment proof
-  submitPaymentProof: publicProcedure
+  submitPaymentProof: protectedProcedure
     .input(z.object({
       quoteId: z.number(),
       paymentMethod: z.enum(['cash', 'bank_transfer', 'ecocash', 'onemoney', 'rtgs', 'zipit']),
@@ -157,7 +158,7 @@ export const insuranceCoreRouter = router({
       paymentProofBase64: z.string(),
       paymentProofFileName: z.string(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const { storagePut } = await import('../storage');
       const { getQuoteById } = await import('../insurance/insurance-db');
       const db = await getDb();
@@ -167,6 +168,9 @@ export const insuranceCoreRouter = router({
       const quote = await getQuoteById(input.quoteId);
       if (!quote) {
         throw new Error('Quote not found');
+      }
+      if (!isAdminRole(ctx.user.role) && quote.customerId !== ctx.user.id) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this quotation.' });
       }
       
       // Upload payment proof to S3
@@ -200,14 +204,20 @@ export const insuranceCoreRouter = router({
       const db = await getDb();
       if (!db) throw new Error('Database connection failed');
       
-      // Only insurers and admins can access this
-      if (ctx.user.role !== 'insurer' && ctx.user.role !== 'admin') {
+      // Insurer users can process only their own tenant's payments; platform
+      // administrators retain cross-tenant oversight for support and testing.
+      if (ctx.user.role !== 'insurer' && !isAdminRole(ctx.user.role)) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only insurers can verify payments' });
       }
-      
+      const paymentScope = isAdminRole(ctx.user.role)
+        ? eq(insuranceQuotes.status, 'payment_submitted')
+        : and(
+            eq(insuranceQuotes.status, 'payment_submitted'),
+            eq(insuranceQuotes.tenantId, ctx.user.tenantId ?? '__unassigned__'),
+          );
       const pendingQuotes = await db.select()
         .from(insuranceQuotes)
-        .where(eq(insuranceQuotes.status, 'payment_submitted'))
+        .where(paymentScope)
         .limit(500); // M-01: cap pending quotes list
       
       return pendingQuotes;
@@ -222,9 +232,13 @@ export const insuranceCoreRouter = router({
       const db = await getDb();
       if (!db) throw new Error('Database connection failed');
       
-      // Only insurers and admins can verify
-      if (ctx.user.role !== 'insurer' && ctx.user.role !== 'admin') {
+      if (ctx.user.role !== 'insurer' && !isAdminRole(ctx.user.role)) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only insurers can verify payments' });
+      }
+      const quote = (await db.select().from(insuranceQuotes).where(eq(insuranceQuotes.id, input.quoteId)))[0];
+      if (!quote) throw new TRPCError({ code: 'NOT_FOUND', message: 'Quote not found' });
+      if (!isAdminRole(ctx.user.role) && quote.tenantId !== ctx.user.tenantId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'This quote belongs to another insurer tenant.' });
       }
       
       // Update quote status to payment_verified
@@ -258,9 +272,13 @@ export const insuranceCoreRouter = router({
       const db = await getDb();
       if (!db) throw new Error('Database connection failed');
       
-      // Only insurers and admins can reject
-      if (ctx.user.role !== 'insurer' && ctx.user.role !== 'admin') {
+      if (ctx.user.role !== 'insurer' && !isAdminRole(ctx.user.role)) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only insurers can reject payments' });
+      }
+      const quote = (await db.select().from(insuranceQuotes).where(eq(insuranceQuotes.id, input.quoteId)))[0];
+      if (!quote) throw new TRPCError({ code: 'NOT_FOUND', message: 'Quote not found' });
+      if (!isAdminRole(ctx.user.role) && quote.tenantId !== ctx.user.tenantId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'This quote belongs to another insurer tenant.' });
       }
       
       // Update quote status to rejected with reason
@@ -334,7 +352,7 @@ export const insuranceCoreRouter = router({
       const policy = policies[0];
       
       // Verify ownership
-      if (policy.customerId !== ctx.user.id) {
+      if (!isAdminRole(ctx.user.role) && policy.customerId !== ctx.user.id) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this policy' });
       }
       
