@@ -124,7 +124,8 @@
 
 ## Image Subsystem — Pending Fixes
 
-- [ ] Fix: Cost model not populating line items into assessment record (silent bug — line items extracted but not persisted)
+- [ ] Verify: extracted quote line items persist into `quote_line_items` and are consumed consistently by the assessment record, cost model, and reports; live persistence evidence is documented in audit/quote-line-item-persistence-audit.md; downstream Stage 9/report regression coverage added
+- [ ] Historical quote line-item recovery: run `server/scripts/backfill-quote-line-items.ts` claim-by-claim in dry-run mode, review mappings, then apply only approved claim repairs
 - [ ] Fix: Report missing critical sections when image analysis fails (assessor remarks, cost breakdown, evidence summary should degrade gracefully, not disappear)
 - [ ] Add image classification pre-step: distinguish page renders vs damage photos vs document scans before vision analysis
 - [ ] Re-run BMW 318i case study: target consistencyScore > 70, criticalFailures = 0
