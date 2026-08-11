@@ -203,4 +203,23 @@ describe("portal conformance regressions", () => {
     expect(fleetManagement).toContain("Fleet report end date");
     expect(fleetExport).toContain("periodLabel?: string");
   });
+
+  it("keeps My Portal insurance requests client-scoped instead of routing clients through Agency", () => {
+    const claimant = readClient("pages/ClaimantDashboard.tsx");
+    const app = readClient("App.tsx");
+    const insurance = readFileSync(resolve(project, "server", "routers", "insurance-core.ts"), "utf8");
+
+    expect(claimant).toContain("trpc.insurance.getMyQuotes.useQuery");
+    expect(claimant).toContain("trpc.insurance.getMyPolicies.useQuery");
+    expect(claimant).toContain("Request Insurance Quote");
+    expect(claimant).toContain("setLocation('/insurance/quote')");
+    expect(claimant).not.toContain("Visit the Agency portal to request an insurance quote");
+    expect(app).toContain('path="/insurance/quote"');
+    expect(app).toContain('<ProtectedRoute allowedRoles={["user", "claimant", "fleet_admin", "fleet_manager", "fleet_driver", "admin", "platform_super_admin"]}>');
+    expect(insurance).toContain("requestQuote: protectedProcedure");
+    expect(insurance).toContain("const customerId = ctx.user.id;");
+    expect(insurance).not.toContain("const customerId = 1;");
+    expect(insurance).toContain("getMyQuotes: protectedProcedure");
+    expect(insurance).toContain("quote.customerId !== ctx.user.id");
+  });
 });

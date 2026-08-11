@@ -585,7 +585,9 @@ function Router() {
         </Route>
         
         <Route path="/insurance/quote">
-          <InsuranceQuote />
+          <ProtectedRoute allowedRoles={["user", "claimant", "fleet_admin", "fleet_manager", "fleet_driver", "admin", "platform_super_admin"]}>
+            <InsuranceQuote />
+          </ProtectedRoute>
         </Route>
         <Route path="/get-a-quote">
           <ValuationRequestPage />

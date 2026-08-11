@@ -30,8 +30,9 @@ export const insuranceCoreRouter = router({
       return generateVehicleValuation(input);
     }),
 
-  // Request insurance quote
-  requestQuote: publicProcedure
+  // Request insurance quote. Client identity must come from the signed-in session;
+  // a quote must never be assigned to a shared placeholder customer.
+  requestQuote: protectedProcedure
     .input(z.object({
       registrationNumber: z.string(),
       make: z.string(),
@@ -43,12 +44,12 @@ export const insuranceCoreRouter = router({
       phoneNumber: z.string(),
       email: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const { createQuote, createVehicle, getVehicleByRegistration, getAllActiveCarriers, getProductsByCarrier } = await import('../insurance/insurance-db');
       const { calculateVehicleRiskScore } = await import('../insurance/valuation-engine');
       
-      // For now, use a dummy customer ID (in production, this would be the logged-in user or a guest customer)
-      const customerId = 1; // TODO: Create proper customer management
+      const customerId = ctx.user.id;
+      const tenantId = ctx.user.tenantId ?? null;
       
       // Step 1: Check if vehicle exists, if not create it
       let vehicle = await getVehicleByRegistration(input.registrationNumber);
@@ -65,7 +66,7 @@ export const insuranceCoreRouter = router({
           currentValuation: input.currentValue,
           riskScore,
           ownerId: customerId, // Use the same customer ID
-          tenantId: 'default',
+          tenantId,
         });
       }
       
@@ -117,7 +118,7 @@ export const insuranceCoreRouter = router({
         }),
         quoteValidUntil: quoteValidUntil.toISOString(),
         status: 'pending',
-        tenantId: 'default',
+        tenantId,
       });
       
       return {
@@ -129,14 +130,21 @@ export const insuranceCoreRouter = router({
       };
     }),
 
-  // Get quote details
-  getQuote: publicProcedure
+  // Get quote details. Clients can see only their own records; administrators
+  // retain oversight access for support and controlled testing.
+  getQuote: protectedProcedure
     .input(z.object({
       quoteId: z.number(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { getQuoteById } = await import('../insurance/insurance-db');
-      return getQuoteById(input.quoteId);
+      const quote = await getQuoteById(input.quoteId);
+      if (!quote) return null;
+      const isAdmin = ctx.user.role === "admin" || ctx.user.role === "platform_super_admin";
+      if (!isAdmin && quote.customerId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this quotation." });
+      }
+      return quote;
     }),
 
   // Submit payment proof
@@ -280,11 +288,29 @@ export const insuranceCoreRouter = router({
     .query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error('Database connection failed');
-      
-      return await db.select()
+
+      const quotes = await db.select()
         .from(insuranceQuotes)
         .where(eq(insuranceQuotes.customerId, ctx.user.id))
         .limit(100); // M-01: cap per-user quote history
+
+      const vehicleIds = [...new Set(quotes.map((quote) => quote.vehicleId))];
+      const vehicles = vehicleIds.length
+        ? await db.select().from(fleetVehicles).where(inArray(fleetVehicles.id, vehicleIds))
+        : [];
+      const vehicleById = new Map(vehicles.map((vehicle) => [vehicle.id, vehicle]));
+
+      return quotes.map((quote) => {
+        const vehicle = vehicleById.get(quote.vehicleId);
+        return {
+          ...quote,
+          vehicleRegistration: vehicle?.registrationNumber ?? `Vehicle #${quote.vehicleId}`,
+          vehicleMake: vehicle?.make ?? null,
+          vehicleModel: vehicle?.model ?? null,
+          insuranceType: "motor",
+          quotedPremium: quote.premiumAmount,
+        };
+      });
     }),
 
   // Download policy PDF

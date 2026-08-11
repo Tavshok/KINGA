@@ -220,8 +220,8 @@ export default function ClaimantDashboard() {
 
   // C4 — PortalTabBar tabs
   // Quotations & Policies data (for the new tabs)
-  const { data: myQuotations = [], isLoading: quotationsLoading } = trpc.agency.myQuotations.useQuery();
-  const { data: myPolicies = [], isLoading: policiesLoading } = trpc.agency.myPolicies.useQuery();
+  const { data: myQuotations = [], isLoading: quotationsLoading } = trpc.insurance.getMyQuotes.useQuery();
+  const { data: myPolicies = [], isLoading: policiesLoading } = trpc.insurance.getMyPolicies.useQuery();
   const renewalMutation = trpc.agency.requestRenewal.useMutation({
     onSuccess: () => toast({ title: "Renewal requested", description: "Your renewal request has been submitted." }),
     onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -277,7 +277,8 @@ export default function ClaimantDashboard() {
                     <div style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--muted)' }}>
                       <FileText style={{ width: 32, height: 32, margin: '0 auto 8px', color: '#D1D5DB' }} />
                       <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>No quotation requests</p>
-                      <p style={{ fontSize: 12, marginTop: 4 }}>Visit the Agency portal to request an insurance quote</p>
+                      <p style={{ fontSize: 12, marginTop: 4 }}>Start a secure insurance request here in My Portal.</p>
+                      <Button size="sm" className="mt-3" onClick={() => setLocation('/insurance/quote')}><Plus className="mr-1 h-3.5 w-3.5" /> Request Insurance Quote</Button>
                     </div>
                   ) : (
                     <table className="p11-table">
