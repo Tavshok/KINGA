@@ -99,4 +99,23 @@ describe("portal conformance regressions", () => {
     expect(login).toContain("getDashboardPath(user.role, user.insurerRole)");
     expect(login).toContain('if (userRole === "insurer") return getRoleDashboardPath(userRole, insurerRole)');
   });
+
+  it("keeps canonical client, fleet, professional, and removed-hub routes aligned", () => {
+    const app = readClient("App.tsx");
+    const routing = readClient("lib/roleRouting.ts");
+
+    expect(routing).toContain('claimant: "/client"');
+    expect(routing).toContain('fleet_admin: "/fleet"');
+    expect(routing).toContain('fleet_manager: "/fleet"');
+    expect(routing).toContain('fleet_driver: "/fleet/driver"');
+    expect(app).toContain('path="/client"');
+    expect(app).toContain('path="/fleet"');
+    expect(app).toContain('path="/fleet/driver"');
+    expect(app).toContain('path="/assessor/dashboard"');
+    expect(app).toContain('path="/panel-beater/dashboard"');
+    expect(app).toContain('path="/agency"');
+    expect(app).toContain('path="/engineer/dashboard"');
+    expect(app).toContain('path="/platform/overview"');
+    expect(app).toContain('<Route path="/portal-hub"><PortalHubRedirect /></Route>');
+  });
 });

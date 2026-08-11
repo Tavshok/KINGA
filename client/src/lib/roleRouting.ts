@@ -18,13 +18,13 @@
 export const ROLE_PORTAL_MAP: Record<string, string> = {
   platform_super_admin: "/platform/overview",
   admin: "/admin/dashboard",
-  insurer: "/insurer-portal",          // PortalHub auto-redirects via insurerRole below
+  insurer: "/insurer-portal",          // insurerRole resolves to a dedicated workspace below
   assessor: "/assessor/dashboard",
   panel_beater: "/panel-beater/dashboard",
-  claimant: "/claimant/dashboard",
-  fleet_admin: "/claimant/fleet-dashboard",   // Epic 4.5: routed to FleetManagerDashboard (Epic 4 tabs)
-  fleet_manager: "/claimant/fleet-dashboard", // Epic 4.5: routed to FleetManagerDashboard (Epic 4 tabs)
-  fleet_driver: "/fleet-management",
+  claimant: "/client",
+  fleet_admin: "/fleet",
+  fleet_manager: "/fleet",
+  fleet_driver: "/fleet/driver",
   engineer: "/engineer/dashboard",             // Epic 4.5: Engineering Workspace (Epic 3)
   user: "/client",                  // No portal assigned yet
 };
