@@ -578,6 +578,12 @@ function Router() {
             <FleetManagement />
           </ProtectedRoute>
         </Route>
+        {/* Dedicated driver workspace must precede the Fleet wildcard route. */}
+        <Route path="/fleet/driver">
+          <ProtectedRoute allowedRoles={["fleet_driver", "fleet_manager", "fleet_admin", "admin", "platform_super_admin"]}>
+            <FleetDriverDashboard />
+          </ProtectedRoute>
+        </Route>
         <Route path="/fleet/:rest*">
           <ProtectedRoute domain="fleet">
             <FleetManagement />
@@ -784,15 +790,9 @@ function Router() {
         {/* Legacy claimant routes — all redirect to My Portal (/client) */}
         <Route path="/claimant/dashboard"><RedirectToPortal to="/client" /></Route>
         <Route path="/claimant/submit-claim"><RedirectToPortal to="/client/submit-claim" /></Route>
-        <Route path="/claimant/fleet-dashboard"><RedirectToPortal to="/fleet" /></Route>
-        <Route path="/claimant/fleet-register"><RedirectToPortal to="/fleet" /></Route>
+        <Route path="/claimant/fleet-dashboard"><RedirectToPortal to="/client?tab=company" /></Route>
+        <Route path="/claimant/fleet-register"><RedirectToPortal to="/client?tab=company" /></Route>
         <Route path="/claimant/documents"><RedirectToPortal to="/client" /></Route>
-        {/* Dedicated driver workspace — operational subset assigned by the fleet manager. */}
-        <Route path="/fleet/driver">
-          <ProtectedRoute allowedRoles={["fleet_driver", "fleet_manager", "fleet_admin", "admin", "platform_super_admin"]}>
-            <FleetDriverDashboard />
-          </ProtectedRoute>
-        </Route>
         {/* Claim detail — accessible from My Portal without old shell */}
         <Route path="/claims/:id">
           <ProtectedRoute domain="portal">

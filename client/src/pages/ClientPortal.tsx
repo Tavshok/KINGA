@@ -6,7 +6,7 @@
  * Accessible to ALL authenticated users regardless of primary role.
  * Personal vehicles are distinct from corporate fleet vehicles.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -42,9 +42,16 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 
 export default function ClientPortal() {
   const { user, logout } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Legacy claimant fleet links intentionally land in the company context of
+  // My Portal, rather than exposing the Fleet Manager workspace to a client.
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    if (requestedTab === "company") setActiveTab("company");
+  }, [location]);
 
   // ── Data queries ────────────────────────────────────────────────────────────
   const { data: myVehicles, refetch: refetchVehicles } = trpc.personalVehicles.listMyVehicles.useQuery(

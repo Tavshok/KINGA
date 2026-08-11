@@ -24,6 +24,10 @@
 
 ## Portal Conformance & Runtime Stability — August 2026
 
+- [ ] Transparency gate: current-state register prepared at audit/current-state-register-2026-08-11.md; obtain user review and approval before starting any new feature batch
+- [ ] Role-to-feature conformance audit: map each portal tab, route, data source, mutation, and empty/error state to its intended role; remove cross-role feature leakage and orphaned states
+- [ ] Portal navigation conformance: verify every visible tab and action resolves to an authorized, role-correct destination or an explicit role-appropriate empty state
+- [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
 - [ ] P0: Diagnose and eliminate the React runtime crash shown on the live portal route (minified React error #130)
 - [ ] P0: Complete live end-to-end route verification for every portal; audit/portal-conformance-audit.md records the current static findings and remaining failures
 - [ ] P0: Implement and verify the role-to-workflow conformance map for My Portal, Insurer, Assessor, Panel Beater, Agency, Fleet, Engineers, and Platform Administration
@@ -766,9 +770,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 
 ## Upload & Re-run Failures — Root Cause Fixes (Jul 2026)
 
-- [ ] FIX-RERUN-1: Add `under_assessment` to allowed transitions from `ai_assessment_completed` in rbac.ts WORKFLOW_TRANSITIONS (re-run fails with "Invalid workflow transition: ai_assessment_completed → under_assessment")
-- [ ] FIX-RERUN-2: Handle `document_validating` and `DOCUMENT_FAILED` workflow states in triggerAiAssessment procedure's status transition logic in routers.ts (currently falls through to the else branch which may throw)
-- [ ] FIX-RERUN-3: Add `under_assessment` to allowed transitions from `technical_approval` and `ai_assessment_completed` for re-run scenarios
+- [x] FIX-RERUN-1: Add `under_assessment` to allowed transitions from `ai_assessment_completed` in rbac.ts WORKFLOW_TRANSITIONS — controlled claims-processor re-run permission added with regression coverage
+- [x] FIX-RERUN-2: Handle `document_validating` and `DOCUMENT_FAILED` workflow states in triggerAiAssessment procedure — canonical intake-queue mapping and explicit re-run branch verified
+- [x] FIX-RERUN-3: Add `under_assessment` to allowed transitions from `technical_approval`, `financial_decision`, and `ai_assessment_completed` for controlled re-run scenarios
 - [ ] FIX-UPLOAD-1: Verify upload endpoint returns proper error response when multer rejects a file (add multer error handler middleware)
 
 ## Document Health Gate Fix — 2026-07-19

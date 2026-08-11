@@ -57,6 +57,16 @@ describe("portal conformance regressions", () => {
     expect(fleetRouter).toContain("FLEET_DRIVER_ASSIGNED");
   });
 
+  it("matches Fleet Driver before the manager wildcard and sends legacy claimant fleet links to My Portal company context", () => {
+    const app = readClient("App.tsx");
+    const clientPortal = readClient("pages/ClientPortal.tsx");
+
+    expect(app.indexOf('path="/fleet/driver"')).toBeLessThan(app.indexOf('path="/fleet/:rest*"'));
+    expect(app).toContain('<RedirectToPortal to="/client?tab=company" />');
+    expect(clientPortal).toContain('const requestedTab = new URLSearchParams(window.location.search).get("tab")');
+    expect(clientPortal).toContain('if (requestedTab === "company") setActiveTab("company")');
+  });
+
   it("keeps Panel Beater work visible for both quote invitations and approved repair allocations", () => {
     const panelBeater = readClient("pages/PanelBeaterDashboard.tsx");
     const db = readFileSync(resolve(project, "server", "db.ts"), "utf8");

@@ -189,7 +189,7 @@ export const WORKFLOW_TRANSITIONS: Record<WorkflowState, WorkflowState[]> = {
     "disputed",
     "under_assessment", // Allows KINGA re-run from technical_approval state
   ],
-  financial_decision: ["payment_authorized", "technical_approval", "disputed"], // Can send back
+  financial_decision: ["payment_authorized", "technical_approval", "under_assessment", "disputed"], // Can send back or re-run KINGA assessment
   payment_authorized: ["closed", "disputed"],
   closed: ["disputed"], // Can reopen if disputed
   disputed: ["internal_review"], // Restart from internal review
