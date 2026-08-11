@@ -24,7 +24,7 @@ describe("portal conformance regressions", () => {
     const panelBeater = readClient("pages/PanelBeaterDashboard.tsx");
     const engineers = readClient("pages/EngineerDashboard.tsx");
     expect(panelBeater).toContain("/panel-beater/claims/${claim.id}/quote");
-    expect(engineers).toContain('setLocation("/engineer/inspections")');
+    expect(engineers).toContain('setLocation("/engineer/inspections?create=1")');
     expect(engineers).not.toContain('setLocation("/engineer/new-inspection")');
   });
 
@@ -65,5 +65,15 @@ describe("portal conformance regressions", () => {
     expect(db).toContain("selectedIds.some((id) => Number(id) === Number(panelBeaterId))");
     expect(panelBeater).toContain("No repairer profile is linked to this account");
     expect(panelBeater).toContain("allocated to your business");
+  });
+
+  it("opens a real Engineers inspection-creation flow and displays query failures", () => {
+    const engineerDashboard = readClient("pages/EngineerDashboard.tsx");
+    const inspections = readClient("pages/EngineerInspectionList.tsx");
+
+    expect(engineerDashboard).toContain('/engineer/inspections?create=1');
+    expect(engineerDashboard).toContain("Engineering data could not be loaded");
+    expect(inspections).toContain('get("create") === "1"');
+    expect(inspections).toContain("Inspections could not be loaded.");
   });
 });

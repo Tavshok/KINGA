@@ -114,7 +114,7 @@ function RecentActivityFeed({ inspections }: { inspections: any[] }) {
 function InspectionsListTab() {
   const [, setLocation] = useLocation();
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
-  const { data, isLoading } = trpc.inspections.list.useQuery({
+  const { data, isLoading, error } = trpc.inspections.list.useQuery({
     status: statusFilter as any,
     page: 1,
     pageSize: 50,
@@ -143,13 +143,19 @@ function InspectionsListTab() {
           </Button>
         ))}
         <div className="ml-auto">
-          <Button size="sm" onClick={() => setLocation("/engineer/inspections")}>
+          <Button size="sm" onClick={() => setLocation("/engineer/inspections?create=1")}>
             <Plus className="h-4 w-4 mr-1" /> New Inspection
           </Button>
         </div>
       </div>
 
-      {isLoading ? (
+      {error ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <AlertCircle className="h-10 w-10 text-destructive/70 mb-3" />
+          <p className="text-sm font-medium text-foreground">Inspections could not be loaded</p>
+          <p className="text-xs text-muted-foreground mt-1">{error.message}</p>
+        </div>
+      ) : isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
@@ -232,7 +238,7 @@ export default function EngineerDashboard() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("projects");
 
-  const { data: dashboard, isLoading } = trpc.inspections.getProjectDashboard.useQuery();
+  const { data: dashboard, isLoading, error: dashboardError, refetch: refetchDashboard } = trpc.inspections.getProjectDashboard.useQuery();
 
   // KPI strip
   const kpis: PortalKPI[] = [
@@ -265,6 +271,14 @@ export default function EngineerDashboard() {
 
   // Alert bar
   const alerts: PortalAlert[] = [];
+  if (dashboardError) {
+    alerts.push({
+      id: "engineering-dashboard-error",
+      severity: "critical",
+      label: `Engineering data could not be loaded: ${dashboardError.message}`,
+      onClick: () => refetchDashboard(),
+    });
+  }
   if (dashboard?.dueThisWeek && dashboard.dueThisWeek > 0) {
     alerts.push({
       id: "due-this-week",
@@ -298,7 +312,7 @@ export default function EngineerDashboard() {
       </Button>
       <Button
         size="sm"
-        onClick={() => setLocation("/engineer/inspections")}
+        onClick={() => setLocation("/engineer/inspections?create=1")}
         className="bg-white text-primary hover:bg-white/90"
       >
         <Plus className="h-4 w-4 mr-1" />

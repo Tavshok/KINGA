@@ -6,7 +6,7 @@
  * Engineering Workspace — All Inspections
  * Full register with status and type filters, pagination, and create dialog.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -38,13 +38,19 @@ const STATUS_COLOURS: Record<string, string> = {
 };
 
 export default function EngineerInspectionList() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const utils = trpc.useUtils();
 
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    if (new URLSearchParams(location.split("?")[1] ?? "").get("create") === "1") {
+      setShowCreate(true);
+    }
+  }, [location]);
 
   // Create form state
   const [form, setForm] = useState({
@@ -56,7 +62,7 @@ export default function EngineerInspectionList() {
 
   });
 
-  const { data, isLoading } = trpc.inspections.list.useQuery({
+  const { data, isLoading, error } = trpc.inspections.list.useQuery({
     page,
     pageSize: 15,
     status: statusFilter !== "all" ? (statusFilter as typeof INSPECTION_STATUSES[number]) : undefined,
@@ -106,7 +112,10 @@ export default function EngineerInspectionList() {
               {data?.total ?? "—"} total inspections
             </p>
           </div>
-          <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <Dialog open={showCreate} onOpenChange={(open) => {
+            setShowCreate(open);
+            if (!open && location.includes("?create=1")) setLocation("/engineer/inspections");
+          }}>
             <DialogTrigger asChild>
               <Button style={{ background: "#0F1A14", color: "#D4A800", border: "none", fontWeight: 600 }}>
                 <Plus size={14} style={{ marginRight: 6 }} />
@@ -213,7 +222,13 @@ export default function EngineerInspectionList() {
 
       {/* Table */}
       <div style={{ background: "#fff", border: "1px solid #e8e8e8", borderRadius: "8px", overflow: "hidden" }}>
-        {isLoading ? (
+        {error ? (
+          <div style={{ padding: "40px", textAlign: "center" }}>
+            <HardHat size={32} style={{ color: "#A32D2D", marginBottom: "12px" }} />
+            <p style={{ fontSize: "14px", fontWeight: 600, color: "#A32D2D", margin: 0 }}>Inspections could not be loaded.</p>
+            <p style={{ fontSize: "12px", color: "#666", marginTop: 6 }}>{error.message}</p>
+          </div>
+        ) : isLoading ? (
           <div style={{ padding: "40px", textAlign: "center", color: "#888" }}>Loading…</div>
         ) : inspections.length === 0 ? (
           <div style={{ padding: "48px", textAlign: "center" }}>
