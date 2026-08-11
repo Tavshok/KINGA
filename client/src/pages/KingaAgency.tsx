@@ -1117,7 +1117,10 @@ function ClientManagementTab() {
   const { data, isLoading } = trpc.agencyBroker.listClients.useQuery({ limit: 50, offset: 0 });
   const clients = data?.clients ?? [];
   const [showCreate, setShowCreate] = useState(false);
+  const [serviceClient, setServiceClient] = useState<any | null>(null);
+  const [serviceForm, setServiceForm] = useState({ incidentDescription: '', damageDescription: '', estimatedDamageAmount: '', insurerTenantIds: [] as string[] });
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', vehicleRegistration: '', vehicleMake: '', vehicleModel: '' });
+  const { data: insurers = [] } = trpc.agencyBroker.listAvailableInsurers.useQuery();
   const createClient = trpc.agencyBroker.createClient.useMutation({
     onSuccess: () => {
       toast.success('Agency client added. You can now manage their insurance service journey.');
@@ -1125,6 +1128,19 @@ function ClientManagementTab() {
       setShowCreate(false);
       setForm({ fullName: '', email: '', phone: '', vehicleRegistration: '', vehicleMake: '', vehicleModel: '' });
     },
+    onError: (error) => toast.error(error.message),
+  });
+  const dispatchQuotes = trpc.agencyBroker.requestQuotes.useMutation({
+    onSuccess: (result: any) => {
+      toast.success(`Quote request dispatched to ${result?.created ?? serviceForm.insurerTenantIds.length} insurer${serviceForm.insurerTenantIds.length === 1 ? '' : 's'}.`);
+      setServiceClient(null);
+      setServiceForm({ incidentDescription: '', damageDescription: '', estimatedDamageAmount: '', insurerTenantIds: [] });
+      utils.agencyBroker.myQuoteRequests.invalidate();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const createServiceRequest = trpc.agencyBroker.createAgencyClaim.useMutation({
+    onSuccess: (claim) => dispatchQuotes.mutate({ claimId: claim.id, insurerTenantIds: serviceForm.insurerTenantIds }),
     onError: (error) => toast.error(error.message),
   });
 
@@ -1195,6 +1211,7 @@ function ClientManagementTab() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#ECFDF5', color: '#047857' }}>{client.email || client.phone || 'Contact pending'}</span>
+                    <Button size="sm" variant="outline" onClick={() => { setServiceClient(client); setServiceForm({ incidentDescription: `Insurance quote request for ${client.fullName}${client.vehicleRegistration ? ` — ${client.vehicleRegistration}` : ''}.`, damageDescription: '', estimatedDamageAmount: '', insurerTenantIds: [] }); }}>Request Quotes</Button>
                   </div>
                 </div>
               );
@@ -1220,6 +1237,17 @@ function ClientManagementTab() {
             <div className="grid grid-cols-3 gap-3"><div><Label>Registration</Label><Input value={form.vehicleRegistration} onChange={e => setForm({ ...form, vehicleRegistration: e.target.value })} placeholder="ABC 1234" /></div><div><Label>Make</Label><Input value={form.vehicleMake} onChange={e => setForm({ ...form, vehicleMake: e.target.value })} placeholder="Toyota" /></div><div><Label>Model</Label><Input value={form.vehicleModel} onChange={e => setForm({ ...form, vehicleModel: e.target.value })} placeholder="Hilux" /></div></div>
             <Button disabled={!form.fullName || createClient.isPending} onClick={() => createClient.mutate({ fullName: form.fullName, email: form.email || undefined, phone: form.phone || undefined, vehicleRegistration: form.vehicleRegistration || undefined, vehicleMake: form.vehicleMake || undefined, vehicleModel: form.vehicleModel || undefined })}>{createClient.isPending ? 'Creating…' : 'Create Client Record'}</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(serviceClient)} onOpenChange={(open) => !open && setServiceClient(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Request Insurance Quotes</DialogTitle><DialogDescription>Agency request for <strong>{serviceClient?.fullName}</strong>. Select the insurers that should receive this client service request.</DialogDescription></DialogHeader>
+          <div className="grid gap-3">
+            <div><Label>Client instruction / cover requirement *</Label><Input value={serviceForm.incidentDescription} onChange={e => setServiceForm({ ...serviceForm, incidentDescription: e.target.value })} placeholder="Comprehensive annual cover for vehicle…" /></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Vehicle / risk notes</Label><Input value={serviceForm.damageDescription} onChange={e => setServiceForm({ ...serviceForm, damageDescription: e.target.value })} placeholder="Vehicle use, cover preference, risk notes" /></div><div><Label>Declared value (USD)</Label><Input type="number" min="0" value={serviceForm.estimatedDamageAmount} onChange={e => setServiceForm({ ...serviceForm, estimatedDamageAmount: e.target.value })} placeholder="Optional" /></div></div>
+            <div><Label>Insurers to invite *</Label><div className="mt-2 grid grid-cols-1 gap-2 rounded-md border p-3 max-h-48 overflow-y-auto">{insurers.length === 0 ? <p className="text-sm text-muted-foreground">No insurer tenants are currently available.</p> : insurers.map((insurer: any) => <label key={insurer.id} className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={serviceForm.insurerTenantIds.includes(insurer.id)} onChange={(e) => setServiceForm({ ...serviceForm, insurerTenantIds: e.target.checked ? [...serviceForm.insurerTenantIds, insurer.id] : serviceForm.insurerTenantIds.filter(id => id !== insurer.id) })} /><span className="font-medium">{insurer.displayName || insurer.name}</span><span className="text-muted-foreground">{insurer.primaryCurrency || 'USD'}</span></label>)}</div></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setServiceClient(null)}>Cancel</Button><Button disabled={!serviceForm.incidentDescription || serviceForm.insurerTenantIds.length === 0 || createServiceRequest.isPending || dispatchQuotes.isPending} onClick={() => createServiceRequest.mutate({ agencyClientId: serviceClient.id, incidentDescription: serviceForm.incidentDescription, incidentDate: new Date().toISOString().slice(0, 10), damageDescription: serviceForm.damageDescription || undefined, estimatedDamageAmount: serviceForm.estimatedDamageAmount ? Number(serviceForm.estimatedDamageAmount) : undefined })}>{createServiceRequest.isPending || dispatchQuotes.isPending ? 'Dispatching…' : 'Create & Dispatch Requests'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

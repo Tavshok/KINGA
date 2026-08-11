@@ -30,9 +30,15 @@ describe("portal conformance regressions", () => {
 
   it("uses the broker-service client and insurer response procedures in Agency Portal", () => {
     const agency = readClient("pages/KingaAgency.tsx");
+    const agencyRouter = readFileSync(resolve(project, "server", "routers", "agency-broker.ts"), "utf8");
     expect(agency).toContain("trpc.agencyBroker.listClients.useQuery");
     expect(agency).toContain("trpc.agencyBroker.createClient.useMutation");
     expect(agency).toContain("trpc.agencyBroker.myQuoteRequests.useQuery");
+    expect(agency).toContain("trpc.agencyBroker.listAvailableInsurers.useQuery");
+    expect(agency).toContain("trpc.agencyBroker.createAgencyClaim.useMutation");
+    expect(agency).toContain("trpc.agencyBroker.requestQuotes.useMutation");
+    expect(agency).toContain("Create & Dispatch Requests");
+    expect(agencyRouter).toContain("listAvailableInsurers: agencyProcedure");
   });
 
   it("keeps Fleet Driver access separate from the manager workspace and supports manager assignment", () => {

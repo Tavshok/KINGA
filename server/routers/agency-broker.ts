@@ -250,6 +250,26 @@ export const agencyBrokerRouter = router({
   // ── Multi-Insurer Quote Requests ───────────────────────────────────────────
 
   /**
+   * List insurer tenants available to receive an Agency-sourced quote request.
+   * The Agency selects recipients deliberately; it does not submit a client
+   * quote request as though it were the client.
+   */
+  listAvailableInsurers: agencyProcedure
+    .query(async () => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      return db
+        .select({
+          id: insurerTenants.id,
+          name: insurerTenants.name,
+          displayName: insurerTenants.displayName,
+          primaryCurrency: insurerTenants.primaryCurrency,
+        })
+        .from(insurerTenants)
+        .orderBy(asc(insurerTenants.displayName));
+    }),
+
+  /**
    * Dispatch quote requests to multiple insurers for a given claim.
    * Creates one insurer_quote_requests record per insurer.
    * Skips insurers that already have a pending/sent/quoted request for this claim.

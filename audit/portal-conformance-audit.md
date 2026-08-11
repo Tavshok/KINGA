@@ -35,11 +35,13 @@ The root landing-page failure was also confirmed as a real regression: `Home.tsx
 
 ### Agency Portal — Must Be Rewired First
 
-The visible screenshot is accurate: this portal says “Professional Insurance Service Portal” but displays **“My Quotations,” “Request New Quote,” and acceptance of a quote**. Those are client actions. The implementation calls `agency.myQuotations`, `agency.myPolicies`, and `agency.submitQuotation`, despite an existing dedicated `agencyBroker` router that supports the intended operational model.
+The visible screenshot identified a real mismatch: the portal said “Professional Insurance Service Portal” but displayed **“My Quotations,” “Request New Quote,” and acceptance of a quote**. Those are client actions. The portal has now been rewired to begin in Client Management and use the dedicated `agencyBroker` procedures rather than client-self-service quotation calls.
 
 The corrected Agency workflow must be:
 
 > Create or select agency client → maintain client profile and evidence → create agency-sourced request/claim → request pricing from selected insurers → compare insurer responses → capture client instruction → issue/follow policy → track commission and renewal.
+
+The first four steps are now implemented in the portal: the agent selects an Agency client, records the service requirement, selects the insurer recipients, and dispatches individual quote requests. The quotation workspace tracks insurer responses and the client decision. The policy, commission, and renewal stages remain subject to live end-to-end verification with representative Agency and Insurer accounts.
 
 Legacy Agency valuation routes must be redirected to My Portal or replaced with **“request valuation for an existing client”** under the agency client record. They must not offer bulk client-self-service valuation directly from an Agency homepage.
 
