@@ -83,17 +83,13 @@ const ROLE_TRANSITION_PERMISSIONS: Record<string, InsurerRole[]> = {
   "created → assigned": ["claims_processor"],
   "created → under_assessment": ["claims_processor"],
   "assigned → under_assessment": ["assessor_internal", "claims_processor"],
-  "under_assessment → under_assessment": ["claims_processor"], // Controlled KINGA re-run
   "under_assessment → internal_review": ["assessor_internal"],
   "internal_review → technical_approval": ["risk_manager", "executive"],
-  "internal_review → under_assessment": ["risk_manager", "claims_processor"], // Send back or controlled KINGA re-run
+  "internal_review → under_assessment": ["risk_manager"], // Send back
   "technical_approval → financial_decision": ["claims_manager", "executive"],
   "technical_approval → internal_review": ["claims_manager"], // Send back
-  "technical_approval → under_assessment": ["claims_processor"], // Controlled KINGA re-run
   "financial_decision → payment_authorized": ["claims_manager", "executive"],
   "financial_decision → technical_approval": ["claims_manager"], // Send back
-  "financial_decision → under_assessment": ["claims_processor"], // Controlled KINGA re-run
-  "ai_assessment_completed → under_assessment": ["claims_processor"], // Controlled KINGA re-run
   "payment_authorized → closed": ["claims_manager", "executive"],
   "closed → disputed": ["claims_manager", "executive"],
   "disputed → internal_review": ["risk_manager", "executive"],
