@@ -152,8 +152,10 @@
 
 ## Fleet / Company Claimant — Remaining Items
 
-- [ ] Fleet dashboard: show aggregate claim cost by vehicle, by driver, by period
-- [ ] Fleet risk scoring: flag vehicles or drivers with abnormal claim frequency
+- [ ] Fleet dashboard: show aggregate claim cost by vehicle, by driver, by period — current manager intelligence has rolling 12-month vehicle/driver totals; period controls and time-series grouping remain
+- [ ] Fleet risk scoring: flag vehicles or drivers with abnormal claim frequency — current vehicle frequencies and persisted vehicle risk scores work; harden driver linkage for company-submitted claims
+- [ ] Fleet manager analytics: add 30/90/365-day and custom-period controls plus time-series cost breakdowns by vehicle and driver
+- [ ] Fleet manager analytics: link company-submitted fleet claims to the responsible assigned driver so driver cost and frequency metrics are complete
 - [ ] Fleet PDF report: exportable summary of all fleet claims for a given period
 
 ---

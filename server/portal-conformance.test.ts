@@ -144,4 +144,19 @@ describe("portal conformance regressions", () => {
     expect(quoteBuilder).toContain("labour");
     expect(quoteBuilder).toContain("consumables");
   });
+
+  it("gives fleet managers live claim-cost and frequency-risk intelligence without sending them to My Portal", () => {
+    const fleetManagement = readClient("pages/FleetManagement.tsx");
+    const fleetRouter = readFileSync(resolve(project, "server", "routers", "fleet-core.ts"), "utf8");
+
+    expect(fleetManagement).toContain("trpc.fleet.getManagerIntelligence.useQuery");
+    expect(fleetManagement).toContain("Fleet Claims & Cost Exposure");
+    expect(fleetManagement).toContain("Driver Claims Signals");
+    expect(fleetManagement).toContain("Claim Cost (12m)");
+    expect(fleetManagement).not.toContain("Portal Hub");
+    expect(fleetManagement).not.toContain("Go to My Portal — Company Claims");
+    expect(fleetRouter).toContain("getManagerIntelligence: protectedProcedure");
+    expect(fleetRouter).toContain("elevatedFrequencyThreshold");
+    expect(fleetRouter).toContain("fleetRiskScores");
+  });
 });

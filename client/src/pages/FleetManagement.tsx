@@ -11,9 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Download, Upload, Plus, Car, FileSpreadsheet, Trash2, Edit, Shield, Users, Wrench, AlertTriangle, BarChart2, UserPlus, RefreshCw, ChevronRight, CheckCircle, XCircle, Clock } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 export default function FleetManagement() {
   const { user } = useAuth();
+  const { fmt } = useTenantCurrency();
   const [selectedFleet, setSelectedFleet] = useState<number | null>(null);
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const [isCreateFleetDialogOpen, setIsCreateFleetDialogOpen] = useState(false);
@@ -23,13 +25,15 @@ export default function FleetManagement() {
   const [activeFleetTab, setActiveFleetTab] = useState("vehicles");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isDriver = user?.role === "fleet_driver";
+  const isManager = ["fleet_manager", "fleet_admin", "admin", "platform_super_admin"].includes(user?.role ?? "");
+
   // Queries
   const { data: fleets, refetch: refetchFleets } = trpc.fleet.getMyFleets.useQuery();
   const { data: vehicles, refetch: refetchVehicles } = trpc.fleet.getMyVehicles.useQuery();
   const { data: drivers = [], refetch: refetchDrivers } = trpc.fleet.getMyDrivers.useQuery();
   const { data: maintenanceAlerts = [] } = trpc.fleet.getMaintenanceAlerts.useQuery({});
-  const isDriver = user?.role === "fleet_driver";
-  const isManager = ["fleet_manager", "fleet_admin", "admin", "platform_super_admin"].includes(user?.role ?? "");
+  const { data: managerIntelligence, isLoading: isIntelligenceLoading } = trpc.fleet.getManagerIntelligence.useQuery({ periodDays: 365 }, { enabled: isManager });
 
   // Mutations
   const createFleet = trpc.fleet.createFleet.useMutation({
@@ -250,9 +254,6 @@ export default function FleetManagement() {
             <div className="p11-hero-subtitle">Register, manage and track your vehicle fleet</div>
           </div>
           <div className="p11-hero-actions">
-            <button className="p11-btn-ghost" onClick={() => window.location.href = "/fleet"}>
-              Portal Hub
-            </button>
             <button className="p11-btn-gold" onClick={() => setIsRegisterDialogOpen(true)}>
               <Car style={{ width: 13, height: 13 }} />
               Register Vehicle
@@ -609,23 +610,23 @@ export default function FleetManagement() {
             {activeFleetTab === "claims" && (
               <div className="p11-card">
                 <div className="p11-card-header">
-                  <div className="p11-card-title">
-                    <AlertTriangle style={{ width: 14, height: 14, color: "var(--g-600)" }} />
-                    Fleet Claims
-                  </div>
+                  <div className="p11-card-title"><AlertTriangle style={{ width: 14, height: 14, color: "var(--g-600)" }} />Fleet Claims & Cost Exposure</div>
+                  <span style={{ fontSize: 11, color: "var(--muted)" }}>Rolling 12 months · vehicle registration matched</span>
                 </div>
                 <div className="p11-card-body">
-                  <div style={{ padding: "24px 0", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
-                    <AlertTriangle style={{ width: 32, height: 32, margin: "0 auto 12px", opacity: 0.3 }} />
-                    <p style={{ fontWeight: 600, marginBottom: 6 }}>Fleet Claims Overview</p>
-                    <p style={{ fontSize: 12, marginBottom: 16, lineHeight: 1.6 }}>
-                      Claims submitted by your drivers through My Portal will appear here. Go to My Portal to view company claims.
-                    </p>
-                    <button className="p11-btn-gold" style={{ margin: "0 auto" }} onClick={() => window.location.href = "/client"}>
-                      <ChevronRight style={{ width: 13, height: 13 }} />
-                      Go to My Portal — Company Claims
-                    </button>
-                  </div>
+                  {!isManager ? <p style={{ color: "var(--muted)", fontSize: 13 }}>Fleet claim intelligence is available to fleet managers.</p> : isIntelligenceLoading ? <p style={{ color: "var(--muted)", fontSize: 13 }}>Loading fleet claim intelligence…</p> : (
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 18 }}>
+                        {[
+                          { label: "Claims", value: managerIntelligence?.summary.totalClaims ?? 0 },
+                          { label: "Open Claims", value: managerIntelligence?.summary.openClaims ?? 0 },
+                          { label: "Cost Exposure", value: fmt(managerIntelligence?.summary.totalCostCents ?? 0) },
+                          { label: "Average Claim", value: fmt(managerIntelligence?.summary.averageCostCents ?? 0) },
+                        ].map((metric) => <div key={metric.label} style={{ padding: 12, border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface)" }}><div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" }}>{metric.label}</div><div style={{ marginTop: 4, fontSize: 18, fontWeight: 700, color: "var(--text)" }}>{metric.value}</div></div>)}
+                      </div>
+                      {(managerIntelligence?.vehicleInsights.length ?? 0) === 0 ? <div style={{ padding: "24px 0", textAlign: "center", color: "var(--muted)", fontSize: 13 }}><CheckCircle style={{ width: 30, height: 30, margin: "0 auto 10px", color: "#059669", opacity: 0.7 }} /><p>No fleet-linked claims were recorded in the last 12 months.</p></div> : <table className="p11-table"><thead><tr><th>Vehicle</th><th>Claims</th><th>Open</th><th>Cost</th><th>Risk Signal</th></tr></thead><tbody>{managerIntelligence?.vehicleInsights.map((vehicle) => <tr key={vehicle.vehicleId}><td><div style={{ fontWeight: 600 }}>{vehicle.registrationNumber}</div><div style={{ fontSize: 11, color: "var(--muted)" }}>{vehicle.vehicle} · {vehicle.year}</div></td><td>{vehicle.claimCount}</td><td>{vehicle.openClaimCount}</td><td>{fmt(vehicle.totalCostCents)}</td><td><span className={`p11-badge ${vehicle.highRisk ? "red" : "green"}`}>{vehicle.highRisk ? (vehicle.elevatedFrequency ? "Elevated frequency" : `${vehicle.riskScore}/100 risk`) : "Within threshold"}</span></td></tr>)}</tbody></table>}
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -687,7 +688,9 @@ export default function FleetManagement() {
                       { label: "Total Vehicles", value: totalVehicles, color: "var(--g-600)" },
                       { label: "Active Vehicles", value: activeVehicles, color: "#059669" },
                       { label: "Total Drivers", value: drivers.length, color: "#2563EB" },
-                      { label: "Avg Risk Score", value: `${avgRisk}/100`, color: avgRisk > 70 ? "#DC2626" : avgRisk > 50 ? "#D97706" : "#059669" },
+                      { label: "Claim Cost (12m)", value: fmt(managerIntelligence?.summary.totalCostCents ?? 0), color: "#2563EB" },
+                      { label: "High-Risk Vehicles", value: managerIntelligence?.summary.highRiskVehicleCount ?? 0, color: (managerIntelligence?.summary.highRiskVehicleCount ?? 0) > 0 ? "#DC2626" : "#059669" },
+                      { label: "High-Risk Drivers", value: managerIntelligence?.summary.highRiskDriverCount ?? 0, color: (managerIntelligence?.summary.highRiskDriverCount ?? 0) > 0 ? "#DC2626" : "#059669" },
                     ].map(stat => (
                       <div key={stat.label} style={{ background: "var(--surface)", borderRadius: 8, padding: "16px", border: "1px solid var(--line)" }}>
                         <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6 }}>{stat.label}</div>
@@ -718,6 +721,7 @@ export default function FleetManagement() {
                       </div>
                     </div>
                   )}
+                  {isManager && (managerIntelligence?.driverInsights.length ?? 0) > 0 && <div style={{ marginTop: 16, background: "var(--surface)", borderRadius: 8, padding: "16px", border: "1px solid var(--line)" }}><div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12, color: "var(--text)" }}>Driver Claims Signals</div><table className="p11-table"><thead><tr><th>Driver</th><th>Claims</th><th>Open</th><th>Cost</th><th>Signal</th></tr></thead><tbody>{managerIntelligence?.driverInsights.map((driver) => <tr key={driver.driverId}><td><div style={{ fontWeight: 600 }}>{driver.name}</div><div style={{ fontSize: 11, color: "var(--muted)" }}>{driver.email ?? ""}</div></td><td>{driver.claimCount}</td><td>{driver.openClaimCount}</td><td>{fmt(driver.totalCostCents)}</td><td><span className={`p11-badge ${driver.elevatedFrequency ? "red" : "green"}`}>{driver.elevatedFrequency ? "Elevated frequency" : "Within threshold"}</span></td></tr>)}</tbody></table></div>}
                 </div>
               </div>
             )}

@@ -11,7 +11,7 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { eq, and, desc, asc, inArray, gte, lte, or, sql, count } from "drizzle-orm";
 import {
-  fleetVehicles, fleetDrivers, fleets, users, claims, aiAssessments as aiAssessmentsTable,
+  fleetVehicles, fleetDrivers, fleetRiskScores, fleets, users, claims, aiAssessments as aiAssessmentsTable,
   auditTrail, notifications
 } from "../../drizzle/schema";
 import { nanoid } from "nanoid";
@@ -195,6 +195,170 @@ export const fleetCoreRouter = router({
     .query(async ({ ctx }) => {
       const { getFleetVehiclesByOwner } = await import('../fleet/fleet-db');
       return getFleetVehiclesByOwner(ctx.user.id);
+    }),
+
+  /**
+   * Tenant-scoped management intelligence. Costs are normalised to cents and
+   * matched only to managed fleet registration numbers, never to a broad
+   * claimant portfolio. This keeps Fleet Management distinct from My Portal.
+   */
+  getManagerIntelligence: protectedProcedure
+    .input(z.object({ periodDays: z.number().int().min(30).max(730).default(365) }))
+    .query(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const managerRoles = ["fleet_manager", "fleet_admin", "admin", "platform_super_admin"];
+      if (!managerRoles.includes(ctx.user.role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Fleet management intelligence is available to authorised managers only." });
+      }
+
+      const isPlatformAdmin = ctx.user.role === "admin" || ctx.user.role === "platform_super_admin";
+      const fleetScope = isPlatformAdmin
+        ? await db.select({ id: fleets.id, tenantId: fleets.tenantId, fleetName: fleets.fleetName }).from(fleets)
+        : await db.select({ id: fleets.id, tenantId: fleets.tenantId, fleetName: fleets.fleetName }).from(fleets)
+          .where(ctx.user.tenantId
+            ? or(eq(fleets.ownerId, ctx.user.id), eq(fleets.tenantId, ctx.user.tenantId))
+            : eq(fleets.ownerId, ctx.user.id));
+
+      const fleetIds = fleetScope.map((fleet) => fleet.id);
+      if (fleetIds.length === 0) {
+        return {
+          summary: { periodDays: input.periodDays, totalClaims: 0, openClaims: 0, totalCostCents: 0, averageCostCents: 0, highRiskVehicleCount: 0, highRiskDriverCount: 0 },
+          vehicleInsights: [],
+          driverInsights: [],
+        };
+      }
+
+      const vehicles = await db.select({
+        id: fleetVehicles.id,
+        fleetId: fleetVehicles.fleetId,
+        registrationNumber: fleetVehicles.registrationNumber,
+        make: fleetVehicles.make,
+        model: fleetVehicles.model,
+        year: fleetVehicles.year,
+        riskScore: fleetVehicles.riskScore,
+        maintenanceComplianceScore: fleetVehicles.maintenanceComplianceScore,
+      }).from(fleetVehicles).where(inArray(fleetVehicles.fleetId, fleetIds));
+
+      const registrations = vehicles.map((vehicle) => vehicle.registrationNumber).filter(Boolean);
+      if (registrations.length === 0) {
+        return {
+          summary: { periodDays: input.periodDays, totalClaims: 0, openClaims: 0, totalCostCents: 0, averageCostCents: 0, highRiskVehicleCount: 0, highRiskDriverCount: 0 },
+          vehicleInsights: [],
+          driverInsights: [],
+        };
+      }
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - input.periodDays);
+      const tenantIds = [...new Set(fleetScope.map((fleet) => fleet.tenantId).filter((tenantId): tenantId is string => Boolean(tenantId)))];
+      const claimConditions = [inArray(claims.vehicleRegistration, registrations), gte(claims.createdAt, startDate.toISOString())];
+      if (!isPlatformAdmin && tenantIds.length > 0) claimConditions.push(inArray(claims.tenantId, tenantIds));
+      const matchedClaims = await db.select({
+        id: claims.id,
+        claimantId: claims.claimantId,
+        vehicleRegistration: claims.vehicleRegistration,
+        status: claims.status,
+        estimatedCost: claims.estimatedCost,
+        approvedAmount: claims.approvedAmount,
+        finalApprovedAmount: claims.finalApprovedAmount,
+        estimatedClaimValue: claims.estimatedClaimValue,
+        createdAt: claims.createdAt,
+      }).from(claims).where(and(...claimConditions));
+
+      const riskScores = await db.select({ vehicleId: fleetRiskScores.vehicleId, overallRiskScore: fleetRiskScores.overallRiskScore, claimsRisk: fleetRiskScores.claimsRisk, repairCostRisk: fleetRiskScores.repairCostRisk })
+        .from(fleetRiskScores).where(inArray(fleetRiskScores.vehicleId, vehicles.map((vehicle) => vehicle.id)));
+      const riskByVehicle = new Map(riskScores.map((risk) => [risk.vehicleId, risk]));
+
+      const drivers = await db.select({
+        driverId: fleetDrivers.id,
+        fleetId: fleetDrivers.fleetId,
+        userId: fleetDrivers.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(fleetDrivers)
+        .leftJoin(users, eq(fleetDrivers.userId, users.id))
+        .where(and(inArray(fleetDrivers.fleetId, fleetIds), eq(fleetDrivers.employmentStatus, "active")));
+
+      const claimCostCents = (claim: typeof matchedClaims[number]) => {
+        if (Number(claim.estimatedCost ?? 0) > 0) return Number(claim.estimatedCost);
+        if (Number(claim.approvedAmount ?? 0) > 0) return Number(claim.approvedAmount);
+        return Math.round(Number(claim.finalApprovedAmount ?? claim.estimatedClaimValue ?? 0) * 100);
+      };
+      const openStatuses = new Set(["submitted", "triage", "assessment_pending", "assessment_in_progress", "quotes_pending", "comparison", "repair_assigned", "repair_in_progress", "intake_pending", "assessment_complete", "document_validating", "document_ready", "analysis_running", "analysis_complete", "recovery_attempted", "human_review_required"]);
+      const claimsByRegistration = new Map<string, typeof matchedClaims>();
+      for (const claim of matchedClaims) {
+        const key = claim.vehicleRegistration ?? "";
+        const items = claimsByRegistration.get(key) ?? [];
+        items.push(claim);
+        claimsByRegistration.set(key, items);
+      }
+      const claimsByDriver = new Map<number, typeof matchedClaims>();
+      for (const claim of matchedClaims) {
+        if (!claim.claimantId) continue;
+        const items = claimsByDriver.get(claim.claimantId) ?? [];
+        items.push(claim);
+        claimsByDriver.set(claim.claimantId, items);
+      }
+
+      const averageFrequency = matchedClaims.length / Math.max(vehicles.length, 1);
+      const elevatedFrequencyThreshold = Math.max(2, Math.ceil(averageFrequency * 2));
+      const vehicleInsights = vehicles.map((vehicle) => {
+        const vehicleClaims = claimsByRegistration.get(vehicle.registrationNumber) ?? [];
+        const risk = riskByVehicle.get(vehicle.id);
+        const riskScore = risk?.overallRiskScore ?? vehicle.riskScore ?? 0;
+        const totalCostCents = vehicleClaims.reduce((total, claim) => total + claimCostCents(claim), 0);
+        const elevatedFrequency = vehicleClaims.length >= elevatedFrequencyThreshold;
+        return {
+          vehicleId: vehicle.id,
+          fleetId: vehicle.fleetId,
+          registrationNumber: vehicle.registrationNumber,
+          vehicle: `${vehicle.make} ${vehicle.model}`,
+          year: vehicle.year,
+          claimCount: vehicleClaims.length,
+          openClaimCount: vehicleClaims.filter((claim) => openStatuses.has(claim.status)).length,
+          totalCostCents,
+          riskScore,
+          claimsRisk: risk?.claimsRisk ?? null,
+          repairCostRisk: risk?.repairCostRisk ?? null,
+          maintenanceComplianceScore: vehicle.maintenanceComplianceScore ?? null,
+          elevatedFrequency,
+          highRisk: riskScore >= 70 || elevatedFrequency,
+        };
+      }).sort((left, right) => right.totalCostCents - left.totalCostCents || right.claimCount - left.claimCount);
+
+      const driverInsights = drivers.map((driver) => {
+        const driverClaims = claimsByDriver.get(driver.userId) ?? [];
+        const totalCostCents = driverClaims.reduce((total, claim) => total + claimCostCents(claim), 0);
+        const elevatedFrequency = driverClaims.length >= elevatedFrequencyThreshold;
+        return {
+          driverId: driver.driverId,
+          fleetId: driver.fleetId,
+          userId: driver.userId,
+          name: driver.userName ?? driver.userEmail ?? `Driver #${driver.userId}`,
+          email: driver.userEmail ?? null,
+          claimCount: driverClaims.length,
+          openClaimCount: driverClaims.filter((claim) => openStatuses.has(claim.status)).length,
+          totalCostCents,
+          elevatedFrequency,
+        };
+      }).sort((left, right) => right.totalCostCents - left.totalCostCents || right.claimCount - left.claimCount);
+
+      const totalCostCents = matchedClaims.reduce((total, claim) => total + claimCostCents(claim), 0);
+      return {
+        summary: {
+          periodDays: input.periodDays,
+          totalClaims: matchedClaims.length,
+          openClaims: matchedClaims.filter((claim) => openStatuses.has(claim.status)).length,
+          totalCostCents,
+          averageCostCents: matchedClaims.length ? Math.round(totalCostCents / matchedClaims.length) : 0,
+          highRiskVehicleCount: vehicleInsights.filter((vehicle) => vehicle.highRisk).length,
+          highRiskDriverCount: driverInsights.filter((driver) => driver.elevatedFrequency).length,
+        },
+        vehicleInsights,
+        driverInsights,
+      };
     }),
 
   // Download import template
