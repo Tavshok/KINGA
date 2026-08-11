@@ -18,6 +18,8 @@ export default function FleetManagement() {
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const [isCreateFleetDialogOpen, setIsCreateFleetDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isDriverDialogOpen, setIsDriverDialogOpen] = useState(false);
+  const [driverForm, setDriverForm] = useState({ fleetId: "", driverEmail: "", driverLicenseNumber: "", licenseExpiry: "", licenseClass: "", hireDate: "" });
   const [activeFleetTab, setActiveFleetTab] = useState("vehicles");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -27,7 +29,7 @@ export default function FleetManagement() {
   const { data: drivers = [], refetch: refetchDrivers } = trpc.fleet.getMyDrivers.useQuery();
   const { data: maintenanceAlerts = [] } = trpc.fleet.getMaintenanceAlerts.useQuery({});
   const isDriver = user?.role === "fleet_driver";
-  const isManager = user?.role === "fleet_manager" || user?.role === "fleet_admin";
+  const isManager = ["fleet_manager", "fleet_admin", "admin", "platform_super_admin"].includes(user?.role ?? "");
 
   // Mutations
   const createFleet = trpc.fleet.createFleet.useMutation({
@@ -51,6 +53,16 @@ export default function FleetManagement() {
     onError: (error) => {
       toast.error(`Failed to register vehicle: ${error.message}`);
     },
+  });
+
+  const onboardDriver = trpc.fleet.onboardFleetDriver.useMutation({
+    onSuccess: () => {
+      toast.success("Fleet Driver assigned successfully. They can now access their dedicated driver workspace.");
+      refetchDrivers();
+      setIsDriverDialogOpen(false);
+      setDriverForm({ fleetId: "", driverEmail: "", driverLicenseNumber: "", licenseExpiry: "", licenseClass: "", hireDate: "" });
+    },
+    onError: (error) => toast.error(error.message),
   });
 
   const downloadTemplate = trpc.fleet.downloadImportTemplate.useMutation({
@@ -521,6 +533,7 @@ export default function FleetManagement() {
                       Fleet Drivers
                       <span className="p11-badge green" style={{ marginLeft: 6 }}>{drivers.length}</span>
                     </div>
+                    {isManager && <button className="p11-btn-gold" onClick={() => setIsDriverDialogOpen(true)}><UserPlus style={{ width: 13, height: 13 }} /> Assign Driver</button>}
                   </div>
                   <div className="p11-card-body" style={{ padding: 0 }}>
                     {drivers.length === 0 ? (
@@ -750,6 +763,7 @@ export default function FleetManagement() {
                     <Plus style={{ width: 13, height: 13 }} />
                     Create Fleet
                   </button>
+                  {isManager && <button className="p11-btn-outline" style={{ width: "100%", justifyContent: "center" }} onClick={() => setIsDriverDialogOpen(true)}><UserPlus style={{ width: 13, height: 13 }} /> Assign Driver</button>}
                 </div>
               </div>
             </div>
@@ -799,6 +813,28 @@ export default function FleetManagement() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDriverDialogOpen} onOpenChange={setIsDriverDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Fleet Driver</DialogTitle>
+            <DialogDescription>Assign an existing registered account with the Fleet Driver role to a fleet you manage.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label>Fleet *</Label>
+              <Select value={driverForm.fleetId} onValueChange={(fleetId) => setDriverForm({ ...driverForm, fleetId })}>
+                <SelectTrigger><SelectValue placeholder="Select fleet" /></SelectTrigger>
+                <SelectContent>{(fleets ?? []).map((fleet: any) => <SelectItem key={fleet.id} value={String(fleet.id)}>{fleet.fleetName}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2"><Label>Registered Driver Email *</Label><Input type="email" value={driverForm.driverEmail} onChange={(e) => setDriverForm({ ...driverForm, driverEmail: e.target.value })} placeholder="driver@company.com" /></div>
+            <div className="grid grid-cols-2 gap-3"><div className="grid gap-2"><Label>Licence Number *</Label><Input value={driverForm.driverLicenseNumber} onChange={(e) => setDriverForm({ ...driverForm, driverLicenseNumber: e.target.value })} placeholder="Licence number" /></div><div className="grid gap-2"><Label>Licence Class</Label><Input value={driverForm.licenseClass} onChange={(e) => setDriverForm({ ...driverForm, licenseClass: e.target.value })} placeholder="Class 2" /></div></div>
+            <div className="grid grid-cols-2 gap-3"><div className="grid gap-2"><Label>Licence Expiry *</Label><Input type="date" value={driverForm.licenseExpiry} onChange={(e) => setDriverForm({ ...driverForm, licenseExpiry: e.target.value })} /></div><div className="grid gap-2"><Label>Hire Date</Label><Input type="date" value={driverForm.hireDate} onChange={(e) => setDriverForm({ ...driverForm, hireDate: e.target.value })} /></div></div>
+          </div>
+          <DialogFooter><Button disabled={!driverForm.fleetId || !driverForm.driverEmail || !driverForm.driverLicenseNumber || !driverForm.licenseExpiry || onboardDriver.isPending} onClick={() => onboardDriver.mutate({ fleetId: Number(driverForm.fleetId), driverEmail: driverForm.driverEmail, driverLicenseNumber: driverForm.driverLicenseNumber, licenseExpiry: driverForm.licenseExpiry, licenseClass: driverForm.licenseClass || undefined, hireDate: driverForm.hireDate || undefined })}>{onboardDriver.isPending ? "Assigning…" : "Assign Driver"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

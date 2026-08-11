@@ -8,34 +8,21 @@ import { Separator } from "@/components/ui/separator";
 import { Car, AlertTriangle, Wrench, FileText, Bell, LogOut, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import KingaLogo from "@/components/KingaLogo";
+import { trpc } from "@/lib/trpc";
 
 export default function FleetDriverDashboard() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Get fleet account for this driver's company
-  const { data: accounts, isLoading: accountsLoading } = trpc.fleetAccounts.listMyAccounts.useQuery();
-  const account = accounts?.[0];
-
-  // Get claims for this fleet account
-  const { data: claimsData, isLoading: claimsLoading } = trpc.fleetAccounts.getClaimsForAccount.useQuery(
-    { fleetAccountId: account?.id ?? 0 },
-    { enabled: !!account?.id }
-  );
-
-  // Get maintenance alerts
-  const { data: maintenanceAlerts, isLoading: alertsLoading } = trpc.fleetAccounts.getMaintenanceAlerts.useQuery(
-    undefined,
-    { enabled: !!account?.id }
-  );
-
-  // Get expiring licenses
-  const { data: expiringLicenses } = trpc.fleetAccounts.getExpiringLicenses.useQuery(
-    undefined,
-    { enabled: !!account?.id }
-  );
-
-  const isLoading = accountsLoading;
+  const { data: workspace, isLoading } = trpc.fleet.getMyDriverWorkspace.useQuery();
+  const assignment = workspace?.assignments?.[0];
+  const account = assignment ? { companyName: assignment.fleetName, registrationNumber: null } : null;
+  const assignedVehicles = workspace?.vehicles ?? [];
+  const recentClaims = workspace?.recentClaims ?? [];
+  const maintenanceAlerts: any[] = [];
+  const alertsLoading = false;
+  const claimsLoading = isLoading;
+  const expiringDocs = assignment?.licenseExpiry ? [{ licenseType: "Driver Licence", expiryDate: assignment.licenseExpiry }] : [];
 
   if (isLoading) {
     return (
@@ -45,10 +32,8 @@ export default function FleetDriverDashboard() {
     );
   }
 
-  const recentClaims = (claimsData?.claims ?? []).slice(0, 5);
   const overdueAlerts = (maintenanceAlerts ?? []).filter((a: any) => a.status === "overdue");
   const upcomingAlerts = (maintenanceAlerts ?? []).filter((a: any) => a.status === "upcoming");
-  const expiringDocs = (expiringLicenses ?? []).slice(0, 3);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -82,8 +67,7 @@ export default function FleetDriverDashboard() {
           <h2 className="text-lg font-semibold">Welcome back, {user?.name?.split(" ")[0]}</h2>
           {account ? (
             <p className="text-sm text-muted-foreground mt-1">
-              Fleet: <span className="font-medium">{account.companyName}</span>
-              {account.registrationNumber && <> · Reg: <span className="font-mono">{account.registrationNumber}</span></>}
+              Assigned fleet: <span className="font-medium">{account.companyName}</span>
             </p>
           ) : (
             <p className="text-sm text-amber-600 mt-1">No fleet account linked. Contact your fleet manager.</p>
@@ -93,6 +77,18 @@ export default function FleetDriverDashboard() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
+
+            {/* Assigned Vehicles */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base"><Car className="h-4 w-4 text-primary" /> Fleet Vehicles</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {assignedVehicles.length === 0 ? <p className="text-sm text-muted-foreground py-2">No active vehicles are currently available in your assigned fleet.</p> : (
+                  <div className="space-y-2">{assignedVehicles.slice(0, 5).map((vehicle: any) => <div key={vehicle.id} className="flex justify-between rounded-lg border p-3 text-sm"><span className="font-medium">{vehicle.year} {vehicle.make} {vehicle.model}</span><span className="font-mono text-muted-foreground">{vehicle.registrationNumber}</span></div>)}</div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Maintenance Alerts */}
             <Card>
@@ -186,7 +182,7 @@ export default function FleetDriverDashboard() {
                 <Button
                   className="w-full justify-start"
                   variant="outline"
-                  onClick={() => setLocation("/claimant/submit")}
+                  onClick={() => setLocation("/client/submit-claim")}
                 >
                   <Car className="h-4 w-4 mr-2 text-primary" />
                   Report an Incident
@@ -194,7 +190,7 @@ export default function FleetDriverDashboard() {
                 <Button
                   className="w-full justify-start"
                   variant="outline"
-                  onClick={() => setLocation("/claimant/claims")}
+                  onClick={() => setLocation("/client")}
                 >
                   <FileText className="h-4 w-4 mr-2 text-blue-500" />
                   View My Claims

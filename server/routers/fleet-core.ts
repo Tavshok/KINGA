@@ -11,7 +11,7 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { eq, and, desc, asc, inArray, gte, lte, or, sql, count } from "drizzle-orm";
 import {
-  fleetVehicles, fleetDrivers, claims, aiAssessments as aiAssessmentsTable,
+  fleetVehicles, fleetDrivers, fleets, users, claims, aiAssessments as aiAssessmentsTable,
   auditTrail, notifications
 } from "../../drizzle/schema";
 import { nanoid } from "nanoid";
@@ -59,21 +59,63 @@ export const fleetCoreRouter = router({
   onboardFleetDriver: protectedProcedure
     .input(z.object({
       fleetId: z.number(),
-      userId: z.number(),
+      userId: z.number().int().positive().optional(),
+      driverEmail: z.string().email().optional(),
       driverLicenseNumber: z.string(),
       licenseExpiry: z.string().optional(),
       licenseClass: z.string().optional(),
       hireDate: z.string().optional(),
       emergencyContactName: z.string().optional(),
       emergencyContactPhone: z.string().optional(),
+    }).refine((input) => Boolean(input.userId || input.driverEmail), {
+      message: "Provide a registered Fleet Driver account email or user ID.",
     }))
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const managerRoles = ["fleet_manager", "fleet_admin", "admin", "platform_super_admin"];
+      if (!managerRoles.includes(ctx.user.role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only a fleet manager or administrator can assign a driver." });
+      }
+
+      const [fleet] = await db
+        .select({ id: fleets.id, ownerId: fleets.ownerId, tenantId: fleets.tenantId, fleetName: fleets.fleetName })
+        .from(fleets)
+        .where(eq(fleets.id, input.fleetId))
+        .limit(1);
+      if (!fleet) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet not found." });
+
+      const isPlatformAdmin = ctx.user.role === "admin" || ctx.user.role === "platform_super_admin";
+      const managesFleet = fleet.ownerId === ctx.user.id || (ctx.user.tenantId && fleet.tenantId === ctx.user.tenantId);
+      if (!isPlatformAdmin && !managesFleet) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You can only assign drivers to a fleet you manage." });
+      }
+
+      const [driverUser] = input.userId
+        ? await db.select({ id: users.id, email: users.email, role: users.role, tenantId: users.tenantId }).from(users).where(eq(users.id, input.userId)).limit(1)
+        : await db.select({ id: users.id, email: users.email, role: users.role, tenantId: users.tenantId }).from(users).where(eq(users.email, input.driverEmail!)).limit(1);
+      if (!driverUser) throw new TRPCError({ code: "NOT_FOUND", message: "No registered user was found for that driver account." });
+      if (driverUser.role !== "fleet_driver") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "The selected account must have the Fleet Driver role before it can be assigned." });
+      }
+      if (!isPlatformAdmin && fleet.tenantId && driverUser.tenantId && fleet.tenantId !== driverUser.tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "The driver account belongs to a different tenant." });
+      }
+
+      const [existingAssignment] = await db
+        .select({ id: fleetDrivers.id })
+        .from(fleetDrivers)
+        .where(and(eq(fleetDrivers.fleetId, input.fleetId), eq(fleetDrivers.userId, driverUser.id)))
+        .limit(1);
+      if (existingAssignment) {
+        throw new TRPCError({ code: "CONFLICT", message: "This driver is already assigned to the selected fleet." });
+      }
+
       const [result] = await db.insert(fleetDrivers).values({
         fleetId: input.fleetId,
-        tenantId: (ctx.user as any).tenantId ?? '',
-        userId: input.userId,
+        tenantId: fleet.tenantId ?? ctx.user.tenantId ?? '',
+        userId: driverUser.id,
         driverLicenseNumber: input.driverLicenseNumber,
         licenseExpiry: input.licenseExpiry || new Date().toISOString().split('T')[0],
         licenseClass: input.licenseClass || null,
@@ -81,7 +123,15 @@ export const fleetCoreRouter = router({
         emergencyContactName: input.emergencyContactName || null,
         emergencyContactPhone: input.emergencyContactPhone || null,
       }).$returningId();
-      return { success: true, driverId: (result as any).id };
+      const driverId = (result as any).id ?? (result as any)[0]?.insertId ?? null;
+      await db.insert(auditTrail).values({
+        userId: ctx.user.id,
+        action: "FLEET_DRIVER_ASSIGNED",
+        entityType: "fleet_driver",
+        entityId: String(driverId),
+        changeDescription: `Assigned Fleet Driver ${driverUser.email ?? `user #${driverUser.id}`} to ${fleet.fleetName}.`,
+      } as any);
+      return { success: true, driverId, driverUserId: driverUser.id };
     }),
   registerVehicle: protectedProcedure
     .input(z.object({
@@ -559,5 +609,50 @@ export const fleetCoreRouter = router({
         .leftJoin(users, eq(fleetDrivers.userId, users.id))
         .leftJoin(fleets, eq(fleetDrivers.fleetId, fleets.id));
       return allDrivers.filter((d: any) => fleetIds.includes(d.fleetId));
+    }),
+
+  // Driver-only worklist. This deliberately excludes the fleet-manager
+  // portfolio view and exposes only fleets where the current user is assigned.
+  getMyDriverWorkspace: protectedProcedure
+    .query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      if (ctx.user.role !== "fleet_driver") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "This workspace is available to assigned Fleet Driver accounts." });
+      }
+
+      const assignments = await db
+        .select({
+          driverId: fleetDrivers.id,
+          fleetId: fleetDrivers.fleetId,
+          fleetName: fleets.fleetName,
+          licenseExpiry: fleetDrivers.licenseExpiry,
+          licenseClass: fleetDrivers.licenseClass,
+          employmentStatus: fleetDrivers.employmentStatus,
+        })
+        .from(fleetDrivers)
+        .innerJoin(fleets, eq(fleetDrivers.fleetId, fleets.id))
+        .where(and(eq(fleetDrivers.userId, ctx.user.id), eq(fleetDrivers.employmentStatus, "active")));
+
+      const fleetIds = assignments.map((assignment) => assignment.fleetId);
+      const vehicles = fleetIds.length
+        ? await db.select().from(fleetVehicles).where(inArray(fleetVehicles.fleetId, fleetIds)).limit(100)
+        : [];
+      const recentClaims = await db
+        .select({
+          id: claims.id,
+          claimNumber: claims.claimNumber,
+          status: claims.status,
+          workflowState: claims.workflowState,
+          incidentDate: claims.incidentDate,
+          vehicleMake: claims.vehicleMake,
+          vehicleModel: claims.vehicleModel,
+        })
+        .from(claims)
+        .where(eq(claims.claimantId, ctx.user.id))
+        .orderBy(desc(claims.createdAt))
+        .limit(20);
+
+      return { assignments, vehicles, recentClaims };
     }),
 });

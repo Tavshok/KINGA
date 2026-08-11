@@ -30,6 +30,7 @@
 - [ ] P1: Correct Agency Portal so it is an agent/broker service workspace for managing clients, quotes, policies, documents, and commissions—not a client self-service quote page
 - [ ] P1: Verify Panel Beater workflow end-to-end with allocated work: direct quote submission, VAT persistence, repair evidence upload, and repair completion
 - [ ] P1: Verify Fleet and KINGA Engineers portal workflows against their intended roles, including route and capability coverage
+- [ ] P1: Fleet workflow — expose manager onboarding and assignment of drivers, then provide an assigned-driver worklist for vehicle checks, incident/claim submission, and repair-status tracking
 
 ---
 

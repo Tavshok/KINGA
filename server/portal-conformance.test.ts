@@ -34,4 +34,20 @@ describe("portal conformance regressions", () => {
     expect(agency).toContain("trpc.agencyBroker.createClient.useMutation");
     expect(agency).toContain("trpc.agencyBroker.myQuoteRequests.useQuery");
   });
+
+  it("keeps Fleet Driver access separate from the manager workspace and supports manager assignment", () => {
+    const app = readClient("App.tsx");
+    const fleetManagement = readClient("pages/FleetManagement.tsx");
+    const driverWorkspace = readClient("pages/FleetDriverDashboard.tsx");
+    const fleetRouter = readFileSync(resolve(project, "server", "routers", "fleet-core.ts"), "utf8");
+
+    expect(app).toContain('path="/fleet/driver"');
+    expect(app).toContain("<FleetDriverDashboard />");
+    expect(fleetManagement).toContain("trpc.fleet.onboardFleetDriver.useMutation");
+    expect(fleetManagement).toContain("Assign Fleet Driver");
+    expect(driverWorkspace).toContain("trpc.fleet.getMyDriverWorkspace.useQuery");
+    expect(driverWorkspace).toContain('setLocation("/client/submit-claim")');
+    expect(fleetRouter).toContain("getMyDriverWorkspace: protectedProcedure");
+    expect(fleetRouter).toContain("FLEET_DRIVER_ASSIGNED");
+  });
 });

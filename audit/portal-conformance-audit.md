@@ -53,12 +53,14 @@ The direct quote builder exists after the latest implementation but must be wire
 
 ### Fleet Management
 
-The current Fleet workspace has vehicle, import/export, maintenance, compliance, analytics, and driver-list capability. It still does not provide the requested two-layer experience:
+The current Fleet workspace has vehicle, import/export, maintenance, compliance, analytics, and driver-list capability. The manager-to-driver entry points have now been restored:
 
 > Fleet manager: register fleet, add a driver account, assign driver to fleet/vehicle, manage compliance and claims.  
 > Assigned driver: see assigned vehicle, submit an incident/claim, upload evidence, read repair/claim status, complete vehicle checks.
 
-The present `/fleet/driver` route redirects to `/fleet`, so it does not provide the driver experience. The existing `onboardFleetDriver` backend procedure is not yet surfaced as a manager workflow.
+`/fleet/driver` now renders the dedicated driver workspace instead of redirecting into the manager workspace. Fleet managers can assign an existing `fleet_driver` account by registered email from the Drivers tab. The server validates manager authority, tenant consistency, driver role, and duplicate assignments, then records the assignment in the audit trail. The driver workspace receives only active fleet assignments, fleet vehicles, and claims submitted by that driver.
+
+**Remaining limitation:** The current schema models a driver-to-fleet assignment, not a driver-to-single-vehicle history. The next fleet enhancement should add a dedicated assignment-history table if operations require a manager to designate a particular vehicle for a particular driver over a date range.
 
 ### KINGA Engineers
 

@@ -600,6 +600,12 @@ function Router() {
           <ClientPortal />
         </Route>
 
+        <Route path="/client/submit-claim">
+          <ProtectedRoute>
+            <SubmitClaim />
+          </ProtectedRoute>
+        </Route>
+
         {/* Client self-service valuation */}
         <Route path="/client/valuation">
           <ProtectedRoute>
@@ -779,8 +785,12 @@ function Router() {
         <Route path="/claimant/fleet-dashboard"><RedirectToPortal to="/fleet" /></Route>
         <Route path="/claimant/fleet-register"><RedirectToPortal to="/fleet" /></Route>
         <Route path="/claimant/documents"><RedirectToPortal to="/client" /></Route>
-        {/* Legacy fleet driver route — redirect to Fleet Management */}
-        <Route path="/fleet/driver"><RedirectToPortal to="/fleet" /></Route>
+        {/* Dedicated driver workspace — operational subset assigned by the fleet manager. */}
+        <Route path="/fleet/driver">
+          <ProtectedRoute allowedRoles={["fleet_driver", "fleet_manager", "fleet_admin", "admin", "platform_super_admin"]}>
+            <FleetDriverDashboard />
+          </ProtectedRoute>
+        </Route>
         {/* Claim detail — accessible from My Portal without old shell */}
         <Route path="/claims/:id">
           <ProtectedRoute domain="portal">
