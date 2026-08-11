@@ -23,6 +23,7 @@ export default function FleetManagement() {
   const [isDriverDialogOpen, setIsDriverDialogOpen] = useState(false);
   const [driverForm, setDriverForm] = useState({ fleetId: "", driverEmail: "", driverLicenseNumber: "", licenseExpiry: "", licenseClass: "", hireDate: "" });
   const [activeFleetTab, setActiveFleetTab] = useState("vehicles");
+  const [analysisPeriodDays, setAnalysisPeriodDays] = useState<30 | 90 | 365>(365);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isDriver = user?.role === "fleet_driver";
@@ -33,7 +34,7 @@ export default function FleetManagement() {
   const { data: vehicles, refetch: refetchVehicles } = trpc.fleet.getMyVehicles.useQuery();
   const { data: drivers = [], refetch: refetchDrivers } = trpc.fleet.getMyDrivers.useQuery();
   const { data: maintenanceAlerts = [] } = trpc.fleet.getMaintenanceAlerts.useQuery({});
-  const { data: managerIntelligence, isLoading: isIntelligenceLoading } = trpc.fleet.getManagerIntelligence.useQuery({ periodDays: 365 }, { enabled: isManager });
+  const { data: managerIntelligence, isLoading: isIntelligenceLoading } = trpc.fleet.getManagerIntelligence.useQuery({ periodDays: analysisPeriodDays }, { enabled: isManager });
 
   // Mutations
   const createFleet = trpc.fleet.createFleet.useMutation({
@@ -611,7 +612,13 @@ export default function FleetManagement() {
               <div className="p11-card">
                 <div className="p11-card-header">
                   <div className="p11-card-title"><AlertTriangle style={{ width: 14, height: 14, color: "var(--g-600)" }} />Fleet Claims & Cost Exposure</div>
-                  <span style={{ fontSize: 11, color: "var(--muted)" }}>Rolling 12 months · vehicle registration matched</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, color: "var(--muted)" }}>Vehicle registration matched</span>
+                    <Select value={String(analysisPeriodDays)} onValueChange={(value) => setAnalysisPeriodDays(Number(value) as 30 | 90 | 365)}>
+                      <SelectTrigger style={{ height: 28, width: 118, fontSize: 11 }}><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="30">Last 30 days</SelectItem><SelectItem value="90">Last 90 days</SelectItem><SelectItem value="365">Last 12 months</SelectItem></SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="p11-card-body">
                   {!isManager ? <p style={{ color: "var(--muted)", fontSize: 13 }}>Fleet claim intelligence is available to fleet managers.</p> : isIntelligenceLoading ? <p style={{ color: "var(--muted)", fontSize: 13 }}>Loading fleet claim intelligence…</p> : (
@@ -722,6 +729,7 @@ export default function FleetManagement() {
                     </div>
                   )}
                   {isManager && (managerIntelligence?.driverInsights.length ?? 0) > 0 && <div style={{ marginTop: 16, background: "var(--surface)", borderRadius: 8, padding: "16px", border: "1px solid var(--line)" }}><div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12, color: "var(--text)" }}>Driver Claims Signals</div><table className="p11-table"><thead><tr><th>Driver</th><th>Claims</th><th>Open</th><th>Cost</th><th>Signal</th></tr></thead><tbody>{managerIntelligence?.driverInsights.map((driver) => <tr key={driver.driverId}><td><div style={{ fontWeight: 600 }}>{driver.name}</div><div style={{ fontSize: 11, color: "var(--muted)" }}>{driver.email ?? ""}</div></td><td>{driver.claimCount}</td><td>{driver.openClaimCount}</td><td>{fmt(driver.totalCostCents)}</td><td><span className={`p11-badge ${driver.elevatedFrequency ? "red" : "green"}`}>{driver.elevatedFrequency ? "Elevated frequency" : "Within threshold"}</span></td></tr>)}</tbody></table></div>}
+                  {isManager && (managerIntelligence?.timeSeries.length ?? 0) > 0 && <div style={{ marginTop: 16, background: "var(--surface)", borderRadius: 8, padding: "16px", border: "1px solid var(--line)" }}><div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12, color: "var(--text)" }}>Cost by Period</div><table className="p11-table"><thead><tr><th>Month</th><th>Claims</th><th>Cost</th></tr></thead><tbody>{managerIntelligence?.timeSeries.map((period) => <tr key={period.period}><td>{period.period}</td><td>{period.claimCount}</td><td>{fmt(period.totalCostCents)}</td></tr>)}</tbody></table></div>}
                 </div>
               </div>
             )}

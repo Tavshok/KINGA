@@ -203,7 +203,18 @@ export const fleetCoreRouter = router({
    * claimant portfolio. This keeps Fleet Management distinct from My Portal.
    */
   getManagerIntelligence: protectedProcedure
-    .input(z.object({ periodDays: z.number().int().min(30).max(730).default(365) }))
+    .input(z.object({
+      periodDays: z.union([z.literal(30), z.literal(90), z.literal(365)]).default(365),
+      startDate: z.string().datetime().optional(),
+      endDate: z.string().datetime().optional(),
+    }).superRefine((input, validation) => {
+      if ((input.startDate && !input.endDate) || (!input.startDate && input.endDate)) {
+        validation.addIssue({ code: z.ZodIssueCode.custom, message: "Provide both a start and end date for a custom analysis period." });
+      }
+      if (input.startDate && input.endDate && new Date(input.startDate) > new Date(input.endDate)) {
+        validation.addIssue({ code: z.ZodIssueCode.custom, path: ["endDate"], message: "End date must be after start date." });
+      }
+    }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
@@ -250,14 +261,20 @@ export const fleetCoreRouter = router({
         };
       }
 
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - input.periodDays);
+      const startDate = input.startDate ? new Date(input.startDate) : new Date();
+      if (!input.startDate) startDate.setDate(startDate.getDate() - input.periodDays);
+      const endDate = input.endDate ? new Date(input.endDate) : new Date();
       const tenantIds = [...new Set(fleetScope.map((fleet) => fleet.tenantId).filter((tenantId): tenantId is string => Boolean(tenantId)))];
-      const claimConditions = [inArray(claims.vehicleRegistration, registrations), gte(claims.createdAt, startDate.toISOString())];
+      const claimConditions = [
+        inArray(claims.vehicleRegistration, registrations),
+        gte(claims.createdAt, startDate.toISOString()),
+        lte(claims.createdAt, endDate.toISOString()),
+      ];
       if (!isPlatformAdmin && tenantIds.length > 0) claimConditions.push(inArray(claims.tenantId, tenantIds));
       const matchedClaims = await db.select({
-        id: claims.id,
-        claimantId: claims.claimantId,
+	        id: claims.id,
+	        claimantId: claims.claimantId,
+	        fleetDriverId: claims.fleetDriverId,
         vehicleRegistration: claims.vehicleRegistration,
         status: claims.status,
         estimatedCost: claims.estimatedCost,
@@ -297,9 +314,10 @@ export const fleetCoreRouter = router({
       const claimsByDriver = new Map<number, typeof matchedClaims>();
       for (const claim of matchedClaims) {
         if (!claim.claimantId) continue;
-        const items = claimsByDriver.get(claim.claimantId) ?? [];
-        items.push(claim);
-        claimsByDriver.set(claim.claimantId, items);
+	        const driverKey = claim.fleetDriverId ?? claim.claimantId;
+	        const items = claimsByDriver.get(driverKey) ?? [];
+	        items.push(claim);
+	        claimsByDriver.set(driverKey, items);
       }
 
       const averageFrequency = matchedClaims.length / Math.max(vehicles.length, 1);
@@ -329,7 +347,7 @@ export const fleetCoreRouter = router({
       }).sort((left, right) => right.totalCostCents - left.totalCostCents || right.claimCount - left.claimCount);
 
       const driverInsights = drivers.map((driver) => {
-        const driverClaims = claimsByDriver.get(driver.userId) ?? [];
+        const driverClaims = claimsByDriver.get(driver.driverId) ?? claimsByDriver.get(driver.userId) ?? [];
         const totalCostCents = driverClaims.reduce((total, claim) => total + claimCostCents(claim), 0);
         const elevatedFrequency = driverClaims.length >= elevatedFrequencyThreshold;
         return {
@@ -346,6 +364,14 @@ export const fleetCoreRouter = router({
       }).sort((left, right) => right.totalCostCents - left.totalCostCents || right.claimCount - left.claimCount);
 
       const totalCostCents = matchedClaims.reduce((total, claim) => total + claimCostCents(claim), 0);
+      const periodBuckets = new Map<string, { claimCount: number; totalCostCents: number }>();
+      for (const claim of matchedClaims) {
+        const bucket = String(claim.createdAt).slice(0, 7);
+        const current = periodBuckets.get(bucket) ?? { claimCount: 0, totalCostCents: 0 };
+        current.claimCount += 1;
+        current.totalCostCents += claimCostCents(claim);
+        periodBuckets.set(bucket, current);
+      }
       return {
         summary: {
           periodDays: input.periodDays,
@@ -358,6 +384,7 @@ export const fleetCoreRouter = router({
         },
         vehicleInsights,
         driverInsights,
+        timeSeries: [...periodBuckets.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([period, values]) => ({ period, ...values })),
       };
     }),
 

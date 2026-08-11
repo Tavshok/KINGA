@@ -159,4 +159,22 @@ describe("portal conformance regressions", () => {
     expect(fleetRouter).toContain("elevatedFrequencyThreshold");
     expect(fleetRouter).toContain("fleetRiskScores");
   });
+
+  it("attributes company claims from an assigned Fleet Driver and supports selectable analysis periods", () => {
+    const claimsRouter = readFileSync(resolve(project, "server", "routers", "claims-core.ts"), "utf8");
+    const schema = readFileSync(resolve(project, "drizzle", "schema.ts"), "utf8");
+    const fleetManagement = readClient("pages/FleetManagement.tsx");
+    const fleetRouter = readFileSync(resolve(project, "server", "routers", "fleet-core.ts"), "utf8");
+
+    expect(schema).toContain('fleetDriverId: int("fleet_driver_id")');
+    expect(claimsRouter).toContain('input.claimantType === "company" && ctx.user.role === "fleet_driver"');
+    expect(claimsRouter).toContain("fleetDriverId,");
+    expect(fleetRouter).toContain("fleetDriverId: claims.fleetDriverId");
+    expect(fleetRouter).toContain("startDate: z.string().datetime().optional()");
+    expect(fleetRouter).toContain("timeSeries:");
+    expect(fleetManagement).toContain("setAnalysisPeriodDays");
+    expect(fleetManagement).toContain("Last 30 days");
+    expect(fleetManagement).toContain("Last 90 days");
+    expect(fleetManagement).toContain("Cost by Period");
+  });
 });

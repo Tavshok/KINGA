@@ -12,6 +12,7 @@ import { parsePhysicsAnalysis } from "../types/physics-validation";
 import {
   claims, insurerTenants, ingestionDocuments, fraudRules,
   aiAssessments as aiAssessmentsTable,
+  fleetDrivers, fleetVehicles,
 } from "../../drizzle/schema";
 import { eq, and, desc, asc, inArray, notInArray, gt, gte, lte, or, count, avg, isNotNull } from "drizzle-orm";
 import {
@@ -371,6 +372,27 @@ export const claimsRouter = router({
        // ─────────────────────────────────────────────────────────────────────
       const claimNumber = `CLM-${nanoid(10).toUpperCase()}`;
 
+      // Company claims submitted by an assigned Fleet Driver retain durable,
+      // verified attribution for Fleet Management cost and frequency analytics.
+      // The active assignment must own the stated vehicle registration.
+      let fleetDriverId: number | null = null;
+      if (input.claimantType === "company" && ctx.user.role === "fleet_driver") {
+        const db = await getDb();
+        if (db) {
+          const [assignment] = await db
+            .select({ id: fleetDrivers.id })
+            .from(fleetDrivers)
+            .innerJoin(fleetVehicles, eq(fleetVehicles.fleetId, fleetDrivers.fleetId))
+            .where(and(
+              eq(fleetDrivers.userId, ctx.user.id),
+              eq(fleetDrivers.employmentStatus, "active"),
+              eq(fleetVehicles.registrationNumber, input.vehicleRegistration),
+            ))
+            .limit(1);
+          fleetDriverId = assignment?.id ?? null;
+        }
+      }
+
       // Normalise the claimant's description before storing
       const { normaliseIncidentDescription } = await import("../services/intakeDescriptionNormaliser");
       const normResult = await normaliseIncidentDescription(input.incidentDescription);
@@ -405,6 +427,7 @@ export const claimsRouter = router({
         claimantCompanyReg: input.companyRegistration ?? null,
         claimantDepartment: input.claimantDepartment ?? null,
         fleetAccountId: input.fleetAccountId ?? null,
+        fleetDriverId,
         // Canonical intake state: all claim sources use intake_pending + intake_queue
         // so the pipeline trigger, recovery job, and dashboard all work consistently.
         status: "intake_pending" as any,

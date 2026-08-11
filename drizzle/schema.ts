@@ -1017,8 +1017,12 @@ export const claims = mysqlTable("claims", {
 	claimantCompanyReg: varchar("claimant_company_reg", { length: 100 }),
 	// Department or branch the claimant belongs to within the company.
 	claimantDepartment: varchar("claimant_department", { length: 255 }),
-	// Vehicle fleet number or asset tag assigned by the company.
-	fleetVehicleRef: varchar("fleet_vehicle_ref", { length: 100 }),
+		// Vehicle fleet number or asset tag assigned by the company.
+		fleetVehicleRef: varchar("fleet_vehicle_ref", { length: 100 }),
+		// FK → fleet_drivers.id — populated automatically when an assigned Fleet
+		// Driver submits a company claim. This is the canonical attribution used by
+		// Fleet Management cost and frequency analytics.
+		fleetDriverId: int("fleet_driver_id"),
 	// Persistent recovery retry counter — incremented each time the stuck-recovery job re-triggers
 	// this claim. Survives server restarts (unlike the in-memory recoveryRetryMap). When this
 	// reaches MAX_RECOVERY_RETRIES (3), the recovery job stops re-triggering and marks the claim
@@ -1050,8 +1054,9 @@ export const claims = mysqlTable("claims", {
 	index("idx_routing_decision").on(table.routingDecision),
 	index("idx_policy_version_id").on(table.policyVersionId),
 	index("idx_claims_tenant_status").on(table.tenantId, table.status),
-	index("idx_claims_tenant_created").on(table.tenantId, table.createdAt),
-]);
+		index("idx_claims_tenant_created").on(table.tenantId, table.createdAt),
+		index("idx_claims_fleet_driver_id").on(table.fleetDriverId),
+	]);
 
 export const commissionRecords = mysqlTable("commission_records", {
 	id: int().autoincrement().notNull(),
