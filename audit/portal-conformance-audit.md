@@ -4,6 +4,8 @@
 **Date:** 11 August 2026  
 **Scope:** Live-user screenshots, route inventory, principal portal pages, and their corresponding tRPC capability surfaces.
 
+> **Live verification companion:** Execute `audit/portal-live-verification-matrix.md` after publishing. Static and build checks reduce regression risk; they do not substitute for role-specific workflow evidence in the live environment.
+
 ## Executive Finding
 
 The platform currently contains significant underlying capability, but several operational workspaces do not yet expose that capability through the correct role-specific workflow. The principal pattern is **functional backend capability coupled with client-style or placeholder frontend behaviour**. This is why the Agency Portal still presents “My Quotations” and permits quote acceptance, while the separate `agencyBroker` router already supports client records, agency-sourced claims, multi-insurer quote dispatch, commission summaries, and performance metrics.
