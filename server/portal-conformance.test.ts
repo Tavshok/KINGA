@@ -177,4 +177,17 @@ describe("portal conformance regressions", () => {
     expect(fleetManagement).toContain("Last 90 days");
     expect(fleetManagement).toContain("Cost by Period");
   });
+
+  it("exports a print-ready Fleet claims summary from the selected live analysis period", () => {
+    const fleetManagement = readClient("pages/FleetManagement.tsx");
+    const fleetExport = readClient("lib/fleetReportExport.ts");
+
+    expect(fleetManagement).toContain("exportFleetClaimsSummaryToPdf");
+    expect(fleetManagement).toContain("Export PDF");
+    expect(fleetExport).toContain("Fleet Claims Summary");
+    expect(fleetExport).toContain("window.print()");
+    expect(fleetExport).toContain("Vehicle claim exposure");
+    expect(fleetExport).toContain("Driver claim signals");
+    expect(fleetExport).toContain("Cost by period");
+  });
 });

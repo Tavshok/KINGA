@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Download, Upload, Plus, Car, FileSpreadsheet, Trash2, Edit, Shield, Users, Wrench, AlertTriangle, BarChart2, UserPlus, RefreshCw, ChevronRight, CheckCircle, XCircle, Clock } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { exportFleetClaimsSummaryToPdf } from "@/lib/fleetReportExport";
 
 export default function FleetManagement() {
   const { user } = useAuth();
@@ -35,6 +36,21 @@ export default function FleetManagement() {
   const { data: drivers = [], refetch: refetchDrivers } = trpc.fleet.getMyDrivers.useQuery();
   const { data: maintenanceAlerts = [] } = trpc.fleet.getMaintenanceAlerts.useQuery({});
   const { data: managerIntelligence, isLoading: isIntelligenceLoading } = trpc.fleet.getManagerIntelligence.useQuery({ periodDays: analysisPeriodDays }, { enabled: isManager });
+
+  const exportFleetClaimsReport = () => {
+    if (!managerIntelligence) {
+      toast.error("Fleet intelligence is still loading. Please try again shortly.");
+      return;
+    }
+    const opened = exportFleetClaimsSummaryToPdf({
+      periodDays: analysisPeriodDays,
+      summary: managerIntelligence.summary,
+      vehicleInsights: managerIntelligence.vehicleInsights,
+      driverInsights: managerIntelligence.driverInsights,
+      timeSeries: managerIntelligence.timeSeries ?? [],
+    }, fmt);
+    if (!opened) toast.error("Your browser blocked the report window. Please allow pop-ups and try again.");
+  };
 
   // Mutations
   const createFleet = trpc.fleet.createFleet.useMutation({
@@ -618,6 +634,9 @@ export default function FleetManagement() {
                       <SelectTrigger style={{ height: 28, width: 118, fontSize: 11 }}><SelectValue /></SelectTrigger>
                       <SelectContent><SelectItem value="30">Last 30 days</SelectItem><SelectItem value="90">Last 90 days</SelectItem><SelectItem value="365">Last 12 months</SelectItem></SelectContent>
                     </Select>
+                    <Button variant="outline" size="sm" onClick={exportFleetClaimsReport} disabled={!managerIntelligence || isIntelligenceLoading}>
+                      <Download className="mr-1 h-3.5 w-3.5" /> Export PDF
+                    </Button>
                   </div>
                 </div>
                 <div className="p11-card-body">
