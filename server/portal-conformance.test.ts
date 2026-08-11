@@ -130,4 +130,18 @@ describe("portal conformance regressions", () => {
     expect(agency).toContain("setLocation('/')");
     expect(agency).not.toContain("setLocation('/portal')");
   });
+
+  it("keeps the Panel Beater workflow actionable from quote through repair completion", () => {
+    const dashboard = readClient("pages/PanelBeaterDashboard.tsx");
+    const quoteBuilder = readClient("pages/PanelBeaterQuoteSubmission.tsx");
+
+    expect(dashboard).toContain("Build Quote");
+    expect(dashboard).toContain("uploadRepairPhotos.mutate({ claimId: claim.id, photos })");
+    expect(dashboard).toContain("Mark Complete");
+    expect(dashboard).toContain("fmt(Number(q.quotedAmount || 0))");
+    expect(dashboard).not.toContain("R {Number(q.quotedAmount || 0).toLocaleString()}");
+    expect(quoteBuilder).toContain("VAT");
+    expect(quoteBuilder).toContain("labour");
+    expect(quoteBuilder).toContain("consumables");
+  });
 });

@@ -386,8 +386,8 @@ export default function PanelBeaterDashboard() {
                       {quoteHistory.slice(0, 10).map((q: any) => (
                         <tr key={q.id}>
                           <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--ink)' }}>{q.claimNumber || `#${q.claimId}`}</td>
-                          <td style={{ color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>R {Number(q.quotedAmount || 0).toLocaleString()}</td>
-                          <td style={{ color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{q.estimatedClaimValue ? `R ${Number(q.estimatedClaimValue).toLocaleString()}` : '—'}</td>
+                          <td style={{ color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{fmt(Number(q.quotedAmount || 0))}</td>
+                          <td style={{ color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{q.estimatedClaimValue ? fmt(Number(q.estimatedClaimValue)) : '—'}</td>
                           <td>
                             <span className={`p11-badge ${q.status === 'approved' ? 'green' : q.status === 'rejected' ? 'red' : 'amber'}`}>
                               {q.status}
@@ -418,7 +418,7 @@ export default function PanelBeaterDashboard() {
                   { label: 'Acceptance Rate', value: myAnalytics?.stats?.acceptanceRate != null ? `${myAnalytics.stats.acceptanceRate}%` : '—', cls: (myAnalytics?.stats?.acceptanceRate ?? 0) >= 70 ? 'green' : 'amber' },
                   { label: 'Avg Variance', value: myAnalytics?.stats?.avgVariancePct != null ? `${myAnalytics.stats.avgVariancePct}%` : '—', cls: Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) <= 5 ? 'green' : 'amber' },
                   { label: 'Total Quotes', value: quoteHistory.length, cls: 'muted' },
-                  { label: 'Approved Revenue', value: `R ${Number(totalRevenue || 0).toLocaleString()}`, cls: 'green' },
+                  { label: 'Approved Revenue', value: fmt(totalRevenue), cls: 'green' },
                 ].map(row => (
                   <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
                     <span style={{ fontSize: 12, color: 'var(--muted)' }}>{row.label}</span>
