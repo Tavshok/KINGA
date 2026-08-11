@@ -76,4 +76,15 @@ describe("portal conformance regressions", () => {
     expect(inspections).toContain('get("create") === "1"');
     expect(inspections).toContain("Inspections could not be loaded.");
   });
+
+  it("keeps the root landing route’s navigation hook imported and renderable", () => {
+    const home = readClient("pages/Home.tsx");
+    const portalSelection = readClient("pages/PortalSelection.tsx");
+
+    expect(home).toContain('import { useLocation } from "wouter"');
+    expect(home).toContain("<PortalSelection");
+    expect(portalSelection).toContain('import { useLocation } from "wouter"');
+    expect(portalSelection).toContain("const [, setLocation] = useLocation()");
+    expect(portalSelection).toContain('<KingaLogo size="md"');
+  });
 });
