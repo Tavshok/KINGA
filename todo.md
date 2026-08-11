@@ -31,6 +31,7 @@
 - [ ] P1: Verify Panel Beater workflow end-to-end with allocated work: direct quote submission, VAT persistence, repair evidence upload, and repair completion
 - [ ] P1: Verify Fleet and KINGA Engineers portal workflows against their intended roles, including route and capability coverage
 - [ ] P1: Fleet workflow — expose manager onboarding and assignment of drivers, then provide an assigned-driver worklist for vehicle checks, incident/claim submission, and repair-status tracking
+- [ ] P1: Insurer workflow — complete insurer sub-role selection, persistence, and direct routing to the appropriate professional workspace
 
 ---
 

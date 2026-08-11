@@ -14,6 +14,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 const ROLES = [
   {
@@ -127,11 +128,12 @@ export default function InsurerRoleSelection() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Auto-redirect users who already have an insurerRole to their own portal.
-  // This prevents the role-selection page from being used as a portal-switching
-  // mechanism by non-admin users.
+  // The insurer account identifies the organisation. insurerRole is the
+  // operational role assigned by its insurer administrator. Platform
+  // administrators retain their audited override for system testing.
   const isAdmin = user?.role === "admin" || user?.role === "platform_super_admin";
   const userInsurerRole = user?.insurerRole ?? null;
+  const needsRoleAssignment = user?.role === "insurer" && !userInsurerRole;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
@@ -146,9 +148,9 @@ export default function InsurerRoleSelection() {
                 <p className="text-sm text-muted-foreground">Insurer Portal</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/insurer-portal")}>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Portal Hub
+              Back to Landing Page
             </Button>
           </div>
         </div>
@@ -167,13 +169,24 @@ export default function InsurerRoleSelection() {
             </p>
           </div>
 
+          {needsRoleAssignment && (
+            <div className="mb-8 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950">
+              <h3 className="font-semibold">Your insurer workspace role is not assigned yet</h3>
+              <p className="mt-1 text-sm">
+                An Insurer Administrator must assign your operational role before you can enter a
+                claims, risk, recovery, or executive workspace. This prevents access from being
+                determined only by the organisation-level insurer account.
+              </p>
+            </div>
+          )}
+
           {/* Role Cards */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {ROLES.map((role) => {
               const Icon = role.icon;
-              // Non-admin users can only navigate to their own role's portal.
-              // Other role cards are shown in a disabled/locked state.
-              const isOwnRole = isAdmin || !userInsurerRole || role.id === userInsurerRole;
+              // Non-admin users can only navigate to their assigned insurer
+              // role. An unassigned insurer account has no operational access.
+              const isOwnRole = isAdmin || role.id === userInsurerRole;
               return (
                 <Card
                   key={role.id}

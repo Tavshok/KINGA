@@ -87,4 +87,16 @@ describe("portal conformance regressions", () => {
     expect(portalSelection).toContain("const [, setLocation] = useLocation()");
     expect(portalSelection).toContain('<KingaLogo size="md"');
   });
+
+  it("treats insurerRole as the operational access role and routes it directly after login", () => {
+    const selection = readClient("pages/InsurerRoleSelection.tsx");
+    const login = readClient("pages/Login.tsx");
+
+    expect(selection).toContain('import { useAuth } from "@/_core/hooks/useAuth"');
+    expect(selection).toContain("const needsRoleAssignment = user?.role === \"insurer\" && !userInsurerRole");
+    expect(selection).toContain("const isOwnRole = isAdmin || role.id === userInsurerRole");
+    expect(selection).not.toContain("isAdmin || !userInsurerRole || role.id === userInsurerRole");
+    expect(login).toContain("getDashboardPath(user.role, user.insurerRole)");
+    expect(login).toContain('if (userRole === "insurer") return getRoleDashboardPath(userRole, insurerRole)');
+  });
 });

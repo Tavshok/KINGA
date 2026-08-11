@@ -7,6 +7,7 @@ import KingaLogo from "@/components/KingaLogo";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { getRoleDashboardPath } from "@/lib/roleRouting";
 
 export default function Login() {
   const { user, loading, isAuthenticated, logout } = useAuth();
@@ -30,32 +31,24 @@ export default function Login() {
   
   const roleLabel = roleParam ? roleLabels[roleParam] || 'KINGA Portal' : 'KINGA Portal';
 
-  // IMPORTANT: Every role in the DB enum must be listed here.
-  // Missing roles fall through to /insurer-portal. Portal hub is no longer used in post-login flow.
-  const getDashboardPath = (userRole: string) => {
+  // Insurer accounts use the shared sub-role map. The remaining destinations
+  // preserve KINGA's established direct portal routes.
+  const getDashboardPath = (userRole: string, insurerRole?: string | null) => {
+    if (userRole === "insurer") return getRoleDashboardPath(userRole, insurerRole);
+
     switch (userRole) {
-      case "insurer":
-      case "admin":
-        return "/insurer-portal";
-      case "assessor":
-        return "/assessor/dashboard";
-      case "panel_beater":
-        return "/panel-beater/dashboard";
+      case "admin": return "/admin/dashboard";
+      case "assessor": return "/assessor/dashboard";
+      case "panel_beater": return "/panel-beater/dashboard";
       case "fleet_manager":
-      case "fleet_admin":
-      case "fleet_driver":
-        return "/fleet";
-      case "agency":
-        return "/agency";
-      case "engineer":
-        return "/engineer/dashboard";
+      case "fleet_admin": return "/fleet";
+      case "fleet_driver": return "/fleet/driver";
+      case "agency": return "/agency";
+      case "engineer": return "/engineer/dashboard";
       case "claimant":
-      case "user":
-        return "/client";
-      case "platform_super_admin":
-        return "/platform/overview";
-      default:
-        return "/insurer-portal";
+      case "user": return "/client";
+      case "platform_super_admin": return "/platform/overview";
+      default: return "/";
     }
   };
 
@@ -66,7 +59,7 @@ export default function Login() {
 
   const handleContinueToDashboard = () => {
     if (user) {
-      setLocation(getDashboardPath(user.role));
+      setLocation(getDashboardPath(user.role, user.insurerRole));
     }
   };
 
@@ -75,7 +68,7 @@ export default function Login() {
   useEffect(() => {
     if (isAuthenticated && user && !loading) {
       // Check if there's a stored returnPath from before the OAuth redirect
-      let destination = getDashboardPath(user.role);
+      let destination = getDashboardPath(user.role, user.insurerRole);
       try {
         const stored = localStorage.getItem(RETURN_PATH_STORAGE_KEY);
         if (stored && stored.startsWith("/") && stored !== "/login") {
