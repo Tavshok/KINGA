@@ -147,6 +147,7 @@
 - [x] Evidence governance foundation: introduce controlled evidence statuses (Verified, Reconstructed, Documented Revision, Scope Difference, Extraction Defect, Evidence Gap, Pricing Variance Review Signal, Unresolved) and mandatory provenance for material monetary figures and intelligence findings; make L2 eligibility depend on equivalent verified scope, without manufacturing certainty or converting a review signal into a decision.
 - [x] Approved evidence-governance implementation: persist document-backed monetary evidence, source-to-ledger reconciliation findings, and controlled evidence statuses; require verified-equivalent scope for L2 eligibility; present a report evidence register, reconciliation matrix, variance review signals, and decision boundary without asserting fraud, inflation, or unsupported settlement values.
 - [ ] Evidence-governance follow-up: persist page-and-row source provenance at every quote-submission and supplementary/requote write path, then reconstruct verified equivalent source rows for historic claim 12909902 before any L2 can be republished.
+- [ ] Progressive L2 intelligence: replace binary L2 availability with always-running evidence-qualified analysis; show verified comparable portions, partial comparisons, evidence coverage, scope differences, source discrepancies, pricing-variance review signals, and decision boundaries while gating only unsupported final totals, savings, and settlement recommendations.
 
 ---
 

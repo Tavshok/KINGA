@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-The evidence-governance foundation is now live. Its report register accurately records the primary quotation totals, their original document pages, and the source-to-ledger discrepancies. It deliberately does **not** republish an L2 comparison because the historic structured line ledger does not faithfully retain the primary quote evidence.
+The evidence-governance foundation is now live. Its report register accurately records the primary quotation totals, their original document pages, and the source-to-ledger discrepancies. **L2 will continue to run throughout reconciliation.** Where historic structured rows are not yet reliable enough for a complete financial conclusion, KINGA will present evidence-qualified comparison intelligence rather than hide the analysis or manufacture a total.
 
 This controlled package reconstructs source rows from the original quotation pages into the additive `quote_evidence_ledger`. It does not alter any submitted quotation header, quote line item, repairer record, cost model, payment, settlement, or claim decision.
 
@@ -31,11 +31,29 @@ The implementation must not change `panel_beater_quotes`, `quote_line_items`, `a
 
 No benchmark may replace a submitted source amount. A benchmark may only be presented beside a verified equivalent source row as comparative intelligence.
 
-## 5. L2 Eligibility Rules After Reconstruction
+## 5. Progressive L2 Evidence-Reconciliation Model
 
-L2 remains withheld unless every selected component has an equivalent, **Verified** source row. Equivalence requires the same component or operation, repair scope, tax basis, revision state, unit/quantity basis where applicable, and source traceability. An incomplete or unresolved source row prevents only the affected comparison from being published; it does not stop the claim assessment.
+L2 has two responsibilities: first, compare the quotation evidence that is available; second, identify what may safely be concluded from it. It must never convert an evidence limitation into a fabricated price, but an evidence limitation must not disable the intelligence function.
 
-## 6. Acceptance Evidence
+| L2 output | When it may be presented | Financial meaning |
+|---|---|---|
+| **Verified L2 comparable amount** | Equivalent, **Verified** source rows exist for the selected components. Equivalence requires the same component or operation, repair scope, tax basis, revision state, unit/quantity basis where applicable, and source traceability. | A transparent subtotal of verified comparable submitted prices. It is not represented as the full payable repair cost unless complete evidence supports that conclusion. |
+| **Evidence-qualified L2 intelligence** | Some rows are comparable while others are reconstructed, have a scope difference, a source-to-ledger discrepancy, an evidence gap, or an unresolved tax/price basis. | Shows comparison rows, source differences, missing evidence, and pricing-variance review signals. It does not create an unsupported total, saving, or settlement recommendation. |
+| **Verified full L2 decision** | Equivalent verified source rows cover the complete intended comparison on a consistent all-in basis. | KINGA may publish a final optimised submitted-quote comparison, and only then evaluate a savings or settlement recommendation. |
+
+The report will show **L2 Evidence Coverage** as a transparent count of verified comparable rows over all relevant comparison rows, together with named counts for scope differences, source discrepancies, evidence gaps, and unresolved rows. It may separately show an exact **unresolved quoted value** where the source contains a price but its scope or basis cannot be compared; that value is excluded from every verified subtotal and decision figure.
+
+## 6. Report Presentation
+
+The Claims Ledger, Claims Intelligence, and Forensic reports will present an **L2 Evidence Reconciliation** matrix with the component or operation, each submitted quote value, selected submitted value where comparable, benchmark range and variance where available, source repairer/document/page/row, controlled evidence status, and a neutral explanation. The report will distinguish the following statements:
+
+* **“Comparison available — qualification required”** when L2 has useful evidence-qualified intelligence but not a complete decision basis.
+* **“Verified comparable amount”** for a subtotal supported by equivalent verified rows, labelled explicitly as a comparison subtotal rather than a payable repair total when coverage is partial.
+* **“Evidence reconciliation required for final total, savings, and settlement recommendation”** only for those financial conclusions that inherently require complete equivalent evidence.
+
+Pricing variance is a review signal, not a fraud finding. A missing labour breakdown, VAT treatment, revision, or component source becomes a named L2 finding; it does not suppress all other verified comparisons and does not block the claim assessment.
+
+## 7. Acceptance Evidence
 
 | Check | Required outcome |
 |---|---|
@@ -44,11 +62,11 @@ L2 remains withheld unless every selected component has an equivalent, **Verifie
 | Tax treatment | VAT is retained only where explicitly stated; no VAT is allocated to a component by KINGA. |
 | Quote immutability | Original `panel_beater_quotes` and `quote_line_items` values are unchanged. |
 | Status accuracy | Each row is Verified, Reconstructed, Extraction Defect, Evidence Gap, or Unresolved according to the evidence actually available. |
-| L2 safety | L2, savings, and settlement remain withheld until equivalent verified source rows cover the relevant comparison. |
-| Report presentation | CL, CI, and FR display the evidence register, reconciliation findings, neutral review boundary, and no unsupported cost conclusion. |
+| Progressive L2 | L2 runs for all source states and shows verified comparisons, evidence-qualified findings, coverage, and exact unresolved values without fabricating a total. |
+| Financial decision boundary | Only an unsupported final total, saving, or settlement recommendation is qualified; verified component comparisons remain visible. |
+| Report presentation | CL, CI, and FR display the L2 Evidence Reconciliation matrix, evidence coverage, source register, reconciliation findings, neutral review boundary, and no unsupported financial conclusion. |
 | Regression and build | Focused evidence/L2/report tests and bundled server/Vite production builds pass. |
 
-## 7. Deliberate Limits
+## 8. Deliberate Limits
 
 This package is a historic source-evidence reconstruction for one claim. It does not backfill every historic claim and does not turn an extraction defect into a quote-inflation or fraud conclusion. Any broader historical programme will require a separate controlled work notice and claim-by-claim approval criteria.
-
