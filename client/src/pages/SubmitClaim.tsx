@@ -26,8 +26,11 @@ type IncidentType = "collision" | "theft" | "hail" | "fire" | "vandalism" | "flo
 
 interface SupportingDoc {
   type: string;
+  key: string;
   url: string;
   fileName: string;
+  fileSize: number;
+  mimeType: string;
 }
 
 const LODGER_LABELS: Record<LodgerType, string> = {
@@ -78,6 +81,7 @@ export default function SubmitClaim() {
   const [claimantDepartment, setClaimantDepartment] = useState("");
   const [fleetAccountId, setFleetAccountId] = useState<number | null>(null);
   const [linkingCompany, setLinkingCompany] = useState(false);
+  const [submissionKey] = useState(() => crypto.randomUUID());
 
   // Form state - comprehensive
   const [formData, setFormData] = useState({
@@ -142,7 +146,7 @@ export default function SubmitClaim() {
     witnessPhone: "",
 
     // Photos & docs
-    damagePhotos: [] as string[],
+    damagePhotos: [] as Array<{ key: string; url: string; fileName: string; fileSize: number; mimeType: string }>,
     supportingDocuments: [] as SupportingDoc[],
     // Structured 3-choice panel beater selection (marketplace_profile UUIDs)
     panelBeaterChoice1: "",
@@ -273,7 +277,7 @@ export default function SubmitClaim() {
           if (extracted.rawDocumentUrl) {
             updated.supportingDocuments = [
               ...prev.supportingDocuments,
-              { type: extracted.documentType, url: extracted.rawDocumentUrl, fileName: file.name }
+              { type: extracted.documentType, key: extracted.rawDocumentKey, url: extracted.rawDocumentUrl, fileName: file.name, fileSize: file.size, mimeType: file.type }
             ];
           }
 
@@ -311,7 +315,7 @@ export default function SubmitClaim() {
 
     setUploading(true);
     try {
-      const uploadedUrls: string[] = [];
+      const uploadedPhotos: Array<{ key: string; url: string; fileName: string; fileSize: number; mimeType: string }> = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const reader = new FileReader();
@@ -326,11 +330,11 @@ export default function SubmitClaim() {
           fileData,
           contentType: file.type,
         });
-        uploadedUrls.push(result.url);
+        uploadedPhotos.push({ key: result.key, url: result.url, fileName: file.name, fileSize: file.size, mimeType: file.type });
       }
       setFormData(prev => ({
         ...prev,
-        damagePhotos: [...prev.damagePhotos, ...uploadedUrls],
+        damagePhotos: [...prev.damagePhotos, ...uploadedPhotos],
       }));
       toast.success(`${files.length} photo(s) uploaded`);
     } catch {
@@ -364,7 +368,7 @@ export default function SubmitClaim() {
 
         setFormData(prev => ({
           ...prev,
-          supportingDocuments: [...prev.supportingDocuments, { type: docType, url: result.url, fileName: file.name }],
+          supportingDocuments: [...prev.supportingDocuments, { type: docType, key: result.key, url: result.url, fileName: file.name, fileSize: file.size, mimeType: file.type }],
         }));
       }
       toast.success("Document uploaded");
@@ -382,11 +386,8 @@ export default function SubmitClaim() {
       let next: string[];
       if (current.includes(id)) {
         next = current.filter(pbId => pbId !== id);
-      } else if (current.length < 3) {
-        next = [...current, id];
       } else {
-        toast.error("You can only select up to 3 panel beaters");
-        return prev;
+        next = [...current, id];
       }
       return {
         ...prev,
@@ -441,16 +442,6 @@ export default function SubmitClaim() {
       toast.error("Please upload at least one damage photo");
       return;
     }
-    if (formData.selectedPanelBeaterIds.length !== 3) {
-      toast.error("Please select exactly 3 panel beaters");
-      return;
-    }
-    // Client-side duplicate guard (server also validates)
-    const uniqueChoices = new Set(formData.selectedPanelBeaterIds);
-    if (uniqueChoices.size !== 3) {
-      toast.error("All three panel beater selections must be different. Please choose 3 distinct repairers.");
-      return;
-    }
     if (!formData.vehicleMake || !formData.vehicleModel || !formData.vehicleRegistration) {
       toast.error("Please fill in all required vehicle information");
       return;
@@ -470,6 +461,8 @@ export default function SubmitClaim() {
     setMileageError(null);
 
     submitClaim.mutate({
+      idempotencyKey: submissionKey,
+      channel: "claimant_portal",
       vehicleMake: formData.vehicleMake,
       vehicleModel: formData.vehicleModel,
       vehicleYear: formData.vehicleYear,
@@ -479,11 +472,10 @@ export default function SubmitClaim() {
       incidentLocation: formData.incidentLocation,
       policyNumber: formData.policyNumber,
       damagePhotos: formData.damagePhotos,
+      supportingDocuments: formData.supportingDocuments.map((document) => ({ ...document, type: ["repair_quote", "invoice", "police_report", "medical_report", "insurance_policy", "correspondence"].includes(document.type) ? document.type as "repair_quote" | "invoice" | "police_report" | "medical_report" | "insurance_policy" | "correspondence" : "other" })),
       vehicleMileage: formData.vehicleMileage.trim() || undefined,
       currencyCode: formData.currencyCode as "USD" | "ZWG" | "ZWL" | "ZAR" | "ZMW" | "BWP" | "NAD" | "MZN" | "MWK" | "TZS" | "KES" | "UGX" | "GBP" | "EUR",
-      panelBeaterChoice1: formData.panelBeaterChoice1,
-      panelBeaterChoice2: formData.panelBeaterChoice2,
-      panelBeaterChoice3: formData.panelBeaterChoice3,
+      repairerPreferences: formData.selectedPanelBeaterIds,
       claimantType: claimantType,
       companyName: claimantType === "company" ? companyName.trim() || undefined : undefined,
       companyRegistration: claimantType === "company" ? companyRegistration.trim() || undefined : undefined,
@@ -1326,9 +1318,9 @@ export default function SubmitClaim() {
                 <div className="space-y-2">
                   <p className="text-sm font-medium">{formData.damagePhotos.length} photo(s) uploaded</p>
                   <div className="grid grid-cols-4 gap-2">
-                    {formData.damagePhotos.map((url, index) => (
+                    {formData.damagePhotos.map((photo, index) => (
                       <div key={index} className="relative aspect-square bg-muted rounded-lg overflow-hidden group">
-                        <img src={url} alt={`Damage ${index + 1}`} className="w-full h-full object-cover" />
+                        <img src={photo.url} alt={`Damage ${index + 1}`} className="w-full h-full object-cover" />
                         <button
                           type="button"
                           onClick={() => removePhoto(index)}
@@ -1463,8 +1455,8 @@ export default function SubmitClaim() {
                 ))}
               </div>
               <p className="text-sm text-muted-foreground mt-4">
-                Selected: <span className={formData.selectedPanelBeaterIds.length === 3 ? "text-emerald-600 font-medium" : ""}>
-                  {formData.selectedPanelBeaterIds.length} / 3
+                Selected: <span className={formData.selectedPanelBeaterIds.length > 0 ? "text-emerald-600 font-medium" : ""}>
+                  {formData.selectedPanelBeaterIds.length}
                 </span>
               </p>
             </CardContent>

@@ -76,6 +76,7 @@ export interface ExtractedClaimFormData {
   documentType: string; // "claim_form", "accident_report", "police_report", "registration_book", "licence_disc", etc.
   extractionNotes: string[];
   rawDocumentUrl: string;
+  rawDocumentKey: string;
   uploadedDocumentTypes: string[]; // Track which document types were uploaded
 }
 
@@ -305,5 +306,6 @@ For phone numbers, normalize to international format with country code if availa
   return {
     ...extracted,
     rawDocumentUrl: documentUrl,
+    rawDocumentKey: fileKey,
   };
 }

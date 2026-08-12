@@ -50,6 +50,7 @@ import { exportClaimPDF } from "../claim-pdf-export";
 import { logger } from "../logger";
 import { nanoid } from "nanoid";
 import { isAdminRole } from "@shared/role-permissions";
+import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment } from "../services/canonicalClaimIntake";
 
 export const claimsRouter = router({
   /**
@@ -282,7 +283,10 @@ export const claimsRouter = router({
       incidentDate: z.string(), // ISO date string
       incidentDescription: z.string(),
       incidentLocation: z.string(),
-      damagePhotos: z.array(z.string()), // Array of S3 URLs
+      idempotencyKey: z.string().uuid(),
+      channel: z.enum(["claimant_portal", "web", "mobile_api", "fleet"]).default("claimant_portal"),
+      damagePhotos: z.array(z.object({ key: z.string(), url: z.string().url(), fileName: z.string(), fileSize: z.number().int().nonnegative(), mimeType: z.string() })),
+      supportingDocuments: z.array(z.object({ key: z.string(), url: z.string().url(), fileName: z.string(), fileSize: z.number().int().nonnegative(), mimeType: z.string(), type: z.enum(["repair_quote", "invoice", "police_report", "medical_report", "insurance_policy", "correspondence", "other"]) })).default([]),
       // NOTE: cross-field temporal validation applied via superRefine below
       policyNumber: z.string(),
       /**
@@ -305,9 +309,10 @@ export const claimsRouter = router({
       // Structured 3-choice panel beater selection — all must be insurer-approved
       /** ISO 4217 currency code for repair quotes and damage costs. Defaults to USD. */
       currencyCode: z.enum(["USD","ZWG","ZWL","ZAR","ZMW","BWP","NAD","MZN","MWK","TZS","KES","UGX","GBP","EUR"]).optional(),
-      panelBeaterChoice1: z.string().uuid(),
-      panelBeaterChoice2: z.string().uuid(),
-      panelBeaterChoice3: z.string().uuid(),
+      repairerPreferences: z.array(z.string().uuid()).default([]),
+      panelBeaterChoice1: z.string().uuid().optional(),
+      panelBeaterChoice2: z.string().uuid().optional(),
+      panelBeaterChoice3: z.string().uuid().optional(),
       // Company / fleet claim fields
       claimantType: z.enum(["individual", "company"]).optional().default("individual"),
       companyName: z.string().optional(),
@@ -337,6 +342,17 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
+
+      const tenantId = ctx.user.tenantId ?? "";
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Unable to determine your insurer tenant." });
+      const result = await persistCanonicalClaimIntake({ id: ctx.user.id, tenantId, role: ctx.user.role }, {
+        idempotencyKey: input.idempotencyKey, channel: input.channel, vehicleMake: input.vehicleMake, vehicleModel: input.vehicleModel, vehicleYear: input.vehicleYear, vehicleRegistration: input.vehicleRegistration,
+        incidentDate: input.incidentDate, incidentLocation: input.incidentLocation, incidentDescription: input.incidentDescription, policyNumber: input.policyNumber, vehicleMileage: input.vehicleMileage, currencyCode: input.currencyCode,
+        attachments: [...input.damagePhotos.map((photo) => ({ ...photo, category: "damage_photo" as const })), ...input.supportingDocuments.map((document) => ({ key: document.key, url: document.url, fileName: document.fileName, fileSize: document.fileSize, mimeType: document.mimeType, category: document.type }))],
+        repairerPreferences: input.repairerPreferences, claimantType: input.claimantType, companyName: input.companyName, companyRegistration: input.companyRegistration, claimantDepartment: input.claimantDepartment, fleetAccountId: input.fleetAccountId,
+      });
+      await startCanonicalIntakeAssessment({ id: ctx.user.id, tenantId, role: ctx.user.role }, result.claimId, input.idempotencyKey);
+      return { success: true, claimId: result.claimId, claimNumber: result.claimNumber, idempotent: result.idempotent, repairerWarnings: result.repairerWarnings };
 
       // ── Governance validation ─────────────────────────────────────────────
       // 1. No duplicates

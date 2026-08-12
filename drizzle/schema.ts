@@ -657,6 +657,24 @@ export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
 	index("idx_scoring_timestamp").on(table.scoringTimestamp),
 ]);
 
+/** Durable idempotency and recovery state for canonical claimant intake. */
+export const claimIntakeRequests = mysqlTable("claim_intake_requests", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	userId: int("user_id").notNull(),
+	idempotencyKey: varchar("idempotency_key", { length: 64 }).notNull(),
+	requestHash: varchar("request_hash", { length: 64 }).notNull(),
+	channel: varchar("channel", { length: 50 }).notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: "set null", onUpdate: "cascade" }),
+	status: varchar("status", { length: 50 }).notNull().default("persisted"),
+	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+	updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+	uniqueIndex("uq_claim_intake_request_actor").on(table.tenantId, table.userId, table.idempotencyKey),
+	index("idx_claim_intake_request_claim").on(table.claimId),
+	index("idx_claim_intake_request_tenant_status").on(table.tenantId, table.status),
+]);
+
 export const claimDocuments = mysqlTable("claim_documents", {
 	id: int().autoincrement().notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
