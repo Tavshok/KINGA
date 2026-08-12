@@ -16,6 +16,7 @@ import {
   buildKingaFdrHtml, esc, fmtUSD, fmtCurrency, fmtD, safeJson, photoZonePanel,
 } from "./templates/kingaDesignSystem";
 import { resolveReportCostIntegrity } from "./costIntegrity";
+import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import type { CGIAvailabilitySummary } from "../pipeline-v2/stage-9-5-cgi";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -200,10 +201,12 @@ export async function generateForensicDecisionReport(
     const estimatedCost = estimatedCostRawFR > 0 ? estimatedCostRawFR / 100 : 0;
 
     const costIntegrity = resolveReportCostIntegrity(costIntel, quotes as unknown[]);
+    const reportDecision = resolveReportDecisionIntegrity({
+      recommendation: c.recommendation,
+      workflowState: c.workflow_state,
+      costIntegrity,
+    });
     const quoteArr = costIntegrity.activeQuotes;
-    const quoteAmounts = quoteArr.map(q => q.amountUsd ?? 0).filter(amount => amount > 0);
-    const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
-    const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
 
     // Bug #8: derive currency from cost intel or quotes (not hardcoded USD)
     const claimCurrency: string = String(
@@ -212,6 +215,12 @@ export async function generateForensicDecisionReport(
       (c.currency_code as string | null | undefined) ??
       "USD"
     ).toUpperCase();
+    const submittedQuoteLedgerDetail = quoteArr.length > 0
+      ? quoteArr.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtCurrency(quote.amountUsd, claimCurrency)}`).join(" · ")
+      : "No submitted repair quotations";
+    const quoteAmounts = quoteArr.map(q => q.amountUsd ?? 0).filter(amount => amount > 0);
+    const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
+    const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
 
     const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
     const l2Display = kingaOptimised === null ? "L2 incomplete" : fmtCurrency(kingaOptimised, claimCurrency);
@@ -421,6 +430,7 @@ export async function generateForensicDecisionReport(
     // instead of the legacy per-field names (damageInconsistency, costDeviation, etc.)
     // which are no longer populated by the weighted fraud engine.
     const catBreak = (fraudBreak as any)?.fraudCategoryBreakdown ?? null;
+    const hasFraudCategoryBreakdown = Boolean(catBreak && Object.values(catBreak).some((value: any) => value?.normScore != null));
     const fbPhysical      = catBreak ? Math.round(Number(catBreak.physical_consistency?.normScore ?? 0)) : Number((fraudBreak as any)?.damageInconsistency ?? 0);
     const fbScenario      = catBreak ? Math.round(Number(catBreak.scenario_intelligence?.normScore ?? 0)) : Number((fraudBreak as any)?.directionMismatch ?? 0);
     const fbFinancial     = catBreak ? Math.round(Number(catBreak.financial_anomaly?.normScore ?? 0)) : Number((fraudBreak as any)?.costDeviation ?? (fraudBreak as any)?.costAnomalyScore ?? 0);
@@ -588,9 +598,9 @@ export async function generateForensicDecisionReport(
     const kingaRef     = esc(c.kinga_reference ?? `KNG-KINGA-${new Date().getFullYear()}-${String(claimId).padStart(6,"0")}-FR`);
 
     // Decision chip
-    const recommendation = String(c.recommendation ?? "review").toLowerCase();
-    const decisionChipCls = recommendation.includes("approve") ? "approve" : recommendation.includes("reject") ? "reject" : "review";
-    const decisionChipLabel = recommendation.includes("approve") ? "✓ APPROVED" : recommendation.includes("reject") ? "✗ REJECTED" : "⚠ REVIEW REQUIRED";
+    const recommendation = reportDecision.status.toLowerCase();
+    const decisionChipCls = reportDecision.chipClass;
+    const decisionChipLabel = `${reportDecision.icon} ${reportDecision.status.replaceAll("_", " ")}`;
 
     // Score cell classes
     function scoreCellCls(score: number, invert = false): string {
@@ -759,7 +769,7 @@ export async function generateForensicDecisionReport(
     </div>
   </div>
   ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout amber" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtCurrency(costIntegrity.assessorCalibrationCostUsd, claimCurrency)}. This prior assessor figure is retained for comparison with KINGA costing; it is not a submitted quote, L2 value, settlement agreement, or payment authority.</div>` : ""}
-  <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">L2 — KINGA all-in recommendation</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
+  <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">Active quote amounts</td><td class="v">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td class="k">Quote scope status</td><td class="v">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">L2 — KINGA all-in recommendation</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
 
   <!-- §01 EXECUTIVE SUMMARY -->
   <div class="section">
@@ -1500,16 +1510,16 @@ export async function generateForensicDecisionReport(
     <div class="cols-2">
       <div class="box">
         <h4>Fraud Score — ${fraudScoreAdjusted}/100 (${fraudScoreAdjusted >= 70 ? "High" : fraudScoreAdjusted >= 40 ? "Moderate" : "Low"})</h4>
-        ${(!catBreak && fbPhysical === 0 && fbScenario === 0 && fbFinancial === 0 && fbDocumentation === 0 && fbEntity === 0 && fbPhoto === 0) ? `
+        ${!hasFraudCategoryBreakdown ? `
         <p class="small" style="color:var(--ink-soft);margin:0 0 8px 0;">Component breakdown not available — the pipeline did not produce category-level fraud scores for this assessment. The headline score of ${fraudScoreAdjusted}/100 is derived from the overall fraud model output.</p>` : ""}
-        <table class="kv">
+        ${hasFraudCategoryBreakdown ? `<table class="kv">
           ${kvRow("Physical consistency", `<span style="color:${fbPhysical >= Math.round(budgetPhysical * 0.5) ? "var(--amber)" : "inherit"}">${fbPhysical}/${budgetPhysical}</span>`)}
           ${kvRow("Scenario intelligence", `<span style="color:${fbScenario >= Math.round(budgetScenario * 0.5) ? "var(--amber)" : "inherit"}">${fbScenario}/${budgetScenario}</span>`)}
           ${kvRow("Financial anomaly", `<span style="color:${fbFinancial >= Math.round(budgetFinancial * 0.5) ? "var(--amber)" : "inherit"}">${fbFinancial}/${budgetFinancial}</span>`)}
           ${kvRow("Documentation integrity", `<span style="color:${fbDocumentation >= Math.round(budgetDocumentation * 0.5) ? "var(--amber)" : "inherit"}">${fbDocumentation}/${budgetDocumentation}</span>`)}
           ${kvRow("Entity intelligence", `<span style="color:${fbEntity >= Math.round(budgetEntity * 0.5) ? "var(--amber)" : "inherit"}">${fbEntity}/${budgetEntity}</span>`)}
           ${kvRow("Photo forensics", `<span style="color:${fbPhoto >= Math.round(budgetPhoto * 0.5) ? "var(--amber)" : "inherit"}">${fbPhoto}/${budgetPhoto}</span>`)}
-        </table>
+        </table>` : ""}
         ${hasImpossibilityFlag ? `<p class="small" style="margin-top:8px;">Score reflects cost-deviation and missing-data indicators only. The impossibility flag at right is scored separately and is not yet reflected in the headline ${fraudScore}/100.</p>` : ""}
       </div>
       <div class="box" style="${hasImpossibilityFlag ? "border-color:var(--red);" : ""}">
@@ -1621,6 +1631,11 @@ export async function generateForensicDecisionReport(
     ${sections.map((sec: any) => {
       const findings: any[] = sec.findings ?? [];
       if (!findings.length) return '';
+      const isCostSection = String(sec.engine ?? '').toUpperCase() === 'COST'
+        || String(sec.engineLabel ?? '').toLowerCase().includes('cost optimisation');
+      if (isCostSection && kingaOptimised === null) {
+        return `<div class="box" style="margin-bottom:12px;"><h4>${esc(sec.engineLabel ?? sec.engine ?? 'Cost Optimisation')}</h4>${co(`<b>L2 repair scope incomplete — cost optimisation unavailable.</b> ${esc(l2IntegrityNote)}`, 'amber')}</div>`;
+      }
       return `<div class="box" style="margin-bottom:12px;"><h4>${esc(sec.engineLabel ?? sec.engine)}</h4><table class="data-table" style="width:100%;font-size:12px;"><thead><tr><th>Finding</th><th>Value</th><th>Status</th><th>Interpretation</th></tr></thead><tbody>${findings.map((f: any) => {
         const cls = f.classification ?? 'NORMAL';
         const rowBg = cls === 'CRITICAL' ? '#fdf0ef' : cls === 'CONCERN' ? '#fef9ec' : cls === 'ATTENTION' ? '#fffbf0' : '';

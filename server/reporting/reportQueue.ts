@@ -4,11 +4,13 @@
  * P0 Package 1: every read or mutation of a job requires a tenant/object scope.
  */
 import { v4 as uuidv4 } from "uuid";
+import { createHash } from "crypto";
 import mysql from "mysql2/promise";
 import { renderAndUpload } from "./pdfRenderer";
 import { generateReportHtml } from "./reportDefinitions";
 
 const DB_URL = process.env.DATABASE_URL!;
+const REPORT_GENERATOR_VERSION = "R0-20260812";
 
 async function getConn() {
   return mysql.createConnection(DB_URL);
@@ -71,6 +73,29 @@ async function processJob(jobId: string, opts: EnqueueOptions): Promise<void> {
   const now = Date.now();
   try {
     await conn.execute("UPDATE report_jobs SET status='running', started_at=?, updated_at=? WHERE job_id=?", [now, now, jobId]);
+    const parameters = opts.parameters ?? {};
+    const claimIdCandidate = parameters.claimId ?? parameters.claim_id;
+    const claimId = Number.isInteger(Number(claimIdCandidate)) && Number(claimIdCandidate) > 0
+      ? Number(claimIdCandidate)
+      : null;
+    const inputSnapshot = {
+      reportKey: opts.reportKey,
+      tenantId: opts.tenantId,
+      claimId,
+      parameters,
+      requestedByUserId: opts.requestedByUserId,
+      outputFormat: opts.outputFormat ?? "pdf",
+      generatorVersion: REPORT_GENERATOR_VERSION,
+      generatedAt: now,
+    };
+    const inputHash = createHash("sha256").update(JSON.stringify(inputSnapshot)).digest("hex");
+    await conn.execute(
+      `INSERT INTO report_provenance_snapshots
+        (job_id, report_key, tenant_id, claim_id, generator_version, input_hash, input_snapshot, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE input_hash=VALUES(input_hash), input_snapshot=VALUES(input_snapshot), generator_version=VALUES(generator_version)`,
+      [jobId, opts.reportKey, opts.tenantId, claimId, REPORT_GENERATOR_VERSION, inputHash, JSON.stringify(inputSnapshot), now]
+    );
     const html = await generateReportHtml(opts.reportKey, opts.parameters ?? {}, opts.tenantId);
     const s3Prefix = `reports/${opts.tenantId}/${opts.reportKey}/${jobId}`;
     const { s3Key, pageCount, fileSizeBytes } = await renderAndUpload(html, s3Prefix);

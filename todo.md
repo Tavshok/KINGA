@@ -116,16 +116,18 @@
 - [ ] P0 Package 5-E: remove all active 5% and 10% commission placeholders; use an auditable configured commercial source or explicit commission-unavailable state that blocks financial finalisation
 - [ ] P0 Package 5-F: prove configured/unconfigured commission consistency across UI, calculation, persistence, audit, and report; retain monetary precision conventions
 - [ ] P0 Package 5-G: execute the two-agency, fleet relationship, foreign RFQ/sibling, invalid transition, instruction, action-parity, Package 1, and browser acceptance matrix
-- [ ] Critical report integrity R0-A: reconcile supplied CL, CI, and FR outputs for DOC-20260802-AE62B9CF before any report or L2 remediation
-- [ ] Critical report integrity R0-B: trace L2 component coverage, document lineage, pipeline run provenance, valuation, fraud, physics, photo, and decision sources for the supplied claim
-- [ ] Critical report integrity R0-C: produce a single source-of-truth remediation plan for cross-report contradictions, data provenance, L2 completeness, and rendering defects
-- [ ] R0-A: persist typed canonical L2 completeness, component scope, cost basis, partial scope, and quote-ledger version for every Stage 9 result
-- [ ] R0-B: distinguish submitted quote receipt from itemised repair-scope completeness in all report contracts
-- [ ] R0-C: implement one report-safe decision and hold contract shared by CL, CI, and FR
-- [ ] R0-D: quarantine base expected-repair estimates from L2, savings, settlement, and optimisation display paths
-- [ ] R0-E: correct shared typed physics, fraud-unavailable, photo-count, and coverage rendering contracts
-- [ ] R0-F: persist immutable report input, generator, and provenance snapshots for every delivered output
+- [x] Critical report integrity R0-A: reconcile supplied CL, CI, and FR outputs for DOC-20260802-AE62B9CF before any report or L2 remediation
+- [x] Critical report integrity R0-B: trace L2 component coverage, document lineage, pipeline run provenance, valuation, fraud, physics, photo, and decision sources for the supplied claim
+- [x] Critical report integrity R0-C: produce a single source-of-truth remediation plan for cross-report contradictions, data provenance, L2 completeness, and rendering defects
+- [x] R0-A: persist typed canonical L2 completeness, component scope, cost basis, partial scope, and quote-ledger version for every Stage 9 result
+- [x] R0-B: distinguish submitted quote receipt from itemised repair-scope completeness in all report contracts
+- [x] R0-C: implement one report-safe decision and hold contract shared by CL, CI, and FR
+- [x] R0-D: quarantine base expected-repair estimates from L2, savings, settlement, and optimisation display paths
+- [x] R0-E: correct shared typed physics, fraud-unavailable, photo-count, and coverage rendering contracts
+- [x] R0-F: persist immutable report input, generator, and provenance snapshots for every delivered output
 - [ ] R0-G: implement same-snapshot CL, CI, and FR acceptance fixtures for no-quote, total-only, incomplete, and complete all-in quote sets
+- [ ] R0-H: replace all top-of-report cost strips with the active submitted quote ledger, explicit quote receipt/scope status, and typed L2 state; no base-estimate substitution
+- [ ] R0-I: prove top-of-report UI and PDF views show every active submitted quote, do not show an incomplete L2 as a cost, and suppress savings/settlement under any integrity hold
 - [x] P0 Package 3-H2: add and run an Executive direct numeric claim-ID test proving a foreign object is unavailable even when no tenant override is supplied
 - [x] P0 Package 3-H3: add and run missing-tenant context tests for an ordinary Executive and platform-super-admin Executive detail request
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains

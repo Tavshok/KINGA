@@ -14,6 +14,9 @@ export interface ReportQuoteLedgerRow {
 export interface ReportCostIntegrity {
   activeQuotes: ReportQuoteLedgerRow[];
   sourceQuoteCount: number;
+  quoteReceiptStatus: "no_quotes" | "quotes_received";
+  quoteScopeStatus: "complete" | "incomplete_scope" | "not_evaluated";
+  l2Status: "complete" | "incomplete_scope" | "unavailable";
   duplicateQuotesExcluded: number;
   supersededQuotesExcluded: number;
   l1SubmittedCostUsd: number | null;
@@ -78,9 +81,25 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
 
   const complete = composite.isComplete === true;
   const l2 = complete ? finitePositive(composite.l2CompositeOptimisedCostUsd) : null;
+  const sourceQuoteCount = Number(composite.sourceQuotesReceived ?? rawLedger.length ?? dbQuotes.length) || dbQuotes.length;
+  const quoteReceiptStatus = sourceQuoteCount > 0 ? "quotes_received" : "no_quotes";
+  const inferredScopeStatus = quoteReceiptStatus === "no_quotes"
+    ? "not_evaluated"
+    : complete ? "complete" : "incomplete_scope";
+  const persistedScopeStatus = composite.quoteScopeStatus;
+  const quoteScopeStatus = persistedScopeStatus === "complete" || persistedScopeStatus === "incomplete_scope"
+    ? persistedScopeStatus
+    : inferredScopeStatus;
+  const persistedL2Status = composite.l2Status;
+  const l2Status = persistedL2Status === "complete" || persistedL2Status === "incomplete_scope"
+    ? persistedL2Status
+    : l2 !== null ? "complete" : quoteReceiptStatus === "quotes_received" ? "incomplete_scope" : "unavailable";
   return {
     activeQuotes,
-    sourceQuoteCount: Number(composite.sourceQuotesReceived ?? rawLedger.length ?? dbQuotes.length) || dbQuotes.length,
+    sourceQuoteCount,
+    quoteReceiptStatus,
+    quoteScopeStatus,
+    l2Status,
     duplicateQuotesExcluded: Number(composite.duplicateQuotesExcluded ?? ledgerRows.filter((row) => row.status === "duplicate").length) || 0,
     supersededQuotesExcluded: Number(composite.supersededQuotesExcluded ?? ledgerRows.filter((row) => row.status === "superseded").length) || 0,
     l1SubmittedCostUsd: finitePositive(composite.l1LowestSubmittedCostUsd)
@@ -89,7 +108,7 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
     l2OptimisedCostUsd: l2,
     l3BenchmarkReferenceCostUsd: finitePositive(composite.l3BenchmarkReferenceCostUsd),
     partialPricedScopeUsd: finitePositive(composite.partialPricedScopeUsd),
-    l2IsComplete: complete && l2 !== null,
+    l2IsComplete: l2Status === "complete" && l2 !== null,
     missingRequiredComponents: Array.isArray(composite.missingRequiredComponents)
       ? composite.missingRequiredComponents.map(String)
       : [],

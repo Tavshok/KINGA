@@ -20,6 +20,7 @@ import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct, safeJson, scoreColour, chip, badge, photoZonePanel,
 } from "./templates/kingaDesignSystem";
 import { resolveReportCostIntegrity } from "./costIntegrity";
+import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 
 const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
@@ -103,7 +104,11 @@ export async function generateClaimsIntelligenceReport(
     // ARCH-02: Parse physics_truth_json (PTL) as primary source; fall back to legacy physics_analysis
     const physicsTruthCI = safeJson(c.physics_truth_json as string) as any;
     const ptCI = physicsTruthCI ?? null;
-    const ptlSpeedCI  = ptCI?.speed?.canonical ?? ptCI?.speed?.deltaVKmh ?? physics?.deltaVKmh ?? physics?.velocityKmh ?? null;
+    const canonicalSpeedCI = ptCI?.speed?.canonical;
+    const canonicalSpeedValueCI = canonicalSpeedCI && typeof canonicalSpeedCI === "object"
+      ? canonicalSpeedCI.value ?? null
+      : canonicalSpeedCI;
+    const ptlSpeedCI  = canonicalSpeedValueCI ?? ptCI?.speed?.deltaVKmh ?? physics?.deltaVKmh ?? physics?.velocityKmh ?? null;
     const ptlConsistencyCI = ptCI?.integrityCheck?.consistencyScore ?? ptCI?.evidenceCompleteness?.dataQualityScore ?? null;
     const ptlConsistencyLabelCI: string = ptlConsistencyCI !== null
       ? (Number(ptlConsistencyCI) >= 80 ? 'consistent' : Number(ptlConsistencyCI) >= 50 ? 'anomaly detected' : 'significant anomaly')
@@ -146,7 +151,15 @@ export async function generateClaimsIntelligenceReport(
 
     // Quote amounts
     const costIntegrity = resolveReportCostIntegrity(costIntel, quotes as unknown[]);
+    const reportDecision = resolveReportDecisionIntegrity({
+      recommendation: c.recommendation,
+      workflowState: c.workflow_state,
+      costIntegrity,
+    });
     const quoteArr = costIntegrity.activeQuotes;
+    const submittedQuoteLedgerDetail = quoteArr.length > 0
+      ? quoteArr.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtUSD(quote.amountUsd)}`).join(" · ")
+      : "No submitted repair quotations";
     const activeQuoteIds = new Set(
       quoteArr.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
     );
@@ -230,12 +243,9 @@ export async function generateClaimsIntelligenceReport(
 
     // ── COVER ────────────────────────────────────────────────────────────────
     // Derived values for masthead decision chip
-    const _recRawCI = String(c.recommendation ?? "review").toLowerCase();
-    const recLabel = _recRawCI.includes("approve") || _recRawCI.includes("accept") ? "APPROVED"
-      : _recRawCI.includes("reject") ? "REJECTED"
-      : "REVIEW REQUIRED";
-    const chipCls = recLabel.includes("APPROVE") || recLabel.includes("ACCEPT") ? "approve" : recLabel.includes("REJECT") ? "reject" : "review";
-    const chipIcon = chipCls === "approve" ? "✓" : chipCls === "reject" ? "✗" : "⚠";
+    const recLabel = reportDecision.status.replaceAll("_", " ");
+    const chipCls = reportDecision.chipClass;
+    const chipIcon = reportDecision.icon;
     // ARCH-01: Use CTL reviewTriggers as canonical source for review context note
     const ctlTriggersCI: string[] = Array.isArray(claimTruthCI?.decision?.reviewTriggers)
       ? (claimTruthCI.decision.reviewTriggers as string[]).slice(0, 3)
@@ -548,7 +558,7 @@ ${(() => {
       ${criticalStructural.length > 0 ? `Note: ${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} (${criticalStructural.map(g => esc(g.component)).join(", ")}) are not included in any submitted quote and must be assessed independently before this figure can be finalised.` : "All major components are included in the submitted quotes."}
     </p>
     ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This historical assessor figure is displayed for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
-    <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">L2 — KINGA all-in recommendation</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
+    <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">Active quote amounts</td><td class="v">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td class="k">Quote scope status</td><td class="v">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">L2 — KINGA all-in recommendation</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
   </div>
 
   ${totalExclusions > 0 || exclusions.length > 0 ? `

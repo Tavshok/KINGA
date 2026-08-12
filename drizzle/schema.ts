@@ -14,6 +14,22 @@ export const accessDenialLog = mysqlTable("access_denial_log", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 });
 
+export const reportProvenanceSnapshots = mysqlTable("report_provenance_snapshots", {
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	jobId: varchar("job_id", { length: 64 }).notNull(),
+	reportKey: varchar("report_key", { length: 100 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	claimId: int("claim_id"),
+	generatorVersion: varchar("generator_version", { length: 100 }).notNull(),
+	inputHash: varchar("input_hash", { length: 64 }).notNull(),
+	inputSnapshot: json("input_snapshot").notNull(),
+	createdAt: bigint("created_at", { mode: "number", unsigned: true }).notNull(),
+}, (table) => [
+	uniqueIndex("report_provenance_snapshots_job_id_uq").on(table.jobId),
+	index("report_provenance_snapshots_tenant_claim_idx").on(table.tenantId, table.claimId),
+	index("report_provenance_snapshots_hash_idx").on(table.inputHash),
+]);
+
 export const agencyDocuments = mysqlTable("agency_documents", {
 	id: int().autoincrement().notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),

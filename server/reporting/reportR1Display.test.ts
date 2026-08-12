@@ -35,4 +35,11 @@ describe("R1 report cost provenance disclosures", () => {
     expect(source).toContain("Settlement Recommendation");
     expect(source).not.toContain("Settlement Agreed");
   });
+
+  it("quarantines legacy Forensic interpretation cost findings while L2 scope is incomplete", () => {
+    const source = readFileSync(reportSources[2], "utf8");
+    expect(source).toContain("const isCostSection");
+    expect(source).toContain("isCostSection && kingaOptimised === null");
+    expect(source).toContain("L2 repair scope incomplete — cost optimisation unavailable.");
+  });
 });

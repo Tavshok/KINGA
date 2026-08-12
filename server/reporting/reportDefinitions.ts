@@ -43,6 +43,7 @@ import { generateVehicleValuationReport } from "./vehicleValuationReport";
 import { generateEngineerInspectionReport } from "./engineerInspectionReport";
 import { generateRiskSurveyReport } from "./riskSurveyReport";
 import { resolveReportCostIntegrity } from "./costIntegrity";
+import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { assessors, fraudIndicators, tenants, users } from "../../drizzle/schema";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct as kFmtPct,
@@ -223,7 +224,11 @@ async function generateClaimAssessmentReport(
     // ARCH-02: Parse physics_truth_json (PTL) as primary source; fall back to legacy physics_analysis
     const physicsTruthCL = safeJson(claim.physics_truth_json) as any;
     const ptCL = physicsTruthCL ?? null;
-    const ptlSpeedCL   = ptCL?.speed?.canonical ?? ptCL?.speed?.deltaVKmh ?? (physics as any)?.deltaVKmh ?? (physics as any)?.velocityKmh ?? null;
+    const canonicalSpeedCL = ptCL?.speed?.canonical;
+    const canonicalSpeedValueCL = canonicalSpeedCL && typeof canonicalSpeedCL === "object"
+      ? canonicalSpeedCL.value ?? null
+      : canonicalSpeedCL;
+    const ptlSpeedCL   = canonicalSpeedValueCL ?? ptCL?.speed?.deltaVKmh ?? (physics as any)?.deltaVKmh ?? (physics as any)?.velocityKmh ?? null;
     const ptlDeltaVCL  = ptCL?.speed?.deltaVKmh ?? (physics as any)?.deltaVKmh ?? null;
     const fraud = safeJson(claim.fraud_score_breakdown_json);
     const costIntel = safeJson(claim.cost_intelligence_json);
@@ -330,6 +335,11 @@ async function generateClaimAssessmentReport(
     const estimatedCostRaw = Number(claim.estimated_cost ?? 0);
     const estimatedCost = estimatedCostRaw > 0 ? estimatedCostRaw / 100 : 0;
     const costIntegrity = resolveReportCostIntegrity(costIntel, quoteRows as unknown[]);
+    const reportDecision = resolveReportDecisionIntegrity({
+      recommendation: claim.recommendation,
+      workflowState: claim.workflow_state ?? claim.status,
+      costIntegrity,
+    });
     const activeQuoteIds = new Set(
       costIntegrity.activeQuotes.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
     );
@@ -337,6 +347,9 @@ async function generateClaimAssessmentReport(
       ? quoteRows.filter((quote) => activeQuoteIds.has(String(quote.id)))
       : quoteRows;
     const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
+    const submittedQuoteLedgerDetail = costIntegrity.activeQuotes.length > 0
+      ? costIntegrity.activeQuotes.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtUSD(quote.amountUsd)}`).join(" · ")
+      : "No submitted repair quotations";
     const l2Display = kingaOptimised === null ? "L2 incomplete" : fmtUSD(kingaOptimised);
     const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l1SubmittedCostUsd);
     const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l3BenchmarkReferenceCostUsd);
@@ -378,12 +391,9 @@ async function generateClaimAssessmentReport(
     const claimRef2 = esc(String(claim.claim_reference ?? claim.id));
     const genDate2 = new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
     const insurer2 = esc(String(claim.insurer_name ?? "—"));
-    const _recRaw = String(claim.recommendation ?? "review").toLowerCase();
-    const decisionLabel = _recRaw.includes("approve") || _recRaw.includes("accept") ? "APPROVED"
-      : _recRaw.includes("reject") ? "REJECTED"
-      : "REVIEW REQUIRED";
-    const decisionChipCls2 = decisionLabel.includes("APPROVE") || decisionLabel.includes("ACCEPT") ? "approve" : decisionLabel.includes("REJECT") ? "reject" : "review";
-    const decisionIcon2 = decisionChipCls2 === "approve" ? "✓" : decisionChipCls2 === "reject" ? "✗" : "⚠";
+    const decisionLabel = reportDecision.status.replaceAll("_", " ");
+    const decisionChipCls2 = reportDecision.chipClass;
+    const decisionIcon2 = reportDecision.icon;
     // ARCH-04: Generate a stable machine-readable report reference for the CL tier.
     // Uses claim submission date (not today) so re-generation produces the same ref.
     const clSubmittedAt = claim.created_at ? new Date(String(claim.created_at)) : new Date();
@@ -668,7 +678,7 @@ ${totalPhotosCL > 0 ? `
     ? `<p style="font-size:10px;color:#4a4a4a;margin-top:8px;">KINGA Optimised recommendation: <strong>${l2Display}</strong> — all-in L2 composite pricing across ${compositeLineItemsCL.length} priced rows. ${esc(l2IntegrityNote)}</p>`
     : `<div style="margin-top:8px;padding:6px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#7a4c00;"><b>Cost recommendation withheld.</b> ${esc(l2IntegrityNote)}</div>`}
   ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div style="margin-top:8px;padding:6px 10px;background:#f5f5f5;border-left:3px solid #8a8a8a;font-size:10px;color:#4a4a4a;"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This prior assessor figure is retained for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
-  <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px"><tr style="background:#f5f5f5"><td style="padding:4px 6px;font-weight:600">Submitted quotation ledger</td><td style="padding:4px 6px">${activeQuoteRows.length} active quote${activeQuoteRows.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td><td style="padding:4px 6px;font-weight:600">L1 — lowest active submitted quote</td><td style="padding:4px 6px">${l1Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">L2 — KINGA all-in recommendation</td><td style="padding:4px 6px">${l2Display}</td><td style="padding:4px 6px;font-weight:600">L3 — benchmark reference</td><td style="padding:4px 6px">${l3Display}</td></tr></table>
+  <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px"><tr style="background:#f5f5f5"><td style="padding:4px 6px;font-weight:600">Submitted quotation ledger</td><td style="padding:4px 6px">${activeQuoteRows.length} active quote${activeQuoteRows.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td><td style="padding:4px 6px;font-weight:600">L1 — lowest active submitted quote</td><td style="padding:4px 6px">${l1Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">Active quote amounts</td><td colspan="3" style="padding:4px 6px">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td style="padding:4px 6px;font-weight:600">Quote scope status</td><td style="padding:4px 6px">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td><td style="padding:4px 6px;font-weight:600">L2 — KINGA all-in recommendation</td><td style="padding:4px 6px">${l2Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">L3 — benchmark reference</td><td colspan="3" style="padding:4px 6px">${l3Display}</td></tr></table>
   ${activeQuoteRows.length > 0 ? (() => {
     // Build a union of all line item descriptions across all quotes
     const allDescs = new Set<string>();

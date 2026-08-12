@@ -1909,6 +1909,9 @@ export async function runCostOptimisationStage(
 
             // Attach composite result to output
             (output as any).compositeOptimisation = {
+              l2Status: compositeResult.isComplete ? "complete" : "incomplete_scope",
+              quoteReceiptStatus: canonicalQuoteLedger.activeQuoteCount > 0 ? "quotes_received" : "no_quotes",
+              quoteScopeStatus: compositeResult.isComplete ? "complete" : "incomplete_scope",
               l1SubmittedCostUsd: l1TotalUsd,
               l2CompositeOptimisedCostUsd: compositeResult.compositeOptimisedCostUsd,
               partialPricedScopeUsd: compositeResult.partialPricedScopeUsd,

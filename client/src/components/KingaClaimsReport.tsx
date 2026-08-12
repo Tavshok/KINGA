@@ -908,7 +908,9 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               const compOpt = (ci as any)?.compositeOptimisation ?? null;
               const compositeLineItems: any[] = compOpt?.compositeLineItems ?? [];
               const l1 = compOpt?.l1LowestSubmittedCostUsd ?? compOpt?.l1SubmittedCostUsd ?? null;
-              const l2 = compOpt?.l2CompositeOptimisedCostUsd ?? null;
+              const l2 = compOpt?.isComplete === true
+                ? compOpt?.l2CompositeOptimisedCostUsd ?? null
+                : null;
               const nfs = compOpt?.negotiationFeasibilityScore ?? null;
               const qndFlags: any[] = compOpt?.quotedNotDamaged ?? [];
               const dnqFlags: any[] = compOpt?.damagedNotQuoted ?? [];
@@ -938,20 +940,31 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 ? buildRowsFromComposite(compositeLineItems, matrixQuotes)
                 : buildRowsFromLineItems(matrixQuotes);
 
+              const quoteScopeState = quotes.length === 0
+                ? "No submitted quotations"
+                : l2 === null
+                  ? `${quotes.length} submitted quotation${quotes.length === 1 ? "" : "s"}; itemised repair scope incomplete — L2 withheld`
+                  : `${quotes.length} submitted quotation${quotes.length === 1 ? "" : "s"}; all-in repair scope complete`;
+
               return (
-                <ComponentCostMatrix
-                  quotes={matrixQuotes}
-                  rows={matrixRows}
-                  l1Total={l1}
-                  l2Total={l2}
-                  savingsUsd={savingsUsd}
-                  savingsPct={savingsPct}
-                  nfs={nfs}
-                  qndFlags={qndFlags}
-                  dnqFlags={dnqFlags}
-                  fmtMoney={fmtC}
-                  isCopyQuote={isCopyQuote}
-                />
+                <>
+                  <div style={{ marginBottom: 10, padding: "8px 10px", border: "1px solid #e2e8f0", background: l2 === null ? "#fffbeb" : "#f0fdf4", fontSize: 11, color: "#334155" }}>
+                    <strong>Submitted quotation ledger:</strong> {quoteScopeState}. {l2 === null && "No savings, settlement, or KINGA Optimised amount is displayed until scope is complete."}
+                  </div>
+                  <ComponentCostMatrix
+                    quotes={matrixQuotes}
+                    rows={matrixRows}
+                    l1Total={l1}
+                    l2Total={l2}
+                    savingsUsd={savingsUsd}
+                    savingsPct={savingsPct}
+                    nfs={nfs}
+                    qndFlags={qndFlags}
+                    dnqFlags={dnqFlags}
+                    fmtMoney={fmtC}
+                    isCopyQuote={isCopyQuote}
+                  />
+                </>
               );
 
             })()}
