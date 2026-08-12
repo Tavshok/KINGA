@@ -20,6 +20,18 @@ This is a backward-compatibility classification defect. It is not evidence that 
 
 ## Approved-behaviour target
 
+### Formula separation
+
+For each comparable component `c`, let `S_c` be the lowest valid **submitted** price across all active quotations that quote `c`. Let `B_c` be the available benchmark range for `c`, where one exists.
+
+```text
+L2 selected amount for c = S_c
+Line-item comparison variance = S_c − B_c (and percentage variance, where B_c is available)
+L2 submitted-quote comparison total = Σ S_c
+```
+
+`B_c` is shown alongside the selected submitted amount as comparative intelligence. It must never replace `S_c`, reduce `S_c`, fill a missing `S_c`, or be added to the L2 total. The legacy rule that allowed a benchmark P50 within a tolerance to become the selected L2 amount is specifically excluded from the proposed behaviour.
+
 | Situation | Required L2 treatment |
 |---|---|
 | A component appears in more than one active quote | Compare the explicitly submitted comparable amounts and select the lowest valid submitted amount, retaining source repairer, quote, and line-item references. |
@@ -31,7 +43,7 @@ This is a backward-compatibility classification defect. It is not evidence that 
 
 ## Proposed implementation scope
 
-1. Replace the L2 per-component benchmark override with submitted-price-only selection across the active canonical quote ledger.
+1. Replace the L2 per-component benchmark override with the stated formula: submitted-price-only selection across the active canonical quote ledger, with benchmark range and variance retained as a separate line-item comparison.
 2. Preserve quote type, status, revision/supersession, scope, currency, and source references for each selected amount.
 3. Rebuild the canonical L2 composite for legacy assessments from persisted active quote line items before reports are generated or refreshed; persist the resulting immutable Stage 9 contract and provenance snapshot.
 4. Retain an L2 hold only where a defined required repair component is absent from every active itemised quotation, or where a submitted all-in total cannot safely be allocated for a requested component comparison.

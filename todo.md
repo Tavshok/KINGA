@@ -141,7 +141,7 @@
 - [ ] P1: Fleet workflow — expose manager onboarding and assignment of drivers, then provide an assigned-driver worklist for vehicle checks, incident/claim submission, and repair-status tracking
 - [ ] P1: Insurer workflow — complete insurer sub-role selection, persistence, and direct routing to the appropriate professional workspace
 - [ ] P1: My Portal insurance workflow — verify a client can submit, view, and securely open only their own direct insurance quote and policy records after publishing
-- [ ] R0 follow-up: trace claim 12909902 active quotation ledger, extracted line items, required damage scope, and L2 hold trigger; distinguish a genuine evidence gap from a quote-lineage or scope-classification defect before any correction. L2 must remain a submitted-quote comparison only: no generated, inferred, benchmark, labour, VAT, fee, paint, or other added amount.
+- [ ] R0 follow-up: trace claim 12909902 active quotation ledger, extracted line items, required damage scope, and L2 hold trigger; distinguish a genuine evidence gap from a quote-lineage or scope-classification defect before any correction. At formula level, L2 must select submitted prices only; a benchmark remains a comparative line-item range and variance, never an L2 replacement or added labour, VAT, fee, paint, or other amount.
 
 ---
 
