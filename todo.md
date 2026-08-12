@@ -44,6 +44,11 @@
 - [x] R1-I: Re-render CL, CI, and FR for claims 10719902, 11709902, and 12879902 and verify the distinct submitted ledger, L1, L2 status, benchmark, and assessor comparison treatment
 - [ ] Image evidence verification: compare raw representative images to their rendered side/zone labels; retain the image classification remediation decision until that evidence is documented
 - [ ] Image remediation batch R2: enforce crush-depth eligibility, preserve image confidence/provenance, disclose fallbacks, and extend FR photo evidence metadata
+- [x] Functional audit F-01: establish the authoritative inventory of portals, routes, dashboards, services, and report entry points from the live codebase
+- [x] Functional audit F-02: create a route, tab, button, and action matrix with UI-to-procedure-to-data outcome evidence
+- [x] Functional audit F-03: trace end-to-end claims, agency, fleet, engineering, reporting, and administrative workflows, recording environmental limitations explicitly
+- [x] Functional audit F-04: audit role permissions, tenant isolation, data propagation, dashboards, exports, notifications, placeholders, and error states
+- [x] Functional audit F-05: deliver the dashboard requirements matrix, defect register, functional-readiness scores, and prioritised corrective sequence without changing product behavior
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
 - [x] Approved corrective removal: removed accidentally checkpointed claim re-run permissions and related test adjustment; preserved approved Fleet navigation correction and conformance matrix
 - [ ] P0: Diagnose and eliminate the React runtime crash shown on the live portal route (minified React error #130)
