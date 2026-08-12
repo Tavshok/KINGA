@@ -15,8 +15,11 @@ import type { IncomingMessage } from "./types";
 import { handleClaimState } from "./claimJourney";
 import { handleStatusJourney, handleQuoteState, handleValuationState } from "./otherJourneys";
 import { getDbOrThrow } from "../db";
-import { claims } from "../../drizzle/schema";
+import { claims, insurerTenants, users } from "../../drizzle/schema";
 import type { ClaimSessionData } from "./types";
+import { and, eq, or } from "drizzle-orm";
+import { createHash } from "crypto";
+import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment, type CanonicalIntakeActor } from "../services/canonicalClaimIntake";
 
 // ─── Provider Singleton ───────────────────────────────────────────────────────
 
@@ -49,6 +52,47 @@ const GREETING_BUTTONS = [
   { id: "quote",     title: "Get an insurance quote" },
   { id: "valuation", title: "Get a vehicle valuation" },
 ];
+
+const normalisePhone = (phone: string) => phone.replace(/[^\d+]/g, "");
+const normaliseInsurer = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * WhatsApp is a public intake channel. It may only create a canonical claim after
+ * the selected insurer is mapped to a registered tenant. A known tenant-bound
+ * phone is linked to its existing account; otherwise a restricted claimant identity
+ * is created in that tenant so later portal registration can attach rather than fork.
+ */
+export async function resolveWhatsAppCanonicalActor(phone: string, insurerName?: string): Promise<CanonicalIntakeActor> {
+  if (!insurerName) throw new Error("No insurer was selected for this WhatsApp claim.");
+  const db = await getDbOrThrow();
+  const requestedInsurer = normaliseInsurer(insurerName);
+  const tenantRows = await db.select({ id: insurerTenants.id, name: insurerTenants.name, displayName: insurerTenants.displayName }).from(insurerTenants);
+  const tenant = tenantRows.find((row) => normaliseInsurer(row.name) === requestedInsurer || normaliseInsurer(row.displayName) === requestedInsurer);
+  if (!tenant) throw new Error("The selected insurer is not configured for secure WhatsApp claim intake.");
+
+  const verifiedPhone = normalisePhone(phone);
+  const [existing] = await db.select({ id: users.id, role: users.role, tenantId: users.tenantId })
+    .from(users)
+    .where(and(eq(users.tenantId, tenant.id), eq(users.phoneNumber, verifiedPhone), eq(users.isActive, 1)))
+    .limit(1);
+  if (existing) return { id: existing.id, tenantId: tenant.id, role: existing.role, uploadKeyPrefixes: ["whatsapp-claims/"] };
+
+  const priorClaims = await db.select({ claimantId: claims.claimantId })
+    .from(claims)
+    .where(and(eq(claims.tenantId, tenant.id), eq(claims.claimantPhone, verifiedPhone)))
+    .limit(1);
+  if (priorClaims[0]?.claimantId) {
+    const [priorClaimant] = await db.select({ id: users.id, role: users.role })
+      .from(users)
+      .where(and(eq(users.id, priorClaims[0].claimantId), eq(users.tenantId, tenant.id), eq(users.isActive, 1)))
+      .limit(1);
+    if (priorClaimant) return { id: priorClaimant.id, tenantId: tenant.id, role: priorClaimant.role, uploadKeyPrefixes: ["whatsapp-claims/"] };
+  }
+
+  const guestOpenId = `whatsapp:${tenant.id}:${createHash("sha256").update(verifiedPhone).digest("hex").slice(0, 32)}`;
+  const [created] = await db.insert(users).values({ openId: guestOpenId, name: "WhatsApp claimant", phoneNumber: verifiedPhone, role: "claimant", tenantId: tenant.id, emailVerified: 0, isUnregisteredClaimant: 1 }).$returningId();
+  return { id: Number(created.id), tenantId: tenant.id, role: "claimant", uploadKeyPrefixes: ["whatsapp-claims/"] };
+}
 
 function matchGreeting(input: string): string | null {
   const lower = input.toLowerCase().trim();
@@ -264,9 +308,27 @@ async function submitClaimToDb(
 ): Promise<void> {
   const data = session.data as ClaimSessionData;
   try {
-    const claimNumber = `KNG-WA-${Date.now().toString(36).toUpperCase()}`;
-    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    const actor = await resolveWhatsAppCanonicalActor(phone, data.insurerName);
+    const result = await persistCanonicalClaimIntake(actor, {
+      idempotencyKey: session.id,
+      channel: "whatsapp",
+      claimantPhone: phone,
+      vehicleRegistration: data.vehicleRegistration ?? "",
+      vehicleMake: data.vehicleMake ?? "",
+      vehicleModel: data.vehicleModel ?? "",
+      vehicleYear: data.vehicleYear ? parseInt(data.vehicleYear, 10) : undefined,
+      incidentDate: data.incidentDate ?? new Date().toISOString().slice(0, 10),
+      incidentLocation: data.incidentLocation ?? "",
+      incidentDescription: data.incidentDescription ?? "",
+      incidentType: (data.incidentType as any) ?? "other",
+      policeReportNumber: data.policeOfficerDetails,
+      attachments: (data.attachments ?? []) as any,
+      repairerPreferences: [],
+      sourceMetadata: { insurerName: data.insurerName, driverIsSelf: data.driverIsSelf, driverName: data.driverName, driverLicenceNumber: data.driverLicenceNumber, licenceAgeRange: data.licenceAgeRange, roadSurface: data.roadSurface, weatherConditions: data.weatherConditions, gpsLat: data.gpsLat, gpsLng: data.gpsLng, policeAttended: data.policeAttended, waSessionId: session.id, waPhoneNumber: phone },
+    });
+    await startCanonicalIntakeAssessment(actor, result.claimId, session.id);
 
+    /* Legacy persistence shape retained below for historical reference only.
     await (await getDbOrThrow()).insert(claims).values({
       claimNumber,
       status: "submitted" as any,
@@ -298,7 +360,7 @@ async function submitClaimToDb(
       }),
       createdAt: now,
       updatedAt: now,
-    } as any);
+    } as any); */
 
     // Update session
     session.state = "AWAITING_DOCS";
@@ -309,7 +371,7 @@ async function submitClaimToDb(
     await provider.sendText(
       phone,
       `✅ *Claim Submitted*\n\n` +
-      `📋 Reference: *${claimNumber}*\n\n` +
+      `📋 Reference: *${result.claimNumber}*\n\n` +
       `An assessor will contact you within *24 hours* to arrange a vehicle inspection.\n\n` +
       `Reply *status* any time for an update, or view your claim at kinga.ai/client`
     );

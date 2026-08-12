@@ -59,6 +59,20 @@
 - [x] P0 Package 1-D3: execute intelligence runtime tests for foreign tenant input, unauthorised roles, and tenant-filtered registry and relationship-graph results
 - [x] P0 Package 1-D2a: execute a successful same-tenant agency quote rejection and verify only the scoped quote is updated
 - [x] P0 Package 1-D2b: assert a same-tenant quote acceptance cannot include another agency tenant in sibling closure
+- [ ] P0 Package 2-A: define and enforce the canonical server-owned intake evidence contract across all user-facing claim sources
+- [ ] P0 Package 2-B: create authorised, idempotent claim-document and photo association during intake persistence
+- [ ] P0 Package 2-C: replace exact-three panel-beater submission blocking with non-blocking exception routing and in-app warnings
+- [ ] P0 Package 2-D: prove web, My Portal, agency, WhatsApp, and any concrete mobile/API claimant submissions route through the shared intake service
+- [ ] P0 Package 2-E: preserve and surface post-intake assessment trigger failures as recoverable in-app operational work
+- [ ] P0 Package 2-F: execute multi-channel, tenant-negative, idempotency, repairer-exception, attachment, and trigger-failure regression proof
+- [ ] P0 Package 2-G: preserve original attachment metadata, source association, and evidence provenance without silent field or file loss
+- [ ] P0 Package 2-H: test intake with 0, 1, 2, 3, and 4+ repairer preferences without changing pricing, settlement, fraud, or downstream assessment rules
+- [ ] P0 Package 2-I: test repeated and interrupted submissions to prove no duplicate claim, evidence, attachment, assessment start, or notification side effect
+- [ ] P0 Package 2-J: compare persisted canonical claim and claim-document output across actual portal/web, agency, WhatsApp, and concrete API/mobile hand-off paths
+- [ ] P0 Package 2-K: execute adversarial runtime tests for cross-tenant claim, evidence, attachment, and existing-record modification attempts on Package 2 intake paths
+- [ ] P0 Package 2-L: resolve WhatsApp submitters to an existing tenant-bound KINGA claimant account through verified prior claimant-phone evidence, without creating a duplicate claimant identity; record an explicit unregistered path where no verified account link exists
+- [ ] P0 Package 2-M: create a restricted unregistered claimant identity only within a verified insurer tenant when no account-phone match exists, with later My Portal linkage support
+- [ ] P0 Package 2-N: fail closed for WhatsApp submissions whose insurer cannot be mapped to an active tenant; prove no cross-tenant claim or evidence association
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
 - [x] Approved corrective removal: removed accidentally checkpointed claim re-run permissions and related test adjustment; preserved approved Fleet navigation correction and conformance matrix
 - [ ] P0: Diagnose and eliminate the React runtime crash shown on the live portal route (minified React error #130)

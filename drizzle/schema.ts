@@ -3356,6 +3356,8 @@ export const users = mysqlTable("users", {
 	openId: varchar({ length: 64 }).notNull(),
 	name: text(),
 	email: varchar({ length: 320 }),
+	/** E.164-normalised contact number used only for verified channel-to-account linkage. */
+	phoneNumber: varchar("phone_number", { length: 30 }),
 	passwordHash: varchar("password_hash", { length: 255 }),
 	loginMethod: varchar({ length: 64 }),
 	// R-INF-09 (2026-07-09 → ACTIVATED 2026-07-30): 'agency' role activated by product sign-off.
@@ -3401,11 +3403,14 @@ export const users = mysqlTable("users", {
 	/** When 1, this account was created for QA/impersonation testing only.
 	 *  Direct login is disabled; account exists to be impersonated by superadmin. */
 	isQaAccount: tinyint("is_qa_account").default(0),
+	/** A restricted claimant identity created from a verified external intake channel before portal registration. */
+	isUnregisteredClaimant: tinyint("is_unregistered_claimant").default(0).notNull(),
 },
 (table) => [
 		index("users_openId_unique").on(table.openId),
 	index("idx_users_tenant_id").on(table.tenantId),
 	index("idx_users_is_active").on(table.isActive),
+	index("idx_users_phone_tenant").on(table.phoneNumber, table.tenantId),
 ]);
 export type User = typeof users.$inferSelect;
 export const varianceDatasets = mysqlTable("variance_datasets", {

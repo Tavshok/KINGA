@@ -87,6 +87,14 @@ export interface ClaimSessionData {
   gpsLng?: number;
   // Photos (vehicle)
   vehiclePhotoUrls?: string[];
+  attachments?: Array<{
+    key: string;
+    url: string;
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+    category: "damage_photo" | "other";
+  }>;
   // Submission
   claimId?: number;
   claimNumber?: string;

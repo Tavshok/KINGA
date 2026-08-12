@@ -88,7 +88,8 @@ export const claimsRouter = router({
         extracted = await extractClaimFormData(
           fileBuffer,
           input.mimeType,
-          input.fileName
+          input.fileName,
+          ctx.user.id
         );
       } catch (err: unknown) {
         // Re-throw TRPCErrors as-is; wrap everything else with a clear message

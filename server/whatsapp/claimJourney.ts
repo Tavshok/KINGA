@@ -51,16 +51,16 @@ function matchButton(input: string, buttons: WaButton[]): WaButton | null {
   return buttons.find(b => b.title.toLowerCase().includes(trimmed)) ?? null;
 }
 
-/** Upload a media buffer to S3 and return the URL */
+/** Upload media and retain immutable provenance needed by canonical intake. */
 async function uploadPhotoToS3(
   buffer: Buffer,
   mimeType: string,
   prefix: string
-): Promise<string> {
+): Promise<{ key: string; url: string; fileName: string; fileSize: number; mimeType: string }> {
   const ext = mimeType.includes("jpeg") ? "jpg" : mimeType.split("/")[1] ?? "bin";
   const key = `whatsapp-claims/${prefix}-${randomUUID()}.${ext}`;
   const { url } = await storagePut(key, buffer, mimeType);
-  return url;
+  return { key, url, fileName: `${prefix}.${ext}`, fileSize: buffer.length, mimeType };
 }
 
 /** Build the confirm summary card text */
@@ -89,6 +89,7 @@ export type JourneyResult = {
   nextState: Session["state"];
   dataUpdate?: Partial<ClaimSessionData>;
   photoUrlsUpdate?: string[];
+  attachmentsUpdate?: ClaimSessionData["attachments"];
   responseText?: string;
   responseButtons?: WaButton[];
   /** If set, send this text AFTER the buttons */
@@ -329,17 +330,21 @@ export async function handleClaimState(
       if (!msg.mediaUrl) {
         return { nextState: "CLAIM_LICENCE_PHOTO", responseText: "Please send a photo of the driver's licence (front side)." };
       }
-      // Download and upload to S3
-      let licencePhotoUrl = msg.mediaUrl; // fallback to original URL
+      // A claim must not advance until the licence image is durably stored.
+      let licencePhotoUrl: string;
+      let licenceAttachment: NonNullable<ClaimSessionData["attachments"]>[number];
       try {
         const buffer = await provider.downloadMedia(msg.mediaUrl);
-        licencePhotoUrl = await uploadPhotoToS3(buffer, msg.mediaType ?? "image/jpeg", "licence");
+        const uploaded = await uploadPhotoToS3(buffer, msg.mediaType ?? "image/jpeg", "licence");
+        licencePhotoUrl = uploaded.url;
+        licenceAttachment = { ...uploaded, category: "other" };
       } catch (e) {
         console.error("[WA] Licence photo upload failed:", e);
+        return { nextState: "CLAIM_LICENCE_PHOTO", responseText: "I could not save that licence image securely. Please send it again." };
       }
       return {
         nextState: "CLAIM_DATE",
-        dataUpdate: { licencePhotoUrl },
+        dataUpdate: { licencePhotoUrl, attachments: [...(data.attachments ?? []), licenceAttachment!] },
         responseText: "✅ Licence received. Thank you.\n\nWhen did the incident happen?",
         responseButtons: [
           { id: "today", title: "Today" },
@@ -459,29 +464,31 @@ export async function handleClaimState(
       const currentPhotos = session.photoUrls ?? [];
 
       if (msg.mediaUrl) {
-        // Upload photo to S3
-        let photoUrl = msg.mediaUrl;
+        // A claim must not advance with a transient provider URL as evidence.
+        let uploadedPhoto: { key: string; url: string; fileName: string; fileSize: number; mimeType: string };
         try {
           const buffer = await provider.downloadMedia(msg.mediaUrl);
-          photoUrl = await uploadPhotoToS3(buffer, msg.mediaType ?? "image/jpeg", "vehicle");
+          uploadedPhoto = await uploadPhotoToS3(buffer, msg.mediaType ?? "image/jpeg", "vehicle");
         } catch (e) {
           console.error("[WA] Vehicle photo upload failed:", e);
+          return { nextState: "CLAIM_PHOTOS", responseText: "I could not save that photo securely. Please send it again." };
         }
-        const updatedPhotos = [...currentPhotos, photoUrl];
+        const updatedPhotos = [...currentPhotos, uploadedPhoto!.url];
+        const updatedAttachments = [...(data.attachments ?? []), { ...uploadedPhoto!, category: "damage_photo" as const }];
         const count = updatedPhotos.length;
 
         if (count < 6) {
           return {
             nextState: "CLAIM_PHOTOS",
             photoUrlsUpdate: updatedPhotos,
-            dataUpdate: { vehiclePhotoUrls: updatedPhotos },
+            dataUpdate: { vehiclePhotoUrls: updatedPhotos, attachments: updatedAttachments },
             responseText: `✅ Photo ${count} received. ${6 - count} more to go.\n\nSend the next photo when ready.`,
           };
         } else {
           return {
             nextState: "CLAIM_CONFIRM",
             photoUrlsUpdate: updatedPhotos,
-            dataUpdate: { vehiclePhotoUrls: updatedPhotos },
+            dataUpdate: { vehiclePhotoUrls: updatedPhotos, attachments: updatedAttachments },
             responseText: `✅ All ${count} photos received.\n\n` + buildConfirmText({ ...data, vehiclePhotoUrls: updatedPhotos }),
             responseButtons: [
               { id: "submit", title: "Submit my claim" },

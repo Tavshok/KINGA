@@ -86,10 +86,11 @@ export interface ExtractedClaimFormData {
 export async function extractClaimFormData(
   fileBuffer: Buffer,
   mimeType: string,
-  fileName: string
+  fileName: string,
+  ownerUserId?: number
 ): Promise<ExtractedClaimFormData> {
   // Upload the document to S3 first
-  const fileKey = `claim-forms/${nanoid(12)}-${fileName}`;
+  const fileKey = ownerUserId ? `claim-forms/${ownerUserId}/${nanoid(12)}-${fileName}` : `claim-forms/unlinked/${nanoid(12)}-${fileName}`;
   const { url: documentUrl } = await storagePut(fileKey, fileBuffer, mimeType);
 
   // Build the LLM vision request
