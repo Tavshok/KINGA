@@ -230,6 +230,12 @@ export interface ExtractedQuote {
    * (i.e. the original OCR extraction had no line items and vision rebuilt it from scratch).
    */
   _synthetic_from_vision?: boolean;
+  /** Stage 3 document identity; absent only when the extraction source cannot be established. */
+  source_document_index?: number | null;
+  /** Source page numbers where the quote was observed, when extraction can establish them. */
+  source_page_numbers?: number[];
+  /** Extraction route used to obtain the quote evidence. */
+  source_extraction_method?: "text" | "vision" | "pdf_native" | "reconstruction";
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -312,9 +318,9 @@ RULES — follow these exactly:
    g) Example footer: "Subtotal: 22220.00  VAT: 3333.00  Total: 25553.00" → total_cost=25553
    h) Do NOT skip VAT rows in the footer — use the grand Total as total_cost.
    i) If the image shows a MIAZ logo or 'Motor Industry Association of Zimbabwe', apply these rules.
-   PROPORTIONAL FALLBACK: If you cannot parse individual line totals but the document total is known and there are N components,
-   distribute the total proportionally across components using equal shares as a last resort.
-   Set extraction_warnings to include "proportional_fallback_used" in that case.
+   NO ALLOCATION FALLBACK: If you cannot parse individual line totals but the document total is known, preserve the total as quote-level evidence,
+   set every unavailable line_total to null, and add "line_pricing_not_extracted" to extraction_warnings.
+   NEVER distribute, proportionally allocate, or equal-share a total across components. Such values are not submitted evidence.
 6. For each line_item, also extract part_origin from the row description or surrounding text:
    - "OEM", "genuine", "original", "manufacturer" → "oem"
    - "aftermarket", "pattern", "non-genuine" → "aftermarket"
@@ -1650,7 +1656,8 @@ export async function extractMultipleQuotesFromPageImages(
   pageImageUrls: string[],
   fallbackText: string,
   tenantCountry?: string | null,
-  pdfUrl?: string | null
+  pdfUrl?: string | null,
+  sourceDocumentIndex?: number | null,
 ): Promise<ExtractedQuote[]> {
   if (pageImageUrls.length === 0) {
     if (pdfUrl) {
@@ -1729,6 +1736,11 @@ export async function extractMultipleQuotesFromPageImages(
       if (!quote.panel_beater && group.panelBeater) {
         quote.panel_beater = group.panelBeater;
       }
+      quote.source_document_index = sourceDocumentIndex ?? null;
+      quote.source_page_numbers = group.pageIndexes
+        .filter((pageIndex) => pageIndex >= 0 && pageIndex < pageImageUrls.length)
+        .map((pageIndex) => pageIndex + 1);
+      quote.source_extraction_method = "vision";
       plog(
         `[QuoteExtractionEngine] Extracted quote: panel_beater="${quote.panel_beater}", total=${quote.total_cost}, ` +
           `line_items=${quote.line_items.length}, confidence=${quote.confidence}`

@@ -1141,7 +1141,13 @@ async function runInputRecovery(
       // runs even when allText is very short (e.g. scanned PDFs with < 50 chars of OCR).
       if (pdfPageImages.length > 0) {
         console.log(`[Stage3] Using per-page vision extraction on ${pdfPageImages.length} page image(s) (allText=${allText.length} chars)`);
-        extracted_quotes = await extractMultipleQuotesFromPageImages(pdfPageImages, allText, tenantCountry, primaryPdfUrl);
+        extracted_quotes = await extractMultipleQuotesFromPageImages(
+          pdfPageImages,
+          allText,
+          tenantCountry,
+          primaryPdfUrl,
+          allPdfDocs.length === 1 ? (allPdfDocs[0]?.documentIndex ?? null) : null,
+        );
       } else if (primaryPdfUrl) {
         // No page images (pdftoppm unavailable in Cloud Run) — use PDF-native extraction
         console.log(`[Stage3] No page images — using PDF-native extraction via file_url (allText=${allText.length} chars)`);
@@ -1172,6 +1178,8 @@ async function runInputRecovery(
               try {
                 console.log(`[Stage3] Trying vision extraction on: ${pdfDoc.fileName}`);
                 const visionResult = await extractQuoteFromPdfVision(pdfDoc.sourceUrl, q.panel_beater, q.total_cost, tenantCountry);
+                visionResult.source_document_index = pdfDoc.documentIndex;
+                visionResult.source_extraction_method = "vision";
                 const visionHasPrices = visionResult.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
                 if (visionHasPrices) {
                   console.log(`[Stage3] Vision extraction succeeded on ${pdfDoc.fileName}: ${visionResult.line_items.length} priced line items extracted`);
@@ -1211,6 +1219,8 @@ async function runInputRecovery(
           try {
             console.log(`[Stage3] Unconditional vision pass: scanning ${pdfDoc.fileName} for repair quotations`);
             const visionResult = await extractQuoteFromPdfVision(pdfDoc.sourceUrl, null, null, tenantCountry);
+            visionResult.source_document_index = pdfDoc.documentIndex;
+            visionResult.source_extraction_method = "vision";
             const visionHasPrices = visionResult.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
             const visionHasTotal = visionResult.total_cost !== null && visionResult.total_cost > 0;
             const isQuotation = visionHasPrices || visionHasTotal;
@@ -1268,6 +1278,8 @@ async function runInputRecovery(
         try {
           console.log(`[Stage3] OCR-failure vision-direct: trying ${pdfDoc.fileName} (total hint: ${hintTotal})`);
           const visionResult = await extractQuoteFromPdfVision(pdfDoc.sourceUrl, hintPanelBeater, hintTotal, tenantCountry);
+          visionResult.source_document_index = pdfDoc.documentIndex;
+          visionResult.source_extraction_method = "vision";
           const visionHasPrices = visionResult.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
           const visionHasTotal = visionResult.total_cost !== null && visionResult.total_cost > 0;
           if (visionHasPrices || visionHasTotal) {

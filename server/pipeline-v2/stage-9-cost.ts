@@ -27,6 +27,7 @@ import { evaluateMechanicalAlignment } from "./mechanicalAlignmentEvaluator";
 import { generateCostIntelligenceNarrative } from "./costIntelligenceNarrative";
 import { scoreCostReliability } from "./costReliabilityScorer";
 import { getDefaultCurrencyForCountry, COUNTRY_CURRENCY_MAP } from '../../shared/countryCurrency';
+import { assessPipelineEvidenceGate } from "../evidence-governance/pipelineEvidenceGate";
 import type {
   PipelineContext,
   StageResult,
@@ -1803,6 +1804,7 @@ export async function runCostOptimisationStage(
             if (q.document_category) return q.document_category === 'repair_quote';
             return q.quote_type !== 'parts_supplier';
           });
+          const evidenceGate = assessPipelineEvidenceGate(repairQuotes);
           const compositeInputQuotes: InputQuoteWithLineItems[] = repairQuotes.map((q: any) => {
             // Pass ALL line items to buildCompositeQuote with their scope flags.
             // buildCompositeQuote now groups rows by component+scope to compute the
@@ -1872,6 +1874,7 @@ export async function runCostOptimisationStage(
               componentSeverityMap,
               damageAnalysis.damagedParts.map((part: any) => part.name).filter(Boolean)
             );
+            const l2EvidenceEligible = compositeResult.isComplete && evidenceGate.eligibleForL2;
 
             // Component classification: quoted-not-damaged and damaged-not-quoted
             // Use components[] if populated; fall back to lineItems component names
@@ -1909,21 +1912,21 @@ export async function runCostOptimisationStage(
 
             // Attach composite result to output
             (output as any).compositeOptimisation = {
-              l2Status: compositeResult.isComplete
+              l2Status: l2EvidenceEligible
                 ? "complete"
-                : compositeResult.allInReconciliationRequired
+                : compositeResult.allInReconciliationRequired || !evidenceGate.eligibleForL2
                   ? "reconciliation_required"
                   : "incomplete_scope",
               quoteReceiptStatus: canonicalQuoteLedger.activeQuoteCount > 0 ? "quotes_received" : "no_quotes",
-              quoteScopeStatus: compositeResult.isComplete
+              quoteScopeStatus: l2EvidenceEligible
                 ? "complete"
-                : compositeResult.allInReconciliationRequired
+                : compositeResult.allInReconciliationRequired || !evidenceGate.eligibleForL2
                   ? "reconciliation_required"
                   : "incomplete_scope",
               l1SubmittedCostUsd: l1TotalUsd,
-              l2CompositeOptimisedCostUsd: compositeResult.compositeOptimisedCostUsd,
+              l2CompositeOptimisedCostUsd: l2EvidenceEligible ? compositeResult.compositeOptimisedCostUsd : null,
               partialPricedScopeUsd: compositeResult.partialPricedScopeUsd,
-              isComplete: compositeResult.isComplete,
+              isComplete: l2EvidenceEligible,
               missingRequiredComponents: compositeResult.missingRequiredComponents,
               costBasis: compositeResult.costBasis,
               l3BenchmarkReferenceCostUsd: compositeResult.benchmarkReferenceCostUsd,
@@ -1944,6 +1947,11 @@ export async function runCostOptimisationStage(
               duplicateQuotesExcluded: canonicalQuoteLedger.duplicateCount,
               supersededQuotesExcluded: canonicalQuoteLedger.supersededCount,
               canonicalQuoteLedger: canonicalQuoteLedger.entries,
+              evidenceGovernance: {
+                readiness: evidenceGate.eligibleForL2 ? "verified_equivalent" : "reconciliation_required",
+                l2Eligible: l2EvidenceEligible,
+                findings: evidenceGate.findings,
+              },
             };
 
             // ── KINGA Savings: L1 (lowest submitted) minus L2 (per-component optimised) ──
@@ -1985,7 +1993,7 @@ export async function runCostOptimisationStage(
               ? Math.min(...fallbackTotals)
               : 0;
             const l2Usd = compositeResult.compositeOptimisedCostUsd;
-            if (compositeResult.isComplete && lowestSubmittedUsd > 0 && l2Usd !== null && l2Usd > 0) {
+            if (l2EvidenceEligible && lowestSubmittedUsd > 0 && l2Usd !== null && l2Usd > 0) {
               const kingaSavingsUsd = lowestSubmittedUsd - l2Usd;
               // Override the earlier weighted-average savings with the correct L1-L2 figure
               (output as any).kingaSavingsQuoteOptimisation = kingaSavingsUsd;
@@ -2021,10 +2029,10 @@ export async function runCostOptimisationStage(
                 ? `KINGA savings [L1-L2]: USD ${kingaSavingsUsd.toFixed(2)} (lowest submitted $${lowestSubmittedUsd.toFixed(2)} minus KINGA per-component optimised $${l2Usd.toFixed(2)})`
                 : `SUPPLEMENTARY CLAIM RISK [L1-L2]: USD ${Math.abs(kingaSavingsUsd).toFixed(2)} (cheapest quote $${lowestSubmittedUsd.toFixed(2)} is below KINGA optimised $${l2Usd.toFixed(2)} — likely incomplete)`;
               ctx.log('Stage 9', savingsLabel);
-            } else if (compositeResult.allInReconciliationRequired) {
+            } else if (compositeResult.allInReconciliationRequired || !evidenceGate.eligibleForL2) {
               ctx.log(
                 'Stage 9',
-                `L2 RECONCILIATION REQUIRED: explicit itemised submitted-price comparison is available, but one or more quote headers do not reconcile to their submitted line totals. ` +
+                `L2 RECONCILIATION REQUIRED: explicit itemised submitted-price comparison is available, but ${evidenceGate.eligibleForL2 ? "one or more quote headers do not reconcile to their submitted line totals" : "one or more quote values lack document/page provenance or source-verifiable pricing"}. ` +
                 `No residual amount is allocated; savings and settlement recommendation are suppressed.`
               );
             } else if (!compositeResult.isComplete) {

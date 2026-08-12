@@ -21,6 +21,7 @@ import {
 } from "./templates/kingaDesignSystem";
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
+import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 
 const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
@@ -78,13 +79,14 @@ export async function generateClaimsIntelligenceReport(
     ) as [Record<string, unknown>[], unknown];
 
     // ── 3. Fetch documents ───────────────────────────────────────────────────
-    const [docs] = await conn.execute(
+	const [docs] = await conn.execute(
       `SELECT document_category, file_name, created_at
        FROM claim_documents
        WHERE claim_id = ?
        ORDER BY created_at DESC`,
       [claimId]
-    ) as [Record<string, unknown>[], unknown];
+	) as [Record<string, unknown>[], unknown];
+	const evidenceGovernanceData = await loadEvidenceGovernanceReportData(conn, claimId, tenantId);
 
     // ── 3b. Fetch vehicle claim history ─────────────────────────────────────
     const vehicleRegRaw = String(c.vehicle_registration ?? c.registration_number ?? '');
@@ -175,13 +177,13 @@ export async function generateClaimsIntelligenceReport(
       : fmtUSD(kingaOptimised);
     const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l1SubmittedCostUsd);
     const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l3BenchmarkReferenceCostUsd);
-    const residualReconciliationDetail = costIntegrity.quoteReconciliations
-      .filter((quote) => quote.status !== "reconciled" && quote.unexplainedResidualUsd !== null)
-      .map((quote) => `${quote.repairer}: ${fmtUSD(quote.unexplainedResidualUsd!)} known submitted residual (${quote.residualCategory?.replaceAll("_", " ") ?? "unclassified"})`)
-      .join(" · ");
+	const residualReconciliationDetail = costIntegrity.quoteReconciliations
+		.filter((quote) => quote.status !== "reconciled" && quote.unexplainedResidualUsd !== null)
+		.map((quote) => `${quote.repairer}: ${fmtUSD(quote.unexplainedResidualUsd!)} requires document-to-ledger reconciliation`)
+		.join(" · ");
     const l2IntegrityNote = kingaOptimised === null
       ? costIntegrity.l2Status === "reconciliation_required"
-        ? `Itemised submitted-price comparison is available, but ${costIntegrity.unreconciledQuoteCount || "one or more"} quote header(s) do not reconcile to explicit submitted line totals. ${residualReconciliationDetail ? `Known submitted residuals: ${residualReconciliationDetail}. ` : ""}No residual labour, VAT, fee, paint, or other amount has been allocated. Reconcile the submitted quotation before an all-in cost recommendation.`
+		? `Itemised submitted-price comparison is available, but ${costIntegrity.unreconciledQuoteCount || "one or more"} quote header(s) do not reconcile to explicit submitted line totals. ${residualReconciliationDetail ? `Reconciliation findings: ${residualReconciliationDetail}. ` : ""}KINGA has not allocated the difference to labour, VAT, fee, paint, or another component. Verify the original quote, scope, tax basis, and revision before an all-in cost recommendation.`
         : `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
           `${costIntegrity.partialPricedScopeUsd !== null ? `Partial priced scope: ${fmtUSD(costIntegrity.partialPricedScopeUsd)}. ` : ""}` +
           `Obtain or reconcile the missing quotation scope before a cost recommendation.`
@@ -566,6 +568,8 @@ ${(() => {
       ${criticalStructural.length > 0 ? `Note: ${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} (${criticalStructural.map(g => esc(g.component)).join(", ")}) are not included in any submitted quote and must be assessed independently before this figure can be finalised.` : "All major components are included in the submitted quotes."}
     </p>
     ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This historical assessor figure is displayed for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
+    <div class="callout" style="margin-top:8px;border-left-color:#2d5f8b;background:#f3f7fb;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
+    ${renderEvidenceGovernancePanel(evidenceGovernanceData)}
     <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">Active quote amounts</td><td class="v">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td class="k">Quote scope status</td><td class="v">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">L2 — KINGA all-in recommendation</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
   </div>
 

@@ -30,6 +30,80 @@ export const reportProvenanceSnapshots = mysqlTable("report_provenance_snapshots
 	index("report_provenance_snapshots_hash_idx").on(table.inputHash),
 ]);
 
+/**
+ * Evidence findings separate source facts, controlled reconstructions, and
+ * review signals from downstream financial or fraud decisions. A finding can
+ * reference any material claim evidence while retaining tenant isolation.
+ */
+export const claimEvidenceFindings = mysqlTable("claim_evidence_findings", {
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	claimId: int("claim_id").notNull(),
+	assessmentId: int("assessment_id"),
+	evidenceDomain: mysqlEnum("evidence_domain", ["monetary", "damage", "fraud", "vehicle_history", "decision"]).notNull(),
+	evidenceStatus: mysqlEnum("evidence_status", ["verified", "reconstructed", "documented_revision", "scope_difference", "extraction_defect", "evidence_gap", "pricing_variance_review_signal", "unresolved"]).notNull(),
+	severity: mysqlEnum("severity", ["info", "review", "blocking"]).default("info").notNull(),
+	findingCode: varchar("finding_code", { length: 100 }).notNull(),
+	title: varchar({ length: 500 }).notNull(),
+	summary: text(),
+	sourceDocumentId: int("source_document_id"),
+	sourcePage: int("source_page"),
+	sourceLocation: varchar("source_location", { length: 512 }),
+	sourceType: mysqlEnum("source_type", ["document", "quote_line", "image", "system_record", "benchmark", "reconstruction"]).notNull(),
+	quoteId: int("quote_id"),
+	quoteLineItemId: int("quote_line_item_id"),
+	subjectKey: varchar("subject_key", { length: 255 }),
+	observedValueCents: bigint("observed_value_cents", { mode: "number", unsigned: true }),
+	comparisonValueCents: bigint("comparison_value_cents", { mode: "number", unsigned: true }),
+	currency: varchar({ length: 10 }),
+	taxBasis: mysqlEnum("tax_basis", ["included", "excluded", "separately_stated", "not_stated", "not_applicable"]),
+	scopeFingerprint: varchar("scope_fingerprint", { length: 128 }),
+	evidenceJson: json("evidence_json"),
+	reviewedByUserId: int("reviewed_by_user_id"),
+	reviewedAt: timestamp("reviewed_at", { mode: "string" }),
+	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+}, (table) => [
+	index("claim_evidence_findings_tenant_claim_idx").on(table.tenantId, table.claimId),
+	index("claim_evidence_findings_quote_idx").on(table.quoteId, table.quoteLineItemId),
+	index("claim_evidence_findings_status_idx").on(table.evidenceStatus, table.severity),
+]);
+
+/**
+ * Immutable document-backed monetary evidence. These rows retain the source
+ * document/page/location and exact submitted amount independently of any
+ * normalised quote-line representation used by legacy calculations.
+ */
+export const quoteEvidenceLedger = mysqlTable("quote_evidence_ledger", {
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	claimId: int("claim_id").notNull(),
+	quoteId: int("quote_id"),
+	quoteLineItemId: int("quote_line_item_id"),
+	sourceDocumentId: int("source_document_id").notNull(),
+	sourcePage: int("source_page"),
+	sourceLocation: varchar("source_location", { length: 512 }),
+	sourceRowLabel: varchar("source_row_label", { length: 500 }),
+	sourceText: text("source_text"),
+	description: varchar({ length: 500 }).notNull(),
+	canonicalComponent: varchar("canonical_component", { length: 255 }),
+	financialRole: mysqlEnum("financial_role", ["quote_total", "subtotal", "vat", "parts", "labour", "paint", "sundries", "component", "discount", "fee", "other"]).notNull(),
+	amountCents: bigint("amount_cents", { mode: "number", unsigned: true }).notNull(),
+	currency: varchar({ length: 10 }).notNull(),
+	taxBasis: mysqlEnum("tax_basis", ["included", "excluded", "separately_stated", "not_stated", "not_applicable"]).notNull(),
+	scopeFingerprint: varchar("scope_fingerprint", { length: 128 }),
+	revisionStatus: mysqlEnum("revision_status", ["original", "revised", "superseded", "unknown"]).default("original").notNull(),
+	extractionMethod: mysqlEnum("extraction_method", ["document_direct", "ocr", "vision", "human_verified", "system_reconstruction"]).notNull(),
+	extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }),
+	evidenceStatus: mysqlEnum("evidence_status", ["verified", "reconstructed", "documented_revision", "scope_difference", "extraction_defect", "evidence_gap", "pricing_variance_review_signal", "unresolved"]).notNull(),
+	verificationNote: text("verification_note"),
+	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+}, (table) => [
+	index("quote_evidence_ledger_tenant_claim_idx").on(table.tenantId, table.claimId),
+	index("quote_evidence_ledger_quote_idx").on(table.quoteId, table.quoteLineItemId),
+	index("quote_evidence_ledger_source_idx").on(table.sourceDocumentId, table.sourcePage),
+	index("quote_evidence_ledger_scope_status_idx").on(table.scopeFingerprint, table.evidenceStatus),
+]);
+
 export const agencyDocuments = mysqlTable("agency_documents", {
 	id: int().autoincrement().notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),

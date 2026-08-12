@@ -29,15 +29,15 @@ export interface ReportCostIntegrity {
   assessorCalibrationCostUsd: number | null;
   allInReconciliationRequired: boolean;
   unreconciledQuoteCount: number;
-  quoteReconciliations: Array<{
-    repairer: string;
-    quoteId: string | null;
-    submittedHeaderTotalUsd: number | null;
-    submittedItemisedTotalUsd: number;
-    unexplainedResidualUsd: number | null;
-    residualCategory: "unknown_unallocated" | null;
-    status: "reconciled" | "reconciliation_required" | "total_only" | "line_items_only";
-  }>;
+	quoteReconciliations: Array<{
+		repairer: string;
+		quoteId: string | null;
+		submittedHeaderTotalUsd: number | null;
+		submittedItemisedTotalUsd: number;
+		unexplainedResidualUsd: number | null;
+		residualCategory: "source_to_ledger_reconciliation" | null;
+		status: "reconciled" | "reconciliation_required" | "total_only" | "line_items_only";
+	}>;
 }
 
 function finitePositive(value: unknown): number | null {
@@ -115,12 +115,12 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
       return {
         repairer: String(quote.repairer ?? "Unknown repairer"),
         quoteId: quote.quoteId === null || quote.quoteId === undefined ? null : String(quote.quoteId),
-        submittedHeaderTotalUsd: finitePositive(quote.submittedHeaderTotalUsd),
-        submittedItemisedTotalUsd: finitePositive(quote.submittedItemisedTotalUsd) ?? 0,
-        unexplainedResidualUsd: residual,
-        residualCategory: residual === null ? null : "unknown_unallocated" as const,
-        status,
-      };
+				submittedHeaderTotalUsd: finitePositive(quote.submittedHeaderTotalUsd),
+				submittedItemisedTotalUsd: finitePositive(quote.submittedItemisedTotalUsd) ?? 0,
+				unexplainedResidualUsd: residual,
+				residualCategory: residual === null ? null : "source_to_ledger_reconciliation" as const,
+				status,
+			};
     })
     : [];
   const unreconciledQuoteCount = quoteReconciliations.filter((quote) =>
