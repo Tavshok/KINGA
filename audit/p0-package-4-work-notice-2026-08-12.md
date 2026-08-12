@@ -64,3 +64,7 @@ This package will not alter insurer sub-role business permissions, claim settlem
 ## Release decision
 
 The package is complete only when platform-super-admin route entry, bounded object protection, and ordinary-role denial are demonstrated through deterministic tests and an authenticated browser acceptance session. A source refactor alone is not sufficient.
+
+## Authenticated browser acceptance status
+
+On **2026-08-12**, the published KINGA landing route redirected to the Manus OAuth endpoint, which returned a CloudFront **403** before an authenticated session could be established. No authentication or route behaviour inside KINGA could therefore be exercised in that browser session. This is recorded as an **environment/access gate**, not a failed Package 4 route decision. The deterministic route, server, Package 1 non-regression, and production-build evidence remains valid; authenticated role acceptance remains open until the OAuth endpoint is reachable with a platform-super-admin session.

@@ -101,6 +101,7 @@
 - [ ] P0 Package 4-G: prove platform-super-admin portal-shell admission separately from foreign tenant claim, report, document, and workflow object denial
 - [ ] P0 Package 4-H: execute the Package 1 report, agency, intelligence, and explicit audited cross-tenant regression matrix after authorization consolidation
 - [ ] P0 Package 4-I: test authenticated login → role resolution → portal route deterministic states for platform-super-admin and ordinary personas when role accounts are available
+- [ ] P0 Package 4-I1: user-executed authenticated platform-super-admin portal-shell checklist; no browser-control access requested or required
 - [x] P0 Package 3-H2: add and run an Executive direct numeric claim-ID test proving a foreign object is unavailable even when no tenant override is supplied
 - [x] P0 Package 3-H3: add and run missing-tenant context tests for an ordinary Executive and platform-super-admin Executive detail request
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
