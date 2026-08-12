@@ -15,6 +15,7 @@ import { TRPCError } from "@trpc/server";
 import { eq, and, desc, inArray, sql, ne } from "drizzle-orm";
 import { router, protectedProcedure, requireTenantScope } from "../_core/trpc";
 import { agencyDomainProcedure as agencyProcedure } from "../_core/domain-middleware";
+import { auditP0CrossTenantAccess, resolveP0TenantScope } from "../security/p0TenantBoundary";
 import { getDb } from "../db";
 import {
   agencyClients,
@@ -78,7 +79,15 @@ const respondToQuoteInput = z.object({
 const acceptRejectQuoteInput = z.object({
   quoteRequestId: z.number().int().positive(),
   action: z.enum(["accepted", "rejected"]),
+  tenantId: z.string().optional(),
 });
+
+/** P0: protects against a stale or mocked foreign row being acted on after lookup. */
+export function assertAgencyQuoteTenant(agencyTenantId: string | null, scopedTenantId: string): void {
+  if (agencyTenantId !== scopedTenantId) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Quote request not found." });
+  }
+}
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
@@ -434,6 +443,7 @@ export const agencyBrokerRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "agencyBroker.acceptOrRejectQuote");
 
       const now = new Date().toISOString().slice(0, 19).replace("T", " ");
       const COMMISSION_RATE = 0.05; // 5% placeholder commission
@@ -449,11 +459,16 @@ export const agencyBrokerRouter = router({
           quoteAmount: insurerQuoteRequests.quoteAmount,
           quoteCurrency: insurerQuoteRequests.quoteCurrency,
           requestType: insurerQuoteRequests.requestType,
+          agencyTenantId: insurerQuoteRequests.agencyTenantId,
         })
         .from(insurerQuoteRequests)
-        .where(eq(insurerQuoteRequests.id, input.quoteRequestId));
+        .where(and(
+          eq(insurerQuoteRequests.id, input.quoteRequestId),
+          eq(insurerQuoteRequests.agencyTenantId, scope.tenantId),
+        ));
 
       if (!qr) throw new TRPCError({ code: "NOT_FOUND", message: "Quote request not found." });
+      assertAgencyQuoteTenant(qr.agencyTenantId, scope.tenantId);
 
       // ── 2. Prevent duplicate state transitions ───────────────────────────────
       if (qr.status === "accepted" || qr.status === "rejected") {
@@ -476,12 +491,16 @@ export const agencyBrokerRouter = router({
             commissionEstimate: String(commissionEstimate),
             updatedAt: now,
           })
-          .where(eq(insurerQuoteRequests.id, input.quoteRequestId));
+          .where(and(
+            eq(insurerQuoteRequests.id, input.quoteRequestId),
+            eq(insurerQuoteRequests.agencyTenantId, scope.tenantId),
+          ));
 
         // ── 3b. Close all sibling requests for this RFQ batch ──────────────────
         // Siblings = same claimId (or fleetAccountId) that are still open
         const siblingConditions = [
           ne(insurerQuoteRequests.id, input.quoteRequestId),
+          eq(insurerQuoteRequests.agencyTenantId, scope.tenantId),
           inArray(insurerQuoteRequests.status, ["pending", "sent", "quoted"]),
         ];
         if (qr.fleetAccountId) {
@@ -511,6 +530,7 @@ export const agencyBrokerRouter = router({
         }
 
         console.log(`[AgencyBroker] Quote ACCEPTED: id=${input.quoteRequestId} insurer=${qr.insurerTenantId} amount=${quoteAmountNum} commission=${commissionEstimate}`);
+        await auditP0CrossTenantAccess(ctx, scope, "agency_quote_accept", String(input.quoteRequestId), { agencyTenantId: scope.tenantId });
         return {
           success: true,
           status: "accepted",
@@ -524,7 +544,10 @@ export const agencyBrokerRouter = router({
         await db
           .update(insurerQuoteRequests)
           .set({ status: "rejected", respondedAt: now, updatedAt: now })
-          .where(eq(insurerQuoteRequests.id, input.quoteRequestId));
+          .where(and(
+            eq(insurerQuoteRequests.id, input.quoteRequestId),
+            eq(insurerQuoteRequests.agencyTenantId, scope.tenantId),
+          ));
 
         // ── 4a. Audit: fleet_quote_rejected ─────────────────────────────────────
         try {
@@ -542,6 +565,7 @@ export const agencyBrokerRouter = router({
         }
 
         console.log(`[AgencyBroker] Quote REJECTED: id=${input.quoteRequestId} insurer=${qr.insurerTenantId}`);
+        await auditP0CrossTenantAccess(ctx, scope, "agency_quote_reject", String(input.quoteRequestId), { agencyTenantId: scope.tenantId });
         return { success: true, status: "rejected" };
       }
     }),

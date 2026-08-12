@@ -195,7 +195,7 @@ describe("pdfRenderer — M-02/M-06 reliability fixes", () => {
 
   // ── 5. renderAndUpload ───────────────────────────────────────────────────────
   describe("renderAndUpload", () => {
-    it("calls storagePut with the rendered buffer and returns s3Key + url", async () => {
+    it("calls storagePut with the rendered buffer and returns only the opaque storage key", async () => {
       const result = await renderAndUpload(
         "<html><body>Test</body></html>",
         "reports/tenant-1/claim-42"
@@ -208,7 +208,7 @@ describe("pdfRenderer — M-02/M-06 reliability fixes", () => {
       expect(contentType).toBe("application/pdf");
 
       expect(result.s3Key).toMatch(/^reports\/tenant-1\/claim-42-\d+\.pdf$/);
-      expect(result.url).toBe("https://s3.example.com/test.pdf");
+      expect(result).not.toHaveProperty("url");
       expect(result.pageCount).toBeGreaterThanOrEqual(1);
       expect(result.fileSizeBytes).toBeGreaterThan(0);
     });

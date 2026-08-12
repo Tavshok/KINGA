@@ -49,6 +49,16 @@
 - [x] Functional audit F-03: trace end-to-end claims, agency, fleet, engineering, reporting, and administrative workflows, recording environmental limitations explicitly
 - [x] Functional audit F-04: audit role permissions, tenant isolation, data propagation, dashboards, exports, notifications, placeholders, and error states
 - [x] Functional audit F-05: deliver the dashboard requirements matrix, defect register, functional-readiness scores, and prioritised corrective sequence without changing product behavior
+- [x] P0 Package 1-A: bind report generation, polling, download recording, schedules, and report-output URLs to authorised tenant and requester scope
+- [x] P0 Package 1-B: bind agency quote acceptance/rejection and sibling closure to the caller's agency tenant and authorised client/fleet scope
+- [x] P0 Package 1-C: enforce tenant- and role-derived scope for intelligence registries and relationship graph; remove caller-controlled raw-SQL tenant interpolation
+- [x] P0 Package 1-D: add adversarial two-tenant regression tests covering read, generation, mutation, polling, download, and direct-ID attacks
+- [x] P0 Package 1-E: complete a platform-super-admin exception policy that is explicit, audited, tenant-selectable, and never inherited by ordinary roles
+- [x] P0 Package 1-D1: execute reporting two-tenant runtime tests for foreign generation override, job polling, download URL, download recording, job listing, and schedule mutation versus same-tenant success
+- [x] P0 Package 1-D2: execute agency quote-decision runtime tests for foreign quote IDs and sibling closure isolation versus same-tenant acceptance/rejection
+- [x] P0 Package 1-D3: execute intelligence runtime tests for foreign tenant input, unauthorised roles, and tenant-filtered registry and relationship-graph results
+- [x] P0 Package 1-D2a: execute a successful same-tenant agency quote rejection and verify only the scoped quote is updated
+- [x] P0 Package 1-D2b: assert a same-tenant quote acceptance cannot include another agency tenant in sibling closure
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
 - [x] Approved corrective removal: removed accidentally checkpointed claim re-run permissions and related test adjustment; preserved approved Fleet navigation correction and conformance matrix
 - [ ] P0: Diagnose and eliminate the React runtime crash shown on the live portal route (minified React error #130)

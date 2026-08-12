@@ -168,14 +168,15 @@ export async function renderHtmlToPdf(html: string): Promise<RenderResult> {
 
 /**
  * Render HTML to PDF and upload to S3.
- * Returns the S3 key and public URL.
+ * Returns only the opaque S3 key. Authorised callers must obtain a short-lived
+ * retrieval URL through the report lifecycle boundary, not from this renderer.
  */
 export async function renderAndUpload(
   html: string,
   s3KeyPrefix: string
-): Promise<{ s3Key: string; url: string; pageCount: number; fileSizeBytes: number }> {
+): Promise<{ s3Key: string; pageCount: number; fileSizeBytes: number }> {
   const { buffer, pageCount, fileSizeBytes } = await renderHtmlToPdf(html);
   const s3Key = `${s3KeyPrefix}-${Date.now()}.pdf`;
-  const { url } = await storagePut(s3Key, buffer, "application/pdf");
-  return { s3Key, url, pageCount, fileSizeBytes };
+  await storagePut(s3Key, buffer, "application/pdf");
+  return { s3Key, pageCount, fileSizeBytes };
 }

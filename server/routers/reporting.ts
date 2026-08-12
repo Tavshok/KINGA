@@ -8,13 +8,27 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../_core/trpc";
-import { enqueueReport, getJobStatus, recordDownload, getUserJobs } from "../reporting/reportQueue";
+import { enqueueReport, getAuthorisedReportObject, getJobStatus, recordDownload, getUserJobs } from "../reporting/reportQueue";
 import { REPORT_ACCESS } from "../reporting/reportDefinitions";
 import { isAdminRole } from "../../shared/role-permissions";
+import { storageGet } from "../storage";
+import { auditP0CrossTenantAccess, resolveP0TenantScope, validateP0TenantScope } from "../security/p0TenantBoundary";
 import mysql from "mysql2/promise";
 
 const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
+
+async function assertClaimInTenant(claimId: number, tenantId: string): Promise<void> {
+  const conn = await getConn();
+  try {
+    const [rows] = await conn.execute("SELECT id FROM claims WHERE id=? AND tenant_id=? LIMIT 1", [claimId, tenantId]);
+    if (!(rows as Record<string, unknown>[])[0]) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found." });
+    }
+  } finally {
+    await conn.end();
+  }
+}
 
 // ─── Permission Check ───────────────────────────────────────────────────────
 // For insurer users, access is determined by insurerRole (sub-role).
@@ -119,9 +133,13 @@ export const reportingRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this report type." });
       }
 
-      const params: Record<string, unknown> = {};
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.generate");
+      await validateP0TenantScope(scope);
+      if (input.claimId) await assertClaimInTenant(input.claimId, scope.tenantId);
+      await auditP0CrossTenantAccess(ctx, scope, "report_generate", input.claimId ? String(input.claimId) : input.reportKey, { reportKey: input.reportKey });
+
+      const params: Record<string, unknown> = { tenantId: scope.tenantId };
       if (input.claimId)    params.claimId    = input.claimId;
-      if (input.tenantId)   params.tenantId   = input.tenantId;
       if (input.fromTs)     params.fromTs     = input.fromTs;
       if (input.toTs)       params.toTs       = input.toTs;
       if (input.subjectId)  params.subjectId  = input.subjectId;
@@ -131,7 +149,7 @@ export const reportingRouter = router({
         reportKey: input.reportKey,
         requestedByUserId: ctx.user.id,
         requestedByUserName: ctx.user.name ?? ctx.user.email ?? "Unknown",
-        tenantId: input.tenantId ?? ctx.user.tenantId ?? undefined,
+        tenantId: scope.tenantId,
         parameters: params,
         outputFormat: input.outputFormat,
       });
@@ -141,24 +159,51 @@ export const reportingRouter = router({
 
   // ── Poll job status ────────────────────────────────────────────────────────
   getJobStatus: protectedProcedure
-    .input(z.object({ jobId: z.string() }))
-    .query(async ({ input }) => {
-      const job = await getJobStatus(input.jobId);
+    .input(z.object({ jobId: z.string(), tenantId: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.getJobStatus");
+      await validateP0TenantScope(scope);
+      const job = await getJobStatus(input.jobId, { tenantId: scope.tenantId, userId: ctx.user.id, isPlatformSuperAdmin: scope.isPlatformSuperAdmin });
       if (!job) throw new TRPCError({ code: "NOT_FOUND", message: "Report job not found." });
+      await auditP0CrossTenantAccess(ctx, scope, "report_job_status", input.jobId);
       return job;
     }),
 
   // ── Get user's recent jobs ─────────────────────────────────────────────────
-  getMyJobs: protectedProcedure.query(async ({ ctx }) => {
-    return getUserJobs(ctx.user.id, ctx.user.tenantId ?? undefined);
-  }),
+  getMyJobs: protectedProcedure
+    .input(z.object({ tenantId: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const scope = resolveP0TenantScope(ctx, input?.tenantId, "reporting.getMyJobs");
+      await validateP0TenantScope(scope);
+      await auditP0CrossTenantAccess(ctx, scope, "report_job_list", scope.tenantId);
+      return getUserJobs({ tenantId: scope.tenantId, userId: ctx.user.id, isPlatformSuperAdmin: scope.isPlatformSuperAdmin });
+    }),
 
   // ── Record a download ─────────────────────────────────────────────────────
   recordDownload: protectedProcedure
-    .input(z.object({ jobId: z.string() }))
+    .input(z.object({ jobId: z.string(), tenantId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
-      await recordDownload(input.jobId, ctx.user.id);
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.recordDownload");
+      await validateP0TenantScope(scope);
+      const recorded = await recordDownload(input.jobId, { tenantId: scope.tenantId, userId: ctx.user.id, isPlatformSuperAdmin: scope.isPlatformSuperAdmin });
+      if (!recorded) throw new TRPCError({ code: "NOT_FOUND", message: "Report job not found." });
+      await auditP0CrossTenantAccess(ctx, scope, "report_download_record", input.jobId);
       return { ok: true };
+    }),
+
+  // A short-lived retrieval URL is issued only after an independent job ownership check.
+  getDownloadUrl: protectedProcedure
+    .input(z.object({ jobId: z.string(), tenantId: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.getDownloadUrl");
+      await validateP0TenantScope(scope);
+      const job = await getAuthorisedReportObject(input.jobId, { tenantId: scope.tenantId, userId: ctx.user.id, isPlatformSuperAdmin: scope.isPlatformSuperAdmin });
+      if (!job || job.status !== "completed" || typeof job.s3_key !== "string" || !job.s3_key) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Completed report output not found." });
+      }
+      const { url } = await storageGet(job.s3_key, 300);
+      await auditP0CrossTenantAccess(ctx, scope, "report_download_url", input.jobId, { reportKey: job.report_key });
+      return { url };
     }),
 
   // ── Admin: get all recent jobs (any user) ─────────────────────────────────
@@ -167,48 +212,54 @@ export const reportingRouter = router({
       tenantId: z.string().optional(),
       limit: z.number().min(1).max(200).default(100),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.adminGetAllJobs");
+      await validateP0TenantScope(scope);
       const conn = await getConn();
       try {
         const [rows] = await conn.execute(
           `SELECT job_id, report_key, status, output_format, requested_by_user_id,
                   tenant_id, download_count, error_message, started_at, completed_at,
                   file_size_bytes, page_count, created_at
-           FROM report_jobs
-           ${input.tenantId ? "WHERE tenant_id=?" : ""}
+           FROM report_jobs WHERE tenant_id=?
            ORDER BY created_at DESC LIMIT ?`,
-          input.tenantId ? [input.tenantId, input.limit] : [input.limit]
+          [scope.tenantId, input.limit]
         );
+        await auditP0CrossTenantAccess(ctx, scope, "report_admin_job_list", scope.tenantId);
         return rows as Record<string, unknown>[];
       } finally {
         await conn.end();
       }
     }),
   // ── Get scheduled reports ─────────────────────────────────────────────────────
-  getScheduledReports: protectedProcedure.query(async ({ ctx }) => {
+  getScheduledReports: protectedProcedure
+    .input(z.object({ tenantId: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
     const topRole = ctx.user.role ?? "user";
     const insurerRole = (ctx.user as any).insurerRole ?? null;
     const effectiveRole = insurerRole ?? topRole;
-    const canSchedule = ["admin", "insurer_admin", "claims_manager", "risk_manager", "executive"].includes(effectiveRole);
+    const canSchedule = isAdminRole(topRole) || ["insurer_admin", "claims_manager", "risk_manager", "executive"].includes(effectiveRole);
     if (!canSchedule) {
       throw new TRPCError({ code: "FORBIDDEN" });
     }
+    const scope = resolveP0TenantScope(ctx, input?.tenantId, "reporting.getScheduledReports");
+    await validateP0TenantScope(scope);
     const conn = await getConn();
     try {
       const [rows] = await conn.execute(
         `SELECT id, report_key, schedule_cron, schedule_label, is_active,
                 tenant_id, delivery_emails, parameters, last_run_at, next_run_at,
                 created_by_user_id, created_at
-         FROM report_schedules
-         WHERE tenant_id=? OR (tenant_id IS NULL AND ? = 'admin')
+         FROM report_schedules WHERE tenant_id=?
          ORDER BY created_at DESC`,
-        [ctx.user.tenantId ?? null, topRole]
+        [scope.tenantId]
       );
+      await auditP0CrossTenantAccess(ctx, scope, "report_schedule_list", scope.tenantId);
       return rows as Record<string, unknown>[];
     } finally {
       await conn.end();
     }
-  }),
+    }),
 
   // ── Create a scheduled report ─────────────────────────────────────────────
   createSchedule: protectedProcedure
@@ -218,6 +269,7 @@ export const reportingRouter = router({
       scheduleCron:   z.string(),
       deliveryEmails: z.array(z.string().email()),
       parameters:     z.record(z.string(), z.unknown()).optional(),
+      tenantId:       z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const role = ctx.user.role ?? "claims_processor";
@@ -226,9 +278,11 @@ export const reportingRouter = router({
       if (!canAccessReport(input.reportKey, role, insurerRole)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this report type." });
       }
-      if (!((["admin", "insurer_admin", "claims_manager", "executive"] as string[]).includes(effectiveRole))) {
+      if (!(isAdminRole(role) || (["insurer_admin", "claims_manager", "executive"] as string[]).includes(effectiveRole))) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only managers and admins can schedule reports." });
       }
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.createSchedule");
+      await validateP0TenantScope(scope);
       const conn = await getConn();
       try {
         const now = Date.now();
@@ -239,12 +293,13 @@ export const reportingRouter = router({
            VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
           [
             input.reportKey, input.scheduleCron, input.scheduleLabel,
-            ctx.user.tenantId ?? null,
+            scope.tenantId,
             JSON.stringify(input.deliveryEmails),
             JSON.stringify(input.parameters ?? {}),
             ctx.user.id, now, now,
           ]
         );
+        await auditP0CrossTenantAccess(ctx, scope, "report_schedule_create", input.reportKey);
         return { ok: true };
       } finally {
         await conn.end();
@@ -253,27 +308,26 @@ export const reportingRouter = router({
 
   // ── Delete a scheduled report ──────────────────────────────────────────────
   deleteSchedule: protectedProcedure
-    .input(z.object({ scheduleId: z.number() }))
+    .input(z.object({ scheduleId: z.number(), tenantId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const topRole = ctx.user.role ?? "user";
       const insurerRole = (ctx.user as any).insurerRole ?? null;
       const effectiveRole = insurerRole ?? topRole;
-      if (!(["admin", "insurer_admin", "claims_manager", "risk_manager", "executive"] as string[]).includes(effectiveRole)) {
+      if (!(isAdminRole(topRole) || (["insurer_admin", "claims_manager", "risk_manager", "executive"] as string[]).includes(effectiveRole))) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only managers and admins can delete schedules." });
       }
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.deleteSchedule");
+      await validateP0TenantScope(scope);
       const conn = await getConn();
       try {
         const [rows] = await conn.execute(
-          `SELECT id, tenant_id FROM report_schedules WHERE id=? LIMIT 1`,
-          [input.scheduleId]
+          `SELECT id FROM report_schedules WHERE id=? AND tenant_id=? LIMIT 1`,
+          [input.scheduleId, scope.tenantId]
         ) as [Record<string, unknown>[], unknown];
         const sched = rows[0];
         if (!sched) throw new TRPCError({ code: "NOT_FOUND", message: "Schedule not found." });
-        // Non-admins can only delete their own tenant's schedules
-        if (topRole !== "admin" && sched.tenant_id !== ctx.user.tenantId) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "You can only delete schedules for your own tenant." });
-        }
-        await conn.execute(`DELETE FROM report_schedules WHERE id=?`, [input.scheduleId]);
+        await conn.execute(`DELETE FROM report_schedules WHERE id=? AND tenant_id=?`, [input.scheduleId, scope.tenantId]);
+        await auditP0CrossTenantAccess(ctx, scope, "report_schedule_delete", String(input.scheduleId));
         return { ok: true };
       } finally {
         await conn.end();
@@ -281,29 +335,29 @@ export const reportingRouter = router({
     }),
   // ── Toggle a scheduled report active/inactive ────────────────────────────
   toggleSchedule: protectedProcedure
-    .input(z.object({ scheduleId: z.number(), isActive: z.boolean() }))
+    .input(z.object({ scheduleId: z.number(), isActive: z.boolean(), tenantId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const topRole = ctx.user.role ?? "user";
       const insurerRole = (ctx.user as any).insurerRole ?? null;
       const effectiveRole = insurerRole ?? topRole;
-      if (!(["admin", "insurer_admin", "claims_manager", "risk_manager", "executive"] as string[]).includes(effectiveRole)) {
+      if (!(isAdminRole(topRole) || (["insurer_admin", "claims_manager", "risk_manager", "executive"] as string[]).includes(effectiveRole))) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only managers and admins can modify schedules." });
       }
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.toggleSchedule");
+      await validateP0TenantScope(scope);
       const conn = await getConn();
       try {
         const [rows] = await conn.execute(
-          `SELECT id, tenant_id FROM report_schedules WHERE id=? LIMIT 1`,
-          [input.scheduleId]
+          `SELECT id FROM report_schedules WHERE id=? AND tenant_id=? LIMIT 1`,
+          [input.scheduleId, scope.tenantId]
         ) as [Record<string, unknown>[], unknown];
         const sched = rows[0];
         if (!sched) throw new TRPCError({ code: "NOT_FOUND", message: "Schedule not found." });
-        if (topRole !== "admin" && sched.tenant_id !== ctx.user.tenantId) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "You can only modify schedules for your own tenant." });
-        }
         await conn.execute(
-          `UPDATE report_schedules SET is_active=?, updated_at=? WHERE id=?`,
-          [input.isActive ? 1 : 0, Date.now(), input.scheduleId]
+          `UPDATE report_schedules SET is_active=?, updated_at=? WHERE id=? AND tenant_id=?`,
+          [input.isActive ? 1 : 0, Date.now(), input.scheduleId, scope.tenantId]
         );
+        await auditP0CrossTenantAccess(ctx, scope, "report_schedule_toggle", String(input.scheduleId));
         return { ok: true };
       } finally {
         await conn.end();
@@ -412,6 +466,7 @@ export const reportingRouter = router({
     .input(z.object({
       reportKey: z.string(),
       claimId:   z.number().optional(),
+      tenantId:  z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
       const role = ctx.user.role ?? "claims_processor";
@@ -419,10 +474,14 @@ export const reportingRouter = router({
       if (!canAccessReport(input.reportKey, role, insurerRole)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this report type." });
       }
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.previewHtml");
+      await validateP0TenantScope(scope);
+      if (input.claimId) await assertClaimInTenant(input.claimId, scope.tenantId);
       const { generateReportHtml } = await import("../reporting/reportDefinitions");
       const params: Record<string, unknown> = {};
       if (input.claimId) params.claimId = input.claimId;
-      const html = await generateReportHtml(input.reportKey, params, ctx.user.tenantId ?? undefined);
+      const html = await generateReportHtml(input.reportKey, params, scope.tenantId);
+      await auditP0CrossTenantAccess(ctx, scope, "report_preview", input.claimId ? String(input.claimId) : input.reportKey);
       return { html };
     }),
 
@@ -430,8 +489,10 @@ export const reportingRouter = router({
   // Single source of truth for report readiness state per claim.
   // Used by: claim list rows, claim detail view, Reports Centre selector.
   getReportReadiness: protectedProcedure
-    .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
+    .input(z.object({ claimId: z.number(), tenantId: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.getReportReadiness");
+      await validateP0TenantScope(scope);
       const conn = await getConn();
       try {
         const [rows] = await conn.execute(
@@ -449,10 +510,10 @@ export const reportingRouter = router({
              a.recommendation
            FROM claims c
            LEFT JOIN ai_assessments a ON a.claim_id = c.id
-           WHERE c.id = ?
+           WHERE c.id = ? AND c.tenant_id = ?
            ORDER BY a.id DESC
            LIMIT 1`,
-          [input.claimId]
+          [input.claimId, scope.tenantId]
         ) as any[];
 
         if (!rows || rows.length === 0) {
@@ -517,6 +578,7 @@ export const reportingRouter = router({
         }
         availableReports.push(...portfolioReports);
 
+        await auditP0CrossTenantAccess(ctx, scope, "report_readiness", String(input.claimId));
         return {
           claimId:        input.claimId,
           claimReference: row.claim_reference as string,

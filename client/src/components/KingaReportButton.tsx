@@ -99,6 +99,12 @@ export function KingaReportButton({
   // ── Polling ────────────────────────────────────────────────────────────────
   const utils = trpc.useUtils();
 
+  const requestAuthorisedDownload = async (activeJobId: string) => {
+    const { url } = await utils.client.reportingEngine.getDownloadUrl.query({ jobId: activeJobId });
+    window.open(url, "_blank", "noopener,noreferrer");
+    recordDownloadMutation.mutate({ jobId: activeJobId });
+  };
+
   useEffect(() => {
     if (!jobId || jobStatus === "completed" || jobStatus === "failed" || jobStatus === "idle") {
       return;
@@ -113,15 +119,11 @@ export function KingaReportButton({
 
         if (status === "completed") {
           setJobStatus("completed");
-          setDownloadUrl(job.download_url as string | null);
+          setDownloadUrl("ready");
           setPageCount(job.page_count as number | null);
           setFileSizeBytes(job.file_size_bytes as number | null);
           clearInterval(pollRef.current!);
-          // Auto-open download
-          if (job.download_url) {
-            window.open(job.download_url as string, "_blank", "noopener,noreferrer");
-            recordDownloadMutation.mutate({ jobId });
-          }
+          await requestAuthorisedDownload(jobId);
           toast.success("Report ready — opening download.");
         } else if (status === "failed") {
           setJobStatus("failed");
@@ -131,8 +133,10 @@ export function KingaReportButton({
         } else if (status === "running") {
           setJobStatus("running");
         }
-      } catch {
-        // Silently ignore transient poll errors
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unable to retrieve the authorised report output.";
+        setErrorMessage(message);
+        toast.error(message);
       }
     }, 2000);
 
@@ -171,10 +175,15 @@ export function KingaReportButton({
   };
 
   // ── Re-download ────────────────────────────────────────────────────────────
-  const handleReDownload = () => {
-    if (downloadUrl) {
-      window.open(downloadUrl, "_blank", "noopener,noreferrer");
-      if (jobId) recordDownloadMutation.mutate({ jobId });
+  const handleReDownload = async () => {
+    if (downloadUrl && jobId) {
+      try {
+        await requestAuthorisedDownload(jobId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unable to retrieve the authorised report output.";
+        setErrorMessage(message);
+        toast.error(message);
+      }
     }
   };
 
