@@ -5,10 +5,12 @@ const mocks = vi.hoisted(() => ({
   select: vi.fn(),
   audit: vi.fn(),
   validate: vi.fn(),
+  insert: vi.fn(),
+  db: null as any,
 }));
 
 vi.mock("./db", () => ({
-  getDb: async () => ({ execute: mocks.execute, select: mocks.select }),
+  getDb: async () => mocks.db,
 }));
 vi.mock("./security/p0TenantBoundary", async () => {
   const actual = await vi.importActual<typeof import("./security/p0TenantBoundary")>("./security/p0TenantBoundary");
@@ -29,6 +31,21 @@ const superAdmin = {
   insurerTenantId: tenantA,
   req: { headers: {} },
 } as any;
+const processorA = {
+  user: { id: 102, role: "insurer", insurerRole: "claims_processor", tenantId: tenantA },
+  insurerTenantId: tenantA,
+  req: { headers: {} },
+} as any;
+const executiveWithoutTenant = {
+  user: { id: 103, role: "insurer", insurerRole: "executive", tenantId: null },
+  insurerTenantId: null,
+  req: { headers: {} },
+} as any;
+const superAdminWithoutTenant = {
+  user: { id: 2, role: "platform_super_admin", insurerRole: null, tenantId: null },
+  insurerTenantId: null,
+  req: { headers: {} },
+} as any;
 
 describe("P0 Package 3 runtime — Executive operational detail", () => {
   beforeEach(() => {
@@ -36,6 +53,9 @@ describe("P0 Package 3 runtime — Executive operational detail", () => {
     mocks.select.mockReset();
     mocks.audit.mockReset();
     mocks.validate.mockReset();
+    mocks.insert.mockReset();
+    mocks.insert.mockReturnValue({ values: async () => ({}) });
+    mocks.db = { execute: mocks.execute, select: mocks.select, insert: mocks.insert };
     mocks.select.mockReturnValue({ from: () => ({ where: () => ({ limit: async () => [{ id: tenantB }] }) }) });
   });
 
@@ -54,10 +74,30 @@ describe("P0 Package 3 runtime — Executive operational detail", () => {
     expect(mocks.execute).not.toHaveBeenCalled();
   });
 
-  it("returns an explicit unavailable state for a foreign or absent authorised claim", async () => {
+  it("denies an ordinary claims processor access to Executive operational detail", async () => {
+    await expect(executiveRouter.createCaller(processorA).getOperationalClaimDetail({ claimId: 77 })).rejects.toThrow("Executive access required");
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it("does not disclose a direct foreign numeric claim identifier under the caller tenant scope", async () => {
     mocks.execute.mockResolvedValueOnce({ rows: [] });
     const detail = await executiveRouter.createCaller(executiveA).getOperationalClaimDetail({ claimId: 999 });
     expect(detail).toEqual(expect.objectContaining({ state: "unavailable", claims: [], workflowHistory: [], overrideHistory: [] }));
+  });
+
+  it("fails closed when an ordinary Executive request has no tenant context", async () => {
+    await expect(executiveRouter.createCaller(executiveWithoutTenant).getOperationalClaimDetail({ claimId: 77 })).rejects.toThrow("not associated with an insurer tenant");
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it("requires explicit tenant selection when a platform super-admin has no session tenant", async () => {
+    await expect(executiveRouter.createCaller(superAdminWithoutTenant).getOperationalClaimDetail({ claimId: 77 })).rejects.toThrow("Explicit tenant selection is required");
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it("fails the authorised data request when the database is unavailable, allowing the client error state to render", async () => {
+    mocks.db = null;
+    await expect(executiveRouter.createCaller(executiveA).getOperationalClaimDetail({ claimId: 77 })).rejects.toThrow("Database not available");
   });
 
   it("allows a platform super-admin only after explicit tenant selection and records the selected claim audit", async () => {

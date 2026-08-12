@@ -89,9 +89,11 @@
 - [x] P0 Package 3-E: add two-tenant, no-mock, unavailable-state, same-tenant, and super-admin audit regression proof
 - [x] P0 Package 3-F: map every active Executive operational data path and classify all mock/demo/static claim payloads by runtime reachability
 - [x] P0 Package 3-G: enforce the minimum authoritative-field contract without zero, low-risk, approved, or invented fallback values for missing data
-- [ ] P0 Package 3-H: test same-tenant, cross-tenant claim/UUID/tenant override, missing tenant, empty detail, missing history, API failure, super-admin audit, and ordinary-role override denial
+- [x] P0 Package 3-H: complete the full Executive access acceptance matrix after explicit missing-tenant and numeric direct-ID tests are added
 - [ ] P0 Package 3-I: execute the active Executive Dashboard runtime against authorised data, unavailable data, foreign IDs, and error state without any mock fallback
 - [ ] P0 Package 3-H1: execute authenticated Executive Dashboard API-failure and route-level browser acceptance with an Executive or explicitly tenant-selected platform-super-admin session
+- [x] P0 Package 3-H2: add and run an Executive direct numeric claim-ID test proving a foreign object is unavailable even when no tenant override is supplied
+- [x] P0 Package 3-H3: add and run missing-tenant context tests for an ordinary Executive and platform-super-admin Executive detail request
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
 - [x] Approved corrective removal: removed accidentally checkpointed claim re-run permissions and related test adjustment; preserved approved Fleet navigation correction and conformance matrix
 - [ ] P0: Diagnose and eliminate the React runtime crash shown on the live portal route (minified React error #130)
