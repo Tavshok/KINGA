@@ -349,12 +349,15 @@ async function generateClaimAssessmentReport(
       ? quoteRows.filter((quote) => activeQuoteIds.has(String(quote.id)))
       : quoteRows;
     const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
+    const evidenceQualifiedL2 = costIntegrity.l2EvidenceQualifiedComparisonUsd;
     const submittedQuoteLedgerDetail = costIntegrity.activeQuotes.length > 0
       ? costIntegrity.activeQuotes.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtUSD(quote.amountUsd)}`).join(" · ")
       : "No submitted repair quotations";
-    const l2Display = kingaOptimised === null
-      ? (costIntegrity.l2Status === "reconciliation_required" ? "All-in reconciliation required" : "L2 incomplete")
-      : fmtUSD(kingaOptimised);
+    const l2Display = kingaOptimised !== null
+      ? fmtUSD(kingaOptimised)
+      : evidenceQualifiedL2 !== null
+        ? `${fmtUSD(evidenceQualifiedL2)} (evidence-qualified comparison)`
+        : (costIntegrity.l2Status === "reconciliation_required" ? "All-in reconciliation required" : "L2 comparison pending evidence");
     const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l1SubmittedCostUsd);
     const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l3BenchmarkReferenceCostUsd);
 	const residualReconciliationDetail = costIntegrity.quoteReconciliations
@@ -362,7 +365,9 @@ async function generateClaimAssessmentReport(
 		.map((quote) => `${quote.repairer}: ${fmtUSD(quote.unexplainedResidualUsd!)} requires document-to-ledger reconciliation`)
 		.join(" · ");
     const l2IntegrityNote = kingaOptimised === null
-      ? costIntegrity.l2Status === "reconciliation_required"
+      ? evidenceQualifiedL2 !== null
+        ? `Evidence-qualified submitted-price comparison: ${fmtUSD(evidenceQualifiedL2)}${costIntegrity.l2EvidenceCoveragePercent === null ? "" : ` (${costIntegrity.l2EvidenceCoveragePercent}% source-evidence coverage)`}. L2 intelligence remains visible while source exceptions are reconciled. This is not an all-in payable repair total; KINGA does not publish final savings or a settlement recommendation until the complete evidence basis is equivalent and reconciled.`
+        : costIntegrity.l2Status === "reconciliation_required"
 		? `Itemised submitted-price comparison is available, but ${costIntegrity.unreconciledQuoteCount || "one or more"} quote header(s) do not reconcile to explicit submitted line totals. ${residualReconciliationDetail ? `Reconciliation findings: ${residualReconciliationDetail}. ` : ""}KINGA has not allocated the difference to labour, VAT, fee, paint, or another component. Verify the original quote, scope, tax basis, and revision before an all-in cost recommendation.`
         : `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
           `${costIntegrity.partialPricedScopeUsd !== null ? `Partial priced scope: ${fmtUSD(costIntegrity.partialPricedScopeUsd)}. ` : ""}` +
@@ -689,7 +694,7 @@ ${totalPhotosCL > 0 ? `
     : `<div style="margin-top:8px;padding:6px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#7a4c00;"><b>Cost recommendation withheld.</b> ${esc(l2IntegrityNote)}</div>`}
 	${costIntegrity.assessorCalibrationCostUsd !== null ? `<div style="margin-top:8px;padding:6px 10px;background:#f5f5f5;border-left:3px solid #8a8a8a;font-size:10px;color:#4a4a4a;"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This prior assessor figure is retained for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
 	<div style="margin-top:8px;padding:6px 10px;background:#f3f7fb;border-left:3px solid #2d5f8b;font-size:10px;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
-	${renderEvidenceGovernancePanel(evidenceGovernanceData)}
+	${renderEvidenceGovernancePanel(evidenceGovernanceData, activeQuoteIds)}
   <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px"><tr style="background:#f5f5f5"><td style="padding:4px 6px;font-weight:600">Submitted quotation ledger</td><td style="padding:4px 6px">${activeQuoteRows.length} active quote${activeQuoteRows.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td><td style="padding:4px 6px;font-weight:600">L1 — lowest active submitted quote</td><td style="padding:4px 6px">${l1Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">Active quote amounts</td><td colspan="3" style="padding:4px 6px">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td style="padding:4px 6px;font-weight:600">Quote scope status</td><td style="padding:4px 6px">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td><td style="padding:4px 6px;font-weight:600">L2 — KINGA all-in recommendation</td><td style="padding:4px 6px">${l2Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">L3 — benchmark reference</td><td colspan="3" style="padding:4px 6px">${l3Display}</td></tr></table>
   ${activeQuoteRows.length > 0 ? (() => {
     // Build a union of all line item descriptions across all quotes

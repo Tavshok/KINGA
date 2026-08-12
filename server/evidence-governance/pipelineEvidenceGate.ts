@@ -9,7 +9,16 @@ type ExtractedQuoteEvidence = {
 };
 
 export type PipelineEvidenceGate = {
+  /** Backwards-compatible alias for final, fully verified L2 eligibility. */
   eligibleForL2: boolean;
+  eligibleForFinalL2: boolean;
+  progressiveComparisonAvailable: boolean;
+  evidenceCoverage: {
+    submittedQuotes: number;
+    sourceVerifiedQuotes: number;
+    qualifiedQuotes: number;
+    percentage: number;
+  };
   findings: EvidenceFinding[];
 };
 
@@ -21,18 +30,24 @@ export type PipelineEvidenceGate = {
  */
 export function assessPipelineEvidenceGate(quotes: ExtractedQuoteEvidence[]): PipelineEvidenceGate {
   const findings: EvidenceFinding[] = [];
+  let sourceVerifiedQuotes = 0;
+  let qualifiedQuotes = 0;
   quotes.forEach((quote, index) => {
     const quoteLabel = quote.panel_beater?.trim() || `Quote ${index + 1}`;
     const pageNumbers = quote.source_page_numbers?.filter((page) => Number.isInteger(page) && page > 0) ?? [];
     const warnings = quote.extraction_warnings ?? [];
+    const hasSourceProvenance = quote.source_document_index !== null && quote.source_document_index !== undefined && pageNumbers.length > 0;
+    const hasNonInferredRows = !warnings.includes("line_pricing_not_extracted") && !warnings.includes("proportional_fallback_used");
+    if (hasSourceProvenance) sourceVerifiedQuotes += 1;
+    if (hasSourceProvenance && hasNonInferredRows) qualifiedQuotes += 1;
 
-    if (quote.source_document_index === null || quote.source_document_index === undefined || pageNumbers.length === 0) {
+    if (!hasSourceProvenance) {
       findings.push({
         code: "source_provenance_pending",
         status: "unresolved",
-        severity: "blocking",
+        severity: "review",
         title: `${quoteLabel} requires document and page provenance`,
-        summary: "The submitted quotation cannot enter a verified L2 comparison until its source document and source page are recorded.",
+        summary: "KINGA retains the submitted quote in evidence-qualified comparison intelligence, but it cannot be used in a final verified-equivalent L2 total until its source document and source page are recorded.",
         subjectKey: `quote-index:${index}`,
       });
     }
@@ -41,13 +56,26 @@ export function assessPipelineEvidenceGate(quotes: ExtractedQuoteEvidence[]): Pi
       findings.push({
         code: "line_pricing_not_source_verified",
         status: "extraction_defect",
-        severity: "blocking",
+        severity: "review",
         title: `${quoteLabel} contains non-verifiable line pricing`,
-        summary: "KINGA will not convert an unparsed quote total into component prices. Obtain a source-verified itemisation before L2 comparison.",
+        summary: "KINGA will not convert an unparsed quote total into component prices. The quote remains visible as submitted evidence; obtain a source-verified itemisation before using it in a final verified-equivalent L2 total.",
         subjectKey: `quote-index:${index}`,
       });
     }
   });
 
-  return { eligibleForL2: findings.length === 0, findings };
+  const eligibleForFinalL2 = findings.length === 0;
+  const submittedQuotes = quotes.length;
+  return {
+    eligibleForL2: eligibleForFinalL2,
+    eligibleForFinalL2,
+    progressiveComparisonAvailable: submittedQuotes > 0,
+    evidenceCoverage: {
+      submittedQuotes,
+      sourceVerifiedQuotes,
+      qualifiedQuotes,
+      percentage: submittedQuotes === 0 ? 0 : Math.round((qualifiedQuotes / submittedQuotes) * 100),
+    },
+    findings,
+  };
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { assessPipelineEvidenceGate } from "./pipelineEvidenceGate";
 
 describe("pipeline evidence gate", () => {
-  it("allows an L2 comparison only when every source quote is document and page locatable", () => {
+  it("marks a fully source-verified quote eligible for a final L2 total", () => {
     const result = assessPipelineEvidenceGate([{
       panel_beater: "Verified Repairer",
       source_document_index: 2,
@@ -11,19 +11,25 @@ describe("pipeline evidence gate", () => {
       extraction_warnings: [],
     }]);
     expect(result.eligibleForL2).toBe(true);
+    expect(result.eligibleForFinalL2).toBe(true);
+    expect(result.progressiveComparisonAvailable).toBe(true);
+    expect(result.evidenceCoverage).toEqual({ submittedQuotes: 1, sourceVerifiedQuotes: 1, qualifiedQuotes: 1, percentage: 100 });
     expect(result.findings).toEqual([]);
   });
 
-  it("withholds L2 when a quote has no document or page provenance", () => {
+  it("keeps L2 intelligence available while source provenance prevents a final total", () => {
     const result = assessPipelineEvidenceGate([{
       panel_beater: "Legacy Repairer",
       extraction_warnings: [],
     }]);
     expect(result.eligibleForL2).toBe(false);
-    expect(result.findings[0]).toMatchObject({ code: "source_provenance_pending", severity: "blocking" });
+    expect(result.eligibleForFinalL2).toBe(false);
+    expect(result.progressiveComparisonAvailable).toBe(true);
+    expect(result.evidenceCoverage).toEqual({ submittedQuotes: 1, sourceVerifiedQuotes: 0, qualifiedQuotes: 0, percentage: 0 });
+    expect(result.findings[0]).toMatchObject({ code: "source_provenance_pending", severity: "review" });
   });
 
-  it("withholds L2 when a historical proportional fallback warning is present", () => {
+  it("qualifies a historical proportional fallback while retaining the submitted quote as evidence", () => {
     const result = assessPipelineEvidenceGate([{
       panel_beater: "Quote With Unparsed Rows",
       source_document_index: 1,
@@ -31,6 +37,8 @@ describe("pipeline evidence gate", () => {
       extraction_warnings: ["proportional_fallback_used"],
     }]);
     expect(result.eligibleForL2).toBe(false);
+    expect(result.progressiveComparisonAvailable).toBe(true);
+    expect(result.evidenceCoverage).toEqual({ submittedQuotes: 1, sourceVerifiedQuotes: 1, qualifiedQuotes: 0, percentage: 0 });
     expect(result.findings[0]).toMatchObject({ code: "line_pricing_not_source_verified", status: "extraction_defect" });
   });
 });

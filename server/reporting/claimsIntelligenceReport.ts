@@ -172,9 +172,12 @@ export async function generateClaimsIntelligenceReport(
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
     const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
     const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
-    const l2Display = kingaOptimised === null
-      ? (costIntegrity.l2Status === "reconciliation_required" ? "All-in reconciliation required" : "L2 incomplete")
-      : fmtUSD(kingaOptimised);
+    const evidenceQualifiedL2 = costIntegrity.l2EvidenceQualifiedComparisonUsd;
+    const l2Display = kingaOptimised !== null
+      ? fmtUSD(kingaOptimised)
+      : evidenceQualifiedL2 !== null
+        ? `${fmtUSD(evidenceQualifiedL2)} (evidence-qualified comparison)`
+        : (costIntegrity.l2Status === "reconciliation_required" ? "All-in reconciliation required" : "L2 comparison pending evidence");
     const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l1SubmittedCostUsd);
     const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l3BenchmarkReferenceCostUsd);
 	const residualReconciliationDetail = costIntegrity.quoteReconciliations
@@ -182,7 +185,9 @@ export async function generateClaimsIntelligenceReport(
 		.map((quote) => `${quote.repairer}: ${fmtUSD(quote.unexplainedResidualUsd!)} requires document-to-ledger reconciliation`)
 		.join(" · ");
     const l2IntegrityNote = kingaOptimised === null
-      ? costIntegrity.l2Status === "reconciliation_required"
+      ? evidenceQualifiedL2 !== null
+        ? `Evidence-qualified submitted-price comparison: ${fmtUSD(evidenceQualifiedL2)}${costIntegrity.l2EvidenceCoveragePercent === null ? "" : ` (${costIntegrity.l2EvidenceCoveragePercent}% source-evidence coverage)`}. L2 intelligence remains visible while source exceptions are reconciled. This is not an all-in payable repair total; KINGA does not publish final savings or a settlement recommendation until the complete evidence basis is equivalent and reconciled.`
+        : costIntegrity.l2Status === "reconciliation_required"
 		? `Itemised submitted-price comparison is available, but ${costIntegrity.unreconciledQuoteCount || "one or more"} quote header(s) do not reconcile to explicit submitted line totals. ${residualReconciliationDetail ? `Reconciliation findings: ${residualReconciliationDetail}. ` : ""}KINGA has not allocated the difference to labour, VAT, fee, paint, or another component. Verify the original quote, scope, tax basis, and revision before an all-in cost recommendation.`
         : `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
           `${costIntegrity.partialPricedScopeUsd !== null ? `Partial priced scope: ${fmtUSD(costIntegrity.partialPricedScopeUsd)}. ` : ""}` +
@@ -569,7 +574,7 @@ ${(() => {
     </p>
     ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This historical assessor figure is displayed for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
     <div class="callout" style="margin-top:8px;border-left-color:#2d5f8b;background:#f3f7fb;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
-    ${renderEvidenceGovernancePanel(evidenceGovernanceData)}
+    ${renderEvidenceGovernancePanel(evidenceGovernanceData, activeQuoteIds)}
     <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">Active quote amounts</td><td class="v">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td class="k">Quote scope status</td><td class="v">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">L2 — KINGA all-in recommendation</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
   </div>
 

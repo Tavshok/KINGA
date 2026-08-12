@@ -209,6 +209,9 @@ export async function generateForensicDecisionReport(
       costIntegrity,
     });
     const quoteArr = costIntegrity.activeQuotes;
+    const activeQuoteIds = new Set(
+      quoteArr.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
+    );
 
     // Bug #8: derive currency from cost intel or quotes (not hardcoded USD)
     const claimCurrency: string = String(
@@ -225,9 +228,12 @@ export async function generateForensicDecisionReport(
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
 
     const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
-    const l2Display = kingaOptimised === null
-      ? (costIntegrity.l2Status === "reconciliation_required" ? "All-in reconciliation required" : "L2 incomplete")
-      : fmtCurrency(kingaOptimised, claimCurrency);
+    const evidenceQualifiedL2 = costIntegrity.l2EvidenceQualifiedComparisonUsd;
+    const l2Display = kingaOptimised !== null
+      ? fmtCurrency(kingaOptimised, claimCurrency)
+      : evidenceQualifiedL2 !== null
+        ? `${fmtCurrency(evidenceQualifiedL2, claimCurrency)} (evidence-qualified comparison)`
+        : (costIntegrity.l2Status === "reconciliation_required" ? "All-in reconciliation required" : "L2 comparison pending evidence");
     const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtCurrency(costIntegrity.l1SubmittedCostUsd, claimCurrency);
     const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtCurrency(costIntegrity.l3BenchmarkReferenceCostUsd, claimCurrency);
 	const residualReconciliationDetail = costIntegrity.quoteReconciliations
@@ -235,7 +241,9 @@ export async function generateForensicDecisionReport(
 		.map((quote) => `${quote.repairer}: ${fmtCurrency(quote.unexplainedResidualUsd!, claimCurrency)} requires document-to-ledger reconciliation`)
 		.join(" · ");
     const l2IntegrityNote = kingaOptimised === null
-      ? costIntegrity.l2Status === "reconciliation_required"
+      ? evidenceQualifiedL2 !== null
+        ? `Evidence-qualified submitted-price comparison: ${fmtCurrency(evidenceQualifiedL2, claimCurrency)}${costIntegrity.l2EvidenceCoveragePercent === null ? "" : ` (${costIntegrity.l2EvidenceCoveragePercent}% source-evidence coverage)`}. L2 intelligence remains visible while source exceptions are reconciled. This is not an all-in payable repair total; KINGA does not publish final savings or a settlement recommendation until the complete evidence basis is equivalent and reconciled.`
+        : costIntegrity.l2Status === "reconciliation_required"
 		? `Itemised submitted-price comparison is available, but ${costIntegrity.unreconciledQuoteCount || "one or more"} quote header(s) do not reconcile to explicit submitted line totals. ${residualReconciliationDetail ? `Reconciliation findings: ${residualReconciliationDetail}. ` : ""}KINGA has not allocated the difference to labour, VAT, fee, paint, or another component. No savings or settlement recommendation is available until the original quote, scope, tax basis, and revision are reconciled.`
         : `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
           `${costIntegrity.partialPricedScopeUsd !== null ? `Partial priced scope: ${fmtCurrency(costIntegrity.partialPricedScopeUsd, claimCurrency)}. ` : ""}` +
@@ -780,7 +788,7 @@ export async function generateForensicDecisionReport(
   </div>
   ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout amber" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtCurrency(costIntegrity.assessorCalibrationCostUsd, claimCurrency)}. This prior assessor figure is retained for comparison with KINGA costing; it is not a submitted quote, L2 value, settlement agreement, or payment authority.</div>` : ""}
   <div class="callout" style="margin-top:8px;border-left-color:#2d5f8b;background:#f3f7fb;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
-  ${renderEvidenceGovernancePanel(evidenceGovernanceData)}
+  ${renderEvidenceGovernancePanel(evidenceGovernanceData, activeQuoteIds)}
   <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">Active quote amounts</td><td class="v">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td class="k">Quote scope status</td><td class="v">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">L2 — KINGA all-in recommendation</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
 
   <!-- §01 EXECUTIVE SUMMARY -->

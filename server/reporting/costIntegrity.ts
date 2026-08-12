@@ -15,12 +15,14 @@ export interface ReportCostIntegrity {
   activeQuotes: ReportQuoteLedgerRow[];
   sourceQuoteCount: number;
   quoteReceiptStatus: "no_quotes" | "quotes_received";
-  quoteScopeStatus: "complete" | "incomplete_scope" | "reconciliation_required" | "not_evaluated";
-  l2Status: "complete" | "incomplete_scope" | "reconciliation_required" | "unavailable";
+  quoteScopeStatus: "complete" | "evidence_qualified" | "incomplete_scope" | "reconciliation_required" | "not_evaluated";
+  l2Status: "complete" | "evidence_qualified" | "incomplete_scope" | "reconciliation_required" | "unavailable";
   duplicateQuotesExcluded: number;
   supersededQuotesExcluded: number;
   l1SubmittedCostUsd: number | null;
   l2OptimisedCostUsd: number | null;
+  l2EvidenceQualifiedComparisonUsd: number | null;
+  l2EvidenceCoveragePercent: number | null;
   l3BenchmarkReferenceCostUsd: number | null;
   partialPricedScopeUsd: number | null;
   l2IsComplete: boolean;
@@ -98,11 +100,11 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
     ? "not_evaluated"
     : complete ? "complete" : "incomplete_scope";
   const persistedScopeStatus = composite.quoteScopeStatus;
-  const quoteScopeStatus = persistedScopeStatus === "complete" || persistedScopeStatus === "incomplete_scope" || persistedScopeStatus === "reconciliation_required"
+  const quoteScopeStatus = persistedScopeStatus === "complete" || persistedScopeStatus === "evidence_qualified" || persistedScopeStatus === "incomplete_scope" || persistedScopeStatus === "reconciliation_required"
     ? persistedScopeStatus
     : inferredScopeStatus;
   const persistedL2Status = composite.l2Status;
-  const l2Status = persistedL2Status === "complete" || persistedL2Status === "incomplete_scope" || persistedL2Status === "reconciliation_required"
+  const l2Status = persistedL2Status === "complete" || persistedL2Status === "evidence_qualified" || persistedL2Status === "incomplete_scope" || persistedL2Status === "reconciliation_required"
     ? persistedL2Status
     : l2 !== null ? "complete" : quoteReceiptStatus === "quotes_received" ? "incomplete_scope" : "unavailable";
   const quoteReconciliations = Array.isArray(composite.quoteReconciliations)
@@ -141,6 +143,15 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
       ?? finitePositive(composite.l1SubmittedCostUsd)
       ?? lowestActiveQuoteUsd,
     l2OptimisedCostUsd: l2,
+    l2EvidenceQualifiedComparisonUsd: l2Status === "evidence_qualified"
+      ? finitePositive(composite.l2EvidenceQualifiedComparisonUsd) ?? finitePositive(composite.partialPricedScopeUsd)
+      : null,
+    l2EvidenceCoveragePercent: (() => {
+      const coverage = record(composite.evidenceGovernance).evidenceCoverage;
+      const percentage = record(coverage).percentage;
+      const numeric = Number(percentage);
+      return Number.isFinite(numeric) && numeric >= 0 && numeric <= 100 ? numeric : null;
+    })(),
     l3BenchmarkReferenceCostUsd: finitePositive(composite.l3BenchmarkReferenceCostUsd),
     partialPricedScopeUsd: finitePositive(composite.partialPricedScopeUsd),
     l2IsComplete: l2Status === "complete" && l2 !== null,

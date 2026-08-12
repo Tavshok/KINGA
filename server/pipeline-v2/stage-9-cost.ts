@@ -1874,7 +1874,13 @@ export async function runCostOptimisationStage(
               componentSeverityMap,
               damageAnalysis.damagedParts.map((part: any) => part.name).filter(Boolean)
             );
-            const l2EvidenceEligible = compositeResult.isComplete && evidenceGate.eligibleForL2;
+            const l2EvidenceEligible = compositeResult.isComplete && evidenceGate.eligibleForFinalL2;
+            const l2EvidenceQualified = !l2EvidenceEligible
+              && evidenceGate.progressiveComparisonAvailable
+              && compositeResult.compositeLineItems.some((item) => item.selectedCostUsd > 0);
+            const l2EvidenceQualifiedComparisonUsd = l2EvidenceQualified
+              ? compositeResult.partialPricedScopeUsd
+              : null;
 
             // Component classification: quoted-not-damaged and damaged-not-quoted
             // Use components[] if populated; fall back to lineItems component names
@@ -1914,23 +1920,28 @@ export async function runCostOptimisationStage(
             (output as any).compositeOptimisation = {
               l2Status: l2EvidenceEligible
                 ? "complete"
-                : compositeResult.allInReconciliationRequired || !evidenceGate.eligibleForL2
+                : l2EvidenceQualified
+                  ? "evidence_qualified"
+                  : compositeResult.allInReconciliationRequired || !evidenceGate.eligibleForFinalL2
                   ? "reconciliation_required"
                   : "incomplete_scope",
               quoteReceiptStatus: canonicalQuoteLedger.activeQuoteCount > 0 ? "quotes_received" : "no_quotes",
               quoteScopeStatus: l2EvidenceEligible
                 ? "complete"
-                : compositeResult.allInReconciliationRequired || !evidenceGate.eligibleForL2
+                : l2EvidenceQualified
+                  ? "evidence_qualified"
+                  : compositeResult.allInReconciliationRequired || !evidenceGate.eligibleForFinalL2
                   ? "reconciliation_required"
                   : "incomplete_scope",
               l1SubmittedCostUsd: l1TotalUsd,
               l2CompositeOptimisedCostUsd: l2EvidenceEligible ? compositeResult.compositeOptimisedCostUsd : null,
+              l2EvidenceQualifiedComparisonUsd,
               partialPricedScopeUsd: compositeResult.partialPricedScopeUsd,
               isComplete: l2EvidenceEligible,
               missingRequiredComponents: compositeResult.missingRequiredComponents,
               costBasis: compositeResult.costBasis,
               l3BenchmarkReferenceCostUsd: compositeResult.benchmarkReferenceCostUsd,
-              negotiationSavingsUsd: compositeResult.negotiationSavingsUsd,
+              negotiationSavingsUsd: l2EvidenceEligible ? compositeResult.negotiationSavingsUsd : null,
               marketOverpriceDeltaUsd: compositeResult.marketOverpriceDeltaUsd,
               totalSavingsOpportunityUsd: compositeResult.totalSavingsOpportunityUsd,
               benchmarkCoverageComponents: compositeResult.benchmarkCoverageComponents,
@@ -1948,8 +1959,14 @@ export async function runCostOptimisationStage(
               supersededQuotesExcluded: canonicalQuoteLedger.supersededCount,
               canonicalQuoteLedger: canonicalQuoteLedger.entries,
               evidenceGovernance: {
-                readiness: evidenceGate.eligibleForL2 ? "verified_equivalent" : "reconciliation_required",
+                readiness: l2EvidenceEligible
+                  ? "verified_equivalent"
+                  : l2EvidenceQualified
+                    ? "evidence_qualified"
+                    : "reconciliation_required",
                 l2Eligible: l2EvidenceEligible,
+                progressiveComparisonAvailable: evidenceGate.progressiveComparisonAvailable,
+                evidenceCoverage: evidenceGate.evidenceCoverage,
                 findings: evidenceGate.findings,
               },
             };
