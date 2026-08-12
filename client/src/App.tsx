@@ -334,7 +334,7 @@ function Router() {
         </Route>
         
         <Route path="/user-diagnostic">
-          <ProtectedRoute allowedRoles={["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]}>
+          <ProtectedRoute allowedRoles={["user", "admin", "insurer", "assessor", "panel_beater", "claimant", "platform_super_admin"]}>
             <UserDiagnostic />
           </ProtectedRoute>
         </Route>
@@ -803,12 +803,12 @@ function Router() {
         {/* Admin Routes */}
         {/* ── Admin Routes — all wrapped in AdminPortalLayout (Control Tower) ── */}
         <Route path="/admin">
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
             <AdminPortalLayout title="Admin Overview"><AdminDashboard /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/dashboard">
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
             <AdminPortalLayout title="Admin Overview"><AdminDashboard /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
@@ -818,32 +818,32 @@ function Router() {
           </ProtectedRoute>
         </Route>
         <Route path="/admin/tenants/:tenantId/roles">
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
             <AdminPortalLayout title="Tenant Role Configuration"><TenantRoleConfig /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/tenants">
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
             <AdminPortalLayout title="Tenant Management"><TenantManagement /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/tier-management">
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
             <AdminPortalLayout title="Tier Management"><AdminTierManagement /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/revenue">
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
             <AdminPortalLayout title="Revenue Dashboard"><AdminRevenueDashboard /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/monetization">
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
             <AdminPortalLayout title="Monetization"><MonetizationDashboard /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/operational-health">
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
             <AdminPortalLayout title="Operational Health"><OperationalHealthDashboard /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
@@ -878,22 +878,22 @@ function Router() {
           </ProtectedRoute>
         </Route>
         <Route path="/admin/workflows">
-          <ProtectedRoute allowedRoles={["admin", "insurer"]} allowedInsurerRoles={["claims_manager", "executive", "insurer_admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin", "insurer"]} allowedInsurerRoles={["claims_manager", "executive", "insurer_admin"]}>
             <AdminPortalLayout title="Workflow Templates"><WorkflowTemplates /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/escalation">
-          <ProtectedRoute allowedRoles={["admin", "insurer"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin", "insurer"]}>
             <AdminPortalLayout title="Escalation Queue"><EscalationQueue /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/market-quotes">
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
             <AdminPortalLayout title="Market Quotes Ingestion"><MarketQuotesIngestion /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/workflow-settings">
-          <ProtectedRoute allowedRoles={["admin", "insurer"]} allowedInsurerRoles={["insurer_admin", "executive"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin", "insurer"]} allowedInsurerRoles={["insurer_admin", "executive"]}>
             <AdminPortalLayout title="Workflow Settings"><WorkflowSettings /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>

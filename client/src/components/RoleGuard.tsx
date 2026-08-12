@@ -1,6 +1,7 @@
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { isPortalNavigationAllowed, INSURER_ROLE_PORTAL_MAP } from "@/lib/roleRouting";
+import { isAdminRole } from "@shared/role-permissions";
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -21,8 +22,9 @@ interface RoleGuardProps {
  * backward compatibility but the path-based check takes precedence for
  * insurer-portal routes.
  *
- * Admin users (user.role === "admin") bypass role checks but receive a visible
- * "Admin Override" indicator so cross-portal access is always auditable.
+ * Canonical administrative roles bypass portal-shell role checks but receive a
+ * visible override indicator. Backend tenant and object authorization remains
+ * authoritative for all data and mutations.
  */
 export function RoleGuard({ children, allowedRoles, requireTenant = true }: RoleGuardProps) {
   const { user, loading } = useAuth();
@@ -44,7 +46,7 @@ export function RoleGuard({ children, allowedRoles, requireTenant = true }: Role
   }
 
   // ── Admin override: bypass role checks but show a visible indicator ──────
-  if (user.role === "admin" || user.role === "platform_super_admin") {
+  if (isAdminRole(user.role)) {
     return (
       <>
         {/* Admin override banner — always visible so cross-portal access is auditable */}

@@ -17,6 +17,8 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { insurerTenants, tenants } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { isAdminRole } from "../../shared/role-permissions";
+import { requireTenantAdministrationScope } from "../security/tenantAdministration";
 import { 
   getTenantConfig,
   createTenantConfig,
@@ -82,7 +84,7 @@ export const tenantRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       // In production, check if user has admin permissions
-      if (ctx.user.role !== 'admin') {
+      if (!isAdminRole(ctx.user.role)) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Only admins can create tenants"
@@ -117,13 +119,7 @@ export const tenantRouter = router({
       isActive: z.boolean().optional()
     }))
     .mutation(async ({ input, ctx }) => {
-      // In production, check if user has admin permissions
-      if (ctx.user.role !== 'admin') {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only admins can update tenants"
-        });
-      }
+      await requireTenantAdministrationScope(ctx, input.tenantId, "update");
 
       const { tenantId, ...updates } = input;
       const tenant = await updateTenantConfig(tenantId, updates);
@@ -146,13 +142,7 @@ export const tenantRouter = router({
       tenantId: z.string()
     }))
     .mutation(async ({ input, ctx }) => {
-      // In production, check if user has admin permissions
-      if (ctx.user.role !== 'admin') {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only admins can delete tenants"
-        });
-      }
+      await requireTenantAdministrationScope(ctx, input.tenantId, "delete");
 
       const success = await deleteTenantConfig(input.tenantId);
 
@@ -192,13 +182,7 @@ export const tenantRouter = router({
       canViewReports: z.boolean().optional()
     }))
     .mutation(async ({ input, ctx }) => {
-      // In production, check if user has admin permissions
-      if (ctx.user.role !== 'admin') {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only admins can update role configuration"
-        });
-      }
+      await requireTenantAdministrationScope(ctx, input.tenantId, "update_role_config");
 
       const { tenantId, role, ...permissions } = input;
       const roleConfig = await updateTenantRoleConfig(tenantId, role, permissions);
@@ -232,13 +216,7 @@ export const tenantRouter = router({
       complexityThresholdComplex: z.number().optional()
     }))
     .mutation(async ({ input, ctx }) => {
-      // In production, check if user has admin permissions
-      if (ctx.user.role !== 'admin') {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only admins can update workflow thresholds"
-        });
-      }
+      await requireTenantAdministrationScope(ctx, input.tenantId, "update_workflow_thresholds");
 
       const { tenantId, ...thresholds } = input;
       const updated = await updateTenantWorkflowThresholds(tenantId, thresholds);
@@ -271,13 +249,7 @@ export const tenantRouter = router({
       warningThresholdPercent: z.number().optional()
     }))
     .mutation(async ({ input, ctx }) => {
-      // In production, check if user has admin permissions
-      if (ctx.user.role !== 'admin') {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only admins can update SLA configuration"
-        });
-      }
+      await requireTenantAdministrationScope(ctx, input.tenantId, "update_sla_config");
 
       const { tenantId, ...slaConfig } = input;
       const updated = await updateTenantSlaConfig(tenantId, slaConfig);
@@ -324,9 +296,7 @@ export const tenantRouter = router({
       country: z.string().length(2).toUpperCase().nullable().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      if (ctx.user.role !== 'admin') {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can update currency settings' });
-      }
+      await requireTenantAdministrationScope(ctx, input.tenantId, "update_currency");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
 
@@ -344,8 +314,11 @@ export const tenantRouter = router({
   getRates: protectedProcedure
     .input(z.object({ tenantId: z.string() }))
     .query(async ({ input, ctx }) => {
-      if (ctx.user.role !== 'admin' && ctx.user.tenantId !== input.tenantId) {
+      if (!isAdminRole(ctx.user.role) && ctx.user.tenantId !== input.tenantId) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+      }
+      if (ctx.user.role === "platform_super_admin") {
+        await requireTenantAdministrationScope(ctx, input.tenantId, "get_rates");
       }
       const rates = await getTenantRates(input.tenantId);
       return rates ?? {};
@@ -364,9 +337,7 @@ export const tenantRouter = router({
       currencySymbol: z.string().min(1).max(10).nullable().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      if (ctx.user.role !== 'admin') {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can update cost rate settings' });
-      }
+      await requireTenantAdministrationScope(ctx, input.tenantId, "update_rates");
       const { tenantId, ...rates } = input;
       await updateTenantRates(tenantId, rates);
       return { success: true };

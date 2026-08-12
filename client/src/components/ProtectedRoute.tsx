@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
  * /fleet     → fleet_admin, fleet_manager, fleet_driver, admin
  * /engineer  → engineer, admin (Epic 3 — Engineering Workspace)
  * /marketplace → all authenticated roles
- * /portal    → claimant, admin
+ * /portal    → claimant, admin, platform_super_admin (route testing only; object procedures remain authoritative)
  */
 export const DOMAIN_ROLE_MAP: Record<string, string[]> = {
   platform: ["platform_super_admin"],
@@ -23,7 +23,7 @@ export const DOMAIN_ROLE_MAP: Record<string, string[]> = {
     "admin", "insurer", "assessor", "panel_beater", "agency",
     "fleet_admin", "fleet_manager", "claimant", "user", "platform_super_admin",
   ],
-  portal: ["claimant", "admin"],
+  portal: ["claimant", "admin", "platform_super_admin"],
   // Phase 8: customer domain — any authenticated user can access customer-facing pages
   customer: [
     "claimant", "fleet_manager", "fleet_driver", "fleet_admin",

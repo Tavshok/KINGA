@@ -9,6 +9,7 @@ import { getDb } from "../db";
 import { users } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { logRoleAssignment } from "./role-assignment-audit";
+import { isAdminRole } from "../../shared/role-permissions";
 
 /**
  * Role assignment request
@@ -74,7 +75,7 @@ export async function assignUserRole(request: RoleAssignmentRequest) {
 
   // Check permissions: actor must be admin or insurer_admin
   const hasPermission = 
-    actor[0].role === "admin" || 
+    isAdminRole(actor[0].role) ||
     (actor[0].role === "insurer" && actor[0].insurerRole === "insurer_admin");
 
   if (!hasPermission) {
