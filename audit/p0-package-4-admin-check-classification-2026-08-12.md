@@ -20,6 +20,19 @@ Direct role checks are being changed only where they answer the question, **“i
 | Workflow state machines and transition matrices | Specific role arrays | Intentional workflow permission | **Retain.** Do not broaden with platform-super-admin. |
 | Package 1 report, agency, intelligence scope helpers | Tenant/object checks and explicit cross-tenant audit | Security boundary | **Retain unchanged.** Package 4 must prove no regression. |
 
+## Remaining direct `admin` comparisons deliberately retained
+
+The server-wide scan found further direct checks in claim, report, valuation, quote, marketplace, analytics, approval, onboarding, and workflow procedures. These are **not** mechanically converted in this package because the compared `admin` branch currently changes tenant scoping, grants an object-owner bypass, or combines an insurer workflow role with a platform role. Replacing any of them with `isAdminRole()` without an explicit Package 1 selection and object predicate would create the precise cross-tenant bypass Package 4 must avoid.
+
+| Control pattern | Example families | Reason retained in Package 4 | Required future treatment |
+|---|---|---|---|
+| `admin ? undefined : sessionTenantId` | claims, quotes, valuations, assessment and analytics tenant filters | Converts a role comparison into a cross-tenant data-scope decision. | Refactor procedure-by-procedure to `resolveP0TenantScope`, validate selected tenant, and audit cross-tenant use. |
+| `claimantId === user.id || role === 'admin'` | claim detail/download/edit paths | An object-owner bypass cannot become a generic platform-shell privilege. | Add explicit object-scope selection/audit and foreign-object negative tests before altering. |
+| `insurerRole === X || role === 'admin'` | approval, compliance, workflow/query routes | Combines business workflow permission with platform administration. | Define a dedicated platform-testing path; retain underlying workflow decision permission. |
+| `admin` global operation without tenant input | auth/bootstrap, seed, marketplace/valuation administration | Has no explicit target tenant to validate or audit. | Introduce an explicit platform-operation contract and audit event in a separately approved package. |
+
+This retained set is not dead work: it is the bounded outcome required by `ADM-02` and `ADM-03`. P0 Package 4 changes only administrative checks that can be made canonical without silently broadening tenant or object access.
+
 ## Route-admission classification
 
 | Route family | Current intended platform-super-admin result | Package 4 route treatment |
