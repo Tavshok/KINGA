@@ -80,6 +80,8 @@
 - [ ] P0 Package 2-OA1: run an isolated two-tenant canonical-intake fixture and compare persisted claim and claim-document records for portal, WhatsApp, and supported hand-off paths
 - [ ] P0 Package 2-OA2: run isolated duplicate, interrupted, and failed-assessment-start retries and prove one claim, evidence set, assessment start, and in-app notification effect
 - [ ] P0 Package 2-OA3: run isolated direct-ID foreign-tenant claim, attachment, and existing-intake mutation attempts and record denial evidence
+- [x] P0 Package 2 deterministic acceptance: 8 focused test files / 40 tests passed; server and Vite production builds passed, including downstream CI/FR evidence visibility
+- [ ] P0 Package 2 live WhatsApp acceptance gate: use a connected provider test number, webhook, media access, isolated tenant, synthetic claimant, and duplicate-delivery replay to prove the complete external path without side effects
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
 - [x] Approved corrective removal: removed accidentally checkpointed claim re-run permissions and related test adjustment; preserved approved Fleet navigation correction and conformance matrix
 - [ ] P0: Diagnose and eliminate the React runtime crash shown on the live portal route (minified React error #130)
