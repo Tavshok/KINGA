@@ -27,6 +27,13 @@
 - [ ] Transparency gate: current-state register prepared at audit/current-state-register-2026-08-11.md; obtain user review and approval before starting any new feature batch
 - [ ] Role-to-feature conformance audit: map each portal tab, route, data source, mutation, and empty/error state to its intended role; remove cross-role feature leakage and orphaned states
 - [ ] Portal navigation conformance: verify every visible tab and action resolves to an authorized, role-correct destination or an explicit role-appropriate empty state
+- [ ] Report and image evidence audit: compare CL, CI, and FR against canonical quote/cost data; verify missing cost tables and image-side classification before any remediation
+- [ ] Report remediation batch R1: unify canonical cost hierarchy across CL, CI, and FR; extend CL cost intelligence; distinguish documented/agreed, L1, L2, and benchmark values; correct FR currency formatting
+- [ ] Header cost-provenance trace: identify the exact source/calculation for every CL, CI, and FR header/decision-summary amount before approving any cost-table or label remediation
+- [ ] L2 integrity audit: verify every repair component is retained in the all-in L2 recommendation; unbenchmarked components must use traceable quote-source fallback rather than be omitted
+- [ ] Quote uniqueness audit: detect and normalise duplicate panel-beater quotations before quote count, L1, L2 comparison, savings, or report display
+- [ ] L1–L2 cost-basis integrity: reconcile VAT and mandatory payable fees consistently before calculating any savings or recommended settlement
+- [ ] Image remediation batch R2: enforce crush-depth eligibility, preserve image confidence/provenance, disclose fallbacks, and extend FR photo evidence metadata
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
 - [x] Approved corrective removal: removed accidentally checkpointed claim re-run permissions and related test adjustment; preserved approved Fleet navigation correction and conformance matrix
 - [ ] P0: Diagnose and eliminate the React runtime crash shown on the live portal route (minified React error #130)
