@@ -150,6 +150,7 @@
 - [x] Progressive L2 intelligence: replace binary L2 availability with always-running evidence-qualified analysis; show verified comparable portions, partial comparisons, evidence coverage, scope differences, source discrepancies, pricing-variance review signals, and decision boundaries while gating only unsupported final totals, savings, and settlement recommendations.
 - [x] Source-row classification rule: record every explicit quote component, labour, VAT, paint, fee, discount, and adjustment as a separate source-backed row; disclose only genuinely unclassified source differences as standalone reconciliation findings and never hide or allocate them.
 - [ ] Approved claim 12909902 reconstruction: complete controlled transcription of remaining Stylin and ambiguous C.A.M.E.L source rows from document 4650001; retain page/row provenance and arithmetic findings without modifying submitted quote records.
+- [ ] Evidence Gap Intelligence: preserve every ambiguous source row with document/page/location/crop, OCR or transcription attempt, observable characters, confidence, candidate readings where explicitly derived, and impact on arithmetic; distinguish source-observed value from arithmetic residual; expose a non-fabricated uncertainty envelope and targeted minimum human-verification request while L2 continues to analyse verified evidence.
 
 ---
 
