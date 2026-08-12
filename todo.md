@@ -27,12 +27,22 @@
 - [ ] Transparency gate: current-state register prepared at audit/current-state-register-2026-08-11.md; obtain user review and approval before starting any new feature batch
 - [ ] Role-to-feature conformance audit: map each portal tab, route, data source, mutation, and empty/error state to its intended role; remove cross-role feature leakage and orphaned states
 - [ ] Portal navigation conformance: verify every visible tab and action resolves to an authorized, role-correct destination or an explicit role-appropriate empty state
-- [ ] Report and image evidence audit: compare CL, CI, and FR against canonical quote/cost data; verify missing cost tables and image-side classification before any remediation
-- [ ] Report remediation batch R1: unify canonical cost hierarchy across CL, CI, and FR; extend CL cost intelligence; distinguish documented/agreed, L1, L2, and benchmark values; correct FR currency formatting
-- [ ] Header cost-provenance trace: identify the exact source/calculation for every CL, CI, and FR header/decision-summary amount before approving any cost-table or label remediation
-- [ ] L2 integrity audit: verify every repair component is retained in the all-in L2 recommendation; unbenchmarked components must use traceable quote-source fallback rather than be omitted
-- [ ] Quote uniqueness audit: detect and normalise duplicate panel-beater quotations before quote count, L1, L2 comparison, savings, or report display
-- [ ] L1–L2 cost-basis integrity: reconcile VAT and mandatory payable fees consistently before calculating any savings or recommended settlement
+- [ ] Report and image evidence audit: cost provenance and tables remediated in R1; raw-image side/zone classification verification remains open
+- [x] Report remediation batch R1: unify canonical cost hierarchy across CL, CI, and FR; extend CL cost intelligence; distinguish documented/agreed, L1, L2, and benchmark values; correct FR currency formatting
+- [x] Header cost-provenance trace: identify the exact source/calculation for every CL, CI, and FR header/decision-summary amount before approving any cost-table or label remediation
+- [x] L2 integrity audit: verify every repair component is retained in the all-in L2 recommendation; unbenchmarked components must use traceable quote-source fallback rather than be omitted
+- [x] Quote uniqueness audit: detect and normalise duplicate panel-beater quotations before quote count, L1, L2 comparison, savings, or report display
+- [x] L1–L2 cost-basis integrity: reconcile VAT and mandatory payable fees consistently before calculating any savings or recommended settlement
+- [x] R1-A: Add a typed canonical quote ledger with durable repairer identity, normalised scope fingerprint, source traceability, and active/superseded/supplementary/duplicate status
+- [x] R1-B: Route Stage 9 L1, L2, quote count, variance, and savings inputs through the canonical active-quote ledger
+- [x] R1-C: Add an all-in L2 coverage contract; an unresolved required repair-scope item must return L2 incomplete and suppress savings/settlement output
+- [x] R1-D: Preserve unbenchmarked component price through the submitted-quote fallback, including paint, labour, sundries, VAT, and mandatory payable fees on a common cost basis
+- [x] R1-E: Isolate documentedAgreedCostUsd to assessor calibration/comparison and remove it from L2, settlement, and report fallback paths
+- [x] R1-F: Align CL, CI, and FR to the shared ledger, L2 integrity status, payable-cost basis, and recommendation terminology
+- [x] R1-G: Add focused Vitest regression coverage for duplicate repairer inputs, unbenchmarked all-in scope, unresolved scope, common tax basis, agreed-cost isolation, and report provenance
+- [x] R1-H: Display documented/agreed assessor cost in CL, CI, and FR only as a labelled calibration/comparison reference; add report-renderer regression coverage
+- [x] R1-I: Re-render CL, CI, and FR for claims 10719902, 11709902, and 12879902 and verify the distinct submitted ledger, L1, L2 status, benchmark, and assessor comparison treatment
+- [ ] Image evidence verification: compare raw representative images to their rendered side/zone labels; retain the image classification remediation decision until that evidence is documented
 - [ ] Image remediation batch R2: enforce crush-depth eligibility, preserve image confidence/provenance, disclose fallbacks, and extend FR photo evidence metadata
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
 - [x] Approved corrective removal: removed accidentally checkpointed claim re-run permissions and related test adjustment; preserved approved Fleet navigation correction and conformance matrix

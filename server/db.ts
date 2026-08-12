@@ -1716,6 +1716,9 @@ export async function triggerAiAssessment(claimId: number) {
     // Panel beater quote values — sourced from Stage 9 output (preferred) or claimRecord
     documentedOriginalQuoteUsd,
     documentedAgreedCostUsd,
+    assessorCostComparison: (costAnalysis as any).assessorCostComparison ?? (documentedAgreedCostUsd !== null
+      ? { documentedAgreedCostUsd, usage: "assessor_calibration_reference_only", settlementEligible: false }
+      : null),
     panelBeaterName,
     lineItems: repairQuote?.lineItems ?? [],
     documentedLabourCostUsd,
@@ -1791,16 +1794,20 @@ export async function triggerAiAssessment(claimId: number) {
     ? `${claimRecord.vehicle.make} ${claimRecord.vehicle.model} (${claimRecord.vehicle.year || 'unknown year'}). ${claimRecord.damage.description || 'No description available.'}. ${damageAnalysis ? damageAnalysis.damagedParts.length + ' damaged components identified.' : ''}`
     : 'Assessment data unavailable.';
 
-  // Estimated cost in whole currency units
-  // PRIORITY: Use documented quote (agreed cost > original quote > AI estimate)
-  // The AI estimate is unreliable when no market data exists — prefer the actual quote.
+  // Estimated cost in whole currency units.
+  // R1 priority: complete L2 > documented submitted quote > Stage 9 estimate.
+  // An assessor documented/agreed cost is calibration evidence only and must not
+  // become a new-claim estimate, L2 substitute, or settlement fallback.
   // NOTE: documentedAgreedCostUsd and documentedOriginalQuoteUsd are already declared above (line ~593).
   const aiEstimateCents = costAnalysis?.expectedRepairCostCents ?? 0;
+  const completeL2Usd = (costAnalysis as any)?.compositeOptimisation?.isComplete === true
+    ? Number((costAnalysis as any)?.compositeOptimisation?.l2CompositeOptimisedCostUsd ?? 0)
+    : 0;
   // estimated_cost column is stored in CENTS throughout the system.
-  // documentedAgreedCostUsd / documentedOriginalQuoteUsd are in dollars → multiply by 100.
+  // completeL2Usd / documentedOriginalQuoteUsd are in dollars → multiply by 100.
   // aiEstimateCents is already in cents → use directly.
-  const estimatedCostCents = documentedAgreedCostUsd && documentedAgreedCostUsd > 0
-    ? Math.round(documentedAgreedCostUsd * 100)
+  const estimatedCostCents = completeL2Usd > 0
+    ? Math.round(completeL2Usd * 100)
     : documentedOriginalQuoteUsd && documentedOriginalQuoteUsd > 0
       ? Math.round(documentedOriginalQuoteUsd * 100)
       : Math.round(aiEstimateCents);

@@ -15,6 +15,7 @@ import mysql from "mysql2/promise";
 import {
   buildKingaFdrHtml, esc, fmtUSD, fmtCurrency, fmtD, safeJson, photoZonePanel,
 } from "./templates/kingaDesignSystem";
+import { resolveReportCostIntegrity } from "./costIntegrity";
 import type { CGIAvailabilitySummary } from "../pipeline-v2/stage-9-5-cgi";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -56,7 +57,7 @@ export async function generateForensicDecisionReport(
               pb.business_name AS panel_beater_name
        FROM panel_beater_quotes q
        LEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id
-       WHERE q.claim_id = ? AND q.quote_type = 'original'
+       WHERE q.claim_id = ?
        ORDER BY q.quoted_amount ASC`,
       [claimId]
     ) as [Record<string, unknown>[], unknown];
@@ -193,87 +194,40 @@ export async function generateForensicDecisionReport(
     // vehicle_market_value is stored in cents — divide by 100 for display
     const marketValue = Number(c.vehicle_market_value ?? 0) / 100;
     // ai_assessments.estimated_cost is stored in CENTS — divide by 100.
-    // Prefer documentedAgreedCostUsd from costIntelligenceJson (already in dollars, more accurate).
+    // Documented agreed cost is a calibration reference only, never a replacement
+    // for L2 or a derived settlement recommendation.
     const estimatedCostRawFR = Number(c.estimated_cost ?? 0);
-    const estimatedCost = (costIntel as any)?.documentedAgreedCostUsd
-      ? Number((costIntel as any).documentedAgreedCostUsd)
-      : estimatedCostRawFR > 0
-        ? estimatedCostRawFR / 100
-        : 0;
+    const estimatedCost = estimatedCostRawFR > 0 ? estimatedCostRawFR / 100 : 0;
 
-    const quoteArr = quotes as Record<string, unknown>[];
-    const quoteAmounts = quoteArr.map(q => Number(q.quoted_amount ?? 0) / 100);
+    const costIntegrity = resolveReportCostIntegrity(costIntel, quotes as unknown[]);
+    const quoteArr = costIntegrity.activeQuotes;
+    const quoteAmounts = quoteArr.map(q => q.amountUsd ?? 0).filter(amount => amount > 0);
     const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
 
     // Bug #8: derive currency from cost intel or quotes (not hardcoded USD)
     const claimCurrency: string = String(
       costIntel?.currency ??
-      (quoteArr[0]?.currency as string | null | undefined) ??
+      quoteArr[0]?.currency ??
       (c.currency_code as string | null | undefined) ??
       "USD"
     ).toUpperCase();
 
-    // KINGA Optimised Estimate — L2 composite (per-component min(lowest credible, model P50))
-    // Primary source: l2CompositeOptimisedCostUsd — the actual field written by the engine.
-    // compositeOptimisedCostUsd does not exist in current DB data (field name mismatch).
-    const kingaOptimised: number = (() => {
-      const comp = (costIntel?.compositeOptimisation as Record<string, unknown> | null | undefined);
-      // L2 composite: l2CompositeOptimisedCostUsd is the canonical field in the DB
-      if ((comp as any)?.l2CompositeOptimisedCostUsd && Number((comp as any).l2CompositeOptimisedCostUsd) > 0)
-        return Number((comp as any).l2CompositeOptimisedCostUsd);
-      // Legacy alias kept for forward compatibility
-      if (comp?.compositeOptimisedCostUsd && Number(comp.compositeOptimisedCostUsd) > 0)
-        return Number(comp.compositeOptimisedCostUsd);
-      // quoteOptimisation.optimised_cost_usd — weighted average across submitted quotes
-      if ((costIntel as any)?.quoteOptimisation?.optimised_cost_usd &&
-          Number((costIntel as any).quoteOptimisation.optimised_cost_usd) > 0)
-        return Number((costIntel as any).quoteOptimisation.optimised_cost_usd);
-      // Top-level backfill (set by Stage 9 after composite is built)
-      if ((costIntel as any)?.kingaSavingsL2OptimisedUsd && Number((costIntel as any).kingaSavingsL2OptimisedUsd) > 0)
-        return Number((costIntel as any).kingaSavingsL2OptimisedUsd);
-      if (costIntel?.totalEstimatedCost && Number(costIntel.totalEstimatedCost) > 0)
-        return Number(costIntel.totalEstimatedCost);
-      if (costIntel?.expectedRepairCostCents && Number(costIntel.expectedRepairCostCents) > 0)
-        return Number(costIntel.expectedRepairCostCents) / 100;
-      // costDecision.true_cost_usd — present when cost model ran but composite is 0
-      const trueCost = (costIntel?.costDecision as any)?.true_cost_usd;
-      if (trueCost && Number(trueCost) > 0) return Number(trueCost);
-      // Per-component benchmark sum as last resort
-      // Field name hierarchy: medianUsd (v2 pipeline) > p50Usd > midCents/100 > mid
-      const benchmarks = costIntel?.perComponentBenchmarks as Record<string, {
-        medianUsd?: number; p50Usd?: number; midCents?: number; mid?: number;
-      }> | null | undefined;
-      if (benchmarks) {
-        const benchmarkSum = Object.values(benchmarks).reduce((s, b) => {
-          const v = b?.medianUsd ? Number(b.medianUsd)
-            : b?.p50Usd ? Number(b.p50Usd)
-            : b?.midCents ? Number(b.midCents) / 100
-            : (b?.mid ? Number(b.mid) : 0);
-          return s + v;
-        }, 0);
-          if (benchmarkSum > 0) {
-          // Bug #5: flag partial estimate when fewer than 50% of components have benchmark data
-          const pricedCount = Object.values(benchmarks).filter(b =>
-            Number(b?.medianUsd ?? b?.p50Usd ?? (b?.midCents ? b.midCents / 100 : b?.mid ?? 0)) > 0
-          ).length;
-          const totalCount = Object.values(benchmarks).length;
-          if (pricedCount < totalCount / 2) {
-            (costIntel as any)._isPartialBenchmark = true;
-            (costIntel as any)._pricedComponentCount = pricedCount;
-            (costIntel as any)._totalComponentCount = totalCount;
-          }
-          return benchmarkSum;
-        }
-      }
-      return estimatedCost;
-    })();
+    const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
+    const l2Display = kingaOptimised === null ? "L2 incomplete" : fmtCurrency(kingaOptimised, claimCurrency);
+    const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtCurrency(costIntegrity.l1SubmittedCostUsd, claimCurrency);
+    const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtCurrency(costIntegrity.l3BenchmarkReferenceCostUsd, claimCurrency);
+    const l2IntegrityNote = kingaOptimised === null
+      ? `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
+        `${costIntegrity.partialPricedScopeUsd !== null ? `Partial priced scope: ${fmtCurrency(costIntegrity.partialPricedScopeUsd, claimCurrency)}. ` : ""}` +
+        `No savings or settlement recommendation is available until the scope is reconciled.`
+      : `All-in payable repair-cost basis${costIntegrity.costBasis ? ` (${costIntegrity.costBasis.replaceAll("_", " ")})` : ""}.`;
 
     const lowestRef = lowestQuote > 0 ? lowestQuote : highestQuote;
-    const savings = lowestRef > 0 ? lowestRef - kingaOptimised : 0;
+    const savings = kingaOptimised !== null && lowestRef > 0 ? lowestRef - kingaOptimised : 0;
     // Bug #5: Only show savings when kingaOptimised > 0 (prevents 100% savings label when estimate is $0.00)
-    const savingsPct = (lowestRef > 0 && kingaOptimised > 0) ? Math.max(0, savings / lowestRef * 100) : 0;
-    const hasSavings = savings > 0 && kingaOptimised > 0;
+    const savingsPct = (lowestRef > 0 && kingaOptimised !== null && kingaOptimised > 0) ? Math.max(0, savings / lowestRef * 100) : 0;
+    const hasSavings = savings > 0 && kingaOptimised !== null && kingaOptimised > 0;
 
     // Bug #10: DB column is excess_amount_cents (integer cents), not policy_excess
     const excess = c.excess_amount_cents != null
@@ -282,7 +236,12 @@ export async function generateForensicDecisionReport(
     const exclusions: Array<{item: string; amount: number; clause: string}> =
       (repairIntel?.policyExclusions as Array<{item: string; amount: number; clause: string}>) ?? [];
     const totalExclusions = exclusions.reduce((s, e) => s + Number(e.amount ?? 0), 0);
-    const recommendedSettlement = Math.max(0, kingaOptimised - totalExclusions - excess);
+    const recommendedSettlement = kingaOptimised === null
+      ? null
+      : Math.max(0, kingaOptimised - totalExclusions - excess);
+    const recommendedSettlementDisplay = recommendedSettlement === null
+      ? "Not available"
+      : fmtCurrency(recommendedSettlement, claimCurrency);
 
     // Physics values — PTL-first with legacy fallback
     // PTL canonical delta-V (with uncertainty bounds) supersedes legacy scalar
@@ -604,7 +563,7 @@ export async function generateForensicDecisionReport(
     const driverName   = esc(c.driver_name ?? c.lodger_name ?? "—");
     const driverLicence = esc(c.driver_licence ?? c.licence_number ?? "—");
     const assessorName = esc(c.assessor_name ?? "—");
-    const repairerName = esc(quoteArr.find(q => q.selected)?.panel_beater_name as string ?? quoteArr[0]?.panel_beater_name as string ?? "—");
+    const repairerName = esc(quoteArr[0]?.repairer ?? "—");
     const policeCaseNo = esc(c.police_case_number ?? c.police_reference ?? "—");
     const policeStatus = esc(c.police_status ?? "—");
     const incidentType = esc(c.incident_type ?? "Single vehicle");
@@ -777,16 +736,16 @@ export async function generateForensicDecisionReport(
       <div class="sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div>
     </div>
     <div class="verdict-cell accent">
-      <div class="label">KINGA Optimised Estimate${(costIntel as any)?._isPartialBenchmark ? ' <span style="font-size:8px;color:var(--amber);font-weight:600;">(PARTIAL)</span>' : ''}</div>
-      <div class="value">${fmtCurrency(kingaOptimised, claimCurrency)}</div>
-      <div class="sub">${(costIntel as any)?._isPartialBenchmark
-        ? `⚠ ${(costIntel as any)._pricedComponentCount}/${(costIntel as any)._totalComponentCount} components priced — partial estimate`
-        : hasSavings ? `↓ ${fmtCurrency(savings, claimCurrency)} · ${savingsPct.toFixed(1)}% savings` : "Best-price estimate"}</div>
+      <div class="label">KINGA Optimised Recommendation</div>
+      <div class="value">${l2Display}</div>
+      <div class="sub">${kingaOptimised === null
+        ? esc(l2IntegrityNote)
+        : hasSavings ? `↓ ${fmtCurrency(savings, claimCurrency)} · ${savingsPct.toFixed(1)}% savings` : "All-in payable repair-cost basis"}</div>
     </div>
     <div class="verdict-cell">
-      <div class="label">Settlement Agreed</div>
-      <div class="value">${fmtCurrency(recommendedSettlement, claimCurrency)}</div>
-      <div class="sub">${hasSavings ? `−${savingsPct.toFixed(1)}% vs. original` : "Pending negotiation"}</div>
+      <div class="label">Settlement Recommendation</div>
+      <div class="value">${recommendedSettlementDisplay}</div>
+      <div class="sub">${recommendedSettlement === null ? "Withheld pending scope reconciliation" : "Requires authorised approval"}</div>
     </div>
     <div class="verdict-cell">
       <div class="label">Repair Ratio</div>
@@ -799,6 +758,8 @@ export async function generateForensicDecisionReport(
       <div class="sub">${auditGrade} confidence</div>
     </div>
   </div>
+  ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout amber" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtCurrency(costIntegrity.assessorCalibrationCostUsd, claimCurrency)}. This prior assessor figure is retained for comparison with KINGA costing; it is not a submitted quote, L2 value, settlement agreement, or payment authority.</div>` : ""}
+  <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">L2 — KINGA all-in recommendation</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
 
   <!-- §01 EXECUTIVE SUMMARY -->
   <div class="section">
@@ -1364,11 +1325,11 @@ export async function generateForensicDecisionReport(
     // ── PAGE 3 ───────────────────────────────────────────────────────────────
     const maxQuoteAmount = quoteArr.length > 0 ? Math.max(...quoteAmounts) : 1;
     const quoteBars = quoteArr.map(q => {
-      const amt = Number(q.quoted_amount ?? 0) / 100;
+      const amt = q.amountUsd ?? 0;
       const pct = maxQuoteAmount > 0 ? Math.round((amt / maxQuoteAmount) * 100) : 0;
-      return `<div class="qbar-row sans"><div class="name">${esc(String(q.panel_beater_name ?? "Quote"))}</div><div class="track"><div class="fill" style="width:${pct}%;"></div></div><div class="amt">${fmtUSD(amt)}</div></div>`;
+      return `<div class="qbar-row sans"><div class="name">${esc(q.repairer || "Quote")}</div><div class="track"><div class="fill" style="width:${pct}%;"></div></div><div class="amt">${fmtCurrency(amt, claimCurrency)}</div></div>`;
     }).join("");
-    const kingaPct = maxQuoteAmount > 0 ? Math.round((kingaOptimised / maxQuoteAmount) * 100) : 0;
+    const kingaPct = kingaOptimised !== null && maxQuoteAmount > 0 ? Math.round((kingaOptimised / maxQuoteAmount) * 100) : 0;
 
     const page3 = `
 <div class="page page-break">
@@ -1379,15 +1340,17 @@ export async function generateForensicDecisionReport(
       <div class="box">
         <h4>Quote Comparison</h4>
         ${quoteBars}
-        <div class="qbar-row sans"><div class="name" style="font-weight:700;">KINGA Optimised (L2)</div><div class="track"><div class="fill" style="width:${kingaPct}%; background:var(--green);"></div></div><div class="amt" style="color:var(--green-dark);">${fmtUSD(kingaOptimised)}</div></div>
+        ${kingaOptimised === null
+          ? co(`<b>L2 integrity hold —</b> ${esc(l2IntegrityNote)}`, "amber")
+          : `<div class="qbar-row sans"><div class="name" style="font-weight:700;">KINGA Optimised (L2)</div><div class="track"><div class="fill" style="width:${kingaPct}%; background:var(--green);"></div></div><div class="amt" style="color:var(--green-dark);">${l2Display}</div></div>`}
         ${hasSavings ? co(`<b>Savings opportunity —</b> ${fmtUSD(savings)} (${savingsPct.toFixed(1)}%) below lowest submitted quote, based on best price per component.`, "green") : ""}
       </div>
       <div class="box">
         <h4>Cost Intelligence &amp; Settlement</h4>
         <table class="kv">
           ${lowestRef > 0 ? kvRow("Lowest submitted (L1)", fmtUSD(lowestRef)) : ""}
-          ${kingaOptimised > 0 ? kvRow("KINGA optimised (L2)", fmtUSD(kingaOptimised)) : ""}
-          ${kvRow("Settlement — agreed", fmtUSD(recommendedSettlement))}
+          ${kingaOptimised !== null ? kvRow("KINGA optimised (L2)", l2Display) : kvRow("KINGA optimised (L2)", "Incomplete — not published")}
+          ${kvRow("Settlement recommendation", recommendedSettlementDisplay)}
           ${hasSavings ? kvRow("Adjustment", `<span style="color:var(--red);">−${fmtUSD(savings)} (${savingsPct.toFixed(1)}%)</span>`) : ""}
         </table>
         ${highIssues.some(i => i.title.toLowerCase().includes("cost") || i.title.toLowerCase().includes("quote"))
@@ -1681,7 +1644,7 @@ export async function generateForensicDecisionReport(
             { name: "Incident classification", status: "Pass" },
             { name: "Image analysis", status: totalPhotos > 0 ? "Pass" : "Warning" },
             { name: "Physics engine", status: physicsScore >= 70 ? "Pass" : "Warning" },
-            { name: "Cost model", status: kingaOptimised > 0 ? "Pass" : "Fail" },
+            { name: "Cost model", status: kingaOptimised !== null ? "Pass" : "Review" },
             { name: "Fraud analysis", status: fraudScoreAdjusted >= 70 ? "Warning" : "Pass" },
           ]).map(v => kvRow(esc(v.name), p(v.status, v.status === "Pass" ? "green" : v.status === "Warning" ? "amber" : "red"))).join("")}
         </table>

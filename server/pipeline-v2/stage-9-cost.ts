@@ -18,6 +18,7 @@ import { assessCost } from "./mlBenchmarkEngine";
 import { resolveComponent } from "../../shared/vehicleParts";
 import { sql as drizzleSql } from "drizzle-orm";
 import { optimiseRepairCost, type InputQuote, buildCompositeQuote, classifyComponents, computeProbableHiddenDamage, type InputQuoteWithLineItems, type BenchmarkMap } from "./quoteOptimisationEngine";
+import { buildCanonicalQuoteLedger } from "./canonicalQuoteLedger";
 import { runCostDecision } from "./costDecisionEngine";
 import { runCrossQuoteGapAnalysis, type CrossQuoteGapAnalysisResult } from "./crossQuoteGapAnalysis";
 import { runQuotePhotoAgreement, type QuotePhotoAgreementResult } from "./quotePhotoAgreementEngine";
@@ -330,11 +331,14 @@ export async function runCostOptimisationStage(
         const dbQuoteRows = await ctx.db
           .select({
             quoteId: panelBeaterQuotes.id,
+            panelBeaterId: panelBeaterQuotes.panelBeaterId,
             quotedAmount: panelBeaterQuotes.quotedAmount,
             laborCost: panelBeaterQuotes.laborCost,
             partsCost: panelBeaterQuotes.partsCost,
             currencyCode: panelBeaterQuotes.currencyCode,
             status: panelBeaterQuotes.status,
+            quoteType: panelBeaterQuotes.quoteType,
+            parentQuoteId: panelBeaterQuotes.parentQuoteId,
             panelBeaterName: panelBeaters.businessName,
           })
           .from(panelBeaterQuotes)
@@ -407,6 +411,11 @@ export async function runCostOptimisationStage(
                 : (labourFromLineItems > 0 ? labourFromLineItems : null);
               return {
                 panel_beater: row.panelBeaterName ?? "Panel Beater",
+                panel_beater_id: row.panelBeaterId ?? null,
+                quote_id: row.quoteId,
+                quote_type: row.quoteType ?? "original",
+                parent_quote_id: row.parentQuoteId ?? null,
+                document_category: "repair_quote",
                 total_cost: row.quotedAmount / 100,
                 currency: row.currencyCode ?? currency,
                 components,
@@ -416,7 +425,6 @@ export async function runCostOptimisationStage(
                 labour_cost: effectiveLabourCost,
                 parts_cost: row.partsCost ? row.partsCost / 100 : null,
                 confidence: "medium",
-                quote_type: "repair",
               };
             });
           ctx.log("Stage 9", `DB fallback: loaded ${resolvedExtractedQuotes.length} quote(s). Totals: ${resolvedExtractedQuotes.map((q: any) => `${q.currency} ${q.total_cost?.toFixed(2)} (${(q.line_items ?? []).length} items)`).join(", ")}`);
@@ -428,8 +436,26 @@ export async function runCostOptimisationStage(
       }
     }
 
-    const optimisationInputQuotes: InputQuote[] = resolvedExtractedQuotes
-      .filter((q: any) => (q.quote_type ?? 'repair') !== 'parts_supplier')
+    // R1: Every downstream repair-quote calculation must consume the canonical
+    // active ledger. Source submissions remain in the ledger for audit, but a
+    // duplicate or superseded quote cannot inflate count, L1, L2, variance, or savings.
+    const canonicalQuoteLedger = buildCanonicalQuoteLedger(resolvedExtractedQuotes);
+    const activeRepairQuotes = canonicalQuoteLedger.activeQuotes.filter((quote: any) =>
+      quote.document_category
+        ? quote.document_category === "repair_quote"
+        : (quote.quote_type ?? "repair") !== "parts_supplier"
+    );
+    const partsSupplierReferenceQuotes = resolvedExtractedQuotes.filter((quote: any) =>
+      (quote.document_category === "parts_quote") || (quote.quote_type === "parts_supplier")
+    );
+    const activeQuotesForBenchmarking = [...activeRepairQuotes, ...partsSupplierReferenceQuotes];
+    ctx.log(
+      "Stage 9",
+      `Canonical quote ledger: source=${resolvedExtractedQuotes.length}, active=${canonicalQuoteLedger.activeQuoteCount}, ` +
+      `duplicate=${canonicalQuoteLedger.duplicateCount}, superseded=${canonicalQuoteLedger.supersededCount}, excluded=${canonicalQuoteLedger.excludedCount}`
+    );
+
+    const optimisationInputQuotes: InputQuote[] = activeRepairQuotes
       .map(q => {
       let components: string[] = q.components ?? [];
       if (components.length === 0 && Array.isArray((q as any).line_items)) {
@@ -495,8 +521,8 @@ export async function runCostOptimisationStage(
     // ── Step A2: Cross-Quote Gap Analysis + Deviation Matrix ──────────────────
     // R-E-03: stage3.inputRecovery and ctx.damagePhotoUrls/classifiedImages are typed
     // in Stage3Output and PipelineContext respectively — as-any casts removed.
-    // Use resolvedExtractedQuotes (includes DB fallback) for gap analysis
-    const gapAnalysisQuotes = resolvedExtractedQuotes;
+    // Use active repair quotes (after deduplication/revision selection) for gap analysis.
+    const gapAnalysisQuotes = activeRepairQuotes;
     const damagePhotoUrlsForGap: string[] = [
       ...(ctx.damagePhotoUrls ?? []),
       // ClassifiedImage always has url: string (non-optional) — no cast needed.
@@ -533,11 +559,11 @@ export async function runCostOptimisationStage(
     // Note: photos are often taken post-incident at a workshop or home, so
     // QUOTED_NOT_VISIBLE is NOT a fraud signal by itself.
     let quotePhotoAgreement: QuotePhotoAgreementResult | null = null;
-    if (resolvedExtractedQuotes.length > 0 && damageAnalysis.damagedParts.length > 0) {
+    if (activeRepairQuotes.length > 0 && damageAnalysis.damagedParts.length > 0) {
       try {
         quotePhotoAgreement = runQuotePhotoAgreement(
           damageAnalysis.damagedParts,
-          resolvedExtractedQuotes.map((q: any) => ({
+          activeRepairQuotes.map((q: any) => ({
             panel_beater: q.panel_beater ?? 'Unknown',
             components: q.components ?? [],
             line_items: q.line_items ?? [],
@@ -710,12 +736,12 @@ export async function runCostOptimisationStage(
 
     // Build parts reconciliation (quoted parts vs AI estimated)
     // Step 1: Run semantic damage-vs-quote reconciliation if quote components are available
-    const quoteComponents: string[] = resolvedExtractedQuotes
+    const quoteComponents: string[] = activeRepairQuotes
       ?.flatMap(q => q.components ?? []) ?? [];
 
     // Build a line_items lookup: normalised component name → { line_total, currency }
     // Uses the best available quote (highest confidence, then highest total_cost)
-    const allLineItems = (resolvedExtractedQuotes)
+    const allLineItems = (activeRepairQuotes)
       .slice()
       .sort((a, b) => {
         const confOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
@@ -834,7 +860,7 @@ export async function runCostOptimisationStage(
     } : null;
 
     // Step 3: Generate cost intelligence narrative for decision panel
-    const extractedQuotes = resolvedExtractedQuotes;
+    const extractedQuotes = activeRepairQuotes;
     const narrativeInput = {
       quotes: extractedQuotes.map((q, i) => ({
         quote_id: `q${i + 1}`,
@@ -843,7 +869,7 @@ export async function runCostOptimisationStage(
         currency: q.currency ?? "USD",
       })),
       selected_quote_id: extractedQuotes.length > 0 ? "q1" : "",
-      agreed_cost_usd: quotedCents ? quotedCents / 100 : null,
+      agreed_cost_usd: null,
       ai_estimate_usd: null, // Not produced — system uses document-sourced costs only
       market_value_usd: claimRecord.valuation?.marketValueUsd
         ?? (ctx.claim?.vehicleMarketValue != null ? (ctx.claim.vehicleMarketValue as number) / 100 : null),
@@ -862,7 +888,7 @@ export async function runCostOptimisationStage(
       assessor_name: (claimRecord as unknown as Record<string, unknown>).assessorName as string | null ?? null,
       quote_count: extractedQuotes.length > 0 ? extractedQuotes.length : (quotedCents ? 1 : 0),
     };
-    const costNarrative = narrativeInput.quotes.length > 0 || narrativeInput.agreed_cost_usd
+    const costNarrative = narrativeInput.quotes.length > 0
       ? generateCostIntelligenceNarrative(narrativeInput)
       : null;
 
@@ -875,20 +901,13 @@ export async function runCostOptimisationStage(
     });
 
     // Step 4c: Run Claims Cost Decision Engine
-    // WI-4: QUOTATION-FIRST RULE
-    // Use the actual submitted quotation as the authoritative cost in ALL cases
-    // where a quotation document is present — whether signed or unsigned.
-    // Priority order:
-    //   1. agreedCostCents (signed/negotiated amount from assessor annotation)
-    //   2. quoteTotalCents (submitted quote total, signed or unsigned)
-    //   3. recovered_quote from input recovery pass
-    //   4. null → PRE_ASSESSMENT mode (AI estimate used as benchmark only)
-    const agreedCostUsd =
-      (agreedCostFromExtraction && agreedCostFromExtraction > 0)
-        ? agreedCostFromExtraction / 100
-        : (quotedCents && quotedCents > 0)
-          ? quotedCents / 100
-          : null;
+    // R1: An assessor's documented/agreed figure is comparison evidence only.
+    // It may calibrate a prior human decision after L2 exists, but it must never
+    // select a new-claim settlement, replace L2, or switch the engine into an
+    // assessor-validated decision mode.
+    const assessorComparisonCostUsd = (agreedCostFromExtraction && agreedCostFromExtraction > 0)
+      ? agreedCostFromExtraction / 100
+      : null;
     const costDecision = (() => {
       try {
         // Use lowest submitted quote as the optimised_cost_usd for costDecisionEngine.
@@ -897,8 +916,8 @@ export async function runCostOptimisationStage(
             ? Math.min(...quoteOptimisation.selected_quotes.map(q => q.total_cost))
             : 0;
           return runCostDecision({
-          cost_mode: agreedCostUsd ? "POST_ASSESSMENT" : "PRE_ASSESSMENT",
-          agreed_cost_usd: agreedCostUsd,
+          cost_mode: "PRE_ASSESSMENT",
+          agreed_cost_usd: null,
           optimised_cost: quoteOptimisation ? {
             optimised_cost_usd: lowestSubmittedForDecision > 0 ? lowestSubmittedForDecision : quoteOptimisation.optimised_cost_usd,
             selected_quotes: quoteOptimisation.selected_quotes.map(q => ({
@@ -920,7 +939,7 @@ export async function runCostOptimisationStage(
             total_structural_gaps: quoteOptimisation.total_structural_gaps,
             median_cost_usd: quoteOptimisation.median_cost_usd,
           } : null,
-          extracted_quotes: resolvedExtractedQuotes.map(q => ({
+          extracted_quotes: activeRepairQuotes.map(q => ({
             panel_beater: q.panel_beater ?? null,
             total_cost: q.total_cost ?? null,
             currency: q.currency ?? currency,
@@ -955,9 +974,7 @@ export async function runCostOptimisationStage(
     // Include documented quote values from the extracted claim document so db.ts
     // can persist them into costIntelligenceJson for the UI to display correctly.
     const documentedOriginalQuoteUsd = quotedCents ? quotedCents / 100 : null;
-    const documentedAgreedCostUsd = claimRecord.repairQuote.agreedCostCents
-      ? claimRecord.repairQuote.agreedCostCents / 100
-      : null;
+    const documentedAgreedCostUsd = assessorComparisonCostUsd;
     // Phase 2B: Derive economic context from policy/tenant configuration
     let economicContext = null;
     try {
@@ -1096,7 +1113,7 @@ export async function runCostOptimisationStage(
     // vision extraction using the primary PDF URL to recover the actual prices.
     // This guard runs BEFORE documentedLineItems is built so the recovered
     // prices flow through the full cost optimisation pipeline.
-    let allExtractedQuotes = resolvedExtractedQuotes;
+    let allExtractedQuotes = activeRepairQuotes;
     const totalPricedInExtracted = allExtractedQuotes.reduce((sum: number, eq: any) => {
       const items: any[] = (eq as any).line_items ?? [];
       return sum + items.filter((li: any) => typeof li.line_total === 'number' && li.line_total > 0).length;
@@ -1386,6 +1403,13 @@ export async function runCostOptimisationStage(
       // to db.ts costIntelligenceJson so the UI can display the correct amounts.
       documentedOriginalQuoteUsd,
       documentedAgreedCostUsd,
+      assessorCostComparison: documentedAgreedCostUsd !== null
+        ? {
+            documentedAgreedCostUsd,
+            usage: "assessor_calibration_reference_only",
+            settlementEligible: false,
+          }
+        : null,
       panelBeaterName: claimRecord.repairQuote.repairerName ?? claimRecord.repairQuote.repairerCompany ?? null,
       documentedLabourCostUsd: claimRecord.repairQuote.labourCostCents ? claimRecord.repairQuote.labourCostCents / 100 : null,
       documentedPartsCostUsd: claimRecord.repairQuote.partsCostCents ? claimRecord.repairQuote.partsCostCents / 100 : null,
@@ -1452,7 +1476,7 @@ export async function runCostOptimisationStage(
         .filter((n: any): n is string => typeof n === 'string' && n.length > 0);
       if (damagedComponentNames.length === 0) {
         const quoteComponentNamesSet = new Set<string>();
-        for (const q of resolvedExtractedQuotes) {
+        for (const q of activeRepairQuotes) {
           for (const li of ((q as any).line_items ?? [])) {
             const name: string = ((li.component ?? li.description ?? '') as string).trim();
             if (name && !li.is_non_part_cost) quoteComponentNamesSet.add(name);
@@ -1470,7 +1494,9 @@ export async function runCostOptimisationStage(
         // Tier 2: Statistical IQR benchmark (all 33 components)
         // Tier 3: Legacy DB benchmarks (validated outcomes + training data)
         const perComponentBenchmarks: Record<string, any> = {};
-        const allQuotes = resolvedExtractedQuotes;
+        // Repairer submissions are canonical active entries; supplier submissions
+        // remain reference-only inputs for per-component benchmark enrichment.
+        const allQuotes = activeQuotesForBenchmarking;
         const vehicleMake = claimRecord.vehicle?.make ?? null;
         const vehicleYear = claimRecord.vehicle?.year ?? null;
         // Build a flat line_items map for quote flag computation
@@ -1606,7 +1632,7 @@ export async function runCostOptimisationStage(
             dbBenchmarks = [...dbBenchmarks, ...trainingBenchmarks];
           }
           for (const b of dbBenchmarks) {
-            const allQuotesInner = resolvedExtractedQuotes;
+            const allQuotesInner = activeQuotesForBenchmarking;
             const bResolved = resolveComponent(b.component);
             const quoteFlags: Record<string, 'over' | 'fair' | 'under' | 'no_data'> = {};
             for (const q of allQuotesInner) {
@@ -1843,7 +1869,8 @@ export async function runCostOptimisationStage(
               compositeInputQuotes,
               benchmarkMap,
               l1TotalUsd,
-              componentSeverityMap
+              componentSeverityMap,
+              damageAnalysis.damagedParts.map((part: any) => part.name).filter(Boolean)
             );
 
             // Component classification: quoted-not-damaged and damaged-not-quoted
@@ -1884,6 +1911,10 @@ export async function runCostOptimisationStage(
             (output as any).compositeOptimisation = {
               l1SubmittedCostUsd: l1TotalUsd,
               l2CompositeOptimisedCostUsd: compositeResult.compositeOptimisedCostUsd,
+              partialPricedScopeUsd: compositeResult.partialPricedScopeUsd,
+              isComplete: compositeResult.isComplete,
+              missingRequiredComponents: compositeResult.missingRequiredComponents,
+              costBasis: compositeResult.costBasis,
               l3BenchmarkReferenceCostUsd: compositeResult.benchmarkReferenceCostUsd,
               negotiationSavingsUsd: compositeResult.negotiationSavingsUsd,
               marketOverpriceDeltaUsd: compositeResult.marketOverpriceDeltaUsd,
@@ -1895,7 +1926,11 @@ export async function runCostOptimisationStage(
               quotedNotDamaged,
               damagedNotQuoted,
               hiddenDamageAdvisories,
-              quotesEvaluated: compositeInputQuotes.length,
+              quotesEvaluated: canonicalQuoteLedger.activeQuoteCount,
+              sourceQuotesReceived: resolvedExtractedQuotes.length,
+              duplicateQuotesExcluded: canonicalQuoteLedger.duplicateCount,
+              supersededQuotesExcluded: canonicalQuoteLedger.supersededCount,
+              canonicalQuoteLedger: canonicalQuoteLedger.entries,
             };
 
             // ── KINGA Savings: L1 (lowest submitted) minus L2 (per-component optimised) ──
@@ -1911,7 +1946,7 @@ export async function runCostOptimisationStage(
             //   'other'           → exclude (unknown document type)
             //   undefined         → fall back to quote_type heuristic for backward compatibility
             //     with pre-classification data (claims processed before document_category was added)
-            const allSubmittedTotals = (resolvedExtractedQuotes)
+            const allSubmittedTotals = (activeRepairQuotes)
               .filter((q: any) => {
                 // Primary: use LLM-classified document_category when available
                 if (q.document_category) {
@@ -1937,7 +1972,7 @@ export async function runCostOptimisationStage(
               ? Math.min(...fallbackTotals)
               : 0;
             const l2Usd = compositeResult.compositeOptimisedCostUsd;
-            if (lowestSubmittedUsd > 0 && l2Usd > 0) {
+            if (compositeResult.isComplete && lowestSubmittedUsd > 0 && l2Usd !== null && l2Usd > 0) {
               const kingaSavingsUsd = lowestSubmittedUsd - l2Usd;
               // Override the earlier weighted-average savings with the correct L1-L2 figure
               (output as any).kingaSavingsQuoteOptimisation = kingaSavingsUsd;
@@ -1973,10 +2008,18 @@ export async function runCostOptimisationStage(
                 ? `KINGA savings [L1-L2]: USD ${kingaSavingsUsd.toFixed(2)} (lowest submitted $${lowestSubmittedUsd.toFixed(2)} minus KINGA per-component optimised $${l2Usd.toFixed(2)})`
                 : `SUPPLEMENTARY CLAIM RISK [L1-L2]: USD ${Math.abs(kingaSavingsUsd).toFixed(2)} (cheapest quote $${lowestSubmittedUsd.toFixed(2)} is below KINGA optimised $${l2Usd.toFixed(2)} — likely incomplete)`;
               ctx.log('Stage 9', savingsLabel);
+            } else if (!compositeResult.isComplete) {
+              ctx.log(
+                'Stage 9',
+                `L2 INCOMPLETE: ${compositeResult.missingRequiredComponents.length} required component(s) without traceable price: ` +
+                `${compositeResult.missingRequiredComponents.join(', ') || 'scope/replacement data gap'}. ` +
+                `Partial priced scope=$${compositeResult.partialPricedScopeUsd.toFixed(2)}; savings and settlement recommendation suppressed.`
+              );
             }
             ctx.log('Stage 9',
-              `Composite optimisation: L1=$${l1TotalUsd.toFixed(2)} L2=$${compositeResult.compositeOptimisedCostUsd.toFixed(2)} ` +
-              `L3=$${compositeResult.benchmarkReferenceCostUsd.toFixed(2)} ` +
+              `Composite optimisation: L1=$${l1TotalUsd.toFixed(2)} ` +
+              `L2=${l2Usd === null ? 'INCOMPLETE' : `$${l2Usd.toFixed(2)}`} ` +
+              `basis=${compositeResult.costBasis} L3=$${compositeResult.benchmarkReferenceCostUsd.toFixed(2)} ` +
               `NegotiationSavings=$${compositeResult.negotiationSavingsUsd.toFixed(2)} ` +
               `NFS=${compositeResult.negotiationFeasibilityScore} (${compositeResult.negotiationFeasibilityLabel}) ` +
               `HiddenDamageAdvisories=${hiddenDamageAdvisories.length}`);

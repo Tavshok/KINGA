@@ -42,6 +42,7 @@ import { generateVehicleVerificationReport } from "./vehicleVerificationReport";
 import { generateVehicleValuationReport } from "./vehicleValuationReport";
 import { generateEngineerInspectionReport } from "./engineerInspectionReport";
 import { generateRiskSurveyReport } from "./riskSurveyReport";
+import { resolveReportCostIntegrity } from "./costIntegrity";
 import { assessors, fraudIndicators, tenants, users } from "../../drizzle/schema";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct as kFmtPct,
@@ -324,29 +325,26 @@ async function generateClaimAssessmentReport(
     const fraudScoreMismatch = fraudBreakOverall != null && Math.abs(Number(fraudBreakOverall) - fraudScoreRaw) >= 5;
     const confidenceScore = Number(claim.confidence_score ?? 0);
     // estimatedCost: ai_assessments.estimated_cost is stored in CENTS — divide by 100.
-    // Prefer documentedAgreedCostUsd from costIntelligenceJson (already in dollars, more accurate).
+    // Documented agreed cost is calibration evidence only; it is not an L2 or
+    // settlement fallback for this report.
     const estimatedCostRaw = Number(claim.estimated_cost ?? 0);
-    const estimatedCost = (costIntel as any)?.documentedAgreedCostUsd
-      ? Number((costIntel as any).documentedAgreedCostUsd)
-      : estimatedCostRaw > 0
-        ? estimatedCostRaw / 100
-        : 0;
-    // KINGA Optimised: l2CompositeOptimisedCostUsd is the actual field written by the engine.
-    // compositeOptimisedCostUsd does not exist in current DB data — l2 is the canonical field name.
-    const kingaOptimised = (() => {
-      const comp = (costIntel as any)?.compositeOptimisation;
-      if (comp?.l2CompositeOptimisedCostUsd && Number(comp.l2CompositeOptimisedCostUsd) > 0)
-        return Number(comp.l2CompositeOptimisedCostUsd);
-      if (comp?.compositeOptimisedCostUsd && Number(comp.compositeOptimisedCostUsd) > 0)
-        return Number(comp.compositeOptimisedCostUsd);
-      if ((costIntel as any)?.quoteOptimisation?.optimised_cost_usd &&
-          Number((costIntel as any).quoteOptimisation.optimised_cost_usd) > 0)
-        return Number((costIntel as any).quoteOptimisation.optimised_cost_usd);
-      if ((costIntel as any)?.kingaSavingsL2OptimisedUsd &&
-          Number((costIntel as any).kingaSavingsL2OptimisedUsd) > 0)
-        return Number((costIntel as any).kingaSavingsL2OptimisedUsd);
-      return estimatedCost;
-    })();
+    const estimatedCost = estimatedCostRaw > 0 ? estimatedCostRaw / 100 : 0;
+    const costIntegrity = resolveReportCostIntegrity(costIntel, quoteRows as unknown[]);
+    const activeQuoteIds = new Set(
+      costIntegrity.activeQuotes.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
+    );
+    const activeQuoteRows = activeQuoteIds.size > 0
+      ? quoteRows.filter((quote) => activeQuoteIds.has(String(quote.id)))
+      : quoteRows;
+    const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
+    const l2Display = kingaOptimised === null ? "L2 incomplete" : fmtUSD(kingaOptimised);
+    const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l1SubmittedCostUsd);
+    const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l3BenchmarkReferenceCostUsd);
+    const l2IntegrityNote = kingaOptimised === null
+      ? `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
+        `${costIntegrity.partialPricedScopeUsd !== null ? `Partial priced scope: ${fmtUSD(costIntegrity.partialPricedScopeUsd)}. ` : ""}` +
+        "Obtain or reconcile the missing quote scope before a cost recommendation."
+      : `All-in payable repair-cost basis${costIntegrity.costBasis ? ` (${costIntegrity.costBasis.replaceAll("_", " ")})` : ""}.`;
     const repairToValue = Number(claim.repair_to_value_ratio ?? 0);
     const isTotalLoss = Boolean(claim.total_loss_indicated);
     // BUG-02 fix: prefer excess_amount_cents (canonical cents column) over legacy policy_excess
@@ -554,7 +552,7 @@ ${(() => {
       </td>
       <td style="padding:8px 12px;border-right:1px solid #e8e8e8;vertical-align:top;min-width:90px">
         <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;white-space:nowrap">KINGA Optimised</div>
-        <div style="font-size:13px;font-weight:700;color:#3C7844">${fmtUSD(kingaOptimised > 0 ? kingaOptimised : estimatedCost)}</div>
+        <div style="font-size:13px;font-weight:700;color:#3C7844">${l2Display}</div>
       </td>
       <td style="padding:8px 12px;vertical-align:top">
         <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Repair Decision</div>
@@ -666,11 +664,12 @@ ${totalPhotosCL > 0 ? `
       ${isTotalLoss ? `<span style="font-size:11px;color:#a83232;margin-left:12px">Repair cost exceeds vehicle market value threshold.</span>` : ""}
     </td>
   </tr></table>
-  ${kingaOptimised > 0 ? `<p style="font-size:10px;color:#4a4a4a;margin-top:8px;">
-    KINGA Optimised estimate: <strong>${fmtUSD(kingaOptimised)}</strong> — derived from per-component L2 composite pricing across ${compositeLineItemsCL.length} priced components.
-    ${compositeLineItemsCL.length < comps.length ? `<span style="color:#b8720b;font-weight:600;">Note: ${compositeLineItemsCL.length} of ${comps.length} components were priced by the engine — paint, labour, and sundries are excluded from this figure. Refer to the lowest submitted quote (${ fmtUSD((costIntel as any)?.documentedAgreedCostUsd ?? (costIntel as any)?.l1LowestSubmittedCostUsd ?? (costIntel as any)?.compositeOptimisation?.l1LowestSubmittedCostUsd ?? 0)}) as the recommended settlement reference.</span>` : ""}
-  </p>` : ""}
-  ${quoteRows.length > 0 ? (() => {
+  ${kingaOptimised !== null
+    ? `<p style="font-size:10px;color:#4a4a4a;margin-top:8px;">KINGA Optimised recommendation: <strong>${l2Display}</strong> — all-in L2 composite pricing across ${compositeLineItemsCL.length} priced rows. ${esc(l2IntegrityNote)}</p>`
+    : `<div style="margin-top:8px;padding:6px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#7a4c00;"><b>Cost recommendation withheld.</b> ${esc(l2IntegrityNote)}</div>`}
+  ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div style="margin-top:8px;padding:6px 10px;background:#f5f5f5;border-left:3px solid #8a8a8a;font-size:10px;color:#4a4a4a;"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This prior assessor figure is retained for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
+  <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px"><tr style="background:#f5f5f5"><td style="padding:4px 6px;font-weight:600">Submitted quotation ledger</td><td style="padding:4px 6px">${activeQuoteRows.length} active quote${activeQuoteRows.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td><td style="padding:4px 6px;font-weight:600">L1 — lowest active submitted quote</td><td style="padding:4px 6px">${l1Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">L2 — KINGA all-in recommendation</td><td style="padding:4px 6px">${l2Display}</td><td style="padding:4px 6px;font-weight:600">L3 — benchmark reference</td><td style="padding:4px 6px">${l3Display}</td></tr></table>
+  ${activeQuoteRows.length > 0 ? (() => {
     // Build a union of all line item descriptions across all quotes
     const allDescs = new Set<string>();
     quoteLineItemsMap.forEach(items => items.forEach(i => allDescs.add(String(i.description ?? ""))));
@@ -689,8 +688,8 @@ ${totalPhotosCL > 0 ? `
       }
       return null;
     }
-    const quoteNames = quoteRows.map(q => String((q as any).panel_beater_name ?? `Quote ${q.id}`));
-    const colW = Math.floor(55 / quoteRows.length);
+    const quoteNames = activeQuoteRows.map(q => String((q as any).panel_beater_name ?? `Quote ${q.id}`));
+    const colW = Math.floor(55 / activeQuoteRows.length);
     return `
 <div style="margin-top:14px;">
   <div style="font-size:10px;font-weight:700;color:#4a4a4a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Quote Comparison — Line Item Breakdown</div>
@@ -698,14 +697,14 @@ ${totalPhotosCL > 0 ? `
     <thead>
       <tr style="background:#f0f0f0;border-bottom:2px solid #d9d9d9;">
         <th style="text-align:left;padding:4px 8px;width:25%;font-size:9px;color:#4a4a4a;">Line Item</th>
-        ${quoteRows.map((q, i) => `<th style="text-align:right;padding:4px 6px;width:${colW}%;font-size:9px;color:#4a4a4a;">${esc(quoteNames[i])}<br><span style="font-weight:400;color:#8a8a8a">${fmtUSD(Number((q as any).quoted_amount ?? 0) / 100)}</span></th>`).join("")}
+        ${activeQuoteRows.map((q, i) => `<th style="text-align:right;padding:4px 6px;width:${colW}%;font-size:9px;color:#4a4a4a;">${esc(quoteNames[i])}<br><span style="font-weight:400;color:#8a8a8a">${fmtUSD(Number((q as any).quoted_amount ?? 0) / 100)}</span></th>`).join("")}
         <th style="text-align:right;padding:4px 6px;width:12%;font-size:9px;color:#3C7844;font-weight:700;">KINGA Opt.</th>
       </tr>
     </thead>
     <tbody>
       ${descList.map(desc => {
         const comp = findComposite(desc);
-        const cells = quoteRows.map(q => {
+        const cells = activeQuoteRows.map(q => {
           const items = quoteLineItemsMap.get(Number(q.id)) ?? [];
           const match = items.find(i => String(i.description ?? "").toLowerCase() === desc.toLowerCase());
           const val = match ? Number(match.line_total ?? match.unit_price ?? 0) : null;
@@ -713,7 +712,7 @@ ${totalPhotosCL > 0 ? `
             ? `<td style="padding:3px 6px;text-align:right;font-family:monospace;">${fmtUSD(val)}</td>`
             : `<td style="padding:3px 6px;text-align:right;color:#bbb;">—</td>`;
         }).join("");
-        const kingaCell = comp && comp.cost > 0
+        const kingaCell = kingaOptimised !== null && comp && comp.cost > 0
           ? `<td style="padding:3px 6px;text-align:right;font-family:monospace;color:#3C7844;font-weight:700;">${fmtUSD(comp.cost)}<br><span style="font-size:8px;color:#8a8a8a;font-weight:400;">${esc(comp.source === "kinga_benchmark" ? "benchmark" : comp.source)}</span></td>`
           : `<td style="padding:3px 6px;text-align:right;color:#bbb;">—</td>`;
         return `<tr style="border-bottom:1px solid #f0f0f0;">
@@ -726,12 +725,12 @@ ${totalPhotosCL > 0 ? `
     <tfoot>
       <tr style="border-top:2px solid #d9d9d9;background:#fafafa;font-weight:700;">
         <td style="padding:4px 8px;font-size:10px;">TOTAL</td>
-        ${quoteRows.map(q => `<td style="padding:4px 6px;text-align:right;font-family:monospace;">${fmtUSD(Number((q as any).quoted_amount ?? 0) / 100)}</td>`).join("")}
-        <td style="padding:4px 6px;text-align:right;font-family:monospace;color:#3C7844;">${fmtUSD(kingaOptimised)}<br><span style="font-size:8px;color:#8a8a8a;font-weight:400;">${compositeLineItemsCL.length} components</span></td>
+        ${activeQuoteRows.map(q => `<td style="padding:4px 6px;text-align:right;font-family:monospace;">${fmtUSD(Number((q as any).quoted_amount ?? 0) / 100)}</td>`).join("")}
+        <td style="padding:4px 6px;text-align:right;font-family:monospace;color:#3C7844;">${l2Display}<br><span style="font-size:8px;color:#8a8a8a;font-weight:400;">${kingaOptimised === null ? "coverage incomplete" : `${compositeLineItemsCL.length} rows`}</span></td>
       </tr>
     </tfoot>
   </table>
-  <p style="font-size:9px;color:#8a8a8a;margin-top:4px;">KINGA Opt. = per-component minimum of lowest credible submitted price and benchmark P50. Components not priced by the engine show —. Lowest submitted quote total is the recommended settlement reference when KINGA Optimised covers fewer than all components.</p>
+  <p style="font-size:9px;color:#8a8a8a;margin-top:4px;">The ledger contains ${activeQuoteRows.length} active repair quotation${activeQuoteRows.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? ` after excluding ${costIntegrity.duplicateQuotesExcluded} duplicate submission${costIntegrity.duplicateQuotesExcluded === 1 ? "" : "s"}` : ""}. KINGA Opt. is published only when all confirmed repair scope has a traceable payable cost; it is not a settlement agreement.</p>
 </div>` ;
   })() : ""}
 </div>

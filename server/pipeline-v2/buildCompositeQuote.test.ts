@@ -423,8 +423,32 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
       },
     ];
     const result = buildCompositeQuote(quotes, {}, 700);
-    // Only Front Bumper should be in the composite
-    expect(result.compositeLineItems.length).toBe(1);
-    expect(result.compositeLineItems[0].componentName).toBe("Front Bumper");
-    expect(result.compositeOptimisedCostUsd).toBe(540);
+    // All payable rows must be included so L2 uses the same all-in basis as L1.
+    expect(result.compositeLineItems.map(item => item.componentName)).toEqual(
+      expect.arrayContaining(["Front Bumper", "vat", "workshop fee"])
+    );
+    expect(result.compositeOptimisedCostUsd).toBe(700);
+  });
+
+  it("suppresses numeric L2 when a confirmed repair component has no traceable price", () => {
+    const quotes = [
+      makeQuoteWithItems("Repairer A", [{ name: "front bumper", costUsd: 540 }]),
+    ];
+
+    const result = buildCompositeQuote(
+      quotes,
+      {},
+      540,
+      undefined,
+      ["front bumper", "radiator"]
+    );
+
+    expect(result.isComplete).toBe(false);
+    expect(result.compositeOptimisedCostUsd).toBeNull();
+    expect(result.partialPricedScopeUsd).toBe(540);
+    expect(result.missingRequiredComponents).toContain("Radiator Assembly");
+    expect(result.compositeLineItems.find(item => item.componentName === "Radiator Assembly")).toMatchObject({
+      dataGap: true,
+      selectedFromQuote: "data_gap",
+    });
   });

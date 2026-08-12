@@ -19,6 +19,7 @@ import { fraudIndicators } from "../../drizzle/schema";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct, safeJson, scoreColour, chip, badge, photoZonePanel,
 } from "./templates/kingaDesignSystem";
+import { resolveReportCostIntegrity } from "./costIntegrity";
 
 const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
@@ -59,7 +60,7 @@ export async function generateClaimsIntelligenceReport(
               pb.business_name AS panel_beater_name
        FROM panel_beater_quotes q
        LEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id
-       WHERE q.claim_id = ? AND q.quote_type = 'original'
+       WHERE q.claim_id = ?
        ORDER BY q.quoted_amount ASC`,
       [claimId]
     ) as [Record<string, unknown>[], unknown];
@@ -70,7 +71,7 @@ export async function generateClaimsIntelligenceReport(
        FROM quote_line_items li
        JOIN panel_beater_quotes q ON q.id = li.quote_id
        LEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id
-       WHERE q.claim_id = ? AND q.quote_type = 'original'
+       WHERE q.claim_id = ?
        ORDER BY li.quote_id, li.unit_price DESC`,
       [claimId]
     ) as [Record<string, unknown>[], unknown];
@@ -132,14 +133,11 @@ export async function generateClaimsIntelligenceReport(
       : null;
     const rtvRatio = rtvRatioRaw ?? rtvRatioDerived ?? 0;
     // BUG-01 fix: vehicle_market_value is stored in cents — divide by 100 at point of read
-    // BUG-COST: ai_assessments.estimated_cost is also stored in CENTS — divide by 100.
-    // Prefer documentedAgreedCostUsd from costIntelligenceJson (already in dollars, more accurate).
+    // BUG-COST: ai_assessments.estimated_cost is stored in CENTS — divide by 100.
+    // Documented/agreed cost is an assessor calibration reference only and never
+    // substitutes for L2, a settlement recommendation, or a report headline.
     const estimatedCostRawCI = Number(c.estimated_cost ?? 0);
-    const estimatedCost = (costIntel as any)?.documentedAgreedCostUsd
-      ? Number((costIntel as any).documentedAgreedCostUsd)
-      : estimatedCostRawCI > 0
-        ? estimatedCostRawCI / 100
-        : 0;
+    const estimatedCost = estimatedCostRawCI > 0 ? estimatedCostRawCI / 100 : 0;
     const submittedDate = c.created_at ? Number(c.created_at) : null;
     const incidentDate  = c.incident_date ? Number(c.incident_date) : null;
     const dayDelay = (submittedDate && incidentDate)
@@ -147,34 +145,28 @@ export async function generateClaimsIntelligenceReport(
       : null;
 
     // Quote amounts
-    const quoteArr = quotes as Record<string, unknown>[];
-    const quoteAmounts = quoteArr.map(q => Number(q.quoted_amount ?? 0) / 100);
+    const costIntegrity = resolveReportCostIntegrity(costIntel, quotes as unknown[]);
+    const quoteArr = costIntegrity.activeQuotes;
+    const activeQuoteIds = new Set(
+      quoteArr.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
+    );
+    const activeLineItems = activeQuoteIds.size > 0
+      ? (lineItems as Record<string, unknown>[]).filter((line) => activeQuoteIds.has(String(line.quote_id)))
+      : lineItems as Record<string, unknown>[];
+    const quoteAmounts = quoteArr.map(q => q.amountUsd ?? 0).filter(amount => amount > 0);
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
     const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
-    // KINGA Optimised Estimate — L2 composite (per-component min(lowest credible, model P50))
-    // Primary: l2CompositeOptimisedCostUsd — the actual field written by the engine.
-    // compositeOptimisedCostUsd does not exist in current DB data (field name mismatch).
-    const kingaOptimised: number = (() => {
-      const comp = (costIntel?.compositeOptimisation as Record<string, unknown> | null | undefined);
-      // L2 composite: l2CompositeOptimisedCostUsd is the canonical field in the DB
-      if ((comp as any)?.l2CompositeOptimisedCostUsd && Number((comp as any).l2CompositeOptimisedCostUsd) > 0)
-        return Number((comp as any).l2CompositeOptimisedCostUsd);
-      // Legacy alias kept for forward compatibility
-      if (comp?.compositeOptimisedCostUsd && Number(comp.compositeOptimisedCostUsd) > 0)
-        return Number(comp.compositeOptimisedCostUsd);
-      // quoteOptimisation.optimised_cost_usd — weighted average across submitted quotes
-      if ((costIntel as any)?.quoteOptimisation?.optimised_cost_usd &&
-          Number((costIntel as any).quoteOptimisation.optimised_cost_usd) > 0)
-        return Number((costIntel as any).quoteOptimisation.optimised_cost_usd);
-      // Top-level backfill (set by Stage 9 after composite is built)
-      if ((costIntel as any)?.kingaSavingsL2OptimisedUsd && Number((costIntel as any).kingaSavingsL2OptimisedUsd) > 0)
-        return Number((costIntel as any).kingaSavingsL2OptimisedUsd);
-      if (costIntel?.totalEstimatedCost) return Number(costIntel.totalEstimatedCost);
-      if (costIntel?.expectedRepairCostCents) return Number(costIntel.expectedRepairCostCents) / 100;
-      return estimatedCost;
-    })();
-    const savings = highestQuote > 0 ? highestQuote - kingaOptimised : 0;
-    const savingsPct = highestQuote > 0 ? (savings / highestQuote * 100) : 0;
+    const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
+    const l2Display = kingaOptimised === null ? "L2 incomplete" : fmtUSD(kingaOptimised);
+    const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l1SubmittedCostUsd);
+    const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l3BenchmarkReferenceCostUsd);
+    const l2IntegrityNote = kingaOptimised === null
+      ? `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
+        `${costIntegrity.partialPricedScopeUsd !== null ? `Partial priced scope: ${fmtUSD(costIntegrity.partialPricedScopeUsd)}. ` : ""}` +
+        `Obtain or reconcile the missing quotation scope before a cost recommendation.`
+      : `All-in payable repair-cost basis${costIntegrity.costBasis ? ` (${costIntegrity.costBasis.replaceAll("_", " ")})` : ""}.`;
+    const savings = kingaOptimised !== null && highestQuote > 0 ? highestQuote - kingaOptimised : 0;
+    const savingsPct = kingaOptimised !== null && highestQuote > 0 ? (savings / highestQuote * 100) : 0;
 
     // Policy exclusions from repair intelligence
     const exclusions: Array<{item: string; amount: number; clause: string}> =
@@ -184,7 +176,12 @@ export async function generateClaimsIntelligenceReport(
     const excess = c.excess_amount_cents != null
       ? Number(c.excess_amount_cents) / 100
       : Number(c.policy_excess ?? c.deductible ?? 0);
-    const recommendedSettlement = Math.max(0, kingaOptimised - totalExclusions - excess);
+    const recommendedSettlement = kingaOptimised === null
+      ? null
+      : Math.max(0, kingaOptimised - totalExclusions - excess);
+    const recommendedSettlementDisplay = recommendedSettlement === null
+      ? "Not available"
+      : fmtUSD(recommendedSettlement);
 
     // Fraud badge
     const fraudBadgeCls = fraudScore >= 70 ? "fail" : fraudScore >= 40 ? "warn" : "ok";
@@ -281,6 +278,9 @@ ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Sub
 ${showCIReviewNote ? `<div class="callout amber" style="margin-bottom:14px"><b>Review Trigger Note —</b> The cost assessment is within the acceptable range (${costVerdictCI}), but this claim has been flagged for review due to non-cost factors: ${ctlTriggersCI.join("; ")}. Settlement authorisation requires adjuster sign-off on these items.</div>` : ""}
 <!-- ── SETTLEMENT WATERFALL ── -->
 ${(() => {
+  if (kingaOptimised === null || recommendedSettlement === null) {
+    return `<div class="callout amber" style="margin-bottom:12px"><b>Cost recommendation withheld.</b> ${esc(l2IntegrityNote)} No savings or settlement figure is calculated from an incomplete L2.</div>`;
+  }
   // Build waterfall steps: Highest Quote → KINGA Optimised → Less Exclusions → Less Excess → Settlement
   const wfSteps = [
     { label: 'Highest Quote', amount: highestQuote, type: 'base' as const },
@@ -535,16 +535,20 @@ ${(() => {
   <div class="section" style="margin-top:10px;">
     <div class="section-tab sans" style="background:var(--ink-soft);"><span class="num">Settlement Position</span></div>
     <div class="verdict-strip">
-      <div class="verdict-cell"><div class="label">KINGA Optimised</div><div class="value">${fmtUSD(kingaOptimised)}</div><div class="sub">AI-benchmarked estimate</div></div>
+      <div class="verdict-cell"><div class="label">KINGA Optimised</div><div class="value">${l2Display}</div><div class="sub">${kingaOptimised === null ? "Coverage review required" : "All-in benchmarked recommendation"}</div></div>
       <div class="verdict-cell"><div class="label">Less Exclusions</div><div class="value" style="color:var(--red)">&minus;${fmtUSD(totalExclusions > 0 ? totalExclusions : 0)}</div><div class="sub">Policy exclusions removed</div></div>
       <div class="verdict-cell"><div class="label">Less Excess</div><div class="value" style="color:var(--red)">&minus;${fmtUSD(excess)}</div><div class="sub">Policy deductible</div></div>
-      <div class="verdict-cell accent"><div class="label">Recommended Settlement</div><div class="value" style="color:var(--green)">${fmtUSD(recommendedSettlement)}</div><div class="sub">Subject to structural assessment</div></div>
+      <div class="verdict-cell accent"><div class="label">Recommended Settlement</div><div class="value" style="color:var(--green)">${recommendedSettlementDisplay}</div><div class="sub">${recommendedSettlement === null ? "Withheld pending scope reconciliation" : "Subject to structural assessment"}</div></div>
     </div>
     <!-- TIER-06: Settlement rationale -->
     <p style="font-size:10px;color:#4a4a4a;margin-top:8px;padding:6px 10px;background:#f5f5f5;border-radius:2px;">
-      Settlement rationale: KINGA Optimised estimate of <strong>${fmtUSD(kingaOptimised)}</strong>, less policy exclusions of <strong>${fmtUSD(totalExclusions)}</strong>${excess > 0 ? `, less policy excess of <strong>${fmtUSD(excess)}</strong>` : ""}, equals recommended settlement of <strong>${fmtUSD(recommendedSettlement)}</strong>.
+      ${kingaOptimised === null
+        ? esc(l2IntegrityNote)
+        : `Settlement rationale: KINGA Optimised estimate of <strong>${l2Display}</strong>, less policy exclusions of <strong>${fmtUSD(totalExclusions)}</strong>${excess > 0 ? `, less policy excess of <strong>${fmtUSD(excess)}</strong>` : ""}, equals recommended settlement of <strong>${recommendedSettlementDisplay}</strong>.`}
       ${criticalStructural.length > 0 ? `Note: ${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} (${criticalStructural.map(g => esc(g.component)).join(", ")}) are not included in any submitted quote and must be assessed independently before this figure can be finalised.` : "All major components are included in the submitted quotes."}
     </p>
+    ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This historical assessor figure is displayed for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
+    <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">L2 — KINGA all-in recommendation</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
   </div>
 
   ${totalExclusions > 0 || exclusions.length > 0 ? `
@@ -576,19 +580,19 @@ ${(() => {
     const quoteCardHtml = quoteArr.length > 0
       ? quoteArr.slice(0, 3).map((q, i) => `
         <div class="quote-card">
-          <div class="qc-label">${esc(q.panel_beater_name ?? `Quote ${i + 1}`)}</div>
-          <div class="qc-amount">${fmtUSD(Number(q.quoted_amount ?? 0) / 100)}</div>
-          <div class="qc-sub">${q.quote_congruency_score != null ? `Congruency: ${q.quote_congruency_score}%` : "Original quote"}</div>
+          <div class="qc-label">${esc(q.repairer || `Quote ${i + 1}`)}</div>
+          <div class="qc-amount">${q.amountUsd === null ? "—" : fmtUSD(q.amountUsd)}</div>
+          <div class="qc-sub">${q.status === "supplementary" ? "Supplementary scope" : "Active market quote"}</div>
         </div>`).join("") +
         `<div class="quote-card kinga">
           <div class="qc-label">KINGA Optimised</div>
-          <div class="qc-amount green">${fmtUSD(kingaOptimised)}</div>
-          <div class="qc-sub">Savings: ${fmtUSD(savings)} (${fmtPct(savingsPct)})</div>
+          <div class="qc-amount green">${l2Display}</div>
+          <div class="qc-sub">${kingaOptimised === null ? "Recommendation withheld pending scope reconciliation" : `Savings: ${fmtUSD(savings)} (${fmtPct(savingsPct)})`}</div>
         </div>`
       : `<div class="quote-card" style="grid-column:1/-1;text-align:center;padding:20px;color:var(--ink-light)">No quotes received</div>`;
 
     // Build top-8 comparison line items — wire KINGA benchmark from compositeLineItems
-    const liArr = lineItems as Record<string, unknown>[];
+    const liArr = activeLineItems;
     // Build a map from canonical component name → L2 selected cost from buildCompositeQuote output
     const compositeItems: Array<{componentName: string; selectedCostUsd: number; scopeDecisionRule?: string}> =
       (costIntel?.compositeOptimisation?.compositeLineItems as Array<{componentName: string; selectedCostUsd: number; scopeDecisionRule?: string}>) ?? [];
@@ -628,7 +632,7 @@ ${(() => {
 <div class="page page-break">
 <div class="section">
   <div class="section-tab sans"><span class="num">02</span> Cost Intelligence</div>
-  <p class="small" style="margin:0 0 8px 0;">KINGA benchmarked ${quoteArr.length} submitted quote${quoteArr.length !== 1 ? "s" : ""} against market rates for the ${vehicleDesc}. The optimised estimate of <strong>${fmtUSD(kingaOptimised)}</strong> represents a saving of <strong>${fmtUSD(savings)} (${fmtPct(savingsPct)})</strong> against the highest submitted quote. ${criticalStructural.length > 0 ? `<strong>${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} identified in the damage scope do not appear in any submitted quote</strong> — an independent structural assessment is required before the cost can be finalised.` : "All major components appear in at least one submitted quote."}</p>
+  <p class="small" style="margin:0 0 8px 0;">KINGA evaluated ${quoteArr.length} active market quote${quoteArr.length !== 1 ? "s" : ""}${costIntegrity.duplicateQuotesExcluded > 0 ? ` after excluding ${costIntegrity.duplicateQuotesExcluded} duplicate submission${costIntegrity.duplicateQuotesExcluded === 1 ? "" : "s"}` : ""} for the ${vehicleDesc}. ${kingaOptimised === null ? `<strong>${esc(l2IntegrityNote)}</strong>` : `The all-in optimised estimate of <strong>${l2Display}</strong> represents a saving of <strong>${fmtUSD(savings)} (${fmtPct(savingsPct)})</strong> against the highest submitted quote.`} ${criticalStructural.length > 0 ? `<strong>${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} identified in the damage scope do not appear in any submitted quote</strong> — an independent structural assessment is required before the cost can be finalised.` : "All major components are included in the submitted quotes."}</p>
   <div class="cols-2">
     <div class="box">
       <h4>Quote Comparison — ${quoteArr.length} quotes received</h4>
@@ -639,9 +643,9 @@ ${(() => {
       <h4>Repair Economics &amp; Verdict</h4>
       <table class="kv">
         <tr><td class="k">Highest submitted quote</td><td class="v">${fmtUSD(highestQuote)}</td></tr>
-        <tr><td class="k">KINGA optimised estimate</td><td class="v">${fmtUSD(kingaOptimised)}</td></tr>
-        <tr><td class="k">Recommended settlement</td><td class="v">${fmtUSD(recommendedSettlement)}</td></tr>
-        <tr><td class="k">Negotiation gap</td><td class="v">${savings > 0 ? fmtUSD(savings) + " (" + fmtPct(savingsPct) + ")" : "None detected"}</td></tr>
+        <tr><td class="k">KINGA optimised estimate</td><td class="v">${l2Display}</td></tr>
+        <tr><td class="k">Recommended settlement</td><td class="v">${recommendedSettlementDisplay}</td></tr>
+        <tr><td class="k">Negotiation gap</td><td class="v">${kingaOptimised !== null && savings > 0 ? fmtUSD(savings) + " (" + fmtPct(savingsPct) + ")" : kingaOptimised === null ? "Not calculated — L2 incomplete" : "None detected"}</td></tr>
         <tr><td class="k">Repair-to-value ratio</td><td class="v">${fmtPct(rtvRatio)}</td></tr>
       </table>
       <div class="callout green" style="margin-top:8px;"><span class="pill green">${rtvRatio >= 70 ? "Total Loss — above write-off threshold" : "Repair — well below write-off threshold"}</span></div>
@@ -884,7 +888,9 @@ ${(() => {
   <div class="cols-2">
     <div class="box" ${actions.some(a => a.priority === "High") ? `style="border-color:var(--red);"` : ""}>
       <h4 ${actions.some(a => a.priority === "High") ? `style="color:var(--red);"` : ""}>Verdict — ${actions.some(a => a.priority === "High") ? "Reject" : "Approve"}</h4>
-      <p style="margin:0;">${actions.some(a => a.priority === "High") ? `This claim cannot proceed to automated settlement. <strong>${actions.filter(a => a.priority === "High").length} high-priority item${actions.filter(a => a.priority === "High").length !== 1 ? "s" : ""}</strong> require resolution before a cost decision can be finalised.` : "This claim is ready for settlement subject to adjuster sign-off."} Recommended settlement: <strong>${fmtUSD(recommendedSettlement)}</strong>.</p>
+      <p style="margin:0;">${kingaOptimised === null
+        ? `This claim cannot proceed to a cost recommendation. <strong>${esc(l2IntegrityNote)}</strong>`
+        : `${actions.some(a => a.priority === "High") ? `This claim cannot proceed to automated settlement. <strong>${actions.filter(a => a.priority === "High").length} high-priority item${actions.filter(a => a.priority === "High").length !== 1 ? "s" : ""}</strong> require resolution before a cost decision can be finalised.` : "This claim is ready for settlement subject to adjuster sign-off."} Recommended settlement: <strong>${recommendedSettlementDisplay}</strong>.`}</p>
     </div>
     <div class="box">
       <h4>Next Steps</h4>

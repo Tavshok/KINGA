@@ -811,7 +811,16 @@ export interface BenchmarkMap {
 
 export interface CompositeQuoteResult {
   compositeLineItems: CompositeLineItem[];
-  compositeOptimisedCostUsd: number;
+  /** Null unless every confirmed repair-scope component has a traceable price. */
+  compositeOptimisedCostUsd: number | null;
+  /** Sum of priced items, retained for audit when the all-in scope is incomplete. */
+  partialPricedScopeUsd: number;
+  /** L1 and L2 are both calculated on the all-in payable repair-cost basis. */
+  costBasis: 'all_in_payable_repair_cost';
+  /** Confirmed repair-scope components without a traceable submitted price. */
+  missingRequiredComponents: string[];
+  /** A numeric L2 is publishable only when this is true. */
+  isComplete: boolean;
   benchmarkReferenceCostUsd: number;
   negotiationSavingsUsd: number;
   marketOverpriceDeltaUsd: number;
@@ -950,17 +959,23 @@ function computeBenchmarkVerdict(
  * @param benchmarks   Per-component benchmark data (P25/P50/P75)
  * @param l1TotalUsd   L1 hint from stage-9 (lowest quote total already computed upstream)
  * @param componentSeverityMap  Per-component severity (used for scope classification in audit trail)
+ * @param requiredComponents Confirmed repair scope; each entry requires a traceable price.
  */
 export function buildCompositeQuote(
   quotes: InputQuoteWithLineItems[],
   benchmarks: BenchmarkMap,
   l1TotalUsd: number,
-  componentSeverityMap?: Map<string, string>
+  componentSeverityMap?: Map<string, string>,
+  requiredComponents: string[] = []
 ): CompositeQuoteResult {
   // ── 0. Handle edge cases ──────────────────────────────────────────────────
   const EMPTY_RESULT: CompositeQuoteResult = {
     compositeLineItems: [],
-    compositeOptimisedCostUsd: l1TotalUsd,
+    compositeOptimisedCostUsd: requiredComponents.length === 0 ? l1TotalUsd : null,
+    partialPricedScopeUsd: l1TotalUsd,
+    costBasis: 'all_in_payable_repair_cost',
+    missingRequiredComponents: requiredComponents.map(normalise),
+    isComplete: requiredComponents.length === 0,
     benchmarkReferenceCostUsd: 0,
     negotiationSavingsUsd: 0,
     marketOverpriceDeltaUsd: 0,
@@ -977,8 +992,9 @@ export function buildCompositeQuote(
   // get the all-in cost for that quote. Labour is already inside each quote's
   // component rows; it is NOT added separately.
   //
-  // Standalone overhead rows (VAT, general workshop fee not tied to any
-  // specific component) are excluded from the normalised total.
+  // Every payable repair row, including VAT and mandatory workshop fees, enters
+  // the normalised total. L1 is an all-in submitted amount, so excluding a
+  // payable row from L2 would create a false saving through cost-basis mismatch.
   //
   // Safety-critical components (airbags, seat belts, chassis) must be
   // replacement-scope only. If a quote only has a repair-scope price for a
@@ -1016,20 +1032,15 @@ export function buildCompositeQuote(
     for (const item of items) {
       if (!item.costUsd || item.costUsd <= 0) continue;
       if (!item.componentName || item.componentName.trim() === '') continue;
-      // Skip only truly standalone overhead rows that are not tied to a specific
-      // repair component — e.g. VAT, workshop fee, administration charge.
-      // Paint, sundries, strip & assemble, and labour lines ARE legitimate repair
-      // line items and must be included so the composite covers the full repair scope.
-      // Rule: skip when isNonPartCost AND the normalised name matches a known
-      // overhead-only pattern (no component identity).
+      // Paint, sundries, strip & assemble, labour, VAT, and mandatory fees are
+      // all payable repair-scope rows. Keep them as independent normalised rows
+      // so an unbenchmarked row falls back to the submitted price rather than
+      // silently disappearing from L2.
       if (item.isNonPartCost && !item.isRepair && !item.isReplacement) {
         const normCheck = normalise(item.componentName).toLowerCase();
-        const isStandaloneOverhead =
-          /^(vat|value added tax|tax|gst|admin|administration|administration fee|workshop fee|workshop charge|handling|handling fee|environmental fee|disposal fee|waste disposal|miscellaneous|misc|overhead)$/.test(normCheck);
-        if (isStandaloneOverhead) continue;
-        // Also skip rows whose name is purely numeric or empty after normalisation
+        // Reject only an empty or malformed label. A named payable row must remain
+        // in the all-in ledger even where it is not tied to one physical part.
         if (!normCheck || /^\d+(\.\d+)?$/.test(normCheck)) continue;
-        // Otherwise include: paint, sundries, strip & assemble, diagnostic, etc.
       }
 
       const normName = normalise(item.componentName);
@@ -1145,6 +1156,17 @@ export function buildCompositeQuote(
     }
   }
 
+  // Confirmed damage establishes the minimum scope required for an all-in L2.
+  // Quote-only rows such as paint, labour, VAT, and sundries remain in the matrix
+  // whenever priced. A confirmed damaged component with no traceable price is an
+  // integrity gap, not a zero-cost opportunity.
+  const requiredScope = Array.from(new Set(
+    requiredComponents
+      .map(normalise)
+      .filter((name) => Boolean(name && name.trim()))
+  ));
+  const missingRequiredComponents = requiredScope.filter((name) => !componentMatrix.has(name));
+
   // ── 3. Per-component L2 selection ──────────────────────────────────────────
   //
   // CONFIRMED FORMULA (product owner, July 2026):
@@ -1246,8 +1268,12 @@ export function buildCompositeQuote(
     } satisfies CompositeLineItem);
   }
 
-  // Add data gap items from all quotes (safety-critical with no replacement scope)
-  const allDataGapNames = new Set(validNormalisedQuotes.flatMap(q => q.dataGaps));
+  // Add data-gap items from safety-critical scope checks and confirmed damage
+  // that has no traceable submitted or benchmark-backed price.
+  const allDataGapNames = new Set([
+    ...validNormalisedQuotes.flatMap(q => q.dataGaps),
+    ...missingRequiredComponents,
+  ]);
   for (const gapName of allDataGapNames) {
     if (compositeLineItems.some(i => i.componentName === gapName)) continue;
     const bm = benchmarks[gapName] ?? null;
@@ -1257,9 +1283,13 @@ export function buildCompositeQuote(
       selectedFromQuote: 'data_gap',
       isBenchmarkFill: false,
       kingaOptimisedTier: 'T4',
-      kingaOptimisedTierLabel: 'Data Gap — Safety-Critical',
+      kingaOptimisedTierLabel: missingRequiredComponents.includes(gapName)
+        ? 'Data Gap — Required Scope Unpriced'
+        : 'Data Gap — Safety-Critical',
       benchmarkVerdict: 'NO_DATA',
-      benchmarkSignal: 'Safety-critical component: no replacement-scope quote available from any repairer.',
+      benchmarkSignal: missingRequiredComponents.includes(gapName)
+        ? 'Confirmed damaged component has no traceable submitted price; obtain or reconcile a repair quotation before settlement.'
+        : 'Safety-critical component: no replacement-scope quote available from any repairer.',
       p25Usd: bm?.p25Usd ?? null,
       p50Usd: bm?.p50Usd ?? null,
       p75Usd: bm?.p75Usd ?? null,
@@ -1268,11 +1298,15 @@ export function buildCompositeQuote(
       scopeDecisionRule: 'SAFETY_CRITICAL_REPLACE_ONLY',
       scopeDecisionConfidence: 'high',
       dataGap: true,
-      dataGapReason: 'Safety-critical component: replacement-scope quote required but only repair scope available.',
+      dataGapReason: missingRequiredComponents.includes(gapName)
+        ? 'Required repair-scope component has no traceable submitted price.'
+        : 'Safety-critical component: replacement-scope quote required but only repair scope available.',
     });
   }
 
   compositeOptimisedCostUsd = Math.round(compositeOptimisedCostUsd * 100) / 100;
+  const partialPricedScopeUsd = compositeOptimisedCostUsd;
+  const isComplete = allDataGapNames.size === 0;
 
   // ── MINIMUM FLOOR GUARD ──────────────────────────────────────────────────────
   // KINGA optimised total must never fall below the lowest submitted quote total.
@@ -1299,7 +1333,9 @@ export function buildCompositeQuote(
   // negotiationSavingsUsd = L1 - L2_total (can be negative if L2 > L1)
   // When L2 > L1, the per-component cherry-pick total exceeds the best package
   // deal. KINGA reports both; insurer can accept L1 as the authorisation amount.
-  const negotiationSavingsUsd = Math.round((l1Usd - compositeOptimisedCostUsd) * 100) / 100;
+  const negotiationSavingsUsd = isComplete
+    ? Math.round((l1Usd - compositeOptimisedCostUsd) * 100) / 100
+    : 0;
   // marketOverpriceDeltaUsd = L2 - benchmark total
   const marketOverpriceDeltaUsd = benchmarkReferenceUsd > 0
     ? Math.round((compositeOptimisedCostUsd - benchmarkReferenceUsd) * 100) / 100
@@ -1319,7 +1355,11 @@ export function buildCompositeQuote(
 
   return {
     compositeLineItems,
-    compositeOptimisedCostUsd,
+    compositeOptimisedCostUsd: isComplete ? compositeOptimisedCostUsd : null,
+    partialPricedScopeUsd,
+    costBasis: 'all_in_payable_repair_cost',
+    missingRequiredComponents,
+    isComplete,
     benchmarkReferenceCostUsd: Math.round(benchmarkReferenceUsd * 100) / 100,
     negotiationSavingsUsd,
     marketOverpriceDeltaUsd,
