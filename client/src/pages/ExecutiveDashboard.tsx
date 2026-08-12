@@ -47,17 +47,6 @@ import { SettlementTrendChart } from "@/components/executive/SettlementTrendChar
 import { GovernanceExceptionsRegister } from "@/components/executive/GovernanceExceptionsRegister";
 import { CrossClaimIntelligencePanel } from "@/components/executive/CrossClaimIntelligencePanel";
 import {
-  DEMO_EXEC_SUMMARY,
-  DEMO_KPI_SUMMARY,
-  DEMO_FINANCIALS,
-  DEMO_GOVERNANCE,
-  DEMO_ASSESSORS,
-  DEMO_PANEL_BEATERS,
-  DEMO_BOTTLENECKS,
-  DEMO_MONTH_COMPARISON,
-  isEmptyData,
-} from "@/lib/demoData";
-import {
   exportKPIsToPDF,
   exportAssessorPerformanceToExcel,
   exportPanelBeaterAnalyticsToExcel,
@@ -258,22 +247,21 @@ export default function ExecutiveDashboard() {
   
   // Governance metrics
   const { data: governanceResponse, isLoading: governanceLoading } = trpc.governance.getGovernanceSummary.useQuery(undefined, { retry: 0 });
-  // Month-on-Month Comparison — replaces hardcoded DEMO_MONTH_COMPARISON
+  // Month-on-month comparison from the authorised analytics source.
   const { data: monthComparisonResponse } = trpc.analytics.getMonthComparison.useQuery(undefined, { retry: 0 });
   // Governance detail queries removed — executive sees snapshot KPIs only.
   
-  // ── Demo mode: fall back to realistic fixture data when DB is empty ──
+  // Authoritative data only: an empty source remains empty in the Executive runtime.
   const _execRaw = execSummary;
-  const isDemo = !_execRaw || (_execRaw.totalClaims === 0);
-  const effectiveExecSummary = isDemo ? DEMO_EXEC_SUMMARY : _execRaw;
+  const executiveDataUnavailable = !_execRaw || (_execRaw.totalClaims === 0);
+  const effectiveExecSummary = _execRaw;
 
   const _kpisRaw = kpisResponse?.data?.summaryMetrics;
-  const kpisFull = (!_kpisRaw || _kpisRaw.totalClaims === 0) ? DEMO_KPI_SUMMARY : _kpisRaw;
+  const kpisFull = _kpisRaw ?? null;
 
   const _govRaw = governanceResponse?.data;
-  const governanceMetrics = (!_govRaw || isEmptyData(_govRaw)) ? DEMO_GOVERNANCE : _govRaw;
-  // Month comparison: use real data if available, fall back to demo fixture
-  const monthComparisonItems = monthComparisonResponse?.items ?? DEMO_MONTH_COMPARISON;
+  const governanceMetrics = _govRaw ?? null;
+  const monthComparisonItems = monthComparisonResponse?.items ?? [];
   const monthComparisonLabel = monthComparisonResponse?.label ?? 'MONTH-ON-MONTH';
 
   // Search query - only execute when searchQuery has value
@@ -286,18 +274,18 @@ export default function ExecutiveDashboard() {
   const kpis = kpisFull;
 
   const _assessorRaw = assessorPerfResponse?.data?.assessors;
-  const assessorPerf = (!_assessorRaw || _assessorRaw.length === 0) ? DEMO_ASSESSORS : _assessorRaw;
+  const assessorPerf = _assessorRaw ?? [];
 
   const _panelRaw = panelBeaterAnalyticsResponse?.data?.panelBeaters;
-  const panelBeaterAnalytics = (!_panelRaw || _panelRaw.length === 0) ? DEMO_PANEL_BEATERS : _panelRaw;
+  const panelBeaterAnalytics = _panelRaw ?? [];
 
   const savingsTrends = savingsTrendsResponse?.data?.trends?.monthlySavings;
 
   const _bottlenecksRaw = bottlenecksResponse?.data?.riskIndicators?.bottlenecks;
-  const bottlenecks = (!_bottlenecksRaw || !Array.isArray(_bottlenecksRaw) || _bottlenecksRaw.length === 0) ? DEMO_BOTTLENECKS : _bottlenecksRaw;
+  const bottlenecks = Array.isArray(_bottlenecksRaw) ? _bottlenecksRaw : [];
 
   const _financialsRaw = financialsResponse?.data?.summaryMetrics;
-  const financials = (!_financialsRaw || (_financialsRaw.totalPayouts === 0 && _financialsRaw.fraudPrevented === 0)) ? DEMO_FINANCIALS : _financialsRaw;
+  const financials = _financialsRaw ?? null;
 
   const searchResults = searchResultsResponse?.data?.results;
 
@@ -443,7 +431,7 @@ export default function ExecutiveDashboard() {
               Portfolio Overview
             </div>
             <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '3px' }}>
-              Live · Updated just now · {isDemo ? 'Demo Mode' : 'Live Data'}
+              {executiveDataUnavailable ? 'Operational data unavailable' : 'Live operational data'}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>

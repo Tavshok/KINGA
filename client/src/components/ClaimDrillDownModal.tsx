@@ -1,9 +1,9 @@
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertTriangle, Clock, Shield, TrendingUp, FileText, ArrowRight } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertTriangle, Clock, FileText, Shield } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 interface ClaimDrillDownModalProps {
@@ -13,63 +13,43 @@ interface ClaimDrillDownModalProps {
   title: string;
 }
 
+function unavailable(message: string) {
+  return (
+    <div className="flex min-h-64 flex-col items-center justify-center gap-3 px-8 text-center text-muted-foreground">
+      <AlertTriangle className="h-10 w-10 opacity-50" />
+      <p className="max-w-md text-sm">{message}</p>
+    </div>
+  );
+}
+
+function recordedAmount(cents: number | null) {
+  return cents === null ? "Not recorded" : `${cents.toLocaleString()} cents`;
+}
+
+function recordedScore(score: number | null) {
+  return score === null ? "Not recorded" : `${score}%`;
+}
+
+function recordedText(value: string | null) {
+  return value ?? "Not recorded";
+}
+
+function displayDate(value: unknown) {
+  if (!value) return "Not recorded";
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? "Not recorded" : date.toLocaleString();
+}
+
 export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: ClaimDrillDownModalProps) {
-  // Mock data - replace with actual tRPC query
-  const mockClaims = [
-    {
-      id: "CLM-2024-001",
-      policyHolder: "John Doe",
-      claimType: "Collision",
-      status: "Under Review",
-      fraudScore: 85,
-      aiConfidence: 92,
-      amount: 45000,
-      submittedAt: "2024-02-15",
-      workflowState: "technical_review",
-    },
-    {
-      id: "CLM-2024-002",
-      policyHolder: "Jane Smith",
-      claimType: "Theft",
-      status: "Approved",
-      fraudScore: 15,
-      aiConfidence: 98,
-      amount: 32000,
-      submittedAt: "2024-02-14",
-      workflowState: "financial_decision",
-    },
-  ];
-
-  const mockOverrideHistory = [
-    {
-      claimId: "CLM-2024-001",
-      timestamp: "2024-02-16 14:30",
-      user: "Executive User",
-      action: "Override KINGA Rejection",
-      reason: "Customer loyalty consideration",
-      previousState: "ai_rejected",
-      newState: "technical_review",
-    },
-  ];
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "approved":
-        return "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200";
-      case "rejected":
-        return "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200";
-      case "under review":
-        return "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200";
-      default:
-        return "bg-gray-100 dark:bg-muted text-gray-800 dark:text-foreground";
-    }
-  };
-
-  const getFraudRiskColor = (score: number) => {
-    if (score >= 70) return "text-red-600 dark:text-red-400";
-    if (score >= 40) return "text-yellow-600 dark:text-yellow-400";
-    return "text-green-600 dark:text-green-400";
-  };
+  const detail = trpc.executive.getOperationalClaimDetail.useQuery(
+    { filter },
+    { enabled: open, retry: 0 },
+  );
+  const data = detail.data;
+  const claims = data?.claims ?? [];
+  const workflowHistory = data?.workflowHistory ?? [];
+  const overrideHistory = data?.overrideHistory ?? [];
+  const unavailableMessage = data?.reason ?? "Operational detail is unavailable. Please retry when the authorised data source is available.";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -80,151 +60,64 @@ export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: Claim
             {title}
           </DialogTitle>
           <DialogDescription>
-            Detailed claim information and workflow history
+            Authorised operational claim detail. Missing fields remain unavailable rather than being estimated.
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="claims" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="claims">Claims List</TabsTrigger>
-            <TabsTrigger value="routing">Routing Paths</TabsTrigger>
-            <TabsTrigger value="overrides">Override History</TabsTrigger>
-          </TabsList>
+        {detail.isLoading ? unavailable("Loading authorised operational detail…") : detail.isError || data?.state === "unavailable" ? unavailable(unavailableMessage) : (
+          <Tabs defaultValue="claims" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="claims">Claims List</TabsTrigger>
+              <TabsTrigger value="routing">Workflow History</TabsTrigger>
+              <TabsTrigger value="overrides">Override History</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="claims" className="space-y-4">
-            <ScrollArea className="h-[500px] pr-4">
-              {mockClaims.map((claim) => (
-                <Card key={claim.id} className="mb-4">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-lg">{claim.id}</h3>
-                        <p className="text-sm text-slate-600 dark:text-muted-foreground">{claim.policyHolder}</p>
-                      </div>
-                      <Badge className={getStatusColor(claim.status)}>
-                        {claim.status}
-                      </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-xs text-slate-600 dark:text-muted-foreground">Claim Type</p>
-                        <p className="font-medium">{claim.claimType}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-600 dark:text-muted-foreground">Amount</p>
-                        <p className="font-medium">R {claim.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-600 dark:text-muted-foreground">Fraud Risk</p>
-                        <p className={`font-bold ${getFraudRiskColor(claim.fraudScore)}`}>
-                          {claim.fraudScore}%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-600 dark:text-muted-foreground">KINGA Confidence</p>
-                        <p className="font-medium text-blue-600 dark:text-blue-400">{claim.aiConfidence}%</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-2 text-sm text-slate-600 dark:text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>Submitted: {claim.submittedAt}</span>
-                      <span className="mx-2">•</span>
-                      <span>Current: {claim.workflowState.replace(/_/g, " ")}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="routing" className="space-y-4">
-            <ScrollArea className="h-[500px] pr-4">
-              {mockClaims.map((claim) => (
-                <Card key={claim.id} className="mb-4">
-                  <CardContent className="pt-6">
-                    <h3 className="font-semibold mb-4">{claim.id} - Routing Path</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                        <div className="flex-1">
-                          <p className="font-medium">Claim Submitted</p>
-                          <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">2024-02-15 09:00</p>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70" />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                        <div className="flex-1">
-                          <p className="font-medium">KINGA Assessment</p>
-                          <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">2024-02-15 09:15</p>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70" />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                        <div className="flex-1">
-                          <p className="font-medium">Technical Review</p>
-                          <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">2024-02-15 14:30</p>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70" />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full bg-slate-300"></div>
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-700 dark:text-slate-400 dark:text-muted-foreground">Financial Decision (Pending)</p>
-                          <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">Awaiting approval</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="overrides" className="space-y-4">
-            <ScrollArea className="h-[500px] pr-4">
-              {mockOverrideHistory.length > 0 ? (
-                mockOverrideHistory.map((override, index) => (
-                  <Card key={index} className="mb-4 border-l-4 border-l-amber-500">
+            <TabsContent value="claims" className="space-y-4">
+              <ScrollArea className="h-[500px] pr-4">
+                {claims.length === 0 ? unavailable("No authorised operational claim records are available for this view.") : claims.map((claim) => (
+                  <Card key={claim.id} className="mb-4">
                     <CardContent className="pt-6">
-                      <div className="flex items-start gap-3">
-                        <Shield className="h-5 w-5 text-amber-600 mt-1" />
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-semibold">{override.claimId}</h3>
-                            <span className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">{override.timestamp}</span>
-                          </div>
-                          <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-2">
-                            {override.action}
-                          </p>
-                          <p className="text-sm text-slate-600 dark:text-muted-foreground mb-3">
-                            <span className="font-medium">Reason:</span> {override.reason}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
-                            <Badge variant="outline">{override.previousState}</Badge>
-                            <ArrowRight className="h-3 w-3" />
-                            <Badge variant="outline">{override.newState}</Badge>
-                          </div>
-                          <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">
-                            By: {override.user}
-                          </p>
+                      <div className="mb-4 flex items-start justify-between">
+                        <div>
+                          <h3 className="font-semibold text-lg">{recordedText(claim.claimNumber)}</h3>
+                          <p className="text-sm text-muted-foreground">Claim record {claim.id}</p>
                         </div>
+                        <Badge variant="outline">{recordedText(claim.status)}</Badge>
                       </div>
+                      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                        <div><p className="text-xs text-muted-foreground">Incident type</p><p className="font-medium">{recordedText(claim.incidentType)}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Recorded amount</p><p className="font-medium">{recordedAmount(claim.totalClaimAmount)}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Fraud risk score</p><p className="font-medium">{recordedScore(claim.fraudRiskScore)}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Fraud risk level</p><p className="font-medium">{recordedText(claim.fraudRiskLevel)}</p></div>
+                      </div>
+                      <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"><Clock className="h-4 w-4" /><span>Created: {displayDate(claim.createdAt)}</span><span>•</span><span>Workflow: {recordedText(claim.workflowState)}</span></div>
                     </CardContent>
                   </Card>
-                ))
-              ) : (
-                <div className="text-center py-12 text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
-                  <Shield className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p>No executive overrides recorded</p>
-                </div>
-              )}
-            </ScrollArea>
-          </TabsContent>
-        </Tabs>
+                ))}
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="routing" className="space-y-4">
+              <ScrollArea className="h-[500px] pr-4">
+                {workflowHistory.length === 0 ? unavailable("No workflow history is available for the authorised claim records.") : workflowHistory.map((event, index) => (
+                  <Card key={`${String(event.claimId)}-${index}`} className="mb-4">
+                    <CardContent className="pt-5"><p className="font-medium">Claim {String(event.claimId)}</p><p className="text-sm text-muted-foreground">{recordedText(event.previousState as string | null)} → {recordedText(event.newState as string | null)}</p><p className="mt-2 text-xs text-muted-foreground">{displayDate(event.createdAt)} · {recordedText(event.userRole as string | null)}</p></CardContent>
+                  </Card>
+                ))}
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="overrides" className="space-y-4">
+              <ScrollArea className="h-[500px] pr-4">
+                {overrideHistory.length === 0 ? unavailable("No authorised executive override history is available for these claim records.") : overrideHistory.map((event, index) => (
+                  <Card key={`${String(event.claimId)}-${index}`} className="mb-4 border-l-4 border-l-amber-500">
+                    <CardContent className="pt-5"><div className="flex gap-3"><Shield className="mt-1 h-5 w-5 text-amber-600" /><div><p className="font-medium">Claim {String(event.claimId)}</p><p className="text-sm text-muted-foreground">{recordedText(event.previousState as string | null)} → {recordedText(event.newState as string | null)}</p><p className="mt-2 text-sm">Reason: {recordedText(event.overrideReason as string | null)}</p><p className="mt-2 text-xs text-muted-foreground">{displayDate(event.createdAt)} · {recordedText(event.userRole as string | null)}</p></div></div></CardContent>
+                  </Card>
+                ))}
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        )}
       </DialogContent>
     </Dialog>
   );

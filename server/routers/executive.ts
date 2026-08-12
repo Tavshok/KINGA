@@ -5,6 +5,7 @@ import { z } from "zod";
 import { sql, eq, and, desc, gt } from "drizzle-orm";
 import { claims } from "../../drizzle/schema";
 import { FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "../../shared/const";
+import { auditP0CrossTenantAccess, resolveP0TenantScope, validateP0TenantScope } from "../security/p0TenantBoundary";
 
 const daysSince = (d: string | null) => {
   if (!d) return 0;
@@ -32,6 +33,129 @@ const executiveProcedure = insurerDomainProcedure.use(async ({ ctx, next }) => {
 
 export const executiveRouter = router({
   // ─── Existing procedures ────────────────────────────────────────────────────
+
+  /**
+   * Authoritative operational detail for the Executive Dashboard drill-down.
+   *
+   * A claim identifier selects an object; it never establishes access. The query
+   * always combines that identifier with the session-derived tenant predicate.
+   * Missing values remain null and are rendered by the client as unavailable.
+   */
+  getOperationalClaimDetail: executiveProcedure
+    .input(z.object({
+      claimId: z.number().int().positive().optional(),
+      filter: z.enum(["all", "high_fraud", "overridden"]).default("all"),
+      tenantId: z.string().min(1).optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const scope = resolveP0TenantScope(ctx as any, input.tenantId, "executive operational detail");
+      await validateP0TenantScope(scope);
+
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const requestedClaim = input.claimId ? sql`AND c.id = ${input.claimId}` : sql``;
+      const requestedFilter = input.filter === "high_fraud"
+        ? sql`AND c.fraud_risk_score >= 70`
+        : input.filter === "overridden"
+          ? sql`AND EXISTS (
+              SELECT 1 FROM workflow_audit_trail wat
+              WHERE wat.claim_id = c.id AND wat.executive_override = 1
+            )`
+          : sql``;
+
+      if (scope.isCrossTenant) {
+        await auditP0CrossTenantAccess(
+          ctx as any,
+          scope,
+          "executive_operational_detail",
+          input.claimId ? String(input.claimId) : `filter:${input.filter}`,
+          { filter: input.filter },
+        );
+      }
+
+      const result = await db.execute(sql`
+        SELECT
+          c.id,
+          c.claim_number AS claimNumber,
+          c.status,
+          c.workflow_state AS workflowState,
+          c.incident_type AS incidentType,
+          c.created_at AS createdAt,
+          c.total_claim_amount AS totalClaimAmount,
+          c.approved_amount AS approvedAmount,
+          c.fraud_risk_score AS fraudRiskScore,
+          c.fraud_risk_level AS fraudRiskLevel
+        FROM claims c
+        WHERE c.tenant_id = ${scope.tenantId}
+          ${requestedClaim}
+          ${requestedFilter}
+        ORDER BY c.created_at DESC
+        LIMIT 25
+      `) as any;
+
+      const claimRows = (result.rows ?? []) as Array<Record<string, unknown>>;
+      if (input.claimId && claimRows.length === 0) {
+        return {
+          state: "unavailable" as const,
+          reason: "No authorised claim detail is available for the requested record.",
+          claims: [],
+          workflowHistory: [],
+          overrideHistory: [],
+        };
+      }
+
+      const claimIds = claimRows.map(row => Number(row.id)).filter(Number.isFinite);
+      if (claimIds.length === 0) {
+        return {
+          state: "unavailable" as const,
+          reason: "No authorised operational claim records are available for this view.",
+          claims: [],
+          workflowHistory: [],
+          overrideHistory: [],
+        };
+      }
+
+      const historyResult = await db.execute(sql`
+        SELECT
+          wat.claim_id AS claimId,
+          wat.created_at AS createdAt,
+          wat.previous_state AS previousState,
+          wat.new_state AS newState,
+          wat.user_role AS userRole,
+          wat.executive_override AS executiveOverride,
+          wat.override_reason AS overrideReason
+        FROM workflow_audit_trail wat
+        INNER JOIN claims c ON c.id = wat.claim_id
+        WHERE c.tenant_id = ${scope.tenantId}
+          AND wat.claim_id IN (${sql.join(claimIds.map(id => sql`${id}`), sql`, `)})
+        ORDER BY wat.created_at DESC
+        LIMIT 100
+      `) as any;
+
+      const historyRows = (historyResult.rows ?? []) as Array<Record<string, unknown>>;
+      const workflowHistory = historyRows.filter(row => Number(row.executiveOverride ?? 0) !== 1);
+      const overrideHistory = historyRows.filter(row => Number(row.executiveOverride ?? 0) === 1);
+
+      return {
+        state: "available" as const,
+        reason: null,
+        claims: claimRows.map(row => ({
+          id: Number(row.id),
+          claimNumber: row.claimNumber ?? null,
+          status: row.status ?? null,
+          workflowState: row.workflowState ?? null,
+          incidentType: row.incidentType ?? null,
+          createdAt: row.createdAt ?? null,
+          totalClaimAmount: row.totalClaimAmount == null ? null : Number(row.totalClaimAmount),
+          approvedAmount: row.approvedAmount == null ? null : Number(row.approvedAmount),
+          fraudRiskScore: row.fraudRiskScore == null ? null : Number(row.fraudRiskScore),
+          fraudRiskLevel: row.fraudRiskLevel ?? null,
+        })),
+        workflowHistory,
+        overrideHistory,
+      };
+    }),
 
   getClaimsVolumeOverTime: executiveProcedure
     .input(z.object({ days: z.number().default(30) }))

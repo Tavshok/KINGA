@@ -82,6 +82,16 @@
 - [ ] P0 Package 2-OA3: run isolated direct-ID foreign-tenant claim, attachment, and existing-intake mutation attempts and record denial evidence
 - [x] P0 Package 2 deterministic acceptance: 8 focused test files / 40 tests passed; server and Vite production builds passed, including downstream CI/FR evidence visibility
 - [ ] P0 Package 2 live WhatsApp acceptance gate: use a connected provider test number, webhook, media access, isolated tenant, synthetic claimant, and duplicate-delivery replay to prove the complete external path without side effects
+- [x] P0 Package 3-A: remove reachable mock executive claim and override records from every active runtime drill-down path
+- [x] P0 Package 3-B: add tenant-derived, role-authorised executive drill-down data retrieval with claim/object scope checks
+- [x] P0 Package 3-C: render explicit empty/unavailable executive detail states rather than invented operational values
+- [x] P0 Package 3-D: apply explicit audited platform-super-admin tenant selection to executive drill-down testing
+- [x] P0 Package 3-E: add two-tenant, no-mock, unavailable-state, same-tenant, and super-admin audit regression proof
+- [x] P0 Package 3-F: map every active Executive operational data path and classify all mock/demo/static claim payloads by runtime reachability
+- [x] P0 Package 3-G: enforce the minimum authoritative-field contract without zero, low-risk, approved, or invented fallback values for missing data
+- [ ] P0 Package 3-H: test same-tenant, cross-tenant claim/UUID/tenant override, missing tenant, empty detail, missing history, API failure, super-admin audit, and ordinary-role override denial
+- [ ] P0 Package 3-I: execute the active Executive Dashboard runtime against authorised data, unavailable data, foreign IDs, and error state without any mock fallback
+- [ ] P0 Package 3-H1: execute authenticated Executive Dashboard API-failure and route-level browser acceptance with an Executive or explicitly tenant-selected platform-super-admin session
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
 - [x] Approved corrective removal: removed accidentally checkpointed claim re-run permissions and related test adjustment; preserved approved Fleet navigation correction and conformance matrix
 - [ ] P0: Diagnose and eliminate the React runtime crash shown on the live portal route (minified React error #130)
