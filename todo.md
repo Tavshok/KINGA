@@ -102,6 +102,30 @@
 - [ ] P0 Package 4-H: execute the Package 1 report, agency, intelligence, and explicit audited cross-tenant regression matrix after authorization consolidation
 - [ ] P0 Package 4-I: test authenticated login → role resolution → portal route deterministic states for platform-super-admin and ordinary personas when role accounts are available
 - [ ] P0 Package 4-I1: user-executed authenticated platform-super-admin portal-shell checklist; no browser-control access requested or required
+- [ ] P0 Package 5 discovery: rank the remaining actionable audit defects and prepare the next controlled remediation package without changing product behavior
+- [ ] P1 Package 5-A: define tenant-scoped RFQ action authority for fleet/client instruction, agency execution, and insurer response
+- [ ] P1 Package 5-B: replace fleet RFQ Accept/Reject dead-end with a truthful authorised client/fleet instruction journey
+- [ ] P1 Package 5-C: enforce agency RFQ execution and sibling closure against agency tenant, client/fleet instruction, and workflow state
+- [ ] P1 Package 5-D: replace conflicting commission placeholders with one configured versioned source or an explicit not-configured state
+- [ ] P1 Package 5-E: add explicit RFQ lifecycle unavailable, forbidden, pending, instruction, agency-action, accepted, rejected, and expired states
+- [ ] P1 Package 5-F: add two-agency, one-fleet, commission-source, no-configuration, action-parity, and Package 1 non-regression evidence
+- [ ] P0 Package 5-A: map and enforce the authoritative RFQ actor, relationship, owner, batch, sibling, state, mutation, audit, notification, report, and commission paths
+- [ ] P0 Package 5-B: separate tenant-authorised fleet/client instruction from agency RFQ execution; fleet must never call agency execution mutation
+- [ ] P0 Package 5-C: enforce agency tenant, RFQ ownership, authorised relationship, instruction, and valid current state before agency execution or sibling closure
+- [ ] P0 Package 5-D: implement actual RFQ state transitions and explicit pending instruction, instruction received, agency action required, accepted, rejected, expired, unavailable, and forbidden behavior without duplicate conflicting states
+- [ ] P0 Package 5-E: remove all active 5% and 10% commission placeholders; use an auditable configured commercial source or explicit commission-unavailable state that blocks financial finalisation
+- [ ] P0 Package 5-F: prove configured/unconfigured commission consistency across UI, calculation, persistence, audit, and report; retain monetary precision conventions
+- [ ] P0 Package 5-G: execute the two-agency, fleet relationship, foreign RFQ/sibling, invalid transition, instruction, action-parity, Package 1, and browser acceptance matrix
+- [ ] Critical report integrity R0-A: reconcile supplied CL, CI, and FR outputs for DOC-20260802-AE62B9CF before any report or L2 remediation
+- [ ] Critical report integrity R0-B: trace L2 component coverage, document lineage, pipeline run provenance, valuation, fraud, physics, photo, and decision sources for the supplied claim
+- [ ] Critical report integrity R0-C: produce a single source-of-truth remediation plan for cross-report contradictions, data provenance, L2 completeness, and rendering defects
+- [ ] R0-A: persist typed canonical L2 completeness, component scope, cost basis, partial scope, and quote-ledger version for every Stage 9 result
+- [ ] R0-B: distinguish submitted quote receipt from itemised repair-scope completeness in all report contracts
+- [ ] R0-C: implement one report-safe decision and hold contract shared by CL, CI, and FR
+- [ ] R0-D: quarantine base expected-repair estimates from L2, savings, settlement, and optimisation display paths
+- [ ] R0-E: correct shared typed physics, fraud-unavailable, photo-count, and coverage rendering contracts
+- [ ] R0-F: persist immutable report input, generator, and provenance snapshots for every delivered output
+- [ ] R0-G: implement same-snapshot CL, CI, and FR acceptance fixtures for no-quote, total-only, incomplete, and complete all-in quote sets
 - [x] P0 Package 3-H2: add and run an Executive direct numeric claim-ID test proving a foreign object is unavailable even when no tenant override is supplied
 - [x] P0 Package 3-H3: add and run missing-tenant context tests for an ordinary Executive and platform-super-admin Executive detail request
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
