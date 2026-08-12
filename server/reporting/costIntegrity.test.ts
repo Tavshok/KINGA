@@ -74,4 +74,30 @@ describe("resolveReportCostIntegrity", () => {
     expect(resolved.quoteScopeStatus).toBe("incomplete_scope");
     expect(resolved.l2OptimisedCostUsd).toBeNull();
   });
+
+  it("preserves an explicit all-in reconciliation requirement without mislabelling it as an unpriced scope", () => {
+    const resolved = resolveReportCostIntegrity({
+      compositeOptimisation: {
+        l2Status: "reconciliation_required",
+        quoteReceiptStatus: "quotes_received",
+        quoteScopeStatus: "reconciliation_required",
+        isComplete: false,
+        allInReconciliationRequired: true,
+        quoteReconciliations: [{
+          quoteId: "10620001",
+          status: "reconciliation_required",
+          submittedHeaderTotalUsd: 5915,
+          submittedItemisedTotalUsd: 5020,
+          unexplainedResidualUsd: 895,
+        }],
+      },
+    }, [{ id: 10620001, panel_beater_name: "Alpha", quoted_amount: 591500, currency_code: "USD" }]);
+
+    expect(resolved.l2OptimisedCostUsd).toBeNull();
+    expect(resolved.l2Status).toBe("reconciliation_required");
+    expect(resolved.quoteScopeStatus).toBe("reconciliation_required");
+    expect(resolved.allInReconciliationRequired).toBe(true);
+    expect(resolved.unreconciledQuoteCount).toBe(1);
+    expect(resolved.missingRequiredComponents).toEqual([]);
+  });
 });

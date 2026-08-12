@@ -2,7 +2,7 @@
 
 **Author:** Tavonga Shoko, Lead Engineer  
 **Date:** 12 August 2026  
-**Status:** Awaiting explicit approval — no behaviour change authorised by this notice.
+**Status:** Submitted-price selection principle approved. Document-backed legacy reconstruction amendment awaiting explicit approval — no assessment or quotation data change authorised by this amendment.
 
 ## Decision principle
 
@@ -17,6 +17,8 @@ The live records for claim `12909902` contain three active submitted quotations:
 The historical assessment record was produced before the R1/R0 composite L2 contract. It therefore has no persisted canonical ledger, typed L2 status, quote-scope status, required-component list, or composite optimisation payload. The current report fallback reads the quotation headers but does not rebuild the component matrix from the persisted line items. It consequently maps “quotes received without new composite metadata” to `incomplete_scope`.
 
 This is a backward-compatibility classification defect. It is not evidence that the claimant’s repair scope is unpriced.
+
+Subsequent primary-source review established an additional integrity constraint: the current structured line ledger does not faithfully reconcile to the embedded original quotations. The Dent Doctor source quotation totals USD 6,500.00 while persisted header `10620001` is USD 5,915.00 with no documented adjustment; C.A.M.E.L’s primary source separates USD 5,425.00 spares and USD 1,805.00 repairs within its USD 7,230.00 total; and Stylin’s source explicitly states USD 7,265.00 carried forward plus USD 1,084.00 VAT, totalling USD 8,349.00. The detailed evidence register is `audit/r0-l2-source-evidence-12909902-2026-08-12.md`.
 
 ## Approved-behaviour target
 
@@ -45,10 +47,12 @@ L2 submitted-quote comparison total = Σ S_c
 
 1. Replace the L2 per-component benchmark override with the stated formula: submitted-price-only selection across the active canonical quote ledger, with benchmark range and variance retained as a separate line-item comparison.
 2. Preserve quote type, status, revision/supersession, scope, currency, and source references for each selected amount.
-3. Rebuild the canonical L2 composite for legacy assessments from persisted active quote line items before reports are generated or refreshed; persist the resulting immutable Stage 9 contract and provenance snapshot.
-4. Retain an L2 hold only where a defined required repair component is absent from every active itemised quotation, or where a submitted all-in total cannot safely be allocated for a requested component comparison.
-5. Ensure CL, CI, FR, and the portal cost summary state whether each value is a submitted quote, L1 package total, L2 submitted-quote comparison, or separate benchmark reference.
-6. Do not change claim intake, assessment execution, external notifications, insurer workflow, settlement authorisation, or stored quotation evidence under this correction.
+3. Build a document-backed quotation-evidence ledger for legacy assessments. Every recovered row must retain source document, page, source row or region where available, transcription/extraction method, confidence, arithmetic role, and verification status.
+4. Reconstruct a legacy L2 composite only from source-verified document-backed quote lines. The existing `quote_line_items` table may be corroborating evidence but cannot substitute for a primary quotation page where the two conflict.
+5. Surface source-to-ledger mismatches, missing source lines, unsupported quote amounts, and incomplete quote evidence as distinct reconciliation findings for verification. Do not describe them generically as unallocated VAT, labour, or scope.
+6. Retain an L2 hold only where a defined required repair component is absent from every verified active quotation, or where the original submitted quote evidence cannot establish an all-in comparison.
+7. Ensure CL, CI, FR, and the portal cost summary state whether each value is a verified submitted quote, L1 package total, document-backed L2 submitted-quote comparison, or separate benchmark reference.
+8. Do not change claim intake, assessment execution, external notifications, insurer workflow, settlement authorisation, submitted quotation values, or stored quotation evidence under this correction.
 
 ## Verification criteria
 
@@ -58,9 +62,9 @@ L2 submitted-quote comparison total = Σ S_c
 | Component priced in only one active quote | L2 retains that submitted amount without a benchmark substitution. |
 | Labour/VAT/fees absent from all submitted quotations | L2 does not add them. |
 | Labour/VAT/fees explicitly itemised | L2 uses the submitted row only, with a source reference. |
-| Legacy assessment with itemised active quotations | Composite is rebuilt and persisted; no automatic `incomplete_scope` solely because new metadata was absent. |
+| Legacy assessment with itemised active quotations | Composite is rebuilt and persisted only after primary-source quotation rows reconcile to structured evidence; no automatic `incomplete_scope` solely because new metadata was absent. |
 | Component absent from every active quote | Explicit named evidence gap; no invented price; review state is permitted. |
-| Representative claim `12909902` | Rebuilt matrix reconciles 76 persisted line items across the three active quotations; every displayed L2 selection is traceable. |
+| Representative claim `12909902` | Every selected value traces to original quotation document, page, row/region, repairer, quote, and verified arithmetic; source-to-ledger differences are named verification findings. |
 | Report regression | CL, CI, FR, and portal UI display no benchmark-generated L2 amount, no unsupported saving, and no unsupported settlement recommendation. |
 
 ## Out of scope

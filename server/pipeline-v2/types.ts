@@ -1214,9 +1214,15 @@ export interface PartsReconciliationItem {
 export interface CompositeLineItem {
   componentName: string;
   selectedCostUsd: number;
-  selectedFromQuote: string;           // Repairer name or 'benchmark_fill'
+  /** Repairer supplying the selected submitted price, or 'data_gap'. */
+  selectedFromQuote: string;
+  /** Durable submitted quote source for the selected amount, when available. */
+  selectedQuoteId?: string | null;
+  /** Submitted line-item sources contributing to the selected amount, when available. */
+  selectedLineItemIds?: string[];
+  /** Kept for backward-compatible payload reading; new L2 selections are always false. */
   isBenchmarkFill: boolean;
-  /** Four-tier KINGA Optimised source: T1=ML model, T2=Market benchmark, T3=Best quote (multi), T4=Quoted (single) */
+  /** Submitted-price source tier: T3=best active quote (multi), T4=single submitted quote. */
   kingaOptimisedTier: 'T1' | 'T2' | 'T3' | 'T4';
   /** Human-readable tier label shown in the report */
   kingaOptimisedTierLabel: string;
@@ -1227,6 +1233,8 @@ export interface CompositeLineItem {
   p75Usd: number | null;
   allQuotedPrices: Array<{
     quote: string;
+    quoteId?: string | null;
+    lineItemIds?: string[];
     costUsd: number;
     passedGate: boolean;
     gateFailReason?: string;

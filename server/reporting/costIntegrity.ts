@@ -15,8 +15,8 @@ export interface ReportCostIntegrity {
   activeQuotes: ReportQuoteLedgerRow[];
   sourceQuoteCount: number;
   quoteReceiptStatus: "no_quotes" | "quotes_received";
-  quoteScopeStatus: "complete" | "incomplete_scope" | "not_evaluated";
-  l2Status: "complete" | "incomplete_scope" | "unavailable";
+  quoteScopeStatus: "complete" | "incomplete_scope" | "reconciliation_required" | "not_evaluated";
+  l2Status: "complete" | "incomplete_scope" | "reconciliation_required" | "unavailable";
   duplicateQuotesExcluded: number;
   supersededQuotesExcluded: number;
   l1SubmittedCostUsd: number | null;
@@ -27,6 +27,17 @@ export interface ReportCostIntegrity {
   missingRequiredComponents: string[];
   costBasis: string | null;
   assessorCalibrationCostUsd: number | null;
+  allInReconciliationRequired: boolean;
+  unreconciledQuoteCount: number;
+  quoteReconciliations: Array<{
+    repairer: string;
+    quoteId: string | null;
+    submittedHeaderTotalUsd: number | null;
+    submittedItemisedTotalUsd: number;
+    unexplainedResidualUsd: number | null;
+    residualCategory: "unknown_unallocated" | null;
+    status: "reconciled" | "reconciliation_required" | "total_only" | "line_items_only";
+  }>;
 }
 
 function finitePositive(value: unknown): number | null {
@@ -87,13 +98,37 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
     ? "not_evaluated"
     : complete ? "complete" : "incomplete_scope";
   const persistedScopeStatus = composite.quoteScopeStatus;
-  const quoteScopeStatus = persistedScopeStatus === "complete" || persistedScopeStatus === "incomplete_scope"
+  const quoteScopeStatus = persistedScopeStatus === "complete" || persistedScopeStatus === "incomplete_scope" || persistedScopeStatus === "reconciliation_required"
     ? persistedScopeStatus
     : inferredScopeStatus;
   const persistedL2Status = composite.l2Status;
-  const l2Status = persistedL2Status === "complete" || persistedL2Status === "incomplete_scope"
+  const l2Status = persistedL2Status === "complete" || persistedL2Status === "incomplete_scope" || persistedL2Status === "reconciliation_required"
     ? persistedL2Status
     : l2 !== null ? "complete" : quoteReceiptStatus === "quotes_received" ? "incomplete_scope" : "unavailable";
+  const quoteReconciliations = Array.isArray(composite.quoteReconciliations)
+    ? composite.quoteReconciliations.map(record).map((quote) => {
+      const rawStatus = String(quote.status ?? "");
+      const status = rawStatus === "reconciled" || rawStatus === "reconciliation_required" || rawStatus === "total_only" || rawStatus === "line_items_only"
+        ? rawStatus
+        : "reconciliation_required";
+      const residual = finitePositive(quote.unexplainedResidualUsd);
+      return {
+        repairer: String(quote.repairer ?? "Unknown repairer"),
+        quoteId: quote.quoteId === null || quote.quoteId === undefined ? null : String(quote.quoteId),
+        submittedHeaderTotalUsd: finitePositive(quote.submittedHeaderTotalUsd),
+        submittedItemisedTotalUsd: finitePositive(quote.submittedItemisedTotalUsd) ?? 0,
+        unexplainedResidualUsd: residual,
+        residualCategory: residual === null ? null : "unknown_unallocated" as const,
+        status,
+      };
+    })
+    : [];
+  const unreconciledQuoteCount = quoteReconciliations.filter((quote) =>
+    String(quote.status ?? "") !== "reconciled"
+  ).length;
+  const allInReconciliationRequired = composite.allInReconciliationRequired === true
+    || l2Status === "reconciliation_required"
+    || quoteScopeStatus === "reconciliation_required";
   return {
     activeQuotes,
     sourceQuoteCount,
@@ -114,5 +149,8 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
       : [],
     costBasis: typeof composite.costBasis === "string" ? composite.costBasis : null,
     assessorCalibrationCostUsd: finitePositive(intelligence.documentedAgreedCostUsd),
+    allInReconciliationRequired,
+    unreconciledQuoteCount,
+    quoteReconciliations,
   };
 }

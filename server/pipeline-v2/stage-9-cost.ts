@@ -1909,9 +1909,17 @@ export async function runCostOptimisationStage(
 
             // Attach composite result to output
             (output as any).compositeOptimisation = {
-              l2Status: compositeResult.isComplete ? "complete" : "incomplete_scope",
+              l2Status: compositeResult.isComplete
+                ? "complete"
+                : compositeResult.allInReconciliationRequired
+                  ? "reconciliation_required"
+                  : "incomplete_scope",
               quoteReceiptStatus: canonicalQuoteLedger.activeQuoteCount > 0 ? "quotes_received" : "no_quotes",
-              quoteScopeStatus: compositeResult.isComplete ? "complete" : "incomplete_scope",
+              quoteScopeStatus: compositeResult.isComplete
+                ? "complete"
+                : compositeResult.allInReconciliationRequired
+                  ? "reconciliation_required"
+                  : "incomplete_scope",
               l1SubmittedCostUsd: l1TotalUsd,
               l2CompositeOptimisedCostUsd: compositeResult.compositeOptimisedCostUsd,
               partialPricedScopeUsd: compositeResult.partialPricedScopeUsd,
@@ -1926,6 +1934,8 @@ export async function runCostOptimisationStage(
               negotiationFeasibilityScore: compositeResult.negotiationFeasibilityScore,
               negotiationFeasibilityLabel: compositeResult.negotiationFeasibilityLabel,
               compositeLineItems: compositeResult.compositeLineItems,
+              quoteReconciliations: compositeResult.quoteReconciliations,
+              allInReconciliationRequired: compositeResult.allInReconciliationRequired,
               quotedNotDamaged,
               damagedNotQuoted,
               hiddenDamageAdvisories,
@@ -2011,6 +2021,12 @@ export async function runCostOptimisationStage(
                 ? `KINGA savings [L1-L2]: USD ${kingaSavingsUsd.toFixed(2)} (lowest submitted $${lowestSubmittedUsd.toFixed(2)} minus KINGA per-component optimised $${l2Usd.toFixed(2)})`
                 : `SUPPLEMENTARY CLAIM RISK [L1-L2]: USD ${Math.abs(kingaSavingsUsd).toFixed(2)} (cheapest quote $${lowestSubmittedUsd.toFixed(2)} is below KINGA optimised $${l2Usd.toFixed(2)} — likely incomplete)`;
               ctx.log('Stage 9', savingsLabel);
+            } else if (compositeResult.allInReconciliationRequired) {
+              ctx.log(
+                'Stage 9',
+                `L2 RECONCILIATION REQUIRED: explicit itemised submitted-price comparison is available, but one or more quote headers do not reconcile to their submitted line totals. ` +
+                `No residual amount is allocated; savings and settlement recommendation are suppressed.`
+              );
             } else if (!compositeResult.isComplete) {
               ctx.log(
                 'Stage 9',

@@ -223,13 +223,21 @@ export async function generateForensicDecisionReport(
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
 
     const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
-    const l2Display = kingaOptimised === null ? "L2 incomplete" : fmtCurrency(kingaOptimised, claimCurrency);
+    const l2Display = kingaOptimised === null
+      ? (costIntegrity.l2Status === "reconciliation_required" ? "All-in reconciliation required" : "L2 incomplete")
+      : fmtCurrency(kingaOptimised, claimCurrency);
     const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtCurrency(costIntegrity.l1SubmittedCostUsd, claimCurrency);
     const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtCurrency(costIntegrity.l3BenchmarkReferenceCostUsd, claimCurrency);
+    const residualReconciliationDetail = costIntegrity.quoteReconciliations
+      .filter((quote) => quote.status !== "reconciled" && quote.unexplainedResidualUsd !== null)
+      .map((quote) => `${quote.repairer}: ${fmtCurrency(quote.unexplainedResidualUsd!, claimCurrency)} known submitted residual (${quote.residualCategory?.replaceAll("_", " ") ?? "unclassified"})`)
+      .join(" · ");
     const l2IntegrityNote = kingaOptimised === null
-      ? `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
-        `${costIntegrity.partialPricedScopeUsd !== null ? `Partial priced scope: ${fmtCurrency(costIntegrity.partialPricedScopeUsd, claimCurrency)}. ` : ""}` +
-        `No savings or settlement recommendation is available until the scope is reconciled.`
+      ? costIntegrity.l2Status === "reconciliation_required"
+        ? `Itemised submitted-price comparison is available, but ${costIntegrity.unreconciledQuoteCount || "one or more"} quote header(s) do not reconcile to explicit submitted line totals. ${residualReconciliationDetail ? `Known submitted residuals: ${residualReconciliationDetail}. ` : ""}No residual labour, VAT, fee, paint, or other amount has been allocated. No savings or settlement recommendation is available until the submitted quotation is reconciled.`
+        : `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
+          `${costIntegrity.partialPricedScopeUsd !== null ? `Partial priced scope: ${fmtCurrency(costIntegrity.partialPricedScopeUsd, claimCurrency)}. ` : ""}` +
+          `No savings or settlement recommendation is available until the scope is reconciled.`
       : `All-in payable repair-cost basis${costIntegrity.costBasis ? ` (${costIntegrity.costBasis.replaceAll("_", " ")})` : ""}.`;
 
     const lowestRef = lowestQuote > 0 ? lowestQuote : highestQuote;
@@ -1634,7 +1642,10 @@ export async function generateForensicDecisionReport(
       const isCostSection = String(sec.engine ?? '').toUpperCase() === 'COST'
         || String(sec.engineLabel ?? '').toLowerCase().includes('cost optimisation');
       if (isCostSection && kingaOptimised === null) {
-        return `<div class="box" style="margin-bottom:12px;"><h4>${esc(sec.engineLabel ?? sec.engine ?? 'Cost Optimisation')}</h4>${co(`<b>L2 repair scope incomplete — cost optimisation unavailable.</b> ${esc(l2IntegrityNote)}`, 'amber')}</div>`;
+        const costHoldTitle = costIntegrity.l2Status === "reconciliation_required"
+          ? "All-in quote reconciliation required — cost optimisation unavailable."
+          : "L2 repair scope incomplete — cost optimisation unavailable.";
+        return `<div class="box" style="margin-bottom:12px;"><h4>${esc(sec.engineLabel ?? sec.engine ?? 'Cost Optimisation')}</h4>${co(`<b>${costHoldTitle}</b> ${esc(l2IntegrityNote)}`, 'amber')}</div>`;
       }
       return `<div class="box" style="margin-bottom:12px;"><h4>${esc(sec.engineLabel ?? sec.engine)}</h4><table class="data-table" style="width:100%;font-size:12px;"><thead><tr><th>Finding</th><th>Value</th><th>Status</th><th>Interpretation</th></tr></thead><tbody>${findings.map((f: any) => {
         const cls = f.classification ?? 'NORMAL';

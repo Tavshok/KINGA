@@ -170,13 +170,21 @@ export async function generateClaimsIntelligenceReport(
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
     const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
     const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
-    const l2Display = kingaOptimised === null ? "L2 incomplete" : fmtUSD(kingaOptimised);
+    const l2Display = kingaOptimised === null
+      ? (costIntegrity.l2Status === "reconciliation_required" ? "All-in reconciliation required" : "L2 incomplete")
+      : fmtUSD(kingaOptimised);
     const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l1SubmittedCostUsd);
     const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l3BenchmarkReferenceCostUsd);
+    const residualReconciliationDetail = costIntegrity.quoteReconciliations
+      .filter((quote) => quote.status !== "reconciled" && quote.unexplainedResidualUsd !== null)
+      .map((quote) => `${quote.repairer}: ${fmtUSD(quote.unexplainedResidualUsd!)} known submitted residual (${quote.residualCategory?.replaceAll("_", " ") ?? "unclassified"})`)
+      .join(" · ");
     const l2IntegrityNote = kingaOptimised === null
-      ? `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
-        `${costIntegrity.partialPricedScopeUsd !== null ? `Partial priced scope: ${fmtUSD(costIntegrity.partialPricedScopeUsd)}. ` : ""}` +
-        `Obtain or reconcile the missing quotation scope before a cost recommendation.`
+      ? costIntegrity.l2Status === "reconciliation_required"
+        ? `Itemised submitted-price comparison is available, but ${costIntegrity.unreconciledQuoteCount || "one or more"} quote header(s) do not reconcile to explicit submitted line totals. ${residualReconciliationDetail ? `Known submitted residuals: ${residualReconciliationDetail}. ` : ""}No residual labour, VAT, fee, paint, or other amount has been allocated. Reconcile the submitted quotation before an all-in cost recommendation.`
+        : `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
+          `${costIntegrity.partialPricedScopeUsd !== null ? `Partial priced scope: ${fmtUSD(costIntegrity.partialPricedScopeUsd)}. ` : ""}` +
+          `Obtain or reconcile the missing quotation scope before a cost recommendation.`
       : `All-in payable repair-cost basis${costIntegrity.costBasis ? ` (${costIntegrity.costBasis.replaceAll("_", " ")})` : ""}.`;
     const savings = kingaOptimised !== null && highestQuote > 0 ? highestQuote - kingaOptimised : 0;
     const savingsPct = kingaOptimised !== null && highestQuote > 0 ? (savings / highestQuote * 100) : 0;

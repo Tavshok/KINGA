@@ -142,6 +142,8 @@
 - [ ] P1: Insurer workflow — complete insurer sub-role selection, persistence, and direct routing to the appropriate professional workspace
 - [ ] P1: My Portal insurance workflow — verify a client can submit, view, and securely open only their own direct insurance quote and policy records after publishing
 - [ ] R0 follow-up: trace claim 12909902 active quotation ledger, extracted line items, required damage scope, and L2 hold trigger; distinguish a genuine evidence gap from a quote-lineage or scope-classification defect before any correction. At formula level, L2 must select submitted prices only; a benchmark remains a comparative line-item range and variance, never an L2 replacement or added labour, VAT, fee, paint, or other amount.
+- [ ] Approved L2 correction: remove benchmark substitution from L2 selection; retain benchmark range and variance only as line-item comparison; rebuild and persist legacy composite evidence from active persisted quote line items without changing submitted quote data.
+- [ ] Approved L2 verification: prove every selected L2 amount is traceable to an active submitted quote line or explicitly all-in quote total; reconcile every header-versus-line residual against original quote documents and extraction lineage before classification. Every finding must retain the source document, source location where available, extraction evidence, and arithmetic. Surface an unsupported or unverified amount as a quote-reconciliation/inflation verification finding; never invent, allocate, or silently absorb it into labour, VAT, fees, paint, or another component. Validate 12909902 across CL, CI, FR, and portal cost views.
 
 ---
 

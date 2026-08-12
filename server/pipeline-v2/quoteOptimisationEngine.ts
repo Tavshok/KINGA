@@ -786,6 +786,9 @@ import { isComponentCoveredByAssembly } from './canonicalPartsVocabulary.js';
 export interface InputQuoteLineItem {
   componentName: string;
   costUsd: number;
+  /** Durable source identifiers used to prove an L2 selection originated in a submitted quotation. */
+  sourceQuoteId?: string | number | null;
+  sourceLineItemId?: string | number | null;
   /** True when this row is a repair operation (not a replacement part supply) */
   isRepair?: boolean;
   /** True when this row is a replacement part supply */
@@ -795,6 +798,8 @@ export interface InputQuoteLineItem {
 }
 
 export interface InputQuoteWithLineItems extends InputQuote {
+  /** Durable submitted quote identifier, when available. */
+  sourceQuoteId?: string | number | null;
   lineItems?: InputQuoteLineItem[];
 }
 
@@ -815,6 +820,17 @@ export interface CompositeQuoteResult {
   compositeOptimisedCostUsd: number | null;
   /** Sum of priced items, retained for audit when the all-in scope is incomplete. */
   partialPricedScopeUsd: number;
+  /** Reconciles each submitted quote header to its explicit submitted line items. */
+  quoteReconciliations: Array<{
+    repairer: string;
+    quoteId: string | null;
+    submittedHeaderTotalUsd: number | null;
+    submittedItemisedTotalUsd: number;
+    unexplainedResidualUsd: number | null;
+    status: 'reconciled' | 'reconciliation_required' | 'total_only' | 'line_items_only';
+  }>;
+  /** A component comparison cannot be published as an all-in L2 while this is required. */
+  allInReconciliationRequired: boolean;
   /** L1 and L2 are both calculated on the all-in payable repair-cost basis. */
   costBasis: 'all_in_payable_repair_cost';
   /** Confirmed repair-scope components without a traceable submitted price. */
@@ -852,16 +868,10 @@ function coefficientOfVariation(prices: number[]): number | null {
 function buildVarianceSignal(
   cv: number | null,
   priceCount: number,
-  selectedFromSubmitted: boolean,
-  isBenchmarkFill: boolean
 ): string {
-  if (priceCount === 0) return 'No submitted prices available — benchmark reference used.';
+  if (priceCount === 0) return 'No submitted prices available.';
   if (priceCount === 1) return 'Single submitted price — no cross-quote comparison available.';
   if (cv === null) return 'Variance not calculable.';
-  if (isBenchmarkFill) {
-    if (cv <= 20) return `Submitted prices are consistent (CV ${cv}%) but failed the credibility gate — benchmark P50 used as reference.`;
-    return `Submitted prices show high variance (CV ${cv}%) — benchmark P50 used as credibility anchor.`;
-  }
   if (cv <= 20) return `Submitted prices are consistent across repairers (CV ${cv}%) — lowest submitted price selected with high confidence.`;
   if (cv <= 40) return `Moderate price variation across repairers (CV ${cv}%) — lowest credible submitted price selected.`;
   return `High price variation across repairers (CV ${cv}%) — assessor review of scope alignment recommended.`;
@@ -940,11 +950,10 @@ function computeBenchmarkVerdict(
  *   2. Build a cross-quote component matrix: for each component, collect all
  *      normalised prices from all quotes.
  *   3. Per-component L2 selection:
- *      lowestSubmitted_c = min price across all quotes for component c
- *      K_c = KINGA benchmark P50 for component c
- *      deviation_c = |lowestSubmitted_c - K_c| / lowestSubmitted_c
- *      If K_c < lowestSubmitted_c AND deviation_c <= 30%: L2_c = K_c
- *      Else: L2_c = lowestSubmitted_c  (30% floor or no benchmark)
+ *      lowestSubmitted_c = min price across all active quotes for component c
+ *      L2_c = lowestSubmitted_c
+ *      Benchmarks remain line-item comparison metadata only and never replace,
+ *      reduce, fill, or add to the selected submitted amount.
  *   4. L1 = lowest normalised quote total (best real package deal)
  *   5. L2_total = sum of L2_c across all components
  *      L2_total MAY exceed L1 (when 30% floor engages on all components).
@@ -952,8 +961,8 @@ function computeBenchmarkVerdict(
  *   6. savings = L1 - L2_total (can be negative; always report both)
  *
  * compositeLineItems is the per-component breakdown of the L2 selection —
- * each item shows which repairer provided the lowest price for that component
- * and whether the benchmark was applied.
+ * each item shows which repairer and submitted quotation provided the selected
+ * price, alongside any benchmark range and variance for comparison.
  *
  * @param quotes       All submitted quotes with per-line-item costs
  * @param benchmarks   Per-component benchmark data (P25/P50/P75)
@@ -983,6 +992,8 @@ export function buildCompositeQuote(
     benchmarkCoverageComponents: 0,
     negotiationFeasibilityScore: 0,
     negotiationFeasibilityLabel: 'complex',
+    quoteReconciliations: [],
+    allInReconciliationRequired: false,
   };
   if (quotes.length === 0) return EMPTY_RESULT;
 
@@ -1011,11 +1022,15 @@ export function buildCompositeQuote(
 
   interface NormalisedQuote {
     repairer: string;
+    sourceQuoteId: string | null;
+    submittedHeaderTotalUsd: number | null;
+    submittedItemisedTotalUsd: number;
     normalisedTotalUsd: number;
     lineItemBreakdown: Array<{
       normName: string;
       costUsd: number;
       scope: 'repair' | 'replace' | 'bundled';
+      sourceLineItemIds: string[];
       dataGap: boolean;
       dataGapReason?: string;
     }>;
@@ -1024,10 +1039,20 @@ export function buildCompositeQuote(
 
   const normalisedQuotes: NormalisedQuote[] = quotes.map((q, qi) => {
     const repairer = q.panel_beater ?? `Quote ${qi + 1}`;
+    const sourceQuoteId = q.sourceQuoteId === null || q.sourceQuoteId === undefined
+      ? null
+      : String(q.sourceQuoteId);
     const items = q.lineItems ?? [];
+    const submittedHeaderTotalUsd = Number.isFinite(Number(q.total_cost)) && Number(q.total_cost) > 0
+      ? Number(q.total_cost)
+      : null;
+    const submittedItemisedTotalUsd = Math.round(items.reduce((total, item) => {
+      const amount = Number(item.costUsd);
+      return Number.isFinite(amount) && amount > 0 ? total + amount : total;
+    }, 0) * 100) / 100;
 
     // Group rows by component name + scope within this quote
-    const compAccumulator: Map<string, { costUsd: number; scope: 'repair' | 'replace' | 'bundled' }> = new Map();
+    const compAccumulator: Map<string, { costUsd: number; scope: 'repair' | 'replace' | 'bundled'; sourceLineItemIds: string[] }> = new Map();
 
     for (const item of items) {
       if (!item.costUsd || item.costUsd <= 0) continue;
@@ -1058,14 +1083,21 @@ export function buildCompositeQuote(
       const existing = compAccumulator.get(key);
       if (existing) {
         existing.costUsd += item.costUsd;
+        if (item.sourceLineItemId !== null && item.sourceLineItemId !== undefined) {
+          existing.sourceLineItemIds.push(String(item.sourceLineItemId));
+        }
       } else {
-        compAccumulator.set(key, { costUsd: item.costUsd, scope: rowScope });
+        compAccumulator.set(key, {
+          costUsd: item.costUsd,
+          scope: rowScope,
+          sourceLineItemIds: item.sourceLineItemId === null || item.sourceLineItemId === undefined ? [] : [String(item.sourceLineItemId)],
+        });
       }
     }
 
     // For each component, if both repair and replace scopes exist, use the
     // severity signal to pick the appropriate scope; default to replace.
-    const componentMap: Map<string, { costUsd: number; scope: 'repair' | 'replace' | 'bundled' }> = new Map();
+    const componentMap: Map<string, { costUsd: number; scope: 'repair' | 'replace' | 'bundled'; sourceLineItemIds: string[] }> = new Map();
     for (const [key, entry] of compAccumulator.entries()) {
       const normName = key.split('|||')[0];
       const severity = componentSeverityMap?.get(normName) ?? null;
@@ -1098,8 +1130,8 @@ export function buildCompositeQuote(
     let normalisedTotalUsd = 0;
 
     // If no line items at all, fall back to the quote's total_cost header
-    if (componentMap.size === 0 && (q.total_cost ?? 0) > 0) {
-      normalisedTotalUsd = q.total_cost!;
+    if (componentMap.size === 0 && submittedHeaderTotalUsd !== null) {
+      normalisedTotalUsd = submittedHeaderTotalUsd;
     } else {
       for (const [normName, entry] of componentMap.entries()) {
         const isSafetyCritical = SAFETY_CRITICAL_REPLACE_ONLY.has(normName);
@@ -1110,6 +1142,7 @@ export function buildCompositeQuote(
             normName,
             costUsd: 0,
             scope: entry.scope,
+            sourceLineItemIds: entry.sourceLineItemIds,
             dataGap: true,
             dataGapReason: `Safety-critical component: replacement-scope quote required but only repair scope available.`,
           });
@@ -1120,38 +1153,88 @@ export function buildCompositeQuote(
           normName,
           costUsd: entry.costUsd,
           scope: entry.scope,
+          sourceLineItemIds: entry.sourceLineItemIds,
           dataGap: false,
         });
       }
     }
 
-    return { repairer, normalisedTotalUsd, lineItemBreakdown, dataGaps };
+    return {
+      repairer,
+      sourceQuoteId,
+      submittedHeaderTotalUsd,
+      submittedItemisedTotalUsd,
+      normalisedTotalUsd,
+      lineItemBreakdown,
+      dataGaps,
+    };
   });
 
   // Filter out quotes with zero normalised total
   const validNormalisedQuotes = normalisedQuotes.filter(q => q.normalisedTotalUsd > 0);
   if (validNormalisedQuotes.length === 0) return { ...EMPTY_RESULT };
 
+  const reconciliationToleranceUsd = 0.01;
+  const quoteReconciliations = validNormalisedQuotes.map((quote) => {
+    const hasItemisedRows = quote.submittedItemisedTotalUsd > 0;
+    if (quote.submittedHeaderTotalUsd === null && hasItemisedRows) {
+      return {
+        repairer: quote.repairer,
+        quoteId: quote.sourceQuoteId,
+        submittedHeaderTotalUsd: null,
+        submittedItemisedTotalUsd: quote.submittedItemisedTotalUsd,
+        unexplainedResidualUsd: null,
+        status: 'line_items_only' as const,
+      };
+    }
+    if (quote.submittedHeaderTotalUsd !== null && !hasItemisedRows) {
+      return {
+        repairer: quote.repairer,
+        quoteId: quote.sourceQuoteId,
+        submittedHeaderTotalUsd: quote.submittedHeaderTotalUsd,
+        submittedItemisedTotalUsd: 0,
+        unexplainedResidualUsd: quote.submittedHeaderTotalUsd,
+        status: 'total_only' as const,
+      };
+    }
+    const residual = Math.round(((quote.submittedHeaderTotalUsd ?? 0) - quote.submittedItemisedTotalUsd) * 100) / 100;
+    return {
+      repairer: quote.repairer,
+      quoteId: quote.sourceQuoteId,
+      submittedHeaderTotalUsd: quote.submittedHeaderTotalUsd,
+      submittedItemisedTotalUsd: quote.submittedItemisedTotalUsd,
+      unexplainedResidualUsd: residual,
+      status: Math.abs(residual) <= reconciliationToleranceUsd ? 'reconciled' as const : 'reconciliation_required' as const,
+    };
+  });
+  const allInReconciliationRequired = quoteReconciliations.some((quote) => quote.status !== 'reconciled');
+
   // ── 2. Build cross-quote component matrix ────────────────────────────────────
   //
   // For each component, collect all normalised prices from all quotes.
   // This enables per-component comparison across all repairers.
 
-  // CALIBRATION (Aug 2026): Reduced from 0.30 to 0.15.
-  // At 30%, the engine was selecting benchmark P50 values up to 26% below the
-  // lowest market quote — a cost no repairer in Zimbabwe would accept. At 15%,
-  // the benchmark must be very close to market before it overrides submitted quotes.
-  const MAX_MODEL_DISCOUNT_PCT = 0.15;
-
-  // componentMatrix[normName] = array of { repairer, costUsd, scope }
-  type ComponentEntry = { repairer: string; costUsd: number; scope: 'repair' | 'replace' | 'bundled' };
+  // componentMatrix[normName] = every traceable submitted price for that component.
+  type ComponentEntry = {
+    repairer: string;
+    quoteId: string | null;
+    lineItemIds: string[];
+    costUsd: number;
+    scope: 'repair' | 'replace' | 'bundled';
+  };
   const componentMatrix = new Map<string, ComponentEntry[]>();
 
   for (const nq of validNormalisedQuotes) {
     for (const item of nq.lineItemBreakdown) {
       if (item.dataGap || item.costUsd <= 0) continue;
       const existing = componentMatrix.get(item.normName) ?? [];
-      existing.push({ repairer: nq.repairer, costUsd: item.costUsd, scope: item.scope });
+      existing.push({
+        repairer: nq.repairer,
+        quoteId: nq.sourceQuoteId,
+        lineItemIds: item.sourceLineItemIds,
+        costUsd: item.costUsd,
+        scope: item.scope,
+      });
       componentMatrix.set(item.normName, existing);
     }
   }
@@ -1169,16 +1252,8 @@ export function buildCompositeQuote(
 
   // ── 3. Per-component L2 selection ──────────────────────────────────────────
   //
-  // CONFIRMED FORMULA (product owner, July 2026):
-  //   For each component:
-  //     lowestSubmitted = min price across all quotes for this component
-  //     K = benchmark P50 for this component
-  //     deviation = |lowestSubmitted - K| / lowestSubmitted
-  //     If K < lowestSubmitted AND deviation <= 15%: L2_component = K
-  //     Else: L2_component = lowestSubmitted  (15% floor or no benchmark)
-  //
-  // L2_component <= lowestSubmitted for every component.
-  // L2_total = sum of L2_component across all components.
+  // Formula: L2_component = lowest submitted active-quote price for that component.
+  // Benchmark values remain comparison metadata and never alter L2 selection.
 
   const compositeLineItems: CompositeLineItem[] = [];
   let compositeOptimisedCostUsd = 0;
@@ -1195,6 +1270,8 @@ export function buildCompositeQuote(
     // Build allQuotedPrices in the typed format expected by CompositeLineItem
     const allQuotedPrices = entries.map(e => ({
       quote: e.repairer,
+      quoteId: e.quoteId,
+      lineItemIds: e.lineItemIds,
       costUsd: e.costUsd,
       passedGate: true,
     }));
@@ -1204,51 +1281,33 @@ export function buildCompositeQuote(
     const p50 = bm?.p50Usd ?? null;
     const p75 = bm?.p75Usd ?? null;
 
-    let l2Component: number;
-    let isBenchmarkFill = false;
-    let tier: CompositeLineItem['kingaOptimisedTier'] = 'T3';
-    let tierLabel: string;
-    let scopeDecisionRule: NonNullable<CompositeLineItem['scopeDecisionRule']> = 'SINGLE_SCOPE_AVAILABLE';
-
     if (p50 != null) {
       benchmarkReferenceUsd += p50;
       benchmarkCoverageCount++;
-      const deviation = Math.abs(lowestSubmitted - p50) / lowestSubmitted;
-      if (p50 < lowestSubmitted && deviation <= MAX_MODEL_DISCOUNT_PCT) {
-        // Benchmark is cheaper and within 15% — use benchmark
-        l2Component = Math.round(p50 * 100) / 100;
-        isBenchmarkFill = true;
-        tier = 'T1';
-        tierLabel = `KINGA Benchmark P50 · ${Math.round(deviation * 100)}% below lowest quote`;
-        scopeDecisionRule = 'BENCHMARK_WITHIN_30PCT';
-      } else {
-        // 15% floor engaged or benchmark above market — use lowest submitted
-        l2Component = Math.round(lowestSubmitted * 100) / 100;
-        tier = 'T3';
-        tierLabel = p50 >= lowestSubmitted
-          ? `Lowest Quote · ${lowestEntry.repairer} (benchmark above market)`
-          : `Lowest Quote · ${lowestEntry.repairer} (deviation ${Math.round(deviation * 100)}% > 15% floor)`;
-        scopeDecisionRule = p50 >= lowestSubmitted ? 'BENCHMARK_ABOVE_MARKET' : 'BENCHMARK_FLOOR_EXCEEDED';
-      }
-    } else {
-      // No benchmark — use lowest submitted
-      l2Component = Math.round(lowestSubmitted * 100) / 100;
-      tier = 'T3';
-      tierLabel = `Lowest Quote · ${lowestEntry.repairer} (no benchmark)`;
-      scopeDecisionRule = 'SINGLE_SCOPE_AVAILABLE';
     }
+    const l2Component = Math.round(lowestSubmitted * 100) / 100;
+    const isBenchmarkFill = false;
+    const tier: CompositeLineItem['kingaOptimisedTier'] = entries.length > 1 ? 'T3' : 'T4';
+    const tierLabel = entries.length > 1
+      ? `Lowest Submitted Quote · ${lowestEntry.repairer}`
+      : `Single Submitted Quote · ${lowestEntry.repairer}`;
+    const scopeDecisionRule: NonNullable<CompositeLineItem['scopeDecisionRule']> = entries.length > 1
+      ? 'COST_COMPARISON'
+      : 'SINGLE_SCOPE_AVAILABLE';
 
     compositeOptimisedCostUsd += l2Component;
 
     const { verdict, signal } = computeBenchmarkVerdict(l2Component, p25, p75);
     const rawPrices = entries.map(e => e.costUsd);
     const cv = coefficientOfVariation(rawPrices);
-    const varianceSignal = buildVarianceSignal(cv, rawPrices.length, !isBenchmarkFill, isBenchmarkFill);
+    const varianceSignal = buildVarianceSignal(cv, rawPrices.length);
 
     compositeLineItems.push({
       componentName: normName,
       selectedCostUsd: l2Component,
-      selectedFromQuote: isBenchmarkFill ? 'kinga_benchmark' : lowestEntry.repairer,
+      selectedFromQuote: lowestEntry.repairer,
+      selectedQuoteId: lowestEntry.quoteId,
+      selectedLineItemIds: lowestEntry.lineItemIds,
       isBenchmarkFill,
       kingaOptimisedTier: tier,
       kingaOptimisedTierLabel: tierLabel,
@@ -1269,7 +1328,7 @@ export function buildCompositeQuote(
   }
 
   // Add data-gap items from safety-critical scope checks and confirmed damage
-  // that has no traceable submitted or benchmark-backed price.
+  // that has no traceable submitted price.
   const allDataGapNames = new Set([
     ...validNormalisedQuotes.flatMap(q => q.dataGaps),
     ...missingRequiredComponents,
@@ -1306,23 +1365,7 @@ export function buildCompositeQuote(
 
   compositeOptimisedCostUsd = Math.round(compositeOptimisedCostUsd * 100) / 100;
   const partialPricedScopeUsd = compositeOptimisedCostUsd;
-  const isComplete = allDataGapNames.size === 0;
-
-  // ── MINIMUM FLOOR GUARD ──────────────────────────────────────────────────────
-  // KINGA optimised total must never fall below the lowest submitted quote total.
-  // This prevents the per-component cherry-pick from producing a figure that no
-  // repairer in the market would accept (e.g. when benchmark P50 covers only a
-  // subset of components and the uncovered components are excluded from the sum).
-  const lowestSubmittedTotal = Math.min(...validNormalisedQuotes.map(q => q.normalisedTotalUsd));
-  // Only apply the floor when benchmark fills are present. A pure cherry-pick composite
-  // (all T3 items from submitted quotes, benchmarkCoverageCount === 0) is intentionally
-  // allowed to be lower than any single repairer's total — that is the core value proposition
-  // of L2 optimisation. The floor prevents benchmark P50 values from pushing the total below
-  // what any repairer in the market would actually accept.
-  const hasBenchmarkFills = benchmarkCoverageCount > 0;
-  if (hasBenchmarkFills && lowestSubmittedTotal > 0 && compositeOptimisedCostUsd < lowestSubmittedTotal) {
-    compositeOptimisedCostUsd = Math.round(lowestSubmittedTotal * 100) / 100;
-  }
+  const isComplete = allDataGapNames.size === 0 && !allInReconciliationRequired;
 
   // ── 4. L1 for savings calculation ──────────────────────────────────────────
   // L1 = lowest normalised quote total (best real package deal)
@@ -1357,6 +1400,8 @@ export function buildCompositeQuote(
     compositeLineItems,
     compositeOptimisedCostUsd: isComplete ? compositeOptimisedCostUsd : null,
     partialPricedScopeUsd,
+    quoteReconciliations,
+    allInReconciliationRequired,
     costBasis: 'all_in_payable_repair_cost',
     missingRequiredComponents,
     isComplete,

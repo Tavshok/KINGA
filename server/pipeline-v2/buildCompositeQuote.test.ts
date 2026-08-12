@@ -3,13 +3,11 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Unit tests for the per-component cross-quote L2 formula in buildCompositeQuote.
  *
- * CONFIRMED FORMULA (product owner, July 2026):
+ * CONFIRMED FORMULA (product owner, August 2026):
  *   For each component:
  *     lowestSubmitted_c = min price across all quotes for this component
- *     K_c = benchmark P50 for this component
- *     deviation_c = |lowestSubmitted_c - K_c| / lowestSubmitted_c
- *     If K_c < lowestSubmitted_c AND deviation_c <= 30%: L2_c = K_c
- *     Else: L2_c = lowestSubmitted_c
+ *     L2_c = lowestSubmitted_c
+ *     Benchmark P25/P50/P75 remain comparative metadata only.
  *   L2_total = sum of L2_c
  *
  * NOTE: Component names are normalised through resolveToCanonical() inside the
@@ -78,9 +76,9 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     expect(result.negotiationSavingsUsd).toBe(0);
   });
 
-  it("uses benchmark P50 when it is cheaper and within 15% of lowestSubmitted", () => {
+  it("retains the lowest submitted price when a lower benchmark is available", () => {
     // "front bumper" normalises to "Front Bumper"
-    // lowestSubmitted = 1000, K = 900 (10% below → within 15%) → L2 = 900
+    // lowestSubmitted = 1000, benchmark P50 = 900 → L2 remains 1000.
     const quotes = [
       makeQuoteWithItems("Repairer A", [{ name: "front bumper", costUsd: 1000 }]),
       makeQuoteWithItems("Repairer B", [{ name: "front bumper", costUsd: 1200 }]),
@@ -91,14 +89,15 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
 
     const item = result.compositeLineItems.find(i => i.componentName === "Front Bumper");
     expect(item).toBeDefined();
-    expect(item!.selectedCostUsd).toBe(900); // K = 900
-    expect(item!.isBenchmarkFill).toBe(true);
-    expect(item!.kingaOptimisedTier).toBe("T1");
-    expect(item!.scopeDecisionRule).toBe("BENCHMARK_WITHIN_30PCT");
+    expect(item!.selectedCostUsd).toBe(1000);
+    expect(item!.selectedFromQuote).toBe("Repairer A");
+    expect(item!.isBenchmarkFill).toBe(false);
+    expect(item!.kingaOptimisedTier).toBe("T3");
+    expect(item!.scopeDecisionRule).toBe("COST_COMPARISON");
+    expect(item!.p50Usd).toBe(900);
   });
 
-  it("uses lowestSubmitted when benchmark deviation is between 15% and 30% (new floor)", () => {
-    // lowestSubmitted = 1000, K = 800 (20% below → exceeds new 15% floor) → L2 = 1000
+  it("retains the lowest submitted price when the benchmark differs materially", () => {
     const quotes = [
       makeQuoteWithItems("Repairer A", [{ name: "front bumper", costUsd: 1000 }]),
       makeQuoteWithItems("Repairer B", [{ name: "front bumper", costUsd: 1200 }]),
@@ -108,13 +107,12 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
 
     const item = result.compositeLineItems.find(i => i.componentName === "Front Bumper");
     expect(item).toBeDefined();
-    expect(item!.selectedCostUsd).toBe(1000); // lowestSubmitted — 20% > 15% floor
+    expect(item!.selectedCostUsd).toBe(1000);
     expect(item!.isBenchmarkFill).toBe(false);
-    expect(item!.scopeDecisionRule).toBe("BENCHMARK_FLOOR_EXCEEDED");
+    expect(item!.scopeDecisionRule).toBe("COST_COMPARISON");
   });
 
-  it("uses lowestSubmitted when benchmark deviation exceeds 15% floor (large deviation)", () => {
-    // lowestSubmitted = 1400, K = 400 (71% below → exceeds 15%) → L2 = 1400
+  it("retains the lowest submitted price when a benchmark is far below market", () => {
     const quotes = [
       makeQuoteWithItems("Repairer A", [{ name: "front bumper", costUsd: 1400 }]),
       makeQuoteWithItems("Repairer B", [{ name: "front bumper", costUsd: 1600 }]),
@@ -124,9 +122,9 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
 
     const item = result.compositeLineItems.find(i => i.componentName === "Front Bumper");
     expect(item).toBeDefined();
-    expect(item!.selectedCostUsd).toBe(1400); // lowestSubmitted
+    expect(item!.selectedCostUsd).toBe(1400);
     expect(item!.isBenchmarkFill).toBe(false);
-    expect(item!.scopeDecisionRule).toBe("BENCHMARK_FLOOR_EXCEEDED");
+    expect(item!.scopeDecisionRule).toBe("COST_COMPARISON");
   });
 
   it("uses lowestSubmitted when benchmark is above market", () => {
@@ -139,9 +137,9 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
 
     const item = result.compositeLineItems.find(i => i.componentName === "Front Bumper");
     expect(item).toBeDefined();
-    expect(item!.selectedCostUsd).toBe(1000); // lowestSubmitted
+    expect(item!.selectedCostUsd).toBe(1000);
     expect(item!.isBenchmarkFill).toBe(false);
-    expect(item!.scopeDecisionRule).toBe("BENCHMARK_ABOVE_MARKET");
+    expect(item!.scopeDecisionRule).toBe("SINGLE_SCOPE_AVAILABLE");
   });
 
   it("uses lowestSubmitted when no benchmark exists for component", () => {
@@ -186,9 +184,8 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
 
   it("L2_total = sum of per-component L2 values", () => {
     // "component a" → "component a", "component b" → "component b"
-    // Component a: lowestSubmitted = 800, K = 700 (12.5% below → within 30%) → L2_a = 700
-    // Component b: lowestSubmitted = 500, K = 100 (80% below → exceeds 30%) → L2_b = 500
-    // L2_total = 700 + 500 = 1200
+    // Component a: lowestSubmitted = 800; component b: lowestSubmitted = 500.
+    // Benchmarks are comparative only, so L2_total = 1300.
     const quotes = [
       makeQuoteWithItems("Repairer 1", [
         { name: "component a", costUsd: 1000 },
@@ -203,7 +200,7 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
       { name: "component b", p25: 80, p50: 100, p75: 120 },
     ]);
     const result = buildCompositeQuote(quotes, benchmarks, 1500);
-    expect(result.compositeOptimisedCostUsd).toBe(1200);
+    expect(result.compositeOptimisedCostUsd).toBe(1300);
   });
 
   it("cherry-pick across quotes produces lower L2 than best package deal", () => {
@@ -303,8 +300,7 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     expect(result.negotiationSavingsUsd).toBe(0);
   });
 
-  it("returns correct result for 3-quote scenario with Zimbabwe benchmarks (15% floor on all)", () => {
-    // 3 quotes, Zimbabwe benchmarks far below market → 15% floor on all components
+  it("returns the submitted-price comparison across three quotes despite low benchmarks", () => {
     // "front bumper" → "Front Bumper", "bonnet" → "Bonnet (Hood)", "headlamp" → "Headlight Assembly (Left)"
     const quotes = [
       makeQuoteWithItems("Cedric Jonker", [
@@ -323,10 +319,7 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
         { name: "headlamp", costUsd: 340 },
       ]),
     ];
-    // Zimbabwe benchmarks: far below market (P50 << lowestSubmitted)
-    // deviation_front_bumper = |1350 - 400| / 1350 = 70.4% > 15% → floor
-    // deviation_bonnet = |780 - 220| / 780 = 71.8% > 15% → floor
-    // deviation_headlamp = |340 - 100| / 340 = 70.6% > 15% → floor
+    // Benchmarks remain comparative even when well below submitted prices.
     const benchmarks = makeBenchmarks([
       { name: "Front Bumper", p25: 300, p50: 400, p75: 500 },
       { name: "Bonnet (Hood)", p25: 180, p50: 220, p75: 280 },
@@ -335,15 +328,15 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     // L1 = Grand Auto total = 2470
     const result = buildCompositeQuote(quotes, benchmarks, 2470);
 
-    // All components: 15% floor → L2_c = lowestSubmitted_c
+    // All components use submitted lowest prices.
     // L2_front_bumper = 1350, L2_bonnet = 780, L2_headlamp = 340
     // L2_total = 2470 = L1
     expect(result.compositeOptimisedCostUsd).toBe(2470);
 
-    // All items should use lowestSubmitted (not benchmark)
+    // All items use a submitted amount and preserve comparison metadata.
     for (const item of result.compositeLineItems) {
       expect(item.isBenchmarkFill).toBe(false);
-      expect(item.scopeDecisionRule).toBe("BENCHMARK_FLOOR_EXCEEDED");
+      expect(item.scopeDecisionRule).toBe("COST_COMPARISON");
     }
 
     // negotiationSavingsUsd = L1 - L2 = 2470 - 2470 = 0
@@ -404,8 +397,7 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     expect(result.compositeOptimisedCostUsd).toBe(890);
   });
 
-  it("VAT and workshop fee overhead rows are excluded from composite", () => {
-    // Verifies standalone overhead exclusion still works correctly.
+  it("uses submitted VAT and workshop-fee rows only when they are explicitly quoted", () => {
     const quotes: InputQuoteWithLineItems[] = [
       {
         panel_beater: "Repairer A",
@@ -428,6 +420,56 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
       expect.arrayContaining(["Front Bumper", "vat", "workshop fee"])
     );
     expect(result.compositeOptimisedCostUsd).toBe(700);
+    expect(result.isComplete).toBe(true);
+    expect(result.allInReconciliationRequired).toBe(false);
+    expect(result.quoteReconciliations[0]).toMatchObject({
+      submittedHeaderTotalUsd: 700,
+      submittedItemisedTotalUsd: 700,
+      status: "reconciled",
+    });
+  });
+
+  it("withholds an all-in L2 when explicit submitted lines do not reconcile to the submitted quote header", () => {
+    const quotes: InputQuoteWithLineItems[] = [{
+      panel_beater: "Repairer A",
+      sourceQuoteId: "quote-101",
+      total_cost: 1100,
+      currency: "USD",
+      components: ["Front Bumper"],
+      labour_defined: false,
+      parts_defined: true,
+      confidence: "high",
+      lineItems: [{
+        sourceQuoteId: "quote-101",
+        sourceLineItemId: "line-101",
+        componentName: "Front Bumper",
+        costUsd: 1000,
+        isRepair: false,
+        isReplacement: true,
+        isNonPartCost: false,
+      }],
+    }];
+
+    const result = buildCompositeQuote(quotes, {}, 1100, undefined, ["Front Bumper"]);
+
+    expect(result.compositeOptimisedCostUsd).toBeNull();
+    expect(result.partialPricedScopeUsd).toBe(1000);
+    expect(result.isComplete).toBe(false);
+    expect(result.allInReconciliationRequired).toBe(true);
+    expect(result.quoteReconciliations).toEqual([expect.objectContaining({
+      quoteId: "quote-101",
+      submittedHeaderTotalUsd: 1100,
+      submittedItemisedTotalUsd: 1000,
+      unexplainedResidualUsd: 100,
+      status: "reconciliation_required",
+    })]);
+    expect(result.compositeLineItems[0]).toMatchObject({
+      selectedCostUsd: 1000,
+      selectedFromQuote: "Repairer A",
+      selectedQuoteId: "quote-101",
+      selectedLineItemIds: ["line-101"],
+      isBenchmarkFill: false,
+    });
   });
 
   it("suppresses numeric L2 when a confirmed repair component has no traceable price", () => {
