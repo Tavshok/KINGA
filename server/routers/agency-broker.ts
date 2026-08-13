@@ -12,7 +12,7 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, inArray, sql, ne } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, ne, asc } from "drizzle-orm";
 import { router, protectedProcedure, requireTenantScope } from "../_core/trpc";
 import { agencyDomainProcedure as agencyProcedure } from "../_core/domain-middleware";
 import { auditP0CrossTenantAccess, resolveP0TenantScope } from "../security/p0TenantBoundary";
@@ -25,8 +25,12 @@ import {
   claims,
   auditTrail,
   commissionRecords,
+  agencyProductCommissionConfigs,
+  insuranceProducts,
+  fleetRfqClientInstructions,
 } from "../../drizzle/schema";
 import { randomUUID } from "crypto";
+import { canExecuteFleetInstruction, canSubmitFleetInstruction, resolveRfqAuthority } from "../agency/rfqAuthority";
 
 // ─── Agency Guard ────────────────────────────────────────────────────────────
 // R-INF-09 (ACTIVATED 2026-07-30): agencyProcedure is now the canonical
@@ -82,6 +86,17 @@ const acceptRejectQuoteInput = z.object({
   tenantId: z.string().optional(),
 });
 
+const commissionConfigurationInput = z.object({
+  productId: z.number().int().positive(),
+  commissionRate: z.number().min(0).max(100),
+});
+
+const fleetInstructionInput = z.object({
+  quoteRequestId: z.number().int().positive(),
+  instruction: z.enum(["accepted", "rejected"]),
+  notes: z.string().max(2000).optional(),
+});
+
 /** P0: protects against a stale or mocked foreign row being acted on after lookup. */
 export function assertAgencyQuoteTenant(agencyTenantId: string | null, scopedTenantId: string): void {
   if (agencyTenantId !== scopedTenantId) {
@@ -92,6 +107,222 @@ export function assertAgencyQuoteTenant(agencyTenantId: string | null, scopedTen
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export const agencyBrokerRouter = router({
+
+  // ── Agency Commercial Commission Configuration ────────────────────────────
+  // This is agency-owned commercial metadata. It does not drive policy issuance,
+  // premiums, underwriting, claims, settlement, or RFQ transitions.
+  listCommissionProducts: agencyProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+    return db.select({
+      id: insuranceProducts.id,
+      productName: insuranceProducts.productName,
+      productCode: insuranceProducts.productCode,
+      coverageType: insuranceProducts.coverageType,
+      insurerTenantId: insuranceProducts.tenantId,
+    }).from(insuranceProducts)
+      .where(eq(insuranceProducts.isActive, 1))
+      .orderBy(asc(insuranceProducts.productName));
+  }),
+
+  listCommissionConfigurations: agencyProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+    const tenantId = requireTenantScope(ctx, undefined, "agency-broker") as string;
+    return db.select({
+      id: agencyProductCommissionConfigs.id,
+      productId: agencyProductCommissionConfigs.productId,
+      commissionRate: agencyProductCommissionConfigs.commissionRate,
+      isActive: agencyProductCommissionConfigs.isActive,
+      configuredBy: agencyProductCommissionConfigs.configuredBy,
+      updatedAt: agencyProductCommissionConfigs.updatedAt,
+      productName: insuranceProducts.productName,
+      productCode: insuranceProducts.productCode,
+    }).from(agencyProductCommissionConfigs)
+      .leftJoin(insuranceProducts, eq(agencyProductCommissionConfigs.productId, insuranceProducts.id))
+      .where(eq(agencyProductCommissionConfigs.agencyTenantId, tenantId))
+      .orderBy(asc(insuranceProducts.productName));
+  }),
+
+  upsertCommissionConfiguration: agencyProcedure
+    .input(commissionConfigurationInput)
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = requireTenantScope(ctx, undefined, "agency-broker") as string;
+      const [product] = await db.select({ id: insuranceProducts.id })
+        .from(insuranceProducts)
+        .where(and(eq(insuranceProducts.id, input.productId), eq(insuranceProducts.isActive, 1)));
+      if (!product) throw new TRPCError({ code: "NOT_FOUND", message: "Active insurance product not found." });
+
+      await db.insert(agencyProductCommissionConfigs).values({
+        agencyTenantId: tenantId,
+        productId: input.productId,
+        commissionRate: String(input.commissionRate),
+        isActive: 1,
+        configuredBy: ctx.user.id,
+      }).onDuplicateKeyUpdate({
+        set: { commissionRate: String(input.commissionRate), isActive: 1, configuredBy: ctx.user.id },
+      });
+      return { success: true, status: "configured" as const };
+    }),
+
+  setCommissionConfigurationActive: agencyProcedure
+    .input(z.object({ productId: z.number().int().positive(), isActive: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = requireTenantScope(ctx, undefined, "agency-broker") as string;
+      const result = await db.update(agencyProductCommissionConfigs)
+        .set({ isActive: input.isActive ? 1 : 0, configuredBy: ctx.user.id })
+        .where(and(
+          eq(agencyProductCommissionConfigs.agencyTenantId, tenantId),
+          eq(agencyProductCommissionConfigs.productId, input.productId),
+        ));
+      if ((result as any).rowsAffected === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Commission configuration not found." });
+      }
+      return { success: true, status: input.isActive ? "configured" as const : "unavailable" as const };
+    }),
+
+  submitFleetQuoteInstruction: protectedProcedure
+    .input(fleetInstructionInput)
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const [quote] = await db.select({
+        id: insurerQuoteRequests.id,
+        agencyTenantId: insurerQuoteRequests.agencyTenantId,
+        fleetAccountId: insurerQuoteRequests.fleetAccountId,
+        requestType: insurerQuoteRequests.requestType,
+        status: insurerQuoteRequests.status,
+        claimId: insurerQuoteRequests.claimId,
+      }).from(insurerQuoteRequests)
+        .where(eq(insurerQuoteRequests.id, input.quoteRequestId));
+      if (!quote || quote.requestType !== "fleet_policy" || !quote.fleetAccountId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Fleet RFQ quote request not found." });
+      }
+      const [fleet] = await db.select({ id: fleetAccounts.id })
+        .from(fleetAccounts)
+        .where(and(eq(fleetAccounts.id, quote.fleetAccountId), eq(fleetAccounts.ownerUserId, ctx.user.id)));
+      if (!canSubmitFleetInstruction({
+        requestType: quote.requestType,
+        quoteStatus: quote.status,
+        hasFleetAccount: Boolean(quote.fleetAccountId),
+        requesterOwnsFleet: Boolean(fleet),
+      })) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A fleet instruction requires an owned fleet account and a quoted fleet RFQ." });
+      }
+
+      const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+      await db.insert(fleetRfqClientInstructions).values({
+        quoteRequestId: quote.id,
+        agencyTenantId: quote.agencyTenantId,
+        fleetAccountId: quote.fleetAccountId,
+        instruction: input.instruction,
+        status: "requested",
+        instructedBy: ctx.user.id,
+        notes: input.notes ?? null,
+        createdAt: now,
+      });
+      await db.insert(auditTrail).values({
+        claimId: quote.claimId,
+        userId: ctx.user.id,
+        action: "fleet_rfq_instruction_requested",
+        entityType: "insurer_quote_request",
+        entityId: quote.id,
+        changeDescription: `Authorised fleet owner requested agency execution: ${input.instruction}. This is an RFQ instruction only and does not issue a policy or alter any insurance decision.`,
+        createdAt: now,
+      } as any);
+      return { success: true, status: "requested" as const };
+    }),
+
+  executeFleetQuoteInstruction: agencyProcedure
+    .input(z.object({ instructionId: z.number().int().positive(), tenantId: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "agencyBroker.executeFleetQuoteInstruction");
+      const [instruction] = await db.select().from(fleetRfqClientInstructions)
+        .where(and(eq(fleetRfqClientInstructions.id, input.instructionId), eq(fleetRfqClientInstructions.agencyTenantId, scope.tenantId)));
+      if (!instruction) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet instruction not found." });
+      if (instruction.status !== "requested") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Fleet instruction is no longer actionable." });
+      const [quote] = await db.select({
+        id: insurerQuoteRequests.id,
+        claimId: insurerQuoteRequests.claimId,
+        status: insurerQuoteRequests.status,
+        requestType: insurerQuoteRequests.requestType,
+        fleetAccountId: insurerQuoteRequests.fleetAccountId,
+      }).from(insurerQuoteRequests).where(and(
+        eq(insurerQuoteRequests.id, instruction.quoteRequestId),
+        eq(insurerQuoteRequests.agencyTenantId, scope.tenantId),
+      ));
+      if (!quote) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Instructed fleet RFQ is unavailable." });
+      }
+      if (!canExecuteFleetInstruction({
+        instructionStatus: instruction.status,
+        requestType: quote.requestType,
+        quoteStatus: quote.status,
+        fleetAccountMatches: quote.fleetAccountId === instruction.fleetAccountId,
+      })) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Fleet instruction is no longer available for execution." });
+      }
+
+      const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+      await db.update(insurerQuoteRequests).set({ status: instruction.instruction, respondedAt: now, commissionEstimate: null, updatedAt: now })
+        .where(and(eq(insurerQuoteRequests.id, quote.id), eq(insurerQuoteRequests.agencyTenantId, scope.tenantId)));
+      let siblingsClosed = 0;
+      if (instruction.instruction === "accepted") {
+        const siblingResult = await db.update(insurerQuoteRequests).set({ status: "rejected", respondedAt: now, updatedAt: now }).where(and(
+          ne(insurerQuoteRequests.id, quote.id),
+          eq(insurerQuoteRequests.agencyTenantId, scope.tenantId),
+          eq(insurerQuoteRequests.fleetAccountId, quote.fleetAccountId),
+          inArray(insurerQuoteRequests.status, ["pending", "sent", "quoted"]),
+        ));
+        siblingsClosed = (siblingResult as any).rowsAffected ?? 0;
+      }
+      await db.update(fleetRfqClientInstructions).set({ status: "executed", executedBy: ctx.user.id, executedAt: now })
+        .where(and(eq(fleetRfqClientInstructions.id, instruction.id), eq(fleetRfqClientInstructions.status, "requested")));
+      await db.insert(auditTrail).values({
+        claimId: quote.claimId,
+        userId: ctx.user.id,
+        action: "agency_executed_fleet_rfq_instruction",
+        entityType: "insurer_quote_request",
+        entityId: quote.id,
+        changeDescription: `Agency executed authorised fleet instruction: ${instruction.instruction}. ${siblingsClosed} competing quote(s) closed. This does not issue a policy or alter premiums, underwriting, claims, settlement, or commission records.`,
+        createdAt: now,
+      } as any);
+      return { success: true, status: instruction.instruction, siblingsClosed, commissionStatus: "not_applied_to_rfq" as const };
+    }),
+
+  listPendingFleetQuoteInstructions: agencyProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+    const tenantId = requireTenantScope(ctx, undefined, "agency-broker") as string;
+    return db.select({
+      instructionId: fleetRfqClientInstructions.id,
+      instruction: fleetRfqClientInstructions.instruction,
+      notes: fleetRfqClientInstructions.notes,
+      createdAt: fleetRfqClientInstructions.createdAt,
+      quoteRequestId: insurerQuoteRequests.id,
+      quoteAmount: insurerQuoteRequests.quoteAmount,
+      quoteCurrency: insurerQuoteRequests.quoteCurrency,
+      insurerTenantId: insurerQuoteRequests.insurerTenantId,
+      fleetAccountId: insurerQuoteRequests.fleetAccountId,
+      claimNumber: claims.claimNumber,
+      insurerName: insurerTenants.displayName,
+    }).from(fleetRfqClientInstructions)
+      .innerJoin(insurerQuoteRequests, eq(fleetRfqClientInstructions.quoteRequestId, insurerQuoteRequests.id))
+      .innerJoin(claims, eq(insurerQuoteRequests.claimId, claims.id))
+      .leftJoin(insurerTenants, eq(insurerQuoteRequests.insurerTenantId, insurerTenants.id))
+      .where(and(
+        eq(fleetRfqClientInstructions.agencyTenantId, tenantId),
+        eq(fleetRfqClientInstructions.status, "requested"),
+        eq(insurerQuoteRequests.requestType, "fleet_policy"),
+      ))
+      .orderBy(desc(fleetRfqClientInstructions.createdAt));
+  }),
 
   // ── Client Management ──────────────────────────────────────────────────────
 
@@ -446,7 +677,6 @@ export const agencyBrokerRouter = router({
       const scope = resolveP0TenantScope(ctx, input.tenantId, "agencyBroker.acceptOrRejectQuote");
 
       const now = new Date().toISOString().slice(0, 19).replace("T", " ");
-      const COMMISSION_RATE = 0.05; // 5% placeholder commission
 
       // ── 1. Fetch the target quote request ────────────────────────────────────
       const [qr] = await db
@@ -470,6 +700,13 @@ export const agencyBrokerRouter = router({
       if (!qr) throw new TRPCError({ code: "NOT_FOUND", message: "Quote request not found." });
       assertAgencyQuoteTenant(qr.agencyTenantId, scope.tenantId);
 
+      if (resolveRfqAuthority(qr.requestType).requiresClientInstruction) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Fleet RFQs require an authorised client or fleet instruction before agency execution.",
+        });
+      }
+
       // ── 2. Prevent duplicate state transitions ───────────────────────────────
       if (qr.status === "accepted" || qr.status === "rejected") {
         throw new TRPCError({
@@ -479,16 +716,17 @@ export const agencyBrokerRouter = router({
       }
 
       if (input.action === "accepted") {
-        // ── 3a. Accept: compute commission, update this row ─────────────────────
+        // ── 3a. Accept the RFQ only. Commission is separately agency-configured
+        // commercial metadata and never affects an RFQ, policy, premium, claim,
+        // settlement, underwriting, or insurer response.
         const quoteAmountNum = qr.quoteAmount ? parseFloat(qr.quoteAmount) : 0;
-        const commissionEstimate = Math.round(quoteAmountNum * COMMISSION_RATE * 100) / 100;
 
         await db
           .update(insurerQuoteRequests)
           .set({
             status: "accepted",
             respondedAt: now,
-            commissionEstimate: String(commissionEstimate),
+            commissionEstimate: null,
             updatedAt: now,
           })
           .where(and(
@@ -522,19 +760,19 @@ export const agencyBrokerRouter = router({
             action: "fleet_quote_accepted",
             entityType: qr.requestType === "fleet_policy" ? "fleet_account" : "insurer_quote_request",
             entityId: qr.fleetAccountId ?? qr.id,
-            changeDescription: `Quote #${input.quoteRequestId} accepted from insurer ${qr.insurerTenantId}. Amount: ${qr.quoteCurrency ?? "USD"} ${quoteAmountNum}. Commission estimate: ${qr.quoteCurrency ?? "USD"} ${commissionEstimate} (${COMMISSION_RATE * 100}%). ${(siblingResult as any)?.rowsAffected ?? 0} competing quote(s) closed.`,
+            changeDescription: `Quote #${input.quoteRequestId} accepted from insurer ${qr.insurerTenantId}. Amount: ${qr.quoteCurrency ?? "USD"} ${quoteAmountNum}. Commission configuration is separate agency-commercial metadata and does not affect this RFQ or any insurance decision. ${(siblingResult as any)?.rowsAffected ?? 0} competing quote(s) closed.`,
             createdAt: now,
           } as any);
         } catch {
           console.warn(`[AgencyBroker] Audit insert failed for acceptOrRejectQuote ACCEPT id=${input.quoteRequestId}`);
         }
 
-        console.log(`[AgencyBroker] Quote ACCEPTED: id=${input.quoteRequestId} insurer=${qr.insurerTenantId} amount=${quoteAmountNum} commission=${commissionEstimate}`);
+        console.log(`[AgencyBroker] Quote ACCEPTED: id=${input.quoteRequestId} insurer=${qr.insurerTenantId} amount=${quoteAmountNum}`);
         await auditP0CrossTenantAccess(ctx, scope, "agency_quote_accept", String(input.quoteRequestId), { agencyTenantId: scope.tenantId });
         return {
           success: true,
           status: "accepted",
-          commissionEstimate,
+          commissionStatus: "not_applied_to_rfq" as const,
           currency: qr.quoteCurrency ?? "USD",
           siblingsClosed: (siblingResult as any)?.rowsAffected ?? 0,
         };
@@ -908,20 +1146,8 @@ export const agencyBrokerRouter = router({
       const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000)
         .toISOString().slice(0, 19).replace('T', ' ');
 
-      // Source 1: commission estimates from accepted quotes
-      const [quoteCommissions] = await db
-        .select({
-          totalEstimated: sql<number>`COALESCE(SUM(CAST(${insurerQuoteRequests.commissionEstimate} AS DECIMAL(12,2))), 0)`,
-          acceptedCount: sql<number>`COUNT(*)`,
-        })
-        .from(insurerQuoteRequests)
-        .where(and(
-          eq(insurerQuoteRequests.agencyTenantId, tenantId),
-          eq(insurerQuoteRequests.status, 'accepted'),
-          sql`${insurerQuoteRequests.createdAt} >= ${since}`
-        ));
-
-      // Source 2: formal commission records
+      // Formal commercial records are the only commission monetary ledger.
+      // RFQ acceptance never creates a commission estimate or payment obligation.
       const [formalCommissions] = await db
         .select({
           totalPaid: sql<number>`COALESCE(SUM(CASE WHEN ${commissionRecords.paymentStatus} = 'paid' THEN ${commissionRecords.commissionAmount} ELSE 0 END), 0)`,
@@ -940,8 +1166,8 @@ export const agencyBrokerRouter = router({
       return {
         period: { days: input.days, since },
         quoteCommissions: {
-          totalEstimatedCents: Math.round(Number(quoteCommissions?.totalEstimated ?? 0) * 100),
-          acceptedQuoteCount: Number(quoteCommissions?.acceptedCount ?? 0),
+          totalEstimatedCents: 0,
+          acceptedQuoteCount: 0,
         },
         formalCommissions: {
           totalPaidCents: Number(formalCommissions?.totalPaid ?? 0),
@@ -997,20 +1223,18 @@ export const agencyBrokerRouter = router({
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
     const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
 
-    // Monthly accepted quote commissions for last 6 months
-    const rows = await db
-      .select({
-        month: sql<string>`DATE_FORMAT(${insurerQuoteRequests.createdAt}, '%Y-%m')`,
-        totalEstimated: sql<number>`COALESCE(SUM(CAST(${insurerQuoteRequests.commissionEstimate} AS DECIMAL(12,2))), 0)`,
-        count: sql<number>`COUNT(*)`,
-      })
-      .from(insurerQuoteRequests)
-      .where(and(
-        eq(insurerQuoteRequests.agencyTenantId, tenantId),
-        eq(insurerQuoteRequests.status, 'accepted'),
-        sql`${insurerQuoteRequests.createdAt} >= DATE_SUB(NOW(), INTERVAL 6 MONTH)`
-      ))
-      .groupBy(sql`DATE_FORMAT(${insurerQuoteRequests.createdAt}, '%Y-%m')`);
+      const rows = await db
+        .select({
+          month: sql<string>`DATE_FORMAT(${commissionRecords.createdAt}, '%Y-%m')`,
+          totalEstimated: sql<number>`COALESCE(SUM(${commissionRecords.commissionAmount}), 0)`,
+          count: sql<number>`COUNT(*)`,
+        })
+        .from(commissionRecords)
+        .where(and(
+          eq(commissionRecords.tenantId, tenantId),
+          sql`${commissionRecords.createdAt} >= DATE_SUB(NOW(), INTERVAL 6 MONTH)`
+        ))
+        .groupBy(sql`DATE_FORMAT(${commissionRecords.createdAt}, '%Y-%m')`);
 
     return rows.map(r => ({
       month: r.month,
@@ -1043,7 +1267,7 @@ export const agencyBrokerRouter = router({
           accepted: sql<number>`SUM(CASE WHEN ${insurerQuoteRequests.status} = 'accepted' THEN 1 ELSE 0 END)`,
           rejected: sql<number>`SUM(CASE WHEN ${insurerQuoteRequests.status} = 'rejected' THEN 1 ELSE 0 END)`,
           pending: sql<number>`SUM(CASE WHEN ${insurerQuoteRequests.status} IN ('pending','submitted','under_review') THEN 1 ELSE 0 END)`,
-          totalEstimatedCommission: sql<number>`COALESCE(SUM(CAST(${insurerQuoteRequests.commissionEstimate} AS DECIMAL(12,2))), 0)`,
+          totalEstimatedCommission: sql<number>`0`,
         })
         .from(insurerQuoteRequests)
         .where(and(
@@ -1061,7 +1285,7 @@ export const agencyBrokerRouter = router({
           insurerTenantId: insurerQuoteRequests.insurerTenantId,
           count: sql<number>`COUNT(*)`,
           acceptedCount: sql<number>`SUM(CASE WHEN ${insurerQuoteRequests.status} = 'accepted' THEN 1 ELSE 0 END)`,
-          totalCommission: sql<number>`COALESCE(SUM(CAST(${insurerQuoteRequests.commissionEstimate} AS DECIMAL(12,2))), 0)`,
+          totalCommission: sql<number>`0`,
         })
         .from(insurerQuoteRequests)
         .where(and(

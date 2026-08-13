@@ -3,11 +3,13 @@
  *
  * Fleet owner view: shows all fleet policy RFQs dispatched via KINGA Agency,
  * grouped by claim/RFQ, with a comparison table of insurer responses.
- * Allows accepting or rejecting individual insurer quotes.
+ * Allows an authorised fleet owner to instruct KINGA Agency to execute a selected
+ * quote action. The instruction itself never issues a policy.
  */
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { getCurrencySymbolForCode } from "../../../shared/currency";
 import { toast } from "sonner";
@@ -79,34 +81,40 @@ function lowestQuote(quotes: QuoteRow[]): QuoteRow | null {
   );
 }
 
-function commissionEstimate(quoteAmount: string | null, sym: string): string {
-  if (!quoteAmount) return "—";
-  const base = parseFloat(quoteAmount);
-  const commission = base * 0.10; // 10% placeholder
-  return `${sym}${commission.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AgencyFleetQuotes() {
+  const { user } = useAuth();
   const { currencySymbol } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [confirmDialog, setConfirmDialog] = useState<{ quoteId: number; action: "accepted" | "rejected"; insurerName: string } | null>(null);
+  const isAgencyOperator = ["agency", "admin", "platform_super_admin"].includes(user?.role ?? "");
 
   const { data, isLoading, refetch } = trpc.agencyBroker.listFleetQuoteRequests.useQuery(
     { limit: 100 },
-    { refetchOnWindowFocus: false }
+    { refetchOnWindowFocus: false, enabled: !isAgencyOperator }
   );
 
-  const acceptReject = trpc.agencyBroker.acceptOrRejectQuote.useMutation({
+  const { data: pendingInstructions = [], isLoading: pendingInstructionsLoading, refetch: refetchInstructions } =
+    trpc.agencyBroker.listPendingFleetQuoteInstructions.useQuery(undefined, { enabled: isAgencyOperator });
+
+  const instructAgency = trpc.agencyBroker.submitFleetQuoteInstruction.useMutation({
     onSuccess: (_, variables) => {
-      toast.success(`Quote ${variables.action === "accepted" ? "accepted" : "rejected"} successfully.`);
+      toast.success(`Instruction to ${variables.instruction === "accepted" ? "accept" : "reject"} has been sent to KINGA Agency.`);
       setConfirmDialog(null);
       refetch();
     },
     onError: (err) => {
       toast.error(err.message ?? "Action failed.");
     },
+  });
+
+  const executeInstruction = trpc.agencyBroker.executeFleetQuoteInstruction.useMutation({
+    onSuccess: () => {
+      toast.success("Authorised fleet instruction executed. No policy was issued.");
+      refetchInstructions();
+    },
+    onError: (err) => toast.error(err.message ?? "Instruction execution failed."),
   });
 
   const quotes: QuoteRow[] = (data?.quotes ?? []) as QuoteRow[];
@@ -135,8 +143,8 @@ export default function AgencyFleetQuotes() {
                 </div>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? "animate-spin" : ""}`} />
+              <Button variant="outline" size="sm" onClick={() => isAgencyOperator ? refetchInstructions() : refetch()} disabled={isAgencyOperator ? pendingInstructionsLoading : isLoading}>
+              <RefreshCw className={`h-4 w-4 mr-1 ${(isAgencyOperator ? pendingInstructionsLoading : isLoading) ? "animate-spin" : ""}`} />
               Refresh
             </Button>
           </div>
@@ -145,6 +153,33 @@ export default function AgencyFleetQuotes() {
 
       {/* Main */}
       <main className="container mx-auto px-4 py-8 space-y-8">
+        {isAgencyOperator && (
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b bg-emerald-50/70">
+              <CardTitle className="text-base">Authorised Fleet Instructions</CardTitle>
+              <CardDescription>Execute only client or fleet-owner instructions. Execution records an RFQ decision; it does not issue a policy or change any premium.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {pendingInstructionsLoading ? (
+                <div className="p-6 text-sm text-muted-foreground">Loading instructions…</div>
+              ) : pendingInstructions.length === 0 ? (
+                <div className="p-6 text-sm text-muted-foreground">No authorised fleet instructions are awaiting agency execution.</div>
+              ) : (
+                <Table><TableHeader><TableRow><TableHead>RFQ</TableHead><TableHead>Insurer</TableHead><TableHead>Instruction</TableHead><TableHead>Quote</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>
+                  {pendingInstructions.map((item: any) => (
+                    <TableRow key={item.instructionId}>
+                      <TableCell className="font-mono text-xs">{item.claimNumber}</TableCell>
+                      <TableCell>{item.insurerName ?? item.insurerTenantId}</TableCell>
+                      <TableCell>{item.instruction === "accepted" ? "Accept" : "Reject"}</TableCell>
+                      <TableCell>{item.quoteAmount ? `${item.quoteCurrency ?? "USD"} ${item.quoteAmount}` : "—"}</TableCell>
+                      <TableCell className="text-right"><Button size="sm" disabled={executeInstruction.isPending} onClick={() => executeInstruction.mutate({ instructionId: item.instructionId })}>Execute authorised instruction</Button></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody></Table>
+              )}
+            </CardContent>
+          </Card>
+        )}
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -205,7 +240,7 @@ export default function AgencyFleetQuotes() {
                         <TableHead className="text-xs font-semibold">Insurer</TableHead>
                         <TableHead className="text-xs font-semibold">Status</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Quote Amount</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Commission (est.)</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Commission</TableHead>
                         <TableHead className="text-xs font-semibold">Valid Until</TableHead>
                         <TableHead className="text-xs font-semibold">Notes</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Actions</TableHead>
@@ -228,8 +263,8 @@ export default function AgencyFleetQuotes() {
                                 ? `${getCurrencySymbolForCode(q.quoteCurrency ?? currencySymbol)}${parseFloat(q.quoteAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                                 : <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">Awaiting</span>}
                             </TableCell>
-                            <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                              {commissionEstimate(q.quoteAmount, currencySymbol)}
+                            <TableCell className="text-right text-xs text-muted-foreground">
+                              Configured separately by agency per product
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                               {q.quoteValidUntil
@@ -249,7 +284,7 @@ export default function AgencyFleetQuotes() {
                                     onClick={() => setConfirmDialog({ quoteId: q.id, action: "accepted", insurerName: q.insurerName ?? q.insurerTenantId })}
                                   >
                                     <CheckCircle className="h-3 w-3 mr-1" />
-                                    Accept
+                                    Instruct accept
                                   </Button>
                                   <Button
                                     size="sm"
@@ -258,7 +293,7 @@ export default function AgencyFleetQuotes() {
                                     onClick={() => setConfirmDialog({ quoteId: q.id, action: "rejected", insurerName: q.insurerName ?? q.insurerTenantId })}
                                   >
                                     <XCircle className="h-3 w-3 mr-1" />
-                                    Reject
+                                    Instruct reject
                                   </Button>
                                 </div>
                               )}
@@ -295,26 +330,26 @@ export default function AgencyFleetQuotes() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {confirmDialog?.action === "accepted" ? "Accept Quote" : "Reject Quote"}
+              {confirmDialog?.action === "accepted" ? "Instruct Agency to Accept" : "Instruct Agency to Reject"}
             </DialogTitle>
             <DialogDescription>
               {confirmDialog?.action === "accepted"
-                ? `Accept the quote from ${confirmDialog?.insurerName}? This will mark it as accepted and notify the insurer.`
-                : `Reject the quote from ${confirmDialog?.insurerName}? This action cannot be undone.`}
+                ? `Send KINGA Agency an instruction to accept the quote from ${confirmDialog?.insurerName}. This does not issue a policy or alter a premium.`
+                : `Send KINGA Agency an instruction to reject the quote from ${confirmDialog?.insurerName}. This does not issue a policy or alter a premium.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDialog(null)}>Cancel</Button>
             <Button
               className={confirmDialog?.action === "accepted" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"}
-              disabled={acceptReject.isPending}
+              disabled={instructAgency.isPending}
               onClick={() => {
                 if (!confirmDialog) return;
-                acceptReject.mutate({ quoteRequestId: confirmDialog.quoteId, action: confirmDialog.action });
+                instructAgency.mutate({ quoteRequestId: confirmDialog.quoteId, instruction: confirmDialog.action });
               }}
             >
-              {acceptReject.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {confirmDialog?.action === "accepted" ? "Accept" : "Reject"}
+              {instructAgency.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {confirmDialog?.action === "accepted" ? "Send acceptance instruction" : "Send rejection instruction"}
             </Button>
           </DialogFooter>
         </DialogContent>

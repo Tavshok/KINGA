@@ -1222,6 +1222,24 @@ export const commissionRecords = mysqlTable("commission_records", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 });
 
+/**
+ * Agency-owned commercial configuration. This table never drives policy issuance,
+ * underwriting, premiums, claims, settlement, or RFQ lifecycle transitions.
+ */
+export const agencyProductCommissionConfigs = mysqlTable("agency_product_commission_configs", {
+	id: int().autoincrement().notNull(),
+	agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
+	productId: int("product_id").notNull(),
+	commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(),
+	isActive: tinyint("is_active").default(1).notNull(),
+	configuredBy: int("configured_by").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+	uniqueIndex("uq_agency_product_commission").on(table.agencyTenantId, table.productId),
+	index("idx_agency_product_commission_tenant").on(table.agencyTenantId),
+]);
+
 export const costComponents = mysqlTable("cost_components", {
 	id: int().autoincrement().notNull(),
 	historicalClaimId: int("historical_claim_id").notNull(),
@@ -3866,6 +3884,30 @@ export const insurerQuoteRequests = mysqlTable("insurer_quote_requests", {
 
 export type InsurerQuoteRequest = typeof insurerQuoteRequests.$inferSelect;
 export type InsertInsurerQuoteRequest = typeof insurerQuoteRequests.$inferInsert;
+
+/**
+ * Client/fleet instruction ledger for fleet-policy RFQs. Agency execution requires
+ * an instruction from the authorised fleet account owner. This has no policy,
+ * premium, underwriting, claim, settlement, or commission effect.
+ */
+export const fleetRfqClientInstructions = mysqlTable("fleet_rfq_client_instructions", {
+  id: int().autoincrement().notNull(),
+  quoteRequestId: int("quote_request_id").notNull(),
+  agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
+  fleetAccountId: int("fleet_account_id").notNull(),
+  instruction: mysqlEnum("instruction", ["accepted", "rejected"]).notNull(),
+  status: mysqlEnum("status", ["requested", "executed", "cancelled"]).notNull().default("requested"),
+  instructedBy: int("instructed_by").notNull(),
+  executedBy: int("executed_by"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  executedAt: timestamp("executed_at", { mode: "string" }),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("uq_fleet_rfq_client_instruction").on(table.quoteRequestId),
+  index("idx_fleet_rfq_instruction_agency_status").on(table.agencyTenantId, table.status),
+  index("idx_fleet_rfq_instruction_fleet").on(table.fleetAccountId),
+]);
 
 // ============================================================================
 // FLEET ACCOUNTS — Standalone SaaS fleet management

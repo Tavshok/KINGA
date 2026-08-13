@@ -69,11 +69,6 @@ function acceptOrRejectGuard(qrStatus: string | null) {
   }
 }
 
-/** Simulate commission calculation */
-function calcCommission(quoteAmount: number, rate = 0.05) {
-  return Math.round(quoteAmount * rate * 100) / 100;
-}
-
 // ─── respondToQuote ───────────────────────────────────────────────────────────
 
 describe("respondToQuote", () => {
@@ -177,34 +172,15 @@ describe("acceptOrRejectQuote — ACCEPT", () => {
     }
   });
 
-  it("computes 5% commission correctly for a ZAR 20,000 quote", () => {
-    expect(calcCommission(20000)).toBe(1000);
-  });
-
-  it("computes 5% commission correctly for a ZAR 8,750 quote", () => {
-    expect(calcCommission(8750)).toBe(437.5);
-  });
-
-  it("computes 5% commission correctly for a ZAR 0 quote (edge case)", () => {
-    expect(calcCommission(0)).toBe(0);
-  });
-
-  it("rounds commission to 2 decimal places", () => {
-    // 5% of 333.33 = 16.6665 → rounds to 16.67
-    expect(calcCommission(333.33)).toBe(16.67);
-  });
-
-  it("sets status to 'accepted' and records commissionEstimate", () => {
-    const quoteAmount = 20000;
-    const commission = calcCommission(quoteAmount);
+  it("sets status to 'accepted' without creating an RFQ commission estimate", () => {
     const update = {
       status: "accepted",
-      commissionEstimate: String(commission),
+      commissionEstimate: null,
       respondedAt: "2026-03-04 12:00:00",
       updatedAt: "2026-03-04 12:00:00",
     };
     expect(update.status).toBe("accepted");
-    expect(update.commissionEstimate).toBe("1000");
+    expect(update.commissionEstimate).toBeNull();
   });
 
   it("closes sibling requests by setting them to 'rejected'", () => {
@@ -219,29 +195,28 @@ describe("acceptOrRejectQuote — ACCEPT", () => {
     expect("fleet_quote_accepted").toBe("fleet_quote_accepted");
   });
 
-  it("audit description includes insurer, amount, commission, and sibling count", () => {
+  it("audit description identifies commission as separate commercial metadata", () => {
     const insurerTenantId = "insurer-xyz";
     const quoteAmount = 20000;
-    const commission = calcCommission(quoteAmount);
     const siblingsClosed = 3;
-    const desc = `Quote #7 accepted from insurer ${insurerTenantId}. Amount: ZAR ${quoteAmount}. Commission estimate: ZAR ${commission} (5%). ${siblingsClosed} competing quote(s) closed.`;
+    const desc = `Quote #7 accepted from insurer ${insurerTenantId}. Amount: ZAR ${quoteAmount}. Commission configuration is separate agency-commercial metadata and does not affect this RFQ or any insurance decision. ${siblingsClosed} competing quote(s) closed.`;
     expect(desc).toContain("insurer-xyz");
     expect(desc).toContain("20000");
-    expect(desc).toContain("1000");
+    expect(desc).toContain("separate agency-commercial metadata");
     expect(desc).toContain("3 competing quote(s) closed");
   });
 
-  it("returns commissionEstimate, currency, and siblingsClosed in response", () => {
+  it("returns an explicit non-application status for commission", () => {
     const response = {
       success: true,
       status: "accepted",
-      commissionEstimate: 1000,
+      commissionStatus: "not_applied_to_rfq",
       currency: "ZAR",
       siblingsClosed: 2,
     };
     expect(response.success).toBe(true);
     expect(response.status).toBe("accepted");
-    expect(response.commissionEstimate).toBe(1000);
+    expect(response.commissionStatus).toBe("not_applied_to_rfq");
     expect(response.currency).toBe("ZAR");
     expect(response.siblingsClosed).toBe(2);
   });

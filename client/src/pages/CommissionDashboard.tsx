@@ -147,6 +147,8 @@ export default function CommissionDashboard() {
   const [periodDays, setPeriodDays] = useState(90);
   const [statusFilter, setStatusFilter] = useState<"pending" | "paid" | "disputed" | "all">("all");
   const [page, setPage] = useState(0);
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [commissionRate, setCommissionRate] = useState<string>("");
   const PAGE_SIZE = 15;
 
   const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } =
@@ -161,6 +163,16 @@ export default function CommissionDashboard() {
       limit: PAGE_SIZE,
       offset: page * PAGE_SIZE,
     });
+
+  const { data: commissionProducts = [] } = trpc.agencyBroker.listCommissionProducts.useQuery();
+  const { data: commissionConfigurations = [], refetch: refetchCommissionConfigurations } =
+    trpc.agencyBroker.listCommissionConfigurations.useQuery();
+  const saveCommissionConfiguration = trpc.agencyBroker.upsertCommissionConfiguration.useMutation({
+    onSuccess: () => {
+      setCommissionRate("");
+      refetchCommissionConfigurations();
+    },
+  });
 
   const commissions = commissionsData?.commissions ?? [];
   const totalCommissions = commissionsData?.total ?? 0;
@@ -230,12 +242,73 @@ export default function CommissionDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Agency Product Commission Configuration</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Agency-commercial metadata only. It does not affect RFQ acceptance, policy issuance, premiums, underwriting, claims, settlement, or insurer workflows.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end">
+              <label className="flex-1 text-xs font-medium text-muted-foreground">
+                Insurance product
+                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                  <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Select a product" /></SelectTrigger>
+                  <SelectContent>
+                    {commissionProducts.map((product: any) => (
+                      <SelectItem key={product.id} value={String(product.id)}>
+                        {product.productName} ({product.productCode})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <label className="w-full text-xs font-medium text-muted-foreground md:w-40">
+                Commission rate (%)
+                <input
+                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  type="number"
+                  value={commissionRate}
+                  onChange={(event) => setCommissionRate(event.target.value)}
+                  placeholder="e.g. 12.5"
+                />
+              </label>
+              <Button
+                className="h-9"
+                disabled={!selectedProductId || commissionRate === "" || saveCommissionConfiguration.isPending}
+                onClick={() => saveCommissionConfiguration.mutate({
+                  productId: Number(selectedProductId),
+                  commissionRate: Number(commissionRate),
+                })}
+              >
+                {saveCommissionConfiguration.isPending ? "Saving…" : "Save configuration"}
+              </Button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-border text-left text-xs text-muted-foreground"><th className="py-2">Product</th><th className="py-2 text-right">Rate</th><th className="py-2 text-right">Status</th></tr></thead>
+                <tbody>
+                  {commissionConfigurations.length === 0 ? (
+                    <tr><td className="py-3 text-xs text-muted-foreground" colSpan={3}>No configuration entered. Commission is unavailable until this agency configures the product.</td></tr>
+                  ) : commissionConfigurations.map((config: any) => (
+                    <tr key={config.id} className="border-b border-border/60"><td className="py-2">{config.productName ?? `Product #${config.productId}`}</td><td className="py-2 text-right font-mono">{Number(config.commissionRate).toFixed(2)}%</td><td className="py-2 text-right"><Badge variant="outline">{config.isActive ? "Configured" : "Unavailable"}</Badge></td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* ── KPI Strip ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KPICard
-            label="Estimated Earned"
+            label="RFQ-linked commission"
             value={summaryLoading ? "…" : formatCents(estimatedCents)}
-            sub={`${acceptedCount} accepted quote${acceptedCount !== 1 ? "s" : ""}`}
+            sub="Not calculated from RFQ acceptance"
             icon={TrendingUp}
             color="text-emerald-600"
           />
@@ -269,7 +342,7 @@ export default function CommissionDashboard() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                Monthly Commission Trend (Estimated)
+                Monthly Commercial Ledger Trend
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -293,7 +366,7 @@ export default function CommissionDashboard() {
                       tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}`}
                     />
                     <Tooltip
-                      formatter={(v: number) => [`$${v.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, "Estimated"]}
+                      formatter={(v: number) => [`$${v.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, "Recorded"]}
                       contentStyle={{ fontSize: 12, borderRadius: 6 }}
                     />
                     <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
@@ -376,7 +449,7 @@ export default function CommissionDashboard() {
                 <DollarSign className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-40" />
                 <p className="text-sm text-muted-foreground">
                   {statusFilter === "all"
-                    ? "No commission records yet. Commissions are recorded when quotes are accepted."
+                    ? "No formal commission records yet. RFQ acceptance does not create commission."
                     : `No ${statusFilter} commission records found.`}
                 </p>
               </div>
