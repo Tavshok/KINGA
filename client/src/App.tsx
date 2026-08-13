@@ -632,16 +632,10 @@ function Router() {
           </ProtectedRoute>
         </Route>
 
-        {/* Legacy Agency valuation URLs: valuation self-service belongs in My Portal. */}
-        <Route path="/agency/valuation">
-          <RedirectToPortal to="/client/valuation" />
-        </Route>
-        <Route path="/agency/valuation-requests">
-          <RedirectToPortal to="/client/valuation" />
-        </Route>
-        <Route path="/agency/valuation/bulk">
-          <RedirectToPortal to="/client/valuation/bulk" />
-        </Route>
+        {/* Legacy Agency valuation URLs must return to the agency service shell, not client self-service. */}
+        <Route path="/agency/valuation"><RedirectToPortal to="/agency" /></Route>
+        <Route path="/agency/valuation-requests"><RedirectToPortal to="/agency" /></Route>
+        <Route path="/agency/valuation/bulk"><RedirectToPortal to="/agency" /></Route>
         {/* Client portal bulk valuation — accessible to all authenticated users */}
         <Route path="/client/valuation/bulk">
           <ProtectedRoute domain="customer">
@@ -977,12 +971,12 @@ function Router() {
           </ProtectedRoute>
         </Route>
         <Route path="/engineer/intelligence">
-          <ProtectedRoute allowedRoles={["engineer", "risk_surveyor", "admin", "platform_super_admin"]}>
+          <ProtectedRoute domain="engineer">
             <EngineerWorkspaceLayout><EngineeringIntelligenceDashboard /></EngineerWorkspaceLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/engineer/asset-passport">
-          <ProtectedRoute allowedRoles={["engineer", "risk_surveyor", "admin", "platform_super_admin"]}>
+          <ProtectedRoute domain="engineer">
             <EngineerWorkspaceLayout><AssetPassport /></EngineerWorkspaceLayout>
           </ProtectedRoute>
         </Route>

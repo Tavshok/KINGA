@@ -37,4 +37,18 @@ describe("P0 role-to-workflow customer and agency route conformance", () => {
     expect(isPortalShellAdmissionAllowed("/admin/dashboard", ["platform_super_admin"])).toBe(true);
     expect(isPortalShellAdmissionAllowed("/admin/dashboard", ["insurer"])).toBe(false);
   });
+
+  it("returns deprecated agency valuation routes to agency service and uses the canonical engineer domain for every engineering workspace", () => {
+    const app = readFileSync("client/src/App.tsx", "utf8");
+    for (const path of ["/agency/valuation", "/agency/valuation-requests", "/agency/valuation/bulk"]) {
+      const route = app.slice(app.indexOf(`path=\"${path}\"`), app.indexOf(`path=\"${path}\"`) + 140);
+      expect(route).toContain('RedirectToPortal to="/agency"');
+      expect(route).not.toContain('"/client/valuation');
+    }
+    for (const path of ["/engineer/intelligence", "/engineer/asset-passport"]) {
+      const route = app.slice(app.indexOf(`path=\"${path}\"`), app.indexOf(`path=\"${path}\"`) + 200);
+      expect(route).toContain('domain="engineer"');
+      expect(route).not.toContain('risk_surveyor');
+    }
+  });
 });
