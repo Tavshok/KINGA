@@ -72,7 +72,7 @@
 - [x] P0 Package 2-D: prove web, My Portal, agency, WhatsApp, and any concrete mobile/API claimant submissions route through the shared intake service
 - [x] P0 Package 2-E: preserve and surface post-intake assessment trigger failures as recoverable in-app operational work
 - [ ] P0 Package 2-F: execute complete multi-channel and tenant-negative runtime proof; current canonical, recovery, and identity focused tests pass but do not close every channel path
-- [ ] P0 Package 2-G: prove original attachment metadata, source association, and evidence provenance through persisted-output comparison for every real intake path
+- [x] P0 Package 2-G: prove original attachment metadata, source association, and evidence provenance through persisted-output comparison for every real intake path
 - [x] P0 Package 2-H: test intake with 0, 1, 2, 3, and 4+ repairer preferences without changing pricing, settlement, fraud, or downstream assessment rules
 - [ ] P0 Package 2-I: execute adapter-level interrupted-submission recovery proof; the isolated canonical transaction-interruption test proves one committed claim/evidence set, but not the complete replay path through every concrete adapter with assessment-start and notification side effects
 - [ ] P0 Package 2-J: compare persisted canonical claim and claim-document output across actual portal/web, agency, WhatsApp, and concrete API/mobile hand-off paths
@@ -82,7 +82,7 @@
 - [x] P0 Package 2-N: fail closed for WhatsApp submissions whose insurer cannot be mapped to an active tenant; prove no cross-tenant claim or evidence association
 - [x] P0 Package 2-F1: add and run router-level P0 tests covering real web/My Portal, WhatsApp, and every concrete API/mobile claim-submit path into canonical intake
 - [ ] P0 Package 2-F2: add and run adversarial P0 tests for foreign claim, evidence, attachment, and existing-record modification attempts on every Package 2 entry point
-- [ ] P0 Package 2-G1: compare persisted claims and claim_documents output for each real intake path to prove lossless metadata, associations, and source provenance
+- [x] P0 Package 2-G1: compare persisted claims and claim_documents output for each real intake path to prove lossless metadata, associations, and source provenance
 - [ ] P0 Package 2-I1: add and run adapter-level interrupted-submission retry tests proving no duplicate claim, documents, assessment start, or notification side effects
 - [ ] P0 Package 2-OA1: run an isolated two-tenant canonical-intake fixture and compare persisted claim and claim-document records for portal, WhatsApp, and supported hand-off paths
 - [ ] P0 Package 2-OA2: run isolated duplicate, interrupted, and failed-assessment-start retries and prove one claim, evidence set, assessment start, and in-app notification effect
@@ -113,6 +113,7 @@
 - [x] P0 Package 2 replay-safe submission boundary: web/My Portal and WhatsApp now execute persistence plus assessment start through one shared helper; deterministic tests prove no assessment start after failed persistence, one start after a successful replay, and preservation of recoverable assessment-start status across an idempotent replay.
 - [x] P0 Package 2 isolated portal/WhatsApp tenant fixture: compared canonical claim and claim-document persistence in distinct tenant fixtures, proving tenant-bound claimant ownership, separate claim-document associations, and source-owned attachment keys without live records.
 - [x] P0 Package 2 agency insurer-identity denial: added a defence-in-depth pre-persistence guard that rejects a restricted agency-assisted claimant identity resolved from a different insurer tenant.
+- [x] P0 Package 2 agency persisted-output acceptance: executed the agency-assisted service against isolated canonical persistence, proving retained claimant tenant/identity, claim-document ownership, original attachment metadata, and agency provenance.
 - [ ] P0 Package 2 live WhatsApp acceptance gate: use a connected provider test number, webhook, media access, isolated tenant, synthetic claimant, and duplicate-delivery replay to prove the complete external path without side effects
 - [x] P0 Package 3-A: remove reachable mock executive claim and override records from every active runtime drill-down path
 - [x] P0 Package 3-B: add tenant-derived, role-authorised executive drill-down data retrieval with claim/object scope checks
