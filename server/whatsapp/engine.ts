@@ -21,6 +21,7 @@ import { and, eq, or } from "drizzle-orm";
 import { createHash } from "crypto";
 import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment, type CanonicalIntakeActor } from "../services/canonicalClaimIntake";
 import { submitAndStartCanonicalIntake } from "../services/canonicalIntakeSubmission";
+import { applyWhatsAppSubmissionSideEffects } from "./submissionSideEffects";
 
 // ─── Provider Singleton ───────────────────────────────────────────────────────
 
@@ -362,33 +363,7 @@ async function submitClaimToDb(
       updatedAt: now,
     } as any); */
 
-    // Update session
-    session.state = "AWAITING_DOCS";
-    session.status = "submitted";
-    await saveSession(session);
-
-    // Send success message
-    await provider.sendText(
-      phone,
-      `✅ *Claim Submitted*\n\n` +
-      `📋 Reference: *${result.claimNumber}*\n\n` +
-      `An assessor will contact you within *24 hours* to arrange a vehicle inspection.\n\n` +
-      `Reply *status* any time for an update, or view your claim at kinga.ai/client`
-    );
-
-    // Send follow-up document request
-    setTimeout(async () => {
-      try {
-        await provider.sendText(
-          phone,
-          `📋 *Two documents will be needed to finalise your claim:*\n\n` +
-          `1️⃣ *Police report* — once issued\n` +
-          `2️⃣ *Vehicle registration book* (logbook)\n\n` +
-          `You can send them here on WhatsApp by replying with a photo, or upload at *kinga.ai/client*\n\n` +
-          `💡 Register on the portal to track your claim and receive your assessment report → *kinga.ai/client*`
-        );
-      } catch (e) { /* ignore */ }
-    }, 3000);
+    await applyWhatsAppSubmissionSideEffects(session, phone, provider, result, { saveSession });
 
   } catch (err) {
     console.error("[WA] Failed to write claim to DB:", err);
