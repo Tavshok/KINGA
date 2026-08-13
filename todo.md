@@ -123,6 +123,7 @@
 - [ ] P0 Package 5-E: remove all active 5% and 10% commission placeholders; use an auditable configured commercial source or explicit commission-unavailable state that blocks financial finalisation
 - [ ] P0 Package 5-F: prove configured/unconfigured commission consistency across UI, calculation, persistence, audit, and report; retain monetary precision conventions
 - [ ] P0 Package 5-G: execute the two-agency, fleet relationship, foreign RFQ/sibling, invalid transition, instruction, action-parity, Package 1, and browser acceptance matrix
+- [ ] P0 Package 5 commission model: agency users configure commission per product per agency tenant; commission is unavailable when unconfigured and is strictly isolated from policy issuance, underwriting, premiums, claims, settlement, and insurer workflows.
 - [x] Critical report integrity R0-A: reconcile supplied CL, CI, and FR outputs for DOC-20260802-AE62B9CF before any report or L2 remediation
 - [x] Critical report integrity R0-B: trace L2 component coverage, document lineage, pipeline run provenance, valuation, fraud, physics, photo, and decision sources for the supplied claim
 - [x] Critical report integrity R0-C: produce a single source-of-truth remediation plan for cross-report contradictions, data provenance, L2 completeness, and rendering defects

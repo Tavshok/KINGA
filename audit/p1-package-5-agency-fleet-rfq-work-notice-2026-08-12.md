@@ -17,13 +17,13 @@ This package corrects the agency/fleet RFQ workflow so the visible actor, permit
 | **P5-A — RFQ authority model** | Classify RFQ actions as fleet/client instruction, agency execution, and insurer response. Derive each action from the RFQ owner, agency tenant, client/fleet relationship, and current workflow state. | UI controls and server mutations expose only actions the authenticated actor may execute. |
 | **P5-B — Fleet decision journey** | Replace the fleet-owner `Accept/Reject` dead-end with a tenant-scoped decision/instruction action that the owning agency can review. | A fleet owner can complete a truthful decision journey without receiving an agency-role backend denial. |
 | **P5-C — Agency execution journey** | Constrain agency accept/reject and sibling closure to the owning agency tenant and require a valid client/fleet decision when the workflow requires one. | Agency execution affects only the target RFQ and intended same-batch siblings in its tenant. |
-| **P5-D — Commission source of truth** | Remove 10% display and 5% persistence placeholders. Resolve commission from one configured, versioned commercial rule or explicitly show `Not configured` and block financial finalisation. | Displayed, persisted, and auditable commission values agree and have a source. |
+| **P5-D — Commission source of truth** | Remove 10% display and 5% persistence placeholders. Allow only an authorised agency user to configure commission for a specific product within that agency tenant; otherwise show `Not configured`. | Displayed, persisted, and auditable commission values agree and have a source; commission is commercial metadata only. |
 | **P5-E — User states** | Add explicit pending client instruction, instruction received, agency action required, accepted, rejected, expired, unavailable, and forbidden states. | No ghost buttons, silent fallback, or fabricated commission appears. |
 | **P5-F — Evidence** | Add two-agency, one-fleet, same-tenant positive, foreign-RFQ negative, sibling-isolation, commission-source, unconfigured-commission, and UI/action parity tests. | The full visible decision chain is deterministic and tenant-safe. |
 
 ## Explicitly outside scope
 
-This package does not create insurer underwriting integrations, bind insurance policies, process premium payments, transfer commission, alter pricing, create customer testimonials, or change the broader Agency Portal service model. It does not weaken Package 1 tenant protections.
+This package does not create insurer underwriting integrations, bind insurance policies, process premium payments, transfer commission, alter premiums or pricing, create customer testimonials, or change the broader Agency Portal service model. Commission configuration or its absence must not affect policy issuance, quote issuance, underwriting, claims, settlement, RFQ authority, or insurer workflows. It does not weaken Package 1 tenant protections.
 
 ## Required invariants
 
@@ -32,7 +32,7 @@ This package does not create insurer underwriting integrations, bind insurance p
 | RFQ-01 | A fleet/client may act only on RFQs explicitly linked to its authorised fleet/client relationship. |
 | RFQ-02 | An agency may execute only RFQs in its own agency tenant and only in permitted state. |
 | RFQ-03 | A foreign RFQ ID, sibling ID, insurer ID, or batch ID cannot disclose or mutate another tenant's work. |
-| RFQ-04 | One commission rule is used by UI, calculation, persistence, audit, and report surfaces; a missing rule is visible, never assumed. |
+| RFQ-04 | Commission is configured only by the owning agency, per agency tenant and product; a missing rule is visible, never assumed, and never changes policy or RFQ outcomes. |
 | RFQ-05 | The UI never renders an action whose server counterpart will reject the current role by design. |
 | RFQ-06 | No acceptance or rejection triggers payment, policy binding, or external insurer action inside this package. |
 
@@ -45,7 +45,7 @@ This package does not create insurer underwriting integrations, bind insurance p
 | Agency A supplies Agency B RFQ ID | Forbidden/unavailable; no data or sibling mutation. |
 | Fleet A supplies Fleet B RFQ ID | Forbidden/unavailable; no data or decision mutation. |
 | Configured commission rule | Same source and value is displayed and persisted. |
-| No configured commission rule | Financial finalisation is unavailable with explicit explanation; no 5%/10% default. |
+| No configured commission rule | Commission is explicitly unavailable with no 5%/10% default; policy issuance and all RFQ, underwriting, claims, and settlement workflows continue unchanged. |
 | Source/UI scan | No active placeholder percentage or mismatched action label remains. |
 | Regression/build | Focused tests, Package 1 non-regression, server bundle, and Vite build pass. |
 
