@@ -466,6 +466,7 @@ export const insurancePhase7Router = router({
       emailToClient: z.boolean().default(false),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertRestrictedAgencyAssistedCapability(ctx.user, "insurance_document_access");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
       // Verify the request exists and agent has access

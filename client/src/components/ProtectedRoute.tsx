@@ -67,6 +67,13 @@ export default function ProtectedRoute({ children, allowedRoles, allowedInsurerR
     return <Redirect to={`/login?returnPath=${returnPath}`} />;
   }
 
+  // A restricted agency-assisted identity is a canonical claim-intake anchor,
+  // not an independently authenticated My Portal user. Its later verified-link
+  // process is server-audited; it must not acquire portal authority beforehand.
+  if (Number((user as any).isUnregisteredClaimant ?? 0) === 1) {
+    return <Redirect to="/unauthorized" />;
+  }
+
   // Resolve effective role list: explicit allowedRoles > domain > none
   const effectiveRoles: string[] | undefined =
     allowedRoles ?? (domain ? [...DOMAIN_ROLE_MAP[domain]] : undefined);

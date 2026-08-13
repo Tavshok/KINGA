@@ -19,6 +19,7 @@ import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
+import { assertRestrictedAgencyAssistedCapability } from "../agency/agencyAssistedClaimantIdentity";
 import {
   notifications,
   notificationPreferences,
@@ -40,6 +41,11 @@ const ALL_MODULES = [
   "predictive",
 ] as const;
 
+const restrictedCommunicationProcedure = protectedProcedure.use(({ ctx, next }) => {
+  assertRestrictedAgencyAssistedCapability(ctx.user, "communication_authority");
+  return next();
+});
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export const notificationsRouter = router({
@@ -47,7 +53,7 @@ export const notificationsRouter = router({
    * Get notifications for the current user.
    * Supports: all | unread | archived, optional module filter, pagination.
    */
-  getAll: protectedProcedure
+  getAll: restrictedCommunicationProcedure
     .input(
       z.object({
         filter: z.enum(["all", "unread", "archived"]).optional().default("all"),
@@ -94,7 +100,7 @@ export const notificationsRouter = router({
   /**
    * Unread badge count (excludes archived).
    */
-  getUnreadCount: protectedProcedure.query(async ({ ctx }) => {
+  getUnreadCount: restrictedCommunicationProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return { count: 0 };
 
@@ -116,7 +122,7 @@ export const notificationsRouter = router({
   /**
    * Mark a single notification as read.
    */
-  markAsRead: protectedProcedure
+  markAsRead: restrictedCommunicationProcedure
     .input(z.object({ notificationId: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
@@ -138,7 +144,7 @@ export const notificationsRouter = router({
   /**
    * Mark all unread notifications as read.
    */
-  markAllAsRead: protectedProcedure.mutation(async ({ ctx }) => {
+  markAllAsRead: restrictedCommunicationProcedure.mutation(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
@@ -158,7 +164,7 @@ export const notificationsRouter = router({
   /**
    * Archive a single notification.
    */
-  archive: protectedProcedure
+  archive: restrictedCommunicationProcedure
     .input(z.object({ notificationId: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
@@ -185,7 +191,7 @@ export const notificationsRouter = router({
   /**
    * Archive all read notifications for the current user.
    */
-  archiveAll: protectedProcedure.mutation(async ({ ctx }) => {
+  archiveAll: restrictedCommunicationProcedure.mutation(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
@@ -211,7 +217,7 @@ export const notificationsRouter = router({
    * Get notification preferences for all modules.
    * Returns defaults for modules without an explicit preference row.
    */
-  getPreferences: protectedProcedure.query(async ({ ctx }) => {
+  getPreferences: restrictedCommunicationProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
@@ -242,7 +248,7 @@ export const notificationsRouter = router({
   /**
    * Upsert notification preference for one module.
    */
-  updatePreference: protectedProcedure
+  updatePreference: restrictedCommunicationProcedure
     .input(
       z.object({
         module: z.enum(ALL_MODULES),

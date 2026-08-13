@@ -14,20 +14,28 @@ export type RestrictedAgencyAssistedClaimant = {
 };
 
 export type RestrictedAgencyAssistedCapability =
+  | "portal_access"
+  | "report_access"
   | "insurance_request"
   | "insurance_quote_acceptance"
   | "insurance_document_access"
+  | "communication_authority"
   | "settlement_instruction"
   | "dispute_instruction"
-  | "payment_authority";
+  | "payment_authority"
+  | "fraud_authority";
 
 const RESTRICTED_CAPABILITY_LABEL: Record<RestrictedAgencyAssistedCapability, string> = {
+  portal_access: "independent portal access",
+  report_access: "independent report access",
   insurance_request: "insurance service requests",
   insurance_quote_acceptance: "insurance quote acceptance",
   insurance_document_access: "insurance document access",
+  communication_authority: "independent communication authority",
   settlement_instruction: "settlement instructions",
   dispute_instruction: "dispute instructions",
   payment_authority: "payment authority",
+  fraud_authority: "fraud authority",
 };
 
 /**

@@ -7,6 +7,7 @@
 import { z } from 'zod';
 import { protectedProcedure, router } from '../_core/trpc';
 import { getDb } from '../db';
+import { assertRestrictedAgencyAssistedCapability } from '../agency/agencyAssistedClaimantIdentity';
 import { claims, aiAssessments, users, workflowAuditTrail, claimInvolvementTracking } from '../../drizzle/schema';
 import { eq, and, desc, sql, gte } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
@@ -129,6 +130,7 @@ export const reportsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      assertRestrictedAgencyAssistedCapability(ctx.user, "report_access");
       const startTime = Date.now();
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
@@ -230,6 +232,7 @@ export const reportsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      assertRestrictedAgencyAssistedCapability(ctx.user, "report_access");
       const startTime = Date.now();
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
@@ -338,6 +341,7 @@ export const reportsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      assertRestrictedAgencyAssistedCapability(ctx.user, "report_access");
       const startTime = Date.now();
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });

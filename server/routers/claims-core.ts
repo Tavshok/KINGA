@@ -70,6 +70,7 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      assertRestrictedAgencyAssistedCapability(ctx.user, "insurance_document_access");
 
       // Decode base64 to buffer
       const base64Data = input.fileData.replace(/^data:[^;]+;base64,/, "");
