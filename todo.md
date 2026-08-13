@@ -196,7 +196,9 @@
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
 - [x] Approved corrective removal: removed accidentally checkpointed claim re-run permissions and related test adjustment; preserved approved Fleet navigation correction and conformance matrix
 - [ ] P0: Diagnose and eliminate the React runtime crash shown on the live portal route (minified React error #130)
-- [ ] Controlled P0 React runtime-crash diagnosis: collect route, component, error-boundary, import, and render-state evidence without changing portal behavior; present findings and a separate remediation notice before any fix.
+- [x] Controlled P0 React runtime-crash diagnosis: collect route, component, error-boundary, import, and render-state evidence without changing portal behavior; present findings and a separate remediation notice before any fix.
+- [x] Approved P0 React runtime-crash diagnosis execution: inspect static route/import/error-boundary contracts, development logs, and available public route evidence; classify the historic incident as reproducible, externally blocked, or unconfirmed without behavioral changes.
+- [ ] P0 authenticated React crash reproduction: execute a role-and-route-specific browser matrix using the original affected account/session; capture the browser console and error-boundary stack if the historic #130 incident recurs before proposing any remediation.
 - [ ] P0: Complete live end-to-end route verification for every portal; audit/portal-conformance-audit.md records the current static findings and remaining failures
 - [ ] P0: Implement and verify the role-to-workflow conformance map for My Portal, Insurer, Assessor, Panel Beater, Agency, Fleet, Engineers, and Platform Administration
 - [ ] P1: Correct Agency Portal so it is an agent/broker service workspace for managing clients, quotes, policies, documents, and commissions—not a client self-service quote page
