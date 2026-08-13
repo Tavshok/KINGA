@@ -197,6 +197,8 @@
 - [x] R0 deterministic progressive-L2 contract acceptance: implemented immutable no-quote, total-only, incomplete-itemised, and complete-all-in fixtures; validated shared cost/decision boundaries, active-ledger exclusion, and top-view evidence-qualified disclosure with 26 focused regressions and production builds.
 - [ ] R0-H: replace all top-of-report cost strips with the active submitted quote ledger, explicit quote receipt/scope status, and typed L2 state; no base-estimate substitution
 - [ ] R0-I: prove top-of-report UI and PDF views show every active submitted quote, do not show an incomplete L2 as a cost, and suppress savings/settlement under any integrity hold
+- [x] Approved R0 same-snapshot report acceptance: extended immutable fixture coverage for no-quote, total-only, incomplete-itemised, and complete-all-in evidence states across CL, CI, FR, and the top-cost view without production writes.
+- [x] Approved R0 top-cost contract acceptance: proved the top-cost view lists every active submitted quotation, labels verification and KINGA Optimised Quote separately, and never renders unsupported L2, savings, or settlement as a payable cost.
 - [x] P0 Package 3-H2: add and run an Executive direct numeric claim-ID test proving a foreign object is unavailable even when no tenant override is supplied
 - [x] P0 Package 3-H3: add and run missing-tenant context tests for an ordinary Executive and platform-super-admin Executive detail request
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains

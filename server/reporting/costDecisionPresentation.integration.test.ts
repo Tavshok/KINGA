@@ -18,9 +18,11 @@ describe("R0 cross-surface concise cost-decision presentation", () => {
   it("uses the matching concise sequence in the client top-cost view", () => {
     const source = read("client/src/components/KingaClaimsReport.tsx");
     expect(source).toContain("ClientCostDecisionStrip");
+    expect(source).toContain('from "@shared/costDecisionPresentation"');
+    expect(source).toContain("buildCostDecisionPresentationContract");
     expect(source).toContain("Submitted Quotations");
     expect(source).toContain("KINGA Quote Verification");
-    expect(source).toContain("KINGA Optimised Quote");
+    expect(read("shared/costDecisionPresentation.ts")).toContain("KINGA Optimised Quote");
     expect(source).toContain("Quote Issues");
     expect(source).toContain("Repairability");
   });

@@ -1,13 +1,10 @@
+import {
+  buildCostDecisionPresentationContract,
+  type CostDecisionPresentation,
+} from "../../shared/costDecisionPresentation";
 import type { ReportCostIntegrity } from "./costIntegrity";
 
-export type CostDecisionPresentation = {
-  quoteVerification: "PASSED" | "RECONCILIATION REQUIRED" | "SCOPE GAP" | "QUOTATION REQUIRED";
-  quoteVerificationDetail: string;
-  quoteIssue: string;
-  optimisedQuoteLabel: "KINGA Optimised Quote";
-  optimisedQuoteAmount: number | null;
-  optimisedQuoteDetail: string;
-};
+export type { CostDecisionPresentation } from "../../shared/costDecisionPresentation";
 
 export type RepairabilityVerdict = {
   label: "Repairable" | "Repairable with conditions" | "Further structural review required" | "Total loss indicated";
@@ -45,24 +42,6 @@ export function extractExplicitStructuralReviewEvidence(rawRepairIntelligence: u
   return { structuralReviewRequired, structuralReviewDetail };
 }
 
-function quoteIssue(cost: ReportCostIntegrity): string {
-  if (cost.quoteReceiptStatus === "no_quotes") return "No submitted repair quotation received.";
-  if (cost.unreconciledQuoteCount > 0) {
-    const repairers = cost.quoteReconciliations
-      .filter((quote) => quote.status === "reconciliation_required")
-      .map((quote) => quote.repairer)
-      .slice(0, 3);
-    return `${repairers.length ? `${repairers.join(", ")}: ` : ""}submitted total requires line-item reconciliation.`;
-  }
-  if (cost.missingRequiredComponents.length > 0) {
-    return `Missing submitted price: ${cost.missingRequiredComponents.slice(0, 3).join(", ")}.`;
-  }
-  if (cost.duplicateQuotesExcluded > 0) {
-    return `${cost.duplicateQuotesExcluded} duplicate quotation record${cost.duplicateQuotesExcluded === 1 ? "" : "s"} excluded from comparison.`;
-  }
-  return "No material quote issue identified.";
-}
-
 /**
  * Repairability is separate from quotation verification and cost. It uses only
  * persisted repair-versus-replace evidence and never invents a ratio threshold.
@@ -86,45 +65,20 @@ export function resolveRepairabilityVerdict(evidence: RepairabilityEvidence): Re
  * It does not expose benchmark values as a replacement cost or narrate L2 math.
  */
 export function buildCostDecisionPresentation(cost: ReportCostIntegrity): CostDecisionPresentation {
-  const quoteCount = cost.activeQuotes.length;
-  if (cost.quoteReceiptStatus === "no_quotes") {
-    return {
-      quoteVerification: "QUOTATION REQUIRED",
-      quoteVerificationDetail: "No submitted quotation is available for verification.",
-      quoteIssue: quoteIssue(cost),
-      optimisedQuoteLabel: "KINGA Optimised Quote",
-      optimisedQuoteAmount: null,
-      optimisedQuoteDetail: "Pending submitted quotation evidence.",
-    };
-  }
-  if (cost.allInReconciliationRequired || cost.unreconciledQuoteCount > 0) {
-    return {
-      quoteVerification: "RECONCILIATION REQUIRED",
-      quoteVerificationDetail: `${quoteCount} active submitted quotation${quoteCount === 1 ? "" : "s"}; a submitted total requires reconciliation.`,
-      quoteIssue: quoteIssue(cost),
-      optimisedQuoteLabel: "KINGA Optimised Quote",
-      optimisedQuoteAmount: cost.l2EvidenceQualifiedComparisonUsd,
-      optimisedQuoteDetail: "Available comparison retained pending quote reconciliation.",
-    };
-  }
-  if (!cost.l2IsComplete) {
-    return {
-      quoteVerification: "SCOPE GAP",
-      quoteVerificationDetail: `${quoteCount} active submitted quotation${quoteCount === 1 ? "" : "s"} verified for available scope.`,
-      quoteIssue: quoteIssue(cost),
-      optimisedQuoteLabel: "KINGA Optimised Quote",
-      optimisedQuoteAmount: cost.l2EvidenceQualifiedComparisonUsd,
-      optimisedQuoteDetail: "Available comparison retained pending the identified quote evidence.",
-    };
-  }
-  return {
-    quoteVerification: "PASSED",
-    quoteVerificationDetail: `${quoteCount} active submitted quotation${quoteCount === 1 ? "" : "s"} verified; repair scope is complete.`,
-    quoteIssue: quoteIssue(cost),
-    optimisedQuoteLabel: "KINGA Optimised Quote",
-    optimisedQuoteAmount: cost.l2OptimisedCostUsd,
-    optimisedQuoteDetail: "KINGA insurer cost recommendation.",
-  };
+  return buildCostDecisionPresentationContract({
+    quoteReceiptStatus: cost.quoteReceiptStatus,
+    activeQuoteCount: cost.activeQuotes.length,
+    allInReconciliationRequired: cost.allInReconciliationRequired,
+    unreconciledQuoteCount: cost.unreconciledQuoteCount,
+    l2IsComplete: cost.l2IsComplete,
+    l2OptimisedCostUsd: cost.l2OptimisedCostUsd,
+    l2EvidenceQualifiedComparisonUsd: cost.l2EvidenceQualifiedComparisonUsd,
+    missingRequiredComponents: cost.missingRequiredComponents,
+    duplicateQuotesExcluded: cost.duplicateQuotesExcluded,
+    reconciliationRepairers: cost.quoteReconciliations
+      .filter((quote) => quote.status === "reconciliation_required")
+      .map((quote) => quote.repairer),
+  });
 }
 
 export function renderCostDecisionSummaryHtml(input: {
