@@ -301,6 +301,53 @@ function CostVerdictBadge({ verdict }: { verdict: string }) {
   );
 }
 
+function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency }: { costIntelligence: any; quotes: any[]; fmtCurrency: (amount: number | null | undefined) => string }) {
+  const composite = costIntelligence?.compositeOptimisation ?? {};
+  const ledger = Array.isArray(composite.canonicalQuoteLedger) ? composite.canonicalQuoteLedger : [];
+  const activeLedger = ledger.filter((quote: any) => quote?.status === "active" || quote?.status === "supplementary");
+  const submittedQuotes = activeLedger.length > 0
+    ? activeLedger.map((quote: any, index: number) => ({ name: quote.panelBeater ?? `Quote ${index + 1}`, amount: Number(quote.totalCostUsd ?? 0) || null }))
+    : quotes.map((quote: any, index: number) => ({ name: quote.panelBeaterName ?? quote.repairerName ?? `Quote ${index + 1}`, amount: Number(quote.quotedAmount ?? 0) > 0 ? Number(quote.quotedAmount) / 100 : null }));
+  const complete = composite.isComplete === true && Number(composite.l2CompositeOptimisedCostUsd ?? 0) > 0;
+  const reconciliationRequired = composite.allInReconciliationRequired === true || composite.l2Status === "reconciliation_required" || composite.quoteScopeStatus === "reconciliation_required";
+  const missingComponents = Array.isArray(composite.missingRequiredComponents) ? composite.missingRequiredComponents.map(String) : [];
+  const duplicateCount = Number(composite.duplicateQuotesExcluded ?? 0) || 0;
+  const hasQuotes = submittedQuotes.length > 0;
+  const verification = !hasQuotes ? "QUOTATION REQUIRED" : reconciliationRequired ? "RECONCILIATION REQUIRED" : complete ? "PASSED" : "SCOPE GAP";
+  const verificationColour = verification === "PASSED" ? "#14664f" : verification === "QUOTATION REQUIRED" ? "#526560" : "#8a5a00";
+  const issue = !hasQuotes
+    ? "No submitted repair quotation received."
+    : reconciliationRequired
+      ? "A submitted quotation total requires line-item reconciliation."
+      : missingComponents.length > 0
+        ? `Missing submitted price: ${missingComponents.slice(0, 3).join(", ")}.`
+        : duplicateCount > 0
+          ? `${duplicateCount} duplicate quotation record${duplicateCount === 1 ? "" : "s"} excluded from comparison.`
+          : "No material quote issue identified.";
+  const optimised = complete ? Number(composite.l2CompositeOptimisedCostUsd) : null;
+  const optimisedDetail = complete ? "KINGA insurer cost recommendation." : verification === "QUOTATION REQUIRED" ? "Pending submitted quotation evidence." : "Available comparison retained pending the identified quote evidence.";
+
+  return (
+    <div style={{ margin: "0 0 14px", border: "1px solid #d8e2df", background: "#fff" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", borderBottom: "1px solid #d8e2df" }}>
+        <p style={{ ...S.label, color: "#15352f", margin: 0 }}>Cost Decision Summary</p>
+        <span style={{ fontSize: 9, fontWeight: 700, color: verificationColour }}>KINGA Quote Verification · {verification}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1.12fr 1.04fr 1fr .94fr" }}>
+        <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}>
+          <p style={S.label}>Submitted Quotations</p>
+          <div style={{ marginTop: 5, display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {submittedQuotes.length > 0 ? submittedQuotes.map((quote: { name: string; amount: number | null }, index: number) => <span key={`${quote.name}-${index}`} style={{ fontSize: 10, padding: "3px 5px", color: "#35514a", border: "1px solid #d8e2df" }}>{quote.name} <strong style={{ color: "#15352f" }}>{fmtCurrency(quote.amount)}</strong></span>) : <span style={S.muted}>No submitted quotations</span>}
+          </div>
+        </div>
+        <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>KINGA Quote Verification</p><p style={{ fontSize: 13, fontWeight: 800, color: verificationColour, margin: "5px 0 3px" }}>{verification}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{complete ? `${submittedQuotes.length} active submitted quotation${submittedQuotes.length === 1 ? "" : "s"} verified; repair scope is complete.` : issue}</p></div>
+        <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>KINGA Optimised Quote</p><p style={{ fontSize: 18, fontWeight: 800, color: "#0d5849", margin: "4px 0 3px" }}>{optimised === null ? "Not published" : fmtCurrency(optimised)}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{optimisedDetail}</p></div>
+        <div style={{ padding: 10 }}><p style={S.label}>Quote Issues</p><p style={{ fontSize: 11, fontWeight: 800, color: verification === "PASSED" ? "#14664f" : "#8a5a00", margin: "5px 0 3px" }}>{verification === "PASSED" ? "None" : "Review required"}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{issue}</p></div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Fraud score bar ──────────────────────────────────────────────────────────
 
 /* FAR-02: FraudScoreBar — B&W bar using greyscale fill intensity */
@@ -668,6 +715,8 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 </div>
               ))}
             </div>
+
+            <ClientCostDecisionStrip costIntelligence={ci} quotes={quotes} fmtCurrency={fmtC} />
 
             {primaryReason && (
               <div style={{ padding: "10px 12px", background: "#ffffff", borderRadius: 0, marginBottom: 10 }}>

@@ -21,6 +21,7 @@ import {
 } from "./templates/kingaDesignSystem";
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
+import { renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -173,6 +174,11 @@ export async function generateClaimsIntelligenceReport(
       workflowState: c.workflow_state,
       costIntegrity,
     });
+    const costDecisionSummary = renderCostDecisionSummaryHtml({
+      costIntegrity,
+      formatAmount: fmtUSD,
+      escapeHtml: esc,
+    });
     const quoteArr = costIntegrity.activeQuotes;
     const submittedQuoteLedgerDetail = quoteArr.length > 0
       ? quoteArr.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtUSD(quote.amountUsd)}`).join(" · ")
@@ -317,6 +323,7 @@ export async function generateClaimsIntelligenceReport(
 ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Submission Flag — claim submitted ${dayDelay} days after incident.</b> A written explanation is required before this claim can proceed. This flag does not override the system recommendation; adjuster review is required before settlement authorisation.</div>` : ""}
 ${showCIReviewNote ? `<div class="callout amber" style="margin-bottom:14px"><b>Review Trigger Note —</b> The cost assessment is within the acceptable range (${costVerdictCI}), but this claim has been flagged for review due to non-cost factors: ${ctlTriggersCI.join("; ")}. Settlement authorisation requires adjuster sign-off on these items.</div>` : ""}
 <!-- ── SETTLEMENT WATERFALL ── -->
+${costDecisionSummary}
 ${(() => {
   if (kingaOptimised === null || recommendedSettlement === null) {
     return `<div class="callout amber" style="margin-bottom:12px"><b>Cost recommendation withheld.</b> ${esc(l2IntegrityNote)} No savings or settlement figure is calculated from an incomplete L2.</div>`;

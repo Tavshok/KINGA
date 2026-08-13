@@ -1655,3 +1655,10 @@ which is for corporate fleet operators.
 - [ ] SPLIT-C03: Split ClaimsProcessorDashboard (1,972 lines) into tab sub-components
 - [ ] SPLIT-C04: Split SubmitClaim (1,500 lines) into step sub-components
 - [ ] SPLIT-C05: Split InternalAssessorDashboard (1,408 lines) into tab sub-components
+- [x] R0 top-cost-strip visual preview: create a no-write mock showing no-quote, total-only, incomplete itemised, and complete all-in evidence states for user review before any report renderer is changed.
+- [x] R0 confident-result preview revision: update the no-write mock to lead with verified quote totals and quote-verification results, present complete L2 calculations decisively, and reserve limitations only for specific detected evidence gaps.
+- [x] R0 KINGA Optimised Quote preview framing: present the complete, verified L2 calculation as KINGA Optimised Quote—the evidence-based fair repair cost recommendation for insurer review—beside verified submitted quote totals.
+- [x] R0 quote-sequence preview correction: present submitted quotation totals first, then KINGA Quote Verification, then KINGA Optimised Quote, and finally concrete quote issues only where found; remove any label that treats a verified total as a separate financial concept.
+- [x] R0 ideal insurer-flow preview: replace the equal-weight exception scenarios with one confident primary verified-quotation presentation; retain exceptions only as a compact secondary note.
+- [x] R0 approved ideal insurer cost presentation: implement the concise Submitted Quotations → KINGA Quote Verification → KINGA Optimised Quote → concrete Quote Issues flow across CL, CI, FR, and the client top-cost view, with detailed component/benchmark analysis below the opening strip.
+- [x] R0 concise optimised-quote preview: remove calculation narrative from the opening strip and show only the KINGA Optimised Quote label and value; retain detailed component or benchmark analysis for report detail where applicable.

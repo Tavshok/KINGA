@@ -17,6 +17,7 @@ import {
 } from "./templates/kingaDesignSystem";
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
+import { renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import type { CGIAvailabilitySummary } from "../pipeline-v2/stage-9-5-cgi";
 
@@ -235,6 +236,11 @@ export async function generateForensicDecisionReport(
       (c.currency_code as string | null | undefined) ??
       "USD"
     ).toUpperCase();
+    const costDecisionSummary = renderCostDecisionSummaryHtml({
+      costIntegrity,
+      formatAmount: (amount) => fmtCurrency(amount, claimCurrency),
+      escapeHtml: esc,
+    });
     const submittedQuoteLedgerDetail = quoteArr.length > 0
       ? quoteArr.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtCurrency(quote.amountUsd, claimCurrency)}`).join(" · ")
       : "No submitted repair quotations";
@@ -767,28 +773,12 @@ export async function generateForensicDecisionReport(
     </div>
   </div>
 
-  <!-- VERDICT STRIP (6 cells) -->
+  ${costDecisionSummary}
+  <!-- VERDICT STRIP (non-cost decision context) -->
   <div class="verdict-strip sans">
     <div class="verdict-cell">
       <div class="label">Market Value</div>
       <div class="value">${fmtCurrency(marketValue, claimCurrency)}</div>
-    </div>
-    <div class="verdict-cell">
-      <div class="label">Lowest Submitted Quote</div>
-      <div class="value">${fmtCurrency(lowestRef, claimCurrency)}</div>
-      <div class="sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div>
-    </div>
-    <div class="verdict-cell accent">
-      <div class="label">KINGA Optimised Recommendation</div>
-      <div class="value">${l2Display}</div>
-      <div class="sub">${kingaOptimised === null
-        ? esc(l2IntegrityNote)
-        : hasSavings ? `↓ ${fmtCurrency(savings, claimCurrency)} · ${savingsPct.toFixed(1)}% savings` : "All-in payable repair-cost basis"}</div>
-    </div>
-    <div class="verdict-cell">
-      <div class="label">Settlement Recommendation</div>
-      <div class="value">${recommendedSettlementDisplay}</div>
-      <div class="sub">${recommendedSettlement === null ? "Withheld pending scope reconciliation" : "Requires authorised approval"}</div>
     </div>
     <div class="verdict-cell">
       <div class="label">Repair Ratio</div>
@@ -1406,7 +1396,7 @@ export async function generateForensicDecisionReport(
         <table class="kv">
           ${lowestRef > 0 ? kvRow("Lowest submitted (L1)", fmtUSD(lowestRef)) : ""}
           ${kingaOptimised !== null ? kvRow("KINGA optimised (L2)", l2Display) : kvRow("KINGA optimised (L2)", "Incomplete — not published")}
-          ${kvRow("Settlement recommendation", recommendedSettlementDisplay)}
+          ${kvRow("Settlement Recommendation", recommendedSettlementDisplay)}
           ${hasSavings ? kvRow("Adjustment", `<span style="color:var(--red);">−${fmtUSD(savings)} (${savingsPct.toFixed(1)}%)</span>`) : ""}
         </table>
         ${highIssues.some(i => i.title.toLowerCase().includes("cost") || i.title.toLowerCase().includes("quote"))

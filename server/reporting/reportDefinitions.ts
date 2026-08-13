@@ -44,6 +44,7 @@ import { generateEngineerInspectionReport } from "./engineerInspectionReport";
 import { generateRiskSurveyReport } from "./riskSurveyReport";
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
+import { renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { assessors, fraudIndicators, tenants, users } from "../../drizzle/schema";
 import {
@@ -342,6 +343,11 @@ async function generateClaimAssessmentReport(
       workflowState: claim.workflow_state ?? claim.status,
       costIntegrity,
     });
+    const costDecisionSummary = renderCostDecisionSummaryHtml({
+      costIntegrity,
+      formatAmount: fmtUSD,
+      escapeHtml: esc,
+    });
     const activeQuoteIds = new Set(
       costIntegrity.activeQuotes.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
     );
@@ -575,16 +581,13 @@ ${(() => {
         <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Recommendation</div>
         <div style="font-size:13px;font-weight:700;color:#171717">${esc(String(claim.recommendation ?? "—").toUpperCase())}</div>
       </td>
-      <td style="padding:8px 12px;border-right:1px solid #e8e8e8;vertical-align:top;min-width:90px">
-        <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;white-space:nowrap">KINGA Optimised</div>
-        <div style="font-size:13px;font-weight:700;color:#3C7844">${l2Display}</div>
-      </td>
       <td style="padding:8px 12px;vertical-align:top">
         <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Repair Decision</div>
         <div style="font-size:11px;font-weight:600;color:#171717">${isTotalLoss ? "TOTAL LOSS" : `REPAIR (${kFmtPct(repairToValue)} R:V)` }</div>
       </td>
     </tr>
   </table>
+  ${costDecisionSummary}
   ${fraudScoreMismatch ? `
   <div style="margin-top:8px;padding:6px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#4a4a4a;">
     <b>Score reconciliation note:</b> The fraud breakdown engine computed a score of <b>${fraudScore}</b> (from ${fraudIndicators.length} indicator${fraudIndicators.length !== 1 ? 's' : ''}). The pipeline stored a score of <b>${fraudScoreRaw}</b> in the assessment record (set by a separate stage). This report uses the breakdown engine score as the authoritative value. If these differ significantly, re-run the assessment to synchronise.
