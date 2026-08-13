@@ -150,12 +150,26 @@ describe("P0 implemented canonical intake adapter acceptance", () => {
     expect(whatsapp.documents.map((document) => document.fileKey)).toEqual(["claims/12/damage.jpg", "claims/12/police.pdf"]);
   });
 
-  it("rejects an attachment from another authenticated intake session before any persistence attempt", async () => {
+  it("rejects foreign attachments for both portal and WhatsApp actors before any persistence attempt", async () => {
     const { persistCanonicalClaimIntake } = await import("./canonicalClaimIntake");
     await expect(persistCanonicalClaimIntake({ id: 11, tenantId: "tenant-acceptance", role: "claimant" }, {
       ...submission("portal"),
       attachments: [{ ...submission("portal").attachments[0], key: "claims/99/foreign.jpg" }],
     })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(persistCanonicalClaimIntake({ id: 12, tenantId: "tenant-acceptance", role: "claimant" }, {
+      ...submission("whatsapp"),
+      attachments: [{ ...submission("whatsapp").attachments[0], key: "claims/99/foreign.jpg" }],
+    })).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(getDb).not.toHaveBeenCalled();
+  });
+
+  it("routes every concrete adapter through the shared tenant, attachment, and replay-safe boundaries", () => {
+    const web = readFileSync("server/routers/claims-core.ts", "utf8");
+    const whatsapp = readFileSync("server/whatsapp/engine.ts", "utf8");
+    const agency = readFileSync("server/agency/agencyAssistedClaimSubmission.ts", "utf8");
+    const canonical = readFileSync("server/services/canonicalClaimIntake.ts", "utf8");
+    for (const source of [web, whatsapp, agency]) expect(source).toContain("submitAndStartCanonicalIntake");
+    expect(canonical).toContain("assertCanonicalAttachmentOwnership(actor, input.attachments)");
+    expect(canonical).toContain("claimIntakeRequests.tenantId, actor.tenantId");
   });
 });
