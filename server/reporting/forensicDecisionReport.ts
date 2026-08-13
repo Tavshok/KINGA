@@ -18,6 +18,7 @@ import {
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import type { CGIAvailabilitySummary } from "../pipeline-v2/stage-9-5-cgi";
 
@@ -196,15 +197,8 @@ export async function generateForensicDecisionReport(
     const claimTruth    = safeJson(c.claim_truth_json) as any;
     // Bug #1/#12: enriched_photos_json is the canonical photo source (14 photos for VOLTRON)
     // claim_documents may be empty for pipeline-only claims; enriched_photos_json is always populated
-    type EnrichedPhoto = {
-      url: string; index: number; severity: string; impactZone: string;
-      componentCount: number; confidenceScore: number; caption?: string;
-      semanticType?: string; detectedComponents?: string[];
-      /** Fix B: true when vision-derived zone contradicts narrative collision direction (display-only) */
-      directionContradiction?: boolean;
-    };
-    const enrichedPhotosRaw = safeJson(c.enriched_photos_json);
-    const enrichedPhotos: EnrichedPhoto[] = Array.isArray(enrichedPhotosRaw) ? (enrichedPhotosRaw as EnrichedPhoto[]) : [];
+    const photoEvidence = normaliseCanonicalPhotoEvidence(safeJson(c.enriched_photos_json));
+    const enrichedPhotos = photoEvidence.photos;
 
     // ── 5. Derived values ────────────────────────────────────────────────────
     const fraudScore  = Number(c.fraud_score ?? 0);
@@ -519,11 +513,9 @@ export async function generateForensicDecisionReport(
     // claim_documents is only populated for adjuster-uploaded files; pipeline photos live in enriched_photos_json
     const photoDocuments = (docs as Record<string, unknown>[]).filter(d => d.document_category === "damage_photo");
     // Use enrichedPhotos (from ai_assessments.enriched_photos_json) as the authoritative photo count
-    const totalPhotos = enrichedPhotos.length > 0 ? enrichedPhotos.length : Number(ife?.photoCount ?? photoDocuments.length);
+    const totalPhotos = photoEvidence.totalPhotos;
     // High-confidence photos: those with confidenceScore >= 70
-    const highConfPhotos = enrichedPhotos.length > 0
-      ? enrichedPhotos.filter(p => Number(p.confidenceScore ?? 0) >= 70).length
-      : Number(ife?.usablePhotoCount ?? totalPhotos);
+    const highConfPhotos = photoEvidence.usablePhotos;
     const uniqueComponents = Number(ife?.uniqueComponents ?? 0);
     // Zones covered: count distinct impactZones in enriched photos
     const coveredZoneSet = enrichedPhotos.length > 0

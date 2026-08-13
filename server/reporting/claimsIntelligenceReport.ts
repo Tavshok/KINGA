@@ -22,6 +22,7 @@ import {
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -248,15 +249,10 @@ export async function generateClaimsIntelligenceReport(
     const missingDocs = (ife?.missingFields as string[]) ?? [];
 
     // Photo stats
-    const enrichedPhotosRaw = safeJson(c.enriched_photos_json as string);
-    type EnrichedPhoto = { url?: string; impactZone?: string; caption?: string; confidenceScore?: number; severity?: string };
-    const enrichedPhotos: EnrichedPhoto[] = Array.isArray(enrichedPhotosRaw) ? (enrichedPhotosRaw as EnrichedPhoto[]) : [];
-    const totalPhotos = enrichedPhotos.length > 0
-      ? enrichedPhotos.length
-      : Number(ife?.photoCount ?? docs.filter(d => d.document_category === "damage_photo").length);
-    const usablePhotos = enrichedPhotos.length > 0
-      ? enrichedPhotos.filter(p => Number(p.confidenceScore ?? 0) >= 70).length
-      : Number(ife?.usablePhotoCount ?? Math.round(totalPhotos * 0.4));
+    const photoEvidence = normaliseCanonicalPhotoEvidence(safeJson(c.enriched_photos_json as string));
+    const enrichedPhotos = photoEvidence.photos;
+    const totalPhotos = photoEvidence.totalPhotos;
+    const usablePhotos = photoEvidence.usablePhotos;
     const photoYield = totalPhotos > 0 ? Math.round(usablePhotos / totalPhotos * 100) : 0;
 
     // Structural gaps

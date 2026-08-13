@@ -45,6 +45,7 @@ import { generateRiskSurveyReport } from "./riskSurveyReport";
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { assessors, fraudIndicators, tenants, users } from "../../drizzle/schema";
 import {
@@ -240,11 +241,10 @@ async function generateClaimAssessmentReport(
     const claimTruthCL  = safeJson(claim.claim_truth_json) as any;
     const cvThreeWayCA = crossValCA?.threeWaySpeedComparison ?? crossValCA?.speedComparison ?? null;
     // CL Photo section — parse enriched_photos_json (same source as CI and FR)
-    const enrichedPhotosRawCL = safeJson(claim.enriched_photos_json);
-    const enrichedPhotosCL: Array<{url:string;impactZone?:string;caption?:string;confidenceScore?:number;componentCount?:number;directionContradiction?:boolean}> =
-      Array.isArray(enrichedPhotosRawCL) ? (enrichedPhotosRawCL as any[]) : [];
-    const totalPhotosCL = enrichedPhotosCL.length;
-    const usablePhotosCL = enrichedPhotosCL.filter(p => Number(p.confidenceScore ?? 0) >= 70).length;
+    const photoEvidenceCL = normaliseCanonicalPhotoEvidence(safeJson(claim.enriched_photos_json));
+    const enrichedPhotosCL = photoEvidenceCL.photos;
+    const totalPhotosCL = photoEvidenceCL.totalPhotos;
+    const usablePhotosCL = photoEvidenceCL.usablePhotos;
     const photoYieldCL = totalPhotosCL > 0 ? Math.round(usablePhotosCL / totalPhotosCL * 100) : 0;
     const claimedSpdCA  = cvThreeWayCA?.claimedSpeedKmh ?? (physics as any)?.velocityKmh ?? null;
     const consensusSpdCA = cvThreeWayCA?.consensusSpeedKmh ?? (physics as any)?.deltaVKmh ?? null;
