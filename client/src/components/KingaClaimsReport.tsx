@@ -331,6 +331,11 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalL
   const issue = costDecision.quoteIssue;
   const optimised = costDecision.optimisedQuoteAmount;
   const optimisedDetail = costDecision.optimisedQuoteDetail;
+  const optimisedDisplay = optimised === null
+    ? "Not published"
+    : costDecision.optimisedQuoteState === "evidence_qualified"
+      ? `Evidence-qualified comparison · ${fmtCurrency(optimised)}`
+      : fmtCurrency(optimised);
   let repairEvidence: any = repairIntelligence;
   if (typeof repairEvidence === "string") {
     try { repairEvidence = JSON.parse(repairEvidence); } catch { repairEvidence = null; }
@@ -363,7 +368,7 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalL
           </div>
         </div>
         <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>KINGA Quote Verification</p><p style={{ fontSize: 13, fontWeight: 800, color: verificationColour, margin: "5px 0 3px" }}>{verification}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{costDecision.quoteVerificationDetail}</p></div>
-        <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>{costDecision.optimisedQuoteLabel}</p><p style={{ fontSize: 18, fontWeight: 800, color: "#0d5849", margin: "4px 0 3px" }}>{optimised === null ? "Not published" : fmtCurrency(optimised)}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{optimisedDetail}</p></div>
+        <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>{costDecision.optimisedQuoteLabel}</p><p style={{ fontSize: costDecision.optimisedQuoteState === "evidence_qualified" ? 12 : 18, fontWeight: 800, color: "#0d5849", margin: "4px 0 3px" }}>{optimisedDisplay}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{optimisedDetail}</p></div>
         <div style={{ padding: 10 }}><p style={S.label}>Quote Issues</p><p style={{ fontSize: 11, fontWeight: 800, color: verification === "PASSED" ? "#14664f" : "#8a5a00", margin: "5px 0 3px" }}>{verification === "PASSED" ? "None" : "Review required"}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{issue}</p></div>
         <div style={{ padding: 10, borderLeft: "1px solid #d8e2df" }}><p style={S.label}>Repairability</p><p style={{ fontSize: 11, fontWeight: 800, color: "#15352f", margin: "5px 0 3px" }}>{repairability.label}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{repairability.detail}</p></div>
       </div>

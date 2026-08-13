@@ -6,6 +6,7 @@ export type CostDecisionPresentation = {
   quoteIssue: string;
   optimisedQuoteLabel: "KINGA Optimised Quote";
   optimisedQuoteAmount: number | null;
+  optimisedQuoteState: "complete" | "evidence_qualified" | "pending";
   optimisedQuoteDetail: string;
 };
 
@@ -51,6 +52,7 @@ export function buildCostDecisionPresentationContract(evidence: CostDecisionEvid
       quoteIssue: quoteIssueDetail,
       optimisedQuoteLabel: "KINGA Optimised Quote",
       optimisedQuoteAmount: null,
+      optimisedQuoteState: "pending",
       optimisedQuoteDetail: "Pending submitted quotation evidence.",
     };
   }
@@ -61,6 +63,7 @@ export function buildCostDecisionPresentationContract(evidence: CostDecisionEvid
       quoteIssue: quoteIssueDetail,
       optimisedQuoteLabel: "KINGA Optimised Quote",
       optimisedQuoteAmount: evidence.l2EvidenceQualifiedComparisonUsd,
+      optimisedQuoteState: evidence.l2EvidenceQualifiedComparisonUsd === null ? "pending" : "evidence_qualified",
       optimisedQuoteDetail: "Available comparison retained pending quote reconciliation.",
     };
   }
@@ -71,6 +74,7 @@ export function buildCostDecisionPresentationContract(evidence: CostDecisionEvid
       quoteIssue: quoteIssueDetail,
       optimisedQuoteLabel: "KINGA Optimised Quote",
       optimisedQuoteAmount: evidence.l2EvidenceQualifiedComparisonUsd,
+      optimisedQuoteState: evidence.l2EvidenceQualifiedComparisonUsd === null ? "pending" : "evidence_qualified",
       optimisedQuoteDetail: "Available comparison retained pending the identified quote evidence.",
     };
   }
@@ -80,6 +84,7 @@ export function buildCostDecisionPresentationContract(evidence: CostDecisionEvid
     quoteIssue: quoteIssueDetail,
     optimisedQuoteLabel: "KINGA Optimised Quote",
     optimisedQuoteAmount: evidence.l2OptimisedCostUsd,
+    optimisedQuoteState: "complete",
     optimisedQuoteDetail: "KINGA insurer cost recommendation.",
   };
 }

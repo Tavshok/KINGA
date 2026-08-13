@@ -205,6 +205,11 @@ export async function generateClaimsIntelligenceReport(
       : evidenceQualifiedL2 !== null
         ? `${fmtUSD(evidenceQualifiedL2)} (evidence-qualified comparison)`
         : (costIntegrity.l2Status === "reconciliation_required" ? "All-in reconciliation required" : "L2 comparison pending evidence");
+    const l2LedgerLabel = kingaOptimised !== null
+      ? "L2 — KINGA Optimised Quote"
+      : evidenceQualifiedL2 !== null
+        ? "L2 — KINGA Optimised Quote (evidence-qualified comparison)"
+        : "L2 — KINGA Optimised Quote";
     const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l1SubmittedCostUsd);
     const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l3BenchmarkReferenceCostUsd);
 	const residualReconciliationDetail = costIntegrity.quoteReconciliations
@@ -611,7 +616,7 @@ ${(() => {
     ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This historical assessor figure is displayed for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
     <div class="callout" style="margin-top:8px;border-left-color:#2d5f8b;background:#f3f7fb;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
     ${renderEvidenceGovernancePanel(evidenceGovernanceData, activeQuoteIds)}
-    <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">Active quote amounts</td><td class="v">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td class="k">Quote scope status</td><td class="v">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">L2 — KINGA all-in recommendation</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
+    <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">Active quote amounts</td><td class="v">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td class="k">Quote scope status</td><td class="v">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">${l2LedgerLabel}</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
   </div>
 
   ${totalExclusions > 0 || exclusions.length > 0 ? `

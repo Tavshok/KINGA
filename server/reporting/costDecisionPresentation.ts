@@ -97,7 +97,9 @@ export function renderCostDecisionSummaryHtml(input: {
     : `<span style="font-size:10px;color:#62726e;">No submitted quotations</span>`;
   const optimisedAmount = presentation.optimisedQuoteAmount === null
     ? "Not published"
-    : input.formatAmount(presentation.optimisedQuoteAmount);
+    : presentation.optimisedQuoteState === "evidence_qualified"
+      ? `Evidence-qualified comparison · ${input.formatAmount(presentation.optimisedQuoteAmount)}`
+      : input.formatAmount(presentation.optimisedQuoteAmount);
   return `
 <div style="margin:10px 0 12px;border:1px solid #d8e2df;background:#fff;font-family:'Helvetica Neue',Arial,sans-serif;">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #d8e2df;">
