@@ -87,6 +87,7 @@
 - [ ] P0 Package 2-OA1: run an isolated two-tenant canonical-intake fixture and compare persisted claim and claim-document records for portal, WhatsApp, and supported hand-off paths
 - [ ] P0 Package 2-OA2: run isolated duplicate, interrupted, and failed-assessment-start retries and prove one claim, evidence set, assessment start, and in-app notification effect
 - [ ] P0 Package 2-OA3: run isolated direct-ID foreign-tenant claim, attachment, and existing-intake mutation attempts and record denial evidence
+- [ ] Proposed P0 Package 2 isolated acceptance: use transient or isolated tenant fixtures to compare canonical claim/evidence output across supported portal, agency, and hand-off channels; prove idempotent retry, recoverable assessment failure, and foreign-tenant denial without an external WhatsApp provider or live claimant data.
 - [x] P0 Package 2 deterministic acceptance: 8 focused test files / 40 tests passed; server and Vite production builds passed, including downstream CI/FR evidence visibility
 - [ ] P0 Package 2 live WhatsApp acceptance gate: use a connected provider test number, webhook, media access, isolated tenant, synthetic claimant, and duplicate-delivery replay to prove the complete external path without side effects
 - [x] P0 Package 3-A: remove reachable mock executive claim and override records from every active runtime drill-down path
