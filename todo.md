@@ -115,6 +115,7 @@
 - [x] P0 Package 2 agency insurer-identity denial: added a defence-in-depth pre-persistence guard that rejects a restricted agency-assisted claimant identity resolved from a different insurer tenant.
 - [x] P0 Package 2 agency persisted-output acceptance: executed the agency-assisted service against isolated canonical persistence, proving retained claimant tenant/identity, claim-document ownership, original attachment metadata, and agency provenance.
 - [x] P0 Package 2 actor-derived direct-ID boundary: added regression proof that web/My Portal derives tenant and claimant from authenticated context, agency input scopes clients through the agency tenant and restricted insurer identity, and WhatsApp resolves identity server-side before canonical attachment validation.
+- [x] P0 Package 2 unified replay-safe adapter boundary: web/My Portal, WhatsApp-local, and agency-assisted accident intake now use the same canonical persistence-plus-assessment-start boundary; shared recovery status and idempotent replay semantics are enforced and regression-tested once.
 - [ ] P0 Package 2 live WhatsApp acceptance gate: use a connected provider test number, webhook, media access, isolated tenant, synthetic claimant, and duplicate-delivery replay to prove the complete external path without side effects
 - [x] P0 Package 3-A: remove reachable mock executive claim and override records from every active runtime drill-down path
 - [x] P0 Package 3-B: add tenant-derived, role-authorised executive drill-down data retrieval with claim/object scope checks

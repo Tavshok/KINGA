@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const projectRoot = resolve(import.meta.dirname, "../..");
 const canonicalIntakeSource = readFileSync(resolve(projectRoot, "server/services/canonicalClaimIntake.ts"), "utf8");
+const canonicalSubmissionSource = readFileSync(resolve(projectRoot, "server/services/canonicalIntakeSubmission.ts"), "utf8");
 const assistedSubmissionSource = readFileSync(resolve(projectRoot, "server/agency/agencyAssistedClaimSubmission.ts"), "utf8");
 
 describe("agency-assisted assessment-start recovery wiring", () => {
@@ -16,8 +17,8 @@ describe("agency-assisted assessment-start recovery wiring", () => {
   });
 
   it("returns the recovery state through the agency-assisted service without another persistence call", () => {
-    expect(assistedSubmissionSource).toContain("const assessmentStart = await dependencies.startAssessment");
-    expect(assistedSubmissionSource).toContain("assessmentStartStatus: assessmentStart?.status");
-    expect(assistedSubmissionSource).toContain("const persisted = await dependencies.persist");
+    expect(assistedSubmissionSource).toContain("submitAndStartCanonicalIntake");
+    expect(assistedSubmissionSource).toContain("startAssessment: dependencies.startAssessment");
+    expect(canonicalSubmissionSource).toContain("assessmentStartStatus");
   });
 });

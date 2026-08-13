@@ -5,6 +5,7 @@ import {
   type CanonicalClaimInput,
   type CanonicalIntakeActor,
 } from "../services/canonicalClaimIntake";
+import { submitAndStartCanonicalIntake } from "../services/canonicalIntakeSubmission";
 
 export type AgencyAssistedClient = { id: number; fullName: string | null; phone: string | null };
 export type AgencyAssistedClaimSubmissionInput = Omit<CanonicalClaimInput, "channel" | "claimantPhone" | "attachments" | "sourceMetadata"> & {
@@ -44,7 +45,7 @@ export async function submitAgencyAssistedCanonicalClaim(
     throw new TRPCError({ code: "FORBIDDEN", message: "Agency-assisted claimant identity is not available in the selected insurer tenant." });
   }
   assertCanonicalAttachmentOwnership(actor, input.attachments);
-  const persisted = await dependencies.persist(actor, {
+  const persisted = await submitAndStartCanonicalIntake({ persist: dependencies.persist, startAssessment: dependencies.startAssessment }, actor, {
     ...input,
     channel: "agency_assisted",
     claimantPhone: client.phone ?? undefined,
@@ -57,6 +58,5 @@ export async function submitAgencyAssistedCanonicalClaim(
       claimantName: client.fullName,
     },
   });
-  const assessmentStart = await dependencies.startAssessment(actor, persisted.claimId, input.idempotencyKey);
-  return { ...persisted, claimantIdentityId: actor.identityId, claimantIdentityTrust: actor.trustLevel, assessmentStartStatus: assessmentStart?.status ?? "started" };
+  return { ...persisted, claimantIdentityId: actor.identityId, claimantIdentityTrust: actor.trustLevel };
 }

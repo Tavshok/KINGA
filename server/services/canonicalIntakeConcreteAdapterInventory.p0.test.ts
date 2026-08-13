@@ -33,6 +33,7 @@ describe("P0 Package 2 concrete canonical-intake adapter inventory", () => {
     const web = readFileSync(join(root, "server/routers/claims-core.ts"), "utf8");
     const whatsapp = readFileSync(join(root, "server/whatsapp/engine.ts"), "utf8");
     const agency = readFileSync(join(root, "server/routers/agency-insurance-service.ts"), "utf8");
+    const agencySubmission = readFileSync(join(root, "server/agency/agencyAssistedClaimSubmission.ts"), "utf8");
 
     expect(web).toContain("persistCanonicalClaimIntake");
     expect(web).toContain("idempotencyKey");
@@ -43,6 +44,8 @@ describe("P0 Package 2 concrete canonical-intake adapter inventory", () => {
     expect(agency).toContain("submitAgencyAssistedCanonicalClaim");
     expect(agency).toContain("idempotencyKey");
     expect(agency).toContain("attachments");
+    expect(agencySubmission).toContain("submitAndStartCanonicalIntake");
+    expect(agencySubmission).toContain("startAssessment: dependencies.startAssessment");
   });
 
   it("does not invent a mobile or generic API adapter where no concrete canonical writer exists", () => {
