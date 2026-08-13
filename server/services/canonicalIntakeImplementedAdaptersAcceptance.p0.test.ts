@@ -15,7 +15,7 @@ vi.mock("../db", () => ({
 
 type Captured = { claim?: Record<string, unknown>; documents: Array<Record<string, unknown>> };
 
-function makePersistenceDb(captured: Captured) {
+function makePersistenceDb(captured: Captured, claimId = 501) {
   let insertCall = 0;
   const tx = {
     insert: vi.fn(() => {
@@ -24,7 +24,7 @@ function makePersistenceDb(captured: Captured) {
         values: vi.fn(async (value: Record<string, unknown>) => {
           if (insertCall === 2) captured.claim = value;
           if (insertCall >= 3) captured.documents.push(value);
-          return [{ insertId: insertCall === 2 ? 501 : insertCall }];
+          return [{ insertId: insertCall === 2 ? claimId : insertCall }];
         }),
       };
     }),
@@ -127,6 +127,27 @@ describe("P0 implemented canonical intake adapter acceptance", () => {
       attachments: [agencyAttachment],
       sourceMetadata: expect.objectContaining({ agencyTenantId: "agency-acceptance", agencyClientId: 7, claimantIdentityTrust: "restricted_agency_assisted" }),
     }));
+  });
+
+  it("keeps isolated portal and WhatsApp claim and document persistence records scoped to their own tenants", async () => {
+    const { persistCanonicalClaimIntake } = await import("./canonicalClaimIntake");
+    generateKingaRef.mockResolvedValue("KNG-TENANT-ACCEPTANCE");
+    const portal: Captured = { documents: [] };
+    const whatsapp: Captured = { documents: [] };
+
+    getDb.mockResolvedValueOnce(makePersistenceDb(portal, 501));
+    await persistCanonicalClaimIntake({ id: 11, tenantId: "tenant-portal", role: "claimant" }, submission("portal"));
+    getDb.mockResolvedValueOnce(makePersistenceDb(whatsapp, 502));
+    await persistCanonicalClaimIntake({ id: 12, tenantId: "tenant-whatsapp", role: "claimant" }, {
+      ...submission("whatsapp"),
+      attachments: submission("whatsapp").attachments.map((attachment) => ({ ...attachment, key: attachment.key.replace("claims/11/", "claims/12/") })),
+    });
+
+    expect(portal.claim).toMatchObject({ tenantId: "tenant-portal", claimantId: 11 });
+    expect(whatsapp.claim).toMatchObject({ tenantId: "tenant-whatsapp", claimantId: 12 });
+    expect(portal.documents.map((document) => document.claimId)).not.toEqual(whatsapp.documents.map((document) => document.claimId));
+    expect(portal.documents.map((document) => document.fileKey)).toEqual(["claims/11/damage.jpg", "claims/11/police.pdf"]);
+    expect(whatsapp.documents.map((document) => document.fileKey)).toEqual(["claims/12/damage.jpg", "claims/12/police.pdf"]);
   });
 
   it("rejects an attachment from another authenticated intake session before any persistence attempt", async () => {
