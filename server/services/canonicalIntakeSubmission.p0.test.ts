@@ -21,9 +21,31 @@ describe("P0 canonical intake adapter replay boundary", () => {
     expect(startAssessment).toHaveBeenCalledWith(actor, 701, input.idempotencyKey);
   });
 
-  it("preserves a recoverable assessment-start state on idempotent replay without creating another persisted claim", async () => {
+  it("inspects idempotent replay state without causing a duplicate external assessment start", async () => {
     const persist = vi.fn().mockResolvedValueOnce({ claimId: 702, claimNumber: "CLM-702", idempotent: false, repairerWarnings: [] }).mockResolvedValueOnce({ claimId: 702, claimNumber: "CLM-702", idempotent: true, repairerWarnings: [] });
-    const startAssessment = vi.fn().mockResolvedValue({ status: "recoverable_failure" });
+    let externalAssessmentStarts = 0;
+    const startAssessment = vi.fn().mockImplementation(async () => {
+      if (externalAssessmentStarts > 0) return { status: "already_recorded" as const };
+      externalAssessmentStarts += 1;
+      return { status: "started" as const };
+    });
+
+    await expect(submitAndStartCanonicalIntake({ persist, startAssessment }, actor, input)).resolves.toMatchObject({ claimId: 702, assessmentStartStatus: "started" });
+    await expect(submitAndStartCanonicalIntake({ persist, startAssessment }, actor, input)).resolves.toMatchObject({ claimId: 702, idempotent: true, assessmentStartStatus: "already_recorded" });
+
+    expect(persist).toHaveBeenCalledTimes(2);
+    expect(startAssessment).toHaveBeenCalledTimes(2);
+    expect(externalAssessmentStarts).toBe(1);
+  });
+
+  it("preserves a recoverable assessment-start state on idempotent replay without creating another persisted claim or notification", async () => {
+    const persist = vi.fn().mockResolvedValueOnce({ claimId: 702, claimNumber: "CLM-702", idempotent: false, repairerWarnings: [] }).mockResolvedValueOnce({ claimId: 702, claimNumber: "CLM-702", idempotent: true, repairerWarnings: [] });
+    let recoveryNotifications = 0;
+    const startAssessment = vi.fn().mockImplementation(async () => {
+      if (recoveryNotifications > 0) return { status: "recoverable_failure" as const };
+      recoveryNotifications += 1;
+      return { status: "recoverable_failure" as const };
+    });
     const dependencies = { persist, startAssessment };
 
     const first = await submitAndStartCanonicalIntake(dependencies, actor, input);
@@ -33,5 +55,6 @@ describe("P0 canonical intake adapter replay boundary", () => {
     expect(replay).toMatchObject({ claimId: 702, idempotent: true, assessmentStartStatus: "recoverable_failure" });
     expect(persist).toHaveBeenCalledTimes(2);
     expect(startAssessment).toHaveBeenCalledTimes(2);
+    expect(recoveryNotifications).toBe(1);
   });
 });
