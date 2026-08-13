@@ -27,6 +27,7 @@
 - [ ] Transparency gate: current-state register prepared at audit/current-state-register-2026-08-11.md; obtain user review and approval before starting any new feature batch
 - [ ] Role-to-feature conformance audit: map each portal tab, route, data source, mutation, and empty/error state to its intended role; remove cross-role feature leakage and orphaned states
 - [ ] Portal navigation conformance: verify every visible tab and action resolves to an authorized, role-correct destination or an explicit role-appropriate empty state
+- [ ] Controlled P0 role-to-workflow conformance batch: inventory active portals, tabs, actions, data sources, and empty/error states; align each to the correct role shell, route, procedure, and bounded access outcome without operational data changes.
 - [ ] Report and image evidence audit: cost provenance and tables remediated in R1; raw-image side/zone classification verification remains open
 - [x] Report remediation batch R1: unify canonical cost hierarchy across CL, CI, and FR; extend CL cost intelligence; distinguish documented/agreed, L1, L2, and benchmark values; correct FR currency formatting
 - [x] Header cost-provenance trace: identify the exact source/calculation for every CL, CI, and FR header/decision-summary amount before approving any cost-table or label remediation
