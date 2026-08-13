@@ -25,6 +25,7 @@ import {
   compareClientValueToMarketValuation,
   normaliseVehicleRegistration,
 } from "../agency/insuranceRequestValuation";
+import { buildValuationReliabilityEvidence } from "../valuation/valuationReliabilityEvidence";
 
 const conditionInput = z.object({
   exteriorCondition: z.string().min(1).max(50),
@@ -94,17 +95,30 @@ async function resolveServiceVehicle(input: z.infer<typeof createInsuranceServic
   return { id: created.id, registrationNumber, vin, make: input.vehicleMake, model: input.vehicleModel, year: input.vehicleYear };
 }
 
-function marketValuationProvenance(result: Awaited<ReturnType<typeof valuateVehicle>>) {
+function marketValuationProvenance(result: Awaited<ReturnType<typeof valuateVehicle>>, vehicle: { make: string; model: string; year: number; mileage?: number; condition?: string }) {
+  const reliability = buildValuationReliabilityEvidence({
+    vehicle,
+    asOf: result.valuationDate,
+    source: "fallback",
+    reportedSourceCount: result.dataPointsCount,
+    ledger: [],
+    adjustments: [
+      { type: "condition", amountCents: result.conditionAdjustment, basis: `Declared condition: ${vehicle.condition ?? "not recorded"}` },
+      { type: "mileage", amountCents: result.mileageAdjustment, basis: vehicle.mileage ? `Declared mileage: ${vehicle.mileage}` : "Mileage not recorded" },
+      { type: "market_trend", amountCents: result.marketTrendAdjustment, basis: "No external market trend source connected" },
+    ],
+  });
   return {
     label: "KINGA Market Valuation",
-    evidenceStatus: "Provisional",
+    evidenceStatus: reliability.clientEvidenceState === "market_supported" ? "Market-supported" : reliability.clientEvidenceState === "provisional" ? "Provisional" : "Expert review needed",
     method: result.valuationMethod,
     valuationDate: result.valuationDate.toISOString(),
     dataPointsCount: result.dataPointsCount,
     priceRangeCents: result.priceRange,
     adjustmentsCents: { condition: result.conditionAdjustment, mileage: result.mileageAdjustment, marketTrend: result.marketTrendAdjustment },
-    internalConfidenceScore: result.confidenceScore,
-    limitations: "This is evidence-qualified market decision support. It is not a policy term, premium, claim decision, settlement value, repair cost, or independently verified valuation.",
+    professionalReliability: reliability.professionalEvidence,
+    clientMessage: reliability.clientMessage,
+    decisionSupportBoundary: "This is evidence-qualified market decision support. It is not a policy term, premium, claim decision, settlement value, repair cost, or independently verified valuation.",
   };
 }
 
@@ -130,10 +144,13 @@ function professionalValuationEvidence(request: {
       label: raw.label ?? "KINGA Market Valuation",
       evidenceStatus: raw.evidenceStatus ?? "Provisional",
       method: raw.method ?? "Not recorded",
-      sourceCoverage: raw.dataPointsCount ?? 0,
+      sourceCoverage: raw.professionalReliability?.sourceCoverage ?? raw.dataPointsCount ?? 0,
+      vehicleMatch: raw.professionalReliability?.vehicleMatch ?? null,
+      recency: raw.professionalReliability?.recency ?? null,
       priceRangeCents: raw.priceRangeCents ?? null,
       adjustmentsCents: raw.adjustmentsCents ?? null,
-      limitations: raw.limitations ?? "Evidence provenance has not been recorded.",
+      limitations: raw.professionalReliability?.limitations ?? "Evidence provenance has not been recorded.",
+      requiresHumanReview: raw.professionalReliability?.requiresHumanReview ?? true,
     },
     clientAcknowledgementRecorded: Boolean(request.clientAcknowledgementJson),
     decisionBoundary: "Professional decision support only. This information does not create or change a policy, premium, sum insured, claim, repair cost, settlement, payment, or underwriting decision.",
@@ -157,7 +174,7 @@ export const agencyInsuranceServiceRouter = router({
       const [request] = await tx.insert(agencyInsuranceServiceRequests).values({
         requestNumber, agencyTenantId, agencyClientId: input.agencyClientId, vehicleRegistryId: vehicle.id, coverType: input.coverType, status: "awaiting_client_acknowledgement",
         clientInstruction: input.clientInstruction, vehicleRiskNotes: input.vehicleRiskNotes ?? null, vehicleRegistration: normaliseVehicleRegistration(input.vehicleRegistration), vehicleMake: input.vehicleMake, vehicleModel: input.vehicleModel, vehicleYear: input.vehicleYear, vehicleVin: input.vehicleVin ?? null, vehicleMileageKm: input.vehicleMileageKm ?? null,
-        clientProposedValueCents: input.clientProposedValueCents, kingaMarketValuationCents: marketValueCents, valuationDate: now, valuationProvenanceJson: marketValuationProvenance(valuation), variancePercent: variance.variancePercent === null ? null : String(variance.variancePercent), createdBy: ctx.user.id,
+        clientProposedValueCents: input.clientProposedValueCents, kingaMarketValuationCents: marketValueCents, valuationDate: now, valuationProvenanceJson: marketValuationProvenance(valuation, { make: input.vehicleMake, model: input.vehicleModel, year: input.vehicleYear, mileage: input.vehicleMileageKm, condition: input.conditionSnapshot.exteriorCondition }), variancePercent: variance.variancePercent === null ? null : String(variance.variancePercent), createdBy: ctx.user.id,
       }).$returningId() as { id: number }[];
       const [snapshot] = await tx.insert(vehicleConditionSnapshots).values({
         vehicleRegistryId: vehicle.id, insuranceServiceRequestId: request.id, snapshotVersion: 1, snapshotDate: now,
@@ -169,7 +186,7 @@ export const agencyInsuranceServiceRouter = router({
     });
     return {
       id: created.id, snapshotId: created.snapshotId, requestNumber, status: "awaiting_client_acknowledgement" as const,
-      clientProposedValueCents: input.clientProposedValueCents, kingaMarketValuationCents: marketValueCents, variance, valuationDate: valuation.valuationDate, valuationEvidenceStatus: "Provisional" as const,
+      clientProposedValueCents: input.clientProposedValueCents, kingaMarketValuationCents: marketValueCents, variance, valuationDate: valuation.valuationDate, valuationEvidenceStatus: "Expert review needed" as const,
     };
   }),
 

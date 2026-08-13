@@ -1,6 +1,7 @@
 import { eq, and, desc, sql, gte } from "drizzle-orm";
 import { getDb } from "../db";
 import { claims, aiAssessments, vehicleMarketValuations } from "../../drizzle/schema";
+import { buildValuationReliabilityEvidence, type ValuationReliabilityEvidence } from "../valuation/valuationReliabilityEvidence";
 
 /**
  * Vehicle Valuation Engine
@@ -39,6 +40,7 @@ export interface VehicleValuationResult {
     estimatedValue: number;
     date: Date;
   }>;
+  reliabilityEvidence: ValuationReliabilityEvidence;
 }
 
 /**
@@ -56,6 +58,29 @@ export async function generateVehicleValuation(
   // Step 1: Check if we have recent market valuation data
   const marketValuation = await getMarketValuation(request.make, request.model, request.year, asOf);
   if (marketValuation) {
+    const reliabilityEvidence = buildValuationReliabilityEvidence({
+      vehicle: request,
+      asOf,
+      source: "market_data",
+      reportedSourceCount: marketValuation.dataPointsCount ?? null,
+      adjustments: [],
+      ledger: [{
+        sourceType: "market_valuation_record",
+        sourceReference: `vehicle-market-valuation:${marketValuation.id}`,
+        observedValueCents: marketValuation.estimatedMarketValue || 0,
+        observedAt: marketValuation.valuationDate ?? asOf,
+        vehicleYear: marketValuation.vehicleYear ?? null,
+        vehicleMatch: {
+          make: marketValuation.vehicleMake === request.make ? "exact" : "different",
+          model: marketValuation.vehicleModel === request.model ? "exact" : "different",
+          year: marketValuation.vehicleYear === request.year ? "exact" : "different",
+        },
+        adjustment: null,
+        limitation: (marketValuation.dataPointsCount ?? 0) < 3
+          ? "The source record reports fewer than three underlying price points."
+          : null,
+      }],
+    });
     return {
       estimatedValue: marketValuation.estimatedMarketValue || 0,
       confidence: marketValuation.confidenceScore || 90,
@@ -67,6 +92,7 @@ export async function generateVehicleValuation(
         marketDemand: 0,
       },
       comparables: [],
+      reliabilityEvidence,
     };
   }
 
@@ -82,6 +108,31 @@ export async function generateVehicleValuation(
   const estimatedValue = Math.round(
     baseValue + conditionAdjustment + ageAdjustment + marketDemand
   );
+  const reliabilityEvidence = buildValuationReliabilityEvidence({
+    vehicle: request,
+    asOf,
+    source: claimsValuation.comparables.length ? "historical_claims" : "fallback",
+    reportedSourceCount: claimsValuation.comparables.length,
+    adjustments: [
+      { type: "condition", amountCents: conditionAdjustment, basis: request.condition ? `Declared condition: ${request.condition}` : "Condition not supplied" },
+      { type: "age", amountCents: ageAdjustment, basis: `Vehicle year: ${request.year}` },
+      { type: "market_demand", amountCents: marketDemand, basis: `Comparable claim frequency: ${claimsValuation.claimFrequency}` },
+    ],
+    ledger: claimsValuation.comparables.map((comparable) => ({
+      sourceType: "historical_claim",
+      sourceReference: `claim:${comparable.claimId}`,
+      observedValueCents: comparable.estimatedValue,
+      observedAt: comparable.date,
+      vehicleYear: comparable.vehicleYear,
+      vehicleMatch: {
+        make: "exact",
+        model: "exact",
+        year: comparable.vehicleYear === request.year ? "exact" : "within_two_years",
+      },
+      adjustment: null,
+      limitation: null,
+    })),
+  });
 
   return {
     estimatedValue,
@@ -94,6 +145,7 @@ export async function generateVehicleValuation(
       marketDemand,
     },
     comparables: claimsValuation.comparables,
+    reliabilityEvidence,
   };
 }
 

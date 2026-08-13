@@ -2824,6 +2824,28 @@ export const clientVehicleValuationRequests = mysqlTable("client_vehicle_valuati
 ]);
 
 /**
+ * Source-backed reliability evidence for a standalone KINGA Market Valuation.
+ * This cannot create or alter policy, premium, claim, repair, settlement, or payment records.
+ */
+export const valuationComparableEvidence = mysqlTable("valuation_comparable_evidence", {
+	id: int().autoincrement().notNull().primaryKey(),
+	valuationRequestId: int("valuation_request_id").notNull(),
+	sourceType: mysqlEnum("source_type", ["market_valuation_record", "historical_claim"]).notNull(),
+	sourceReference: varchar("source_reference", { length: 255 }).notNull(),
+	observedValueCents: int("observed_value_cents").notNull(),
+	observedAt: timestamp("observed_at", { mode: "string" }),
+	vehicleYear: int("vehicle_year"),
+	vehicleMatchJson: longtext("vehicle_match_json").notNull(),
+	adjustmentJson: longtext("adjustment_json"),
+	limitation: text(),
+	inclusionStatus: mysqlEnum("inclusion_status", ["included", "excluded", "review_required"]).default("included").notNull(),
+	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+}, (table) => [
+	index("valuation_comparable_request_idx").on(table.valuationRequestId),
+	index("valuation_comparable_source_idx").on(table.sourceType, table.sourceReference),
+]);
+
+/**
  * Client-originated insurance service request. It is an intake record only and
  * cannot store a premium, policy, quote, repair cost, settlement, or claim outcome.
  */

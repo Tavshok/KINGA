@@ -9,7 +9,7 @@ import { getDb } from "../db";
 import {
   createNotification
 } from "../db";
-import { clientInsuranceServiceRequests, clientVehicleValuationRequests, quotationRequests, users } from "../../drizzle/schema";
+import { clientInsuranceServiceRequests, clientVehicleValuationRequests, quotationRequests, users, valuationComparableEvidence } from "../../drizzle/schema";
 import { eq, desc, and, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { randomBytes } from "crypto";
@@ -89,20 +89,45 @@ export const insurancePhase7Router = router({
             make: input.vehicleMake,
             model: input.vehicleModel,
             year: input.vehicleYear,
+            mileage: input.mileage,
+            condition: input.condition,
           });
           if (valuation && db) {
+            const reliability = valuation.reliabilityEvidence;
+            await db.delete(valuationComparableEvidence)
+              .where(eq(valuationComparableEvidence.valuationRequestId, requestId));
+            if (reliability.ledger.length) {
+              await db.insert(valuationComparableEvidence).values(reliability.ledger.map((entry) => ({
+                valuationRequestId: requestId,
+                sourceType: entry.sourceType,
+                sourceReference: entry.sourceReference,
+                observedValueCents: entry.observedValueCents,
+                observedAt: entry.observedAt ? new Date(entry.observedAt).toISOString().slice(0, 19).replace("T", " ") : null,
+                vehicleYear: entry.vehicleYear,
+                vehicleMatchJson: JSON.stringify(entry.vehicleMatch),
+                adjustmentJson: entry.adjustment ? JSON.stringify(entry.adjustment) : null,
+                limitation: entry.limitation,
+                inclusionStatus: reliability.professionalEvidence.requiresHumanReview ? "review_required" : "included",
+              })) as any);
+            }
             await db.update(clientVehicleValuationRequests)
               .set({
                 kingaMarketValuationCents: valuation.estimatedValue ?? null,
                 valuationProvenanceJson: JSON.stringify({
                   label: "KINGA Market Valuation",
-                  evidenceStatus: valuation.confidence >= 60 ? "Market-supported" : "Provisional",
+                  evidenceStatus: reliability.clientEvidenceState === "market_supported"
+                    ? "Market-supported"
+                    : reliability.clientEvidenceState === "provisional" ? "Provisional" : "Expert review needed",
                   source: valuation.source,
-                  factors: valuation.factors,
-                  comparableCount: valuation.comparables.length,
-                  limitations: "Decision support only. This does not create a policy, premium, sum insured, claim, repair cost, or settlement value.",
+                  sourceCoverage: reliability.professionalEvidence.sourceCoverage,
+                  vehicleMatch: reliability.professionalEvidence.vehicleMatch,
+                  recency: reliability.professionalEvidence.recency,
+                  adjustments: reliability.professionalEvidence.adjustments,
+                  limitations: reliability.professionalEvidence.limitations,
+                  clientMessage: reliability.clientMessage,
+                  decisionSupportBoundary: "This does not create a policy, premium, sum insured, claim, repair cost, or settlement value.",
                 }),
-                status: valuation.confidence >= 30 ? "complete" : "review_required",
+                status: reliability.professionalEvidence.requiresHumanReview ? "review_required" : "complete",
               } as any)
               .where(eq(clientVehicleValuationRequests.id, requestId));
           }
@@ -142,6 +167,9 @@ export const insurancePhase7Router = router({
       const valuationRequest = valuationRows[0];
       if (valuationRequest) {
         const valuation = valuationRequest.kingaMarketValuationCents;
+        const provenance = valuationRequest.valuationProvenanceJson
+          ? JSON.parse(valuationRequest.valuationProvenanceJson)
+          : null;
         return {
           requestNumber: valuationRequest.requestNumber,
           vehicleMake: valuationRequest.vehicleMake,
@@ -156,6 +184,8 @@ export const insurancePhase7Router = router({
           createdAt: valuationRequest.createdAt,
           valueLow: valuation ? Math.round(valuation * 0.9) : null,
           valueHigh: valuation ? Math.round(valuation * 1.1) : null,
+          valuationEvidenceStatus: provenance?.evidenceStatus ?? null,
+          valuationEvidenceMessage: provenance?.clientMessage ?? null,
           fullReport: valuation ? {
             estimatedMarketValue: valuation,
             vehicleForensicsJson: null,
