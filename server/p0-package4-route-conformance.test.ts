@@ -27,6 +27,6 @@ describe("P0 Package 4 portal routing contract", () => {
     expect(isPortalShellAdmissionAllowed("/", [])).toBe(true);
     expect(isPortalShellAdmissionAllowed("/agency", ["platform_super_admin"])).toBe(true);
     expect(isPortalShellAdmissionAllowed("/agency", ["claimant"])).toBe(false);
-    expect(isPortalShellAdmissionAllowed("/client", ["engineer"])).toBe(true);
+    expect(isPortalShellAdmissionAllowed("/client", ["engineer"])).toBe(false);
   });
 });

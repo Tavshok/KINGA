@@ -45,7 +45,7 @@ export const PORTAL_DOMAIN_ROLE_MAP = {
   administration: ["admin", "platform_super_admin"],
   marketplace: ["admin", "insurer", "assessor", "panel_beater", "agency", "fleet_admin", "fleet_manager", "claimant", "user", "platform_super_admin"],
   portal: ["claimant", "admin", "platform_super_admin"],
-  customer: ["claimant", "fleet_manager", "fleet_driver", "fleet_admin", "agency", "insurer", "assessor", "panel_beater", "engineer", "admin", "platform_super_admin", "user"],
+  customer: ["claimant", "fleet_manager", "fleet_driver", "fleet_admin", "admin", "platform_super_admin", "user"],
 } as const;
 
 export type PortalDomain = keyof typeof PORTAL_DOMAIN_ROLE_MAP;

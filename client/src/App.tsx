@@ -565,12 +565,8 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
-        {/* Legacy fleet management route — kept for backward compatibility */}
-        <Route path="/fleet-management">
-          <ProtectedRoute allowedRoles={["insurer", "admin", "claimant"]}>
-            <FleetManagement />
-          </ProtectedRoute>
-        </Route>
+        {/* Legacy fleet management route — resolve through the role-correct fleet shell. */}
+        <Route path="/fleet-management"><RedirectToPortal to="/fleet" /></Route>
 
         {/* Standalone fleet route — fleet roles only */}
         <Route path="/fleet">
@@ -591,7 +587,7 @@ function Router() {
         </Route>
         
         <Route path="/insurance/quote">
-          <ProtectedRoute allowedRoles={["user", "claimant", "fleet_admin", "fleet_manager", "fleet_driver", "admin", "platform_super_admin"]}>
+          <ProtectedRoute domain="customer">
             <InsuranceQuote />
           </ProtectedRoute>
         </Route>
@@ -602,7 +598,7 @@ function Router() {
           <TeaserReportPage />
         </Route>
         <Route path="/my-profile">
-          <ClientProfile />
+          <ProtectedRoute domain="customer"><ClientProfile /></ProtectedRoute>
         </Route>
         <Route path="/client">
           <ProtectedRoute domain="customer">
@@ -611,14 +607,14 @@ function Router() {
         </Route>
 
         <Route path="/client/submit-claim">
-          <ProtectedRoute>
+          <ProtectedRoute domain="customer">
             <SubmitClaim />
           </ProtectedRoute>
         </Route>
 
         {/* Client self-service valuation */}
         <Route path="/client/valuation">
-          <ProtectedRoute>
+          <ProtectedRoute domain="customer">
             <ValuationRequestPage />
           </ProtectedRoute>
         </Route>
@@ -648,12 +644,12 @@ function Router() {
         </Route>
         {/* Client portal bulk valuation — accessible to all authenticated users */}
         <Route path="/client/valuation/bulk">
-          <ProtectedRoute>
+          <ProtectedRoute domain="customer">
             <BulkValuation />
           </ProtectedRoute>
         </Route>
         <Route path="/agency/quotes">
-          <ProtectedRoute>
+          <ProtectedRoute domain="agency">
             <AgencyFleetQuotes />
           </ProtectedRoute>
         </Route>
@@ -668,7 +664,7 @@ function Router() {
         </Route>
         
         <Route path="/insurance/quote/:quoteId">
-          <QuoteDetails />
+          <ProtectedRoute domain="customer"><QuoteDetails /></ProtectedRoute>
         </Route>
         
         <Route path="/insurance/payments">
@@ -678,7 +674,7 @@ function Router() {
         </Route>
         
         <Route path="/insurance/dashboard">
-          <ProtectedRoute>
+          <ProtectedRoute domain="customer">
             <InsuranceDashboard />
           </ProtectedRoute>
         </Route>
