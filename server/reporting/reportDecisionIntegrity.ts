@@ -11,9 +11,9 @@ export interface ReportDecisionIntegrity {
 }
 
 /**
- * A report may never publish an approval, settlement-ready, or cost-safe state
- * when the canonical L2 contract is incomplete. This deliberately sits between
- * raw assessment persistence and every presentation tier.
+ * A report may never publish an approval, settlement-ready, or final cost-safe
+ * conclusion when the canonical L2 contract is incomplete. L2 analysis itself
+ * remains visible as qualified intelligence in every presentation tier.
  */
 export function resolveReportDecisionIntegrity(input: {
   recommendation: unknown;
@@ -28,8 +28,8 @@ export function resolveReportDecisionIntegrity(input: {
   if (l2Hold || workflowHold) {
     const holdReason = l2Hold
       ? input.costIntegrity.quoteReceiptStatus === "no_quotes"
-        ? "No submitted repair quotation is available; cost recommendation withheld."
-        : "Submitted quotations do not provide complete itemised repair scope; L2, savings, settlement, and approval are withheld."
+        ? "No submitted repair quotation is available; L2 records the evidence absence and a final cost recommendation is unavailable."
+        : "Submitted quotations do not provide complete itemised repair scope; L2 comparison remains evidence-qualified while a final savings, settlement, recommendation, and approval require review."
       : `Workflow state ${workflowState.replaceAll("_", " ")} requires human review.`;
     return { status: "REVIEW_REQUIRED", chipClass: "review", icon: "⚠", rawRecommendation, holdReason };
   }

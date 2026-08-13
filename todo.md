@@ -134,6 +134,8 @@
 - [x] R0-F: persist immutable report input, generator, and provenance snapshots for every delivered output
 - [ ] R0-G: implement same-snapshot CL, CI, and FR acceptance fixtures for no-quote, total-only, incomplete, and complete all-in quote sets
 - [ ] R0 progressive-L2 invariant: prove every quote-evidence fixture keeps L2 analysis active, exposes what KINGA knows and does not know, and suppresses only unsupported conclusions—not available comparison intelligence.
+- [ ] Approved R0 same-snapshot acceptance implementation: build one immutable fixture model for no-quote, total-only, incomplete-itemised, and complete-all-in states; assert shared cost/decision semantics and progressive L2 disclosures across CL, CI, FR, and the top cost view without production data mutation.
+- [x] R0 deterministic progressive-L2 contract acceptance: implemented immutable no-quote, total-only, incomplete-itemised, and complete-all-in fixtures; validated shared cost/decision boundaries, active-ledger exclusion, and top-view evidence-qualified disclosure with 26 focused regressions and production builds.
 - [ ] R0-H: replace all top-of-report cost strips with the active submitted quote ledger, explicit quote receipt/scope status, and typed L2 state; no base-estimate substitution
 - [ ] R0-I: prove top-of-report UI and PDF views show every active submitted quote, do not show an incomplete L2 as a cost, and suppress savings/settlement under any integrity hold
 - [x] P0 Package 3-H2: add and run an Executive direct numeric claim-ID test proving a foreign object is unavailable even when no tenant override is supplied
