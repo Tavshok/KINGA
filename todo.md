@@ -35,6 +35,7 @@
 - [x] P0 agency and engineer route conformance: redirected deprecated agency valuation URLs to the agency service shell rather than denied client self-service, and applied the canonical engineer domain to engineering intelligence and asset-passport workspaces; deterministic route tests passed.
 - [x] P0 agency canonical landing conformance: added the missing agency role-to-portal map so agency users land directly in the agency service portal rather than the insurer fallback; deterministic route tests passed.
 - [x] P0 exhaustive active-role landing conformance: added regression coverage for every active top-level role, preventing a silent portal-hub or unrelated insurer fallback while retaining the insurer role-selection portal intentionally.
+- [ ] P0 role-to-workflow operational acceptance: user-execute authenticated claimant, fleet, agency, insurer, assessor, panel-beater, engineer, and platform-super-admin route matrix; record only portal-shell outcomes and prohibited loops or cross-role leakage.
 - [ ] Report and image evidence audit: cost provenance and tables remediated in R1; raw-image side/zone classification verification remains open
 - [x] Report remediation batch R1: unify canonical cost hierarchy across CL, CI, and FR; extend CL cost intelligence; distinguish documented/agreed, L1, L2, and benchmark values; correct FR currency formatting
 - [x] Header cost-provenance trace: identify the exact source/calculation for every CL, CI, and FR header/decision-summary amount before approving any cost-table or label remediation
@@ -195,6 +196,7 @@
 - [ ] Approved Fleet navigation batch: route precedence and My Portal company redirect implemented; 25 focused tests and production builds passed; live Fleet Driver and legacy claimant route acceptance remains
 - [x] Approved corrective removal: removed accidentally checkpointed claim re-run permissions and related test adjustment; preserved approved Fleet navigation correction and conformance matrix
 - [ ] P0: Diagnose and eliminate the React runtime crash shown on the live portal route (minified React error #130)
+- [ ] Controlled P0 React runtime-crash diagnosis: collect route, component, error-boundary, import, and render-state evidence without changing portal behavior; present findings and a separate remediation notice before any fix.
 - [ ] P0: Complete live end-to-end route verification for every portal; audit/portal-conformance-audit.md records the current static findings and remaining failures
 - [ ] P0: Implement and verify the role-to-workflow conformance map for My Portal, Insurer, Assessor, Panel Beater, Agency, Fleet, Engineers, and Platform Administration
 - [ ] P1: Correct Agency Portal so it is an agent/broker service workspace for managing clients, quotes, policies, documents, and commissions—not a client self-service quote page
