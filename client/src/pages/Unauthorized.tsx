@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ShieldAlert, Home, Settings } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { getRoleDashboardPath } from "@/lib/roleRouting";
 
 export default function Unauthorized() {
   const [location, setLocation] = useLocation();
@@ -25,9 +26,16 @@ export default function Unauthorized() {
       title: "Insufficient Permissions",
       description: "Your current role does not have permission to access this resource.",
     },
+    wrong_portal: {
+      title: "Portal Not Available for Your Role",
+      description: "This workspace is not available to your current insurer role. Use your assigned workspace instead.",
+    },
   };
 
   const message = reasonMessages[reason] || reasonMessages.insufficient_permissions;
+
+  const requestedRedirect = params.get("redirectTo");
+  const hasSafeInternalRedirect = Boolean(requestedRedirect?.startsWith("/") && !requestedRedirect.startsWith("//"));
 
   const handleGoToDashboard = () => {
     if (!user) {
@@ -35,24 +43,7 @@ export default function Unauthorized() {
       return;
     }
 
-    // Redirect to appropriate dashboard based on role
-    switch (user.role) {
-      case "insurer":
-      case "admin":
-        setLocation("/insurer-portal");
-        break;
-      case "assessor":
-        setLocation("/assessor/dashboard");
-        break;
-      case "panel_beater":
-        setLocation("/panel-beater/dashboard");
-        break;
-      case "claimant":
-        setLocation("/claimant/dashboard");
-        break;
-      default:
-        setLocation("/");
-    }
+    setLocation(hasSafeInternalRedirect ? requestedRedirect! : getRoleDashboardPath(user.role, user.insurerRole));
   };
 
   return (
@@ -100,10 +91,10 @@ export default function Unauthorized() {
             <Button 
               className="w-full" 
               variant={reason === 'no_role' ? 'outline' : 'default'}
-              onClick={() => window.history.back()}
+              onClick={handleGoToDashboard}
             >
               <Home className="w-4 h-4 mr-2" />
-              Return to Portal Hub
+              Go to My Workspace
             </Button>
             
             <Button 

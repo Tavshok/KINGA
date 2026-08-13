@@ -119,12 +119,12 @@
 - [x] P0 Package 3-H: complete the full Executive access acceptance matrix after explicit missing-tenant and numeric direct-ID tests are added
 - [ ] P0 Package 3-I: execute the active Executive Dashboard runtime against authorised data, unavailable data, foreign IDs, and error state without any mock fallback
 - [ ] P0 Package 3-H1: execute authenticated Executive Dashboard API-failure and route-level browser acceptance with an Executive or explicitly tenant-selected platform-super-admin session
-- [ ] P0 Package 4-A: consolidate approved server-side direct-admin checks through `isAdminRole()` or documented intentional distinctions
-- [ ] P0 Package 4-B: correct platform-super-admin admission to intended client, professional, and administrative portal routes without loops
+- [x] P0 Package 4-A: consolidate approved server-side direct-admin checks through `isAdminRole()` or documented intentional distinctions
+- [x] P0 Package 4-B: correct platform-super-admin admission to intended client, professional, and administrative portal routes without loops
 - [ ] P0 Package 4-C: preserve Package 1 tenant/object limits and audited explicit cross-tenant selection under platform-super-admin access
 - [ ] P0 Package 4-D: implement the explicit portal-route allow/deny/unavailable role matrix
 - [ ] P0 Package 4-E: add server, client-route, ordinary-denial, super-admin-entry, object-boundary, and no-loop regression proof
-- [ ] P0 Package 4-F: produce and maintain a file-by-file classification of direct administrative checks as canonical admin, intentional business role, UI display, workflow-specific, or object-security control
+- [x] P0 Package 4-F: produce and maintain a file-by-file classification of direct administrative checks as canonical admin, intentional business role, UI display, workflow-specific, or object-security control
 - [ ] P0 Package 4-G: prove platform-super-admin portal-shell admission separately from foreign tenant claim, report, document, and workflow object denial
 - [ ] P0 Package 4-H: execute the Package 1 report, agency, intelligence, and explicit audited cross-tenant regression matrix after authorization consolidation
 - [ ] P0 Package 4-I: test authenticated login → role resolution → portal route deterministic states for platform-super-admin and ordinary personas when role accounts are available

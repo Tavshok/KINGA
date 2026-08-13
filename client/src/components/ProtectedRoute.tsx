@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Redirect, useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
+import { isAdminRole } from "@shared/role-permissions";
 
 /**
  * Domain → Allowed Roles mapping (mirrors server/_core/domain-middleware.ts)
@@ -101,6 +102,7 @@ export default function ProtectedRoute({ children, allowedRoles, allowedInsurerR
 
   // Check insurer sub-role if specified (only for insurer role, admin bypasses)
   if (
+    !isAdminRole(user.role) &&
     user.role === "insurer" &&
     allowedInsurerRoles &&
     allowedInsurerRoles.length > 0 &&

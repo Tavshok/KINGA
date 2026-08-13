@@ -19,6 +19,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
+import { isAdminRole } from "../../shared/role-permissions";
 
 const t = initTRPC.context<TrpcContext>().create({ transformer: superjson });
 
@@ -87,8 +88,8 @@ const requireInsurer = t.middleware(({ ctx, next }) => {
   if (!INSURER_ROLES.includes(ctx.user.role as typeof INSURER_ROLES[number])) {
     forbidden(`Access denied. /insurer requires insurer role. Current role: ${ctx.user.role}`);
   }
-  // Admin bypasses tenant check; all other insurer users must have a tenantId
-  if (ctx.user.role !== "admin" && !ctx.user.tenantId) {
+  // Administrative shell access does not replace downstream tenant/object scope.
+  if (!isAdminRole(ctx.user.role) && !ctx.user.tenantId) {
     forbidden("Access denied. Insurer users must be associated with a tenant.");
   }
   return next({ ctx: { ...ctx, user: ctx.user } });

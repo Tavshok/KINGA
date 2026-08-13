@@ -4,6 +4,7 @@ import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { getDb } from "../db";
 import { tenantIsolationViolations, systemErrors } from "../../drizzle/schema";
+import { isAdminRole } from "../../shared/role-permissions";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -33,7 +34,7 @@ export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
-    if (!ctx.user || ctx.user.role !== 'admin') {
+    if (!ctx.user || !isAdminRole(ctx.user.role)) {
       throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
     }
 
@@ -207,7 +208,7 @@ const requireInsurerDomain = t.middleware(async opts => {
   // procedures for support, auditing, and platform administration.
   // Cross-tenant admin access is logged (informational, not a violation).
   const role = ctx.user.role;
-  if (role === 'admin' || role === 'platform_super_admin') {
+  if (isAdminRole(role)) {
     // Use the user's own tenantId if they have one; otherwise null (cross-tenant).
     const adminTenantId = ctx.user.tenantId ?? null;
     if (!adminTenantId) {

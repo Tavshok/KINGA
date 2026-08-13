@@ -15,8 +15,8 @@ import { RoleGuard } from "./components/RoleGuard";
  */
 function RedirectToPortal({ to }: { to: string }) {
   const [, setLocation] = useLocation();
-  // Redirect immediately on render (replace so the legacy URL is not in history)
-  setLocation(to, { replace: true });
+  // Redirect after render so legacy URLs cannot trigger render-phase navigation loops.
+  useEffect(() => { setLocation(to, { replace: true }); }, [setLocation, to]);
   return null;
 }
 
@@ -605,7 +605,9 @@ function Router() {
           <ClientProfile />
         </Route>
         <Route path="/client">
-          <ClientPortal />
+          <ProtectedRoute domain="customer">
+            <ClientPortal />
+          </ProtectedRoute>
         </Route>
 
         <Route path="/client/submit-claim">

@@ -7,6 +7,7 @@
 
 import { TRPCError } from '@trpc/server';
 import type { TrpcContext } from './context';
+import { isAdminRole } from '../../shared/role-permissions';
 
 export interface Tenant {
   id: string;
@@ -25,8 +26,8 @@ export async function extractTenantContext(ctx: TrpcContext): Promise<Tenant | n
     return null;
   }
   
-  // Admin users can access all tenants (for platform administration)
-  if (ctx.user.role === 'admin') {
+  // Administrative shell admission remains subject to explicit object scope.
+  if (isAdminRole(ctx.user.role)) {
     return null;
   }
   

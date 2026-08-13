@@ -53,7 +53,7 @@ export const INSURER_ROLE_PORTAL_MAP: Record<string, string> = {
  *   - Entries are matched longest-prefix-first.
  *   - An empty allowedRoles array means the route is accessible to ALL
  *     authenticated insurer users (shared routes like reports-centre).
- *   - admin users (user.role === "admin") bypass this table entirely and
+ *   - administrative shell users bypass this table entirely and
  *     receive an explicit "Admin Override" indicator in the sidebar.
  */
 export const PORTAL_ROUTE_ROLES: Array<{
@@ -123,7 +123,7 @@ export function getPortalAllowedRoles(path: string): string[] | null {
  * Returns false if the target route is an insurer-portal route that the user's
  * insurerRole is not permitted to access.
  *
- * Admin users (user.role === "admin") are always allowed — they bypass role checks
+ * Administrative shell users are always allowed — they bypass role checks
  * but receive a visible "Admin Override" indicator in the sidebar.
  */
 export function isPortalNavigationAllowed(
@@ -132,9 +132,9 @@ export function isPortalNavigationAllowed(
   userInsurerRole: string | null | undefined
 ): boolean {
   // Non-insurer users: not our concern here
-  if (userRole !== "insurer" && userRole !== "admin") return true;
-  // Admin users bypass all role checks
-  if (userRole === "admin") return true;
+  if (userRole !== "insurer" && !isAdminRole(userRole)) return true;
+  // Shell admission only; backend tenant/object procedures remain authoritative.
+  if (isAdminRole(userRole)) return true;
 
   const allowedRoles = getPortalAllowedRoles(targetPath);
   // Not an insurer-portal route — allow
@@ -198,3 +198,4 @@ export const SIDEBAR_TAB_MAP: Record<string, Record<string, string>> = {
     "completed":   "completed",
   },
 };
+import { isAdminRole } from "@shared/role-permissions";
