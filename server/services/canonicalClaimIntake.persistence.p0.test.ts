@@ -77,4 +77,30 @@ describe("P0 canonical intake persistence", () => {
     expect(claimValues).toHaveBeenCalledWith(expect.objectContaining({ claimantPhone: "+263771234567", selectedPanelBeaterIds: JSON.stringify(input.repairerPreferences) }));
     expect(documentValues).toHaveBeenCalledWith(expect.objectContaining({ fileKey: "claims/7/damage.jpg", fileSize: 128, mimeType: "image/jpeg" }));
   });
+
+  it("denies a replay when its existing claim resolves outside the authenticated tenant", async () => {
+    const tx = makeTx(vi.fn(), vi.fn(), vi.fn());
+    const expectedHash = crypto.createHash("sha256").update(JSON.stringify(input)).digest("hex");
+    let selects = 0;
+    const db: any = {
+      select: vi.fn(() => {
+        const builder: any = {
+          from: () => builder,
+          where: () => builder,
+          limit: async () => {
+            selects += 1;
+            if (selects === 1) return [{ tenantId: "tenant-a", userId: 7, idempotencyKey: input.idempotencyKey, requestHash: expectedHash, claimId: 900 }];
+            return [{ id: 900, tenantId: "tenant-b", claimNumber: "CLM-FOREIGN" }];
+          },
+        };
+        return builder;
+      }),
+      transaction: vi.fn(async (work: (value: typeof tx) => Promise<void>) => work(tx)),
+    };
+    getDb.mockResolvedValue(db);
+    const { persistCanonicalClaimIntake } = await import("./canonicalClaimIntake");
+
+    await expect(persistCanonicalClaimIntake({ id: 7, tenantId: "tenant-a", role: "claimant" }, input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
 });
