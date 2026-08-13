@@ -9,6 +9,18 @@ export type CostDecisionPresentation = {
   optimisedQuoteDetail: string;
 };
 
+export type RepairabilityVerdict = {
+  label: "Repairable" | "Repairable with conditions" | "Further structural review required" | "Total loss indicated";
+  detail: string;
+};
+
+export type RepairabilityEvidence = {
+  totalLossIndicated: boolean;
+  repairToValueRatio?: number | null;
+  structuralReviewRequired?: boolean;
+  structuralReviewDetail?: string | null;
+};
+
 function quoteIssue(cost: ReportCostIntegrity): string {
   if (cost.quoteReceiptStatus === "no_quotes") return "No submitted repair quotation received.";
   if (cost.unreconciledQuoteCount > 0) {
@@ -25,6 +37,23 @@ function quoteIssue(cost: ReportCostIntegrity): string {
     return `${cost.duplicateQuotesExcluded} duplicate quotation record${cost.duplicateQuotesExcluded === 1 ? "" : "s"} excluded from comparison.`;
   }
   return "No material quote issue identified.";
+}
+
+/**
+ * Repairability is separate from quotation verification and cost. It uses only
+ * persisted repair-versus-replace evidence and never invents a ratio threshold.
+ */
+export function resolveRepairabilityVerdict(evidence: RepairabilityEvidence): RepairabilityVerdict {
+  if (evidence.totalLossIndicated) {
+    return { label: "Total loss indicated", detail: "Repair-versus-replace assessment indicates total loss." };
+  }
+  if (evidence.structuralReviewRequired) {
+    return { label: "Further structural review required", detail: evidence.structuralReviewDetail ?? "Structural condition requires further review before final repairability confirmation." };
+  }
+  if (evidence.repairToValueRatio === null || evidence.repairToValueRatio === undefined || !Number.isFinite(evidence.repairToValueRatio)) {
+    return { label: "Repairable with conditions", detail: "Repairability is subject to confirmation of the repair-to-value assessment." };
+  }
+  return { label: "Repairable", detail: "Repair-versus-replace assessment supports repair." };
 }
 
 /**
@@ -78,8 +107,10 @@ export function renderCostDecisionSummaryHtml(input: {
   costIntegrity: ReportCostIntegrity;
   formatAmount: (amount: number | null) => string;
   escapeHtml: (value: unknown) => string;
+  repairability: RepairabilityEvidence;
 }): string {
   const presentation = buildCostDecisionPresentation(input.costIntegrity);
+  const repairability = resolveRepairabilityVerdict(input.repairability);
   const verificationGood = presentation.quoteVerification === "PASSED";
   const verificationColour = verificationGood ? "#14664f" : presentation.quoteVerification === "QUOTATION REQUIRED" ? "#526560" : "#8a5a00";
   const issueColour = verificationGood ? "#14664f" : "#8a5a00";
@@ -95,11 +126,12 @@ export function renderCostDecisionSummaryHtml(input: {
     <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#15352f;">Cost Decision Summary</div>
     <div style="font-size:8px;font-weight:700;color:${verificationColour};">KINGA Quote Verification · ${presentation.quoteVerification}</div>
   </div>
-  <div style="display:grid;grid-template-columns:1.12fr 1.04fr 1fr .94fr;">
+  <div style="display:grid;grid-template-columns:1.08fr 1fr .96fr .88fr .92fr;">
     <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Submitted Quotations</div><div style="margin-top:4px;">${submittedQuotes}</div></div>
     <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">KINGA Quote Verification</div><div style="margin-top:5px;font-size:13px;font-weight:700;color:${verificationColour};">${presentation.quoteVerification}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.quoteVerificationDetail)}</div></div>
     <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">${presentation.optimisedQuoteLabel}</div><div style="margin-top:5px;font-size:16px;font-weight:800;color:#0d5849;">${optimisedAmount}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.optimisedQuoteDetail)}</div></div>
     <div style="padding:10px;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Quote Issues</div><div style="margin-top:5px;font-size:11px;font-weight:700;color:${issueColour};">${verificationGood ? "None" : "Review required"}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.quoteIssue)}</div></div>
+    <div style="padding:10px;border-left:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Repairability</div><div style="margin-top:5px;font-size:11px;font-weight:700;color:#15352f;">${input.escapeHtml(repairability.label)}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(repairability.detail)}</div></div>
   </div>
 </div>`;
 }

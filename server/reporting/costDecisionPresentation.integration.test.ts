@@ -22,6 +22,7 @@ describe("R0 cross-surface concise cost-decision presentation", () => {
     expect(source).toContain("KINGA Quote Verification");
     expect(source).toContain("KINGA Optimised Quote");
     expect(source).toContain("Quote Issues");
+    expect(source).toContain("Repairability");
   });
 
   it("does not present benchmark cost as a replacement value in the concise opening presenter", () => {

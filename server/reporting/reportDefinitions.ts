@@ -347,6 +347,10 @@ async function generateClaimAssessmentReport(
       costIntegrity,
       formatAmount: fmtUSD,
       escapeHtml: esc,
+      repairability: {
+        totalLossIndicated: Boolean(claim.total_loss_indicated),
+        repairToValueRatio: claim.repair_to_value_ratio == null ? null : Number(claim.repair_to_value_ratio),
+      },
     });
     const activeQuoteIds = new Set(
       costIntegrity.activeQuotes.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))

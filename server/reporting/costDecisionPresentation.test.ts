@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCostDecisionPresentation, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { buildCostDecisionPresentation, renderCostDecisionSummaryHtml, resolveRepairabilityVerdict } from "./costDecisionPresentation";
 import type { ReportCostIntegrity } from "./costIntegrity";
 
 function cost(overrides: Partial<ReportCostIntegrity> = {}): ReportCostIntegrity {
@@ -47,11 +47,14 @@ describe("R0 concise cost decision presentation", () => {
       costIntegrity: cost(),
       formatAmount: (amount) => `USD ${amount?.toFixed(2) ?? "—"}`,
       escapeHtml: String,
+      repairability: { totalLossIndicated: false, repairToValueRatio: 42 },
     });
     expect(html).toContain("Submitted Quotations");
     expect(html).toContain("Repairer A");
     expect(html).toContain("KINGA Quote Verification");
     expect(html).toContain("KINGA Optimised Quote");
+    expect(html).toContain("Repairability");
+    expect(html).toContain("Repairable");
     expect(html).toContain("USD 2940.00");
     expect(html).not.toContain("3000.00");
     expect(html).not.toContain("benchmark");
@@ -86,5 +89,12 @@ describe("R0 concise cost decision presentation", () => {
     }));
     expect(presentation.quoteVerification).toBe("RECONCILIATION REQUIRED");
     expect(presentation.quoteIssue).toBe("Repairer A: submitted total requires line-item reconciliation.");
+  });
+
+  it("keeps repairability as a separate evidence-grounded verdict without inventing a threshold", () => {
+    expect(resolveRepairabilityVerdict({ totalLossIndicated: false, repairToValueRatio: 48 }).label).toBe("Repairable");
+    expect(resolveRepairabilityVerdict({ totalLossIndicated: false, repairToValueRatio: null }).label).toBe("Repairable with conditions");
+    expect(resolveRepairabilityVerdict({ totalLossIndicated: false, repairToValueRatio: 48, structuralReviewRequired: true }).label).toBe("Further structural review required");
+    expect(resolveRepairabilityVerdict({ totalLossIndicated: true, repairToValueRatio: 48 }).label).toBe("Total loss indicated");
   });
 });

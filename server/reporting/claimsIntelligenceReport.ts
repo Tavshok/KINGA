@@ -178,6 +178,10 @@ export async function generateClaimsIntelligenceReport(
       costIntegrity,
       formatAmount: fmtUSD,
       escapeHtml: esc,
+      repairability: {
+        totalLossIndicated: Boolean(c.total_loss_indicated),
+        repairToValueRatio: rtvRatio,
+      },
     });
     const quoteArr = costIntegrity.activeQuotes;
     const submittedQuoteLedgerDetail = quoteArr.length > 0

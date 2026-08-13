@@ -240,6 +240,10 @@ export async function generateForensicDecisionReport(
       costIntegrity,
       formatAmount: (amount) => fmtCurrency(amount, claimCurrency),
       escapeHtml: esc,
+      repairability: {
+        totalLossIndicated: Boolean(c.total_loss_indicated),
+        repairToValueRatio: c.repair_to_value_ratio == null ? null : rtvRatio,
+      },
     });
     const submittedQuoteLedgerDetail = quoteArr.length > 0
       ? quoteArr.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtCurrency(quote.amountUsd, claimCurrency)}`).join(" · ")

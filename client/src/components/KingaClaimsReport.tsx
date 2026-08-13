@@ -301,7 +301,7 @@ function CostVerdictBadge({ verdict }: { verdict: string }) {
   );
 }
 
-function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency }: { costIntelligence: any; quotes: any[]; fmtCurrency: (amount: number | null | undefined) => string }) {
+function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalLossIndicated, repairToValueRatio }: { costIntelligence: any; quotes: any[]; fmtCurrency: (amount: number | null | undefined) => string; totalLossIndicated: boolean; repairToValueRatio: number | null }) {
   const composite = costIntelligence?.compositeOptimisation ?? {};
   const ledger = Array.isArray(composite.canonicalQuoteLedger) ? composite.canonicalQuoteLedger : [];
   const activeLedger = ledger.filter((quote: any) => quote?.status === "active" || quote?.status === "supplementary");
@@ -326,6 +326,11 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency }: { co
           : "No material quote issue identified.";
   const optimised = complete ? Number(composite.l2CompositeOptimisedCostUsd) : null;
   const optimisedDetail = complete ? "KINGA insurer cost recommendation." : verification === "QUOTATION REQUIRED" ? "Pending submitted quotation evidence." : "Available comparison retained pending the identified quote evidence.";
+  const repairability = totalLossIndicated
+    ? { label: "Total loss indicated", detail: "Repair-versus-replace assessment indicates total loss." }
+    : repairToValueRatio === null
+      ? { label: "Repairable with conditions", detail: "Repairability is subject to confirmation of the repair-to-value assessment." }
+      : { label: "Repairable", detail: "Repair-versus-replace assessment supports repair." };
 
   return (
     <div style={{ margin: "0 0 14px", border: "1px solid #d8e2df", background: "#fff" }}>
@@ -333,7 +338,7 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency }: { co
         <p style={{ ...S.label, color: "#15352f", margin: 0 }}>Cost Decision Summary</p>
         <span style={{ fontSize: 9, fontWeight: 700, color: verificationColour }}>KINGA Quote Verification · {verification}</span>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1.12fr 1.04fr 1fr .94fr" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.08fr 1fr .96fr .88fr .92fr" }}>
         <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}>
           <p style={S.label}>Submitted Quotations</p>
           <div style={{ marginTop: 5, display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -343,6 +348,7 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency }: { co
         <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>KINGA Quote Verification</p><p style={{ fontSize: 13, fontWeight: 800, color: verificationColour, margin: "5px 0 3px" }}>{verification}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{complete ? `${submittedQuotes.length} active submitted quotation${submittedQuotes.length === 1 ? "" : "s"} verified; repair scope is complete.` : issue}</p></div>
         <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>KINGA Optimised Quote</p><p style={{ fontSize: 18, fontWeight: 800, color: "#0d5849", margin: "4px 0 3px" }}>{optimised === null ? "Not published" : fmtCurrency(optimised)}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{optimisedDetail}</p></div>
         <div style={{ padding: 10 }}><p style={S.label}>Quote Issues</p><p style={{ fontSize: 11, fontWeight: 800, color: verification === "PASSED" ? "#14664f" : "#8a5a00", margin: "5px 0 3px" }}>{verification === "PASSED" ? "None" : "Review required"}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{issue}</p></div>
+        <div style={{ padding: 10, borderLeft: "1px solid #d8e2df" }}><p style={S.label}>Repairability</p><p style={{ fontSize: 11, fontWeight: 800, color: "#15352f", margin: "5px 0 3px" }}>{repairability.label}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{repairability.detail}</p></div>
       </div>
     </div>
   );
@@ -716,7 +722,16 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               ))}
             </div>
 
-            <ClientCostDecisionStrip costIntelligence={ci} quotes={quotes} fmtCurrency={fmtC} />
+            <ClientCostDecisionStrip
+              costIntelligence={ci}
+              quotes={quotes}
+              fmtCurrency={fmtC}
+              totalLossIndicated={Boolean(aiAssessment?.totalLossIndicated ?? aiAssessment?.total_loss_indicated ?? claim?.totalLossIndicated ?? claim?.total_loss_indicated)}
+              repairToValueRatio={(() => {
+                const value = aiAssessment?.repairToValueRatio ?? aiAssessment?.repair_to_value_ratio ?? ci?.repairToValuePct ?? ci?.repair_to_value_ratio;
+                return value == null || !Number.isFinite(Number(value)) ? null : Number(value);
+              })()}
+            />
 
             {primaryReason && (
               <div style={{ padding: "10px 12px", background: "#ffffff", borderRadius: 0, marginBottom: 10 }}>
