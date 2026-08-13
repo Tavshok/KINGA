@@ -30,6 +30,15 @@ describe("agency-assisted canonical claim submission", () => {
     await expect(submitAgencyAssistedCanonicalClaim(dependencies({ insurerExists: vi.fn().mockResolvedValue(false) }), input)).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
+  it("rejects a restricted claimant identity resolved from another insurer tenant before canonical persistence", async () => {
+    const persist = vi.fn();
+    await expect(submitAgencyAssistedCanonicalClaim(dependencies({
+      persist,
+      resolveActor: vi.fn().mockResolvedValue({ id: 901, tenantId: "insurer-b", role: "claimant", uploadKeyPrefixes: ["agency-claims/55/"], identityId: 18, trustLevel: "restricted_agency_assisted" }),
+    }), input)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(persist).not.toHaveBeenCalled();
+  });
+
   it("rejects an attachment outside the agency actor ownership prefix", async () => {
     await expect(submitAgencyAssistedCanonicalClaim(dependencies(), { ...input, attachments: [{ ...attachment, key: "agency-claims/other/damage.jpg" }] })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });

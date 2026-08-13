@@ -40,6 +40,9 @@ export async function submitAgencyAssistedCanonicalClaim(
   }
 
   const actor = await dependencies.resolveActor();
+  if (actor.tenantId !== input.insurerTenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Agency-assisted claimant identity is not available in the selected insurer tenant." });
+  }
   assertCanonicalAttachmentOwnership(actor, input.attachments);
   const persisted = await dependencies.persist(actor, {
     ...input,
