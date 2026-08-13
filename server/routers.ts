@@ -90,6 +90,7 @@ import { truthSynthesisRouter } from "./routers/truth-synthesis";
 import { marketQuotesRouter } from "./routers/market-quotes";
 import { agencyRouter } from "./routers/agency";
 import { agencyBrokerRouter } from "./routers/agency-broker";
+import { agencyInsuranceServiceRouter } from "./routers/agency-insurance-service";
 import { fleetAccountsRouter } from "./routers/fleet-accounts";
 import { vehicleRegistryRouter } from "./routers/vehicle-registry";
 import { vehicleStructuralIntelligenceRouter } from "./routers/vehicle-structural-intelligence";
@@ -321,6 +322,7 @@ export const appRouter = router({
   vehicleRegistry: vehicleRegistryRouter,
   globalSearch: globalSearchRouter, // Epic 5-A
   vehiclePassport: vehiclePassportRouter,
+  agencyInsuranceService: agencyInsuranceServiceRouter,
   assetPassport: assetPassportRouter,
   crossModuleIntelligence: crossModuleIntelligenceRouter,
   fleetIntelligence: fleetIntelligenceRouter,

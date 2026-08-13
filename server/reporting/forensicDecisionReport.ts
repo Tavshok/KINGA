@@ -73,6 +73,21 @@ export async function generateForensicDecisionReport(
       [claimId]
     ) as [Record<string, unknown>[], unknown];
     const evidenceGovernanceData = await loadEvidenceGovernanceReportData(conn, claimId, tenantId);
+    const reportTenantId = tenantId ?? String(c.tenant_id ?? "");
+    const [preLossConditionRows] = c.vehicle_registry_id && reportTenantId ? await conn.execute(
+      `SELECT vcs.snapshot_version, vcs.snapshot_date, vcs.exterior_condition, vcs.interior_condition,
+              vcs.mechanical_condition, vcs.existing_damage_notes, vcs.odometer_km,
+              asr.request_number, asr.valuation_date
+       FROM vehicle_condition_snapshots vcs
+       JOIN agency_insurance_service_requests asr ON asr.id = vcs.insurance_service_request_id
+       JOIN agency_insurance_service_request_insurers asri ON asri.service_request_id = asr.id
+       WHERE vcs.vehicle_registry_id = ? AND asri.insurer_tenant_id = ?
+         AND asri.status IN ('invited','viewed','responded')
+         AND (c.incident_date IS NULL OR vcs.snapshot_date <= c.incident_date)
+       ORDER BY vcs.snapshot_date DESC LIMIT 1`,
+      [c.vehicle_registry_id, reportTenantId],
+    ) as [Record<string, unknown>[], unknown] : [[], null];
+    const preLossCondition = preLossConditionRows[0] ?? null;
 
     // ── 3b. Fetch audit events for approval chain ────────────────────────────
     const [auditEvents] = await conn.execute(
@@ -885,6 +900,17 @@ export async function generateForensicDecisionReport(
         </table>
       </div>
     </div>
+    ${preLossCondition ? `<div class="box" style="margin-top:10px;border-left:3px solid var(--blue);">
+      <h4>Vehicle Passport — Pre-Loss Condition Evidence</h4>
+      <table class="kv">
+        ${kvRow("Valuation snapshot", `${esc(String(preLossCondition.request_number ?? "—"))} · v${esc(String(preLossCondition.snapshot_version ?? "1"))}`)}
+        ${kvRow("Snapshot date", fmtD(preLossCondition.snapshot_date))}
+        ${kvRow("Recorded condition", `Exterior ${esc(String(preLossCondition.exterior_condition ?? "—"))} · Interior ${esc(String(preLossCondition.interior_condition ?? "—"))} · Mechanical ${esc(String(preLossCondition.mechanical_condition ?? "—"))}`)}
+        ${preLossCondition.odometer_km != null ? kvRow("Odometer then", `${esc(String(preLossCondition.odometer_km))} km`) : ""}
+        ${preLossCondition.existing_damage_notes ? kvRow("Pre-existing condition noted", esc(String(preLossCondition.existing_damage_notes))) : ""}
+      </table>
+      <p class="small" style="margin:7px 0 0 0;color:var(--ink-soft);">Dated pre-loss valuation evidence only. It does not determine causation, repair cost, policy, premium, settlement, fraud conclusion, or claim outcome.</p>
+    </div>` : ""}
   </div>
 
   <!-- §03 INCIDENT NARRATIVE -->

@@ -26,6 +26,9 @@ import {
   fraudAlerts,
   aiAssessments,
   vehiclePassportSnapshots,
+  vehicleConditionSnapshots,
+  agencyInsuranceServiceRequestInsurers,
+  agencyInsuranceServiceRequests,
 } from "../../drizzle/schema";
 import {
   eq,
@@ -52,6 +55,52 @@ interface TimelineEvent {
   sourceTable: string;
   sourceId: number;
   metadata: Record<string, unknown>;
+}
+
+async function getAuthorisedPreLossConditionSnapshots(
+  db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
+  vehicleRegistryId: number,
+  tenantId?: string | null,
+) {
+  if (!tenantId) return [];
+  return db.select({
+    id: vehicleConditionSnapshots.id,
+    snapshotVersion: vehicleConditionSnapshots.snapshotVersion,
+    snapshotDate: vehicleConditionSnapshots.snapshotDate,
+    exteriorCondition: vehicleConditionSnapshots.exteriorCondition,
+    interiorCondition: vehicleConditionSnapshots.interiorCondition,
+    mechanicalCondition: vehicleConditionSnapshots.mechanicalCondition,
+    existingDamageNotes: vehicleConditionSnapshots.existingDamageNotes,
+    tyreCondition: vehicleConditionSnapshots.tyreCondition,
+    glassCondition: vehicleConditionSnapshots.glassCondition,
+    odometerKm: vehicleConditionSnapshots.odometerKm,
+    modificationsJson: vehicleConditionSnapshots.modificationsJson,
+    photographsJson: vehicleConditionSnapshots.photographsJson,
+    evidenceSourcesJson: vehicleConditionSnapshots.evidenceSourcesJson,
+    observations: vehicleConditionSnapshots.observations,
+    serviceRequestId: agencyInsuranceServiceRequests.id,
+    requestNumber: agencyInsuranceServiceRequests.requestNumber,
+    valuationDate: agencyInsuranceServiceRequests.valuationDate,
+    valuationProvenanceJson: agencyInsuranceServiceRequests.valuationProvenanceJson,
+  }).from(vehicleConditionSnapshots)
+    .innerJoin(agencyInsuranceServiceRequests, eq(agencyInsuranceServiceRequests.id, vehicleConditionSnapshots.insuranceServiceRequestId))
+    .innerJoin(agencyInsuranceServiceRequestInsurers, eq(agencyInsuranceServiceRequestInsurers.serviceRequestId, agencyInsuranceServiceRequests.id))
+    .where(and(
+      eq(vehicleConditionSnapshots.vehicleRegistryId, vehicleRegistryId),
+      eq(agencyInsuranceServiceRequestInsurers.insurerTenantId, tenantId),
+      inArray(agencyInsuranceServiceRequestInsurers.status, ["invited", "viewed", "responded"]),
+    ))
+    .orderBy(desc(vehicleConditionSnapshots.snapshotDate));
+}
+
+async function canAccessVehiclePassport(
+  db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
+  vehicle: { tenantId: string | null },
+  vehicleRegistryId: number,
+  tenantId?: string | null,
+) {
+  if (!vehicle.tenantId || vehicle.tenantId === tenantId) return true;
+  return (await getAuthorisedPreLossConditionSnapshots(db, vehicleRegistryId, tenantId)).length > 0;
 }
 
 // ─── Router ──────────────────────────────────────────────────────────────────
@@ -84,8 +133,8 @@ export const vehiclePassportRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Vehicle not found" });
       }
 
-      // Tenant isolation (P-16)
-      if (vehicle.tenantId && vehicle.tenantId !== ctx.user.tenantId) {
+      // Tenant isolation with an explicit insurer-invitation evidence exception.
+      if (!await canAccessVehiclePassport(db, vehicle, input.vehicleRegistryId, ctx.user.tenantId)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
       }
 
@@ -105,11 +154,14 @@ export const vehiclePassportRouter = router({
         vehicle.registrationNumber ?? "",
         ctx.user.tenantId ?? undefined
       );
+      const preLossConditionSnapshots = await getAuthorisedPreLossConditionSnapshots(db, input.vehicleRegistryId, ctx.user.tenantId);
 
       return {
         vehicle,
         intelligence,
         renewalRisk,
+        preLossConditionSnapshots,
+        preLossEvidenceBoundary: "These dated snapshots are pre-loss valuation evidence only. They do not determine a claim outcome, repair cost, policy, premium, settlement, or fraud conclusion.",
         generatedAt: new Date().toISOString(),
         dataVersion: "v1.0",
       };
@@ -141,7 +193,7 @@ export const vehiclePassportRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Vehicle not found in registry" });
       }
 
-      if (vehicle.tenantId && vehicle.tenantId !== ctx.user.tenantId) {
+      if (!await canAccessVehiclePassport(db, vehicle, vehicle.id, ctx.user.tenantId)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
       }
 
@@ -155,11 +207,14 @@ export const vehiclePassportRouter = router({
         regNum,
         ctx.user.tenantId ?? undefined
       );
+      const preLossConditionSnapshots = await getAuthorisedPreLossConditionSnapshots(db, vehicle.id, ctx.user.tenantId);
 
       return {
         vehicle,
         intelligence,
         renewalRisk,
+        preLossConditionSnapshots,
+        preLossEvidenceBoundary: "These dated snapshots are pre-loss valuation evidence only. They do not determine a claim outcome, repair cost, policy, premium, settlement, or fraud conclusion.",
         generatedAt: new Date().toISOString(),
         dataVersion: "v1.0",
       };
@@ -189,7 +244,7 @@ export const vehiclePassportRouter = router({
         .limit(1);
 
       if (!vehicle) throw new TRPCError({ code: "NOT_FOUND", message: "Vehicle not found" });
-      if (vehicle.tenantId && vehicle.tenantId !== ctx.user.tenantId) {
+      if (!await canAccessVehiclePassport(db, vehicle, input.vehicleRegistryId, ctx.user.tenantId)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
       }
 
@@ -291,7 +346,26 @@ export const vehiclePassportRouter = router({
         });
       }
 
-      // 4. Fraud alerts (canonical: fraud_alerts table)
+      // 4. Dated pre-loss valuation condition evidence. It is not a claim outcome.
+      const preLossSnapshots = await getAuthorisedPreLossConditionSnapshots(db, input.vehicleRegistryId, ctx.user.tenantId);
+      for (const snapshot of preLossSnapshots) {
+        events.push({
+          eventType: "pre_loss_condition_snapshot",
+          eventDate: snapshot.snapshotDate ?? "",
+          description: `Pre-loss valuation condition snapshot v${snapshot.snapshotVersion} — exterior ${snapshot.exteriorCondition}, interior ${snapshot.interiorCondition}, mechanical ${snapshot.mechanicalCondition}`,
+          sourceTable: "vehicle_condition_snapshots",
+          sourceId: snapshot.id,
+          metadata: {
+            serviceRequestId: snapshot.serviceRequestId,
+            requestNumber: snapshot.requestNumber,
+            valuationDate: snapshot.valuationDate,
+            evidenceSources: snapshot.evidenceSourcesJson,
+            boundary: "Pre-loss evidence only; not a claim outcome, repair estimate, settlement, premium, policy, or fraud conclusion.",
+          },
+        });
+      }
+
+      // 5. Fraud alerts (canonical: fraud_alerts table)
       const fraudAlertEvents = await db
         .select({
           id: fraudAlerts.id,
@@ -336,6 +410,7 @@ export const vehiclePassportRouter = router({
           claims: "claims",
           damageEvents: "vehicle_damage_history",
           inspections: "inspections",
+          preLossConditionSnapshots: "vehicle_condition_snapshots",
           fraudAlerts: "fraud_alerts",
         },
       };

@@ -3850,6 +3850,126 @@ export const agencyClients = mysqlTable("agency_clients", {
 export type AgencyClient = typeof agencyClients.$inferSelect;
 export type InsertAgencyClient = typeof agencyClients.$inferInsert;
 
+/**
+ * Agency insurance service requests are deliberately distinct from motor claims,
+ * policies, RFQs, repair work, and settlement. They retain a client instruction,
+ * selected insured value, market-valuation evidence, and review lifecycle only.
+ */
+export const agencyInsuranceServiceRequests = mysqlTable("agency_insurance_service_requests", {
+  id: int().autoincrement().notNull(),
+  requestNumber: varchar("request_number", { length: 50 }).notNull(),
+  agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
+  agencyClientId: int("agency_client_id").notNull(),
+  vehicleRegistryId: int("vehicle_registry_id"),
+  coverType: mysqlEnum("cover_type", ["comprehensive", "third_party", "third_party_fire_theft", "commercial", "other"]).notNull(),
+  status: mysqlEnum("status", ["draft", "awaiting_client_acknowledgement", "ready_for_insurer_review", "under_insurer_review", "closed", "withdrawn"]).default("draft").notNull(),
+  clientInstruction: text("client_instruction").notNull(),
+  vehicleRiskNotes: text("vehicle_risk_notes"),
+  vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  vehicleYear: int("vehicle_year"),
+  vehicleVin: varchar("vehicle_vin", { length: 50 }),
+  vehicleMileageKm: int("vehicle_mileage_km"),
+  clientProposedValueCents: int("client_proposed_value_cents"),
+  kingaMarketValuationCents: int("kinga_market_valuation_cents"),
+  valuationDate: timestamp("valuation_date", { mode: "string" }),
+  valuationProvenanceJson: json("valuation_provenance_json"),
+  variancePercent: decimal("variance_percent", { precision: 7, scale: 2 }),
+  clientAcknowledgementJson: json("client_acknowledgement_json"),
+  createdBy: int("created_by").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("uq_agency_insurance_service_request_number").on(table.requestNumber),
+  index("idx_agency_insurance_service_request_tenant_status").on(table.agencyTenantId, table.status),
+  index("idx_agency_insurance_service_request_client").on(table.agencyClientId),
+  index("idx_agency_insurance_service_request_vehicle").on(table.vehicleRegistryId),
+]);
+
+/** Insurer invitations are a decision-support channel for insurance service requests, never claim or policy records. */
+export const agencyInsuranceServiceRequestInsurers = mysqlTable("agency_insurance_service_request_insurers", {
+  id: int().autoincrement().notNull(),
+  serviceRequestId: int("service_request_id").notNull(),
+  agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
+  insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
+  status: mysqlEnum("status", ["invited", "viewed", "responded", "withdrawn"]).default("invited").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("uq_agency_service_request_insurer").on(table.serviceRequestId, table.insurerTenantId),
+  index("idx_agency_service_request_insurer_tenant").on(table.insurerTenantId, table.status),
+]);
+
+/** Auditable agency record when the client retains a materially different selected insured value. */
+export const agencyInsuranceValuationDeviations = mysqlTable("agency_insurance_valuation_deviations", {
+  id: int().autoincrement().notNull(),
+  serviceRequestId: int("service_request_id").notNull(),
+  agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
+  clientProposedValueCents: int("client_proposed_value_cents").notNull(),
+  kingaMarketValuationCents: int("kinga_market_valuation_cents").notNull(),
+  variancePercent: decimal("variance_percent", { precision: 7, scale: 2 }).notNull(),
+  acknowledgementJson: json("acknowledgement_json").notNull(),
+  recordedBy: int("recorded_by").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+}, (table) => [
+  uniqueIndex("uq_agency_insurance_valuation_deviation_request").on(table.serviceRequestId),
+  index("idx_agency_insurance_valuation_deviation_tenant").on(table.agencyTenantId),
+]);
+
+/**
+ * Dated, versioned pre-loss condition evidence captured with a valuation. It is
+ * explicitly not a claim outcome, repair estimate, settlement, policy term, or premium input.
+ */
+export const vehicleConditionSnapshots = mysqlTable("vehicle_condition_snapshots", {
+  id: int().autoincrement().notNull(),
+  vehicleRegistryId: int("vehicle_registry_id").notNull(),
+  insuranceServiceRequestId: int("insurance_service_request_id").notNull(),
+  vehicleMarketValuationId: int("vehicle_market_valuation_id"),
+  snapshotVersion: int("snapshot_version").notNull(),
+  snapshotDate: timestamp("snapshot_date", { mode: "string" }).notNull(),
+  exteriorCondition: varchar("exterior_condition", { length: 50 }).notNull(),
+  interiorCondition: varchar("interior_condition", { length: 50 }).notNull(),
+  mechanicalCondition: varchar("mechanical_condition", { length: 50 }).notNull(),
+  existingDamageNotes: text("existing_damage_notes"),
+  tyreCondition: varchar("tyre_condition", { length: 50 }),
+  glassCondition: varchar("glass_condition", { length: 50 }),
+  odometerKm: int("odometer_km"),
+  modificationsJson: json("modifications_json"),
+  photographsJson: json("photographs_json"),
+  evidenceSourcesJson: json("evidence_sources_json").notNull(),
+  observations: text("observations"),
+  assessorNotes: text("assessor_notes"),
+  capturedBy: int("captured_by").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("uq_vehicle_condition_snapshot_version").on(table.insuranceServiceRequestId, table.snapshotVersion),
+  index("idx_vehicle_condition_snapshot_vehicle_date").on(table.vehicleRegistryId, table.snapshotDate),
+  index("idx_vehicle_condition_snapshot_tenant_vehicle").on(table.tenantId, table.vehicleRegistryId),
+]);
+
+/** Lower-trust claimant identity anchor for agency-assisted accident intake only. */
+export const agencyAssistedClaimantIdentities = mysqlTable("agency_assisted_claimant_identities", {
+  id: int().autoincrement().notNull(),
+  agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
+  agencyClientId: int("agency_client_id").notNull(),
+  insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
+  restrictedClaimantUserId: int("restricted_claimant_user_id").notNull(),
+  verifiedClaimantUserId: int("verified_claimant_user_id"),
+  status: mysqlEnum("status", ["restricted", "linked_to_verified_claimant"]).default("restricted").notNull(),
+  createdBy: int("created_by").notNull(),
+  linkedBy: int("linked_by"),
+  linkedAt: timestamp("linked_at", { mode: "string" }),
+  linkConfirmationStatement: text("link_confirmation_statement"),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("uq_agency_assisted_claimant_identity").on(table.agencyTenantId, table.agencyClientId, table.insurerTenantId),
+  index("idx_agency_assisted_claimant_insurer").on(table.insurerTenantId, table.status),
+]);
+
 export const insurerQuoteRequests = mysqlTable("insurer_quote_requests", {
   id: int().autoincrement().notNull(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),

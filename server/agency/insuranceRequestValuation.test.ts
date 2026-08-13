@@ -1,0 +1,45 @@
+import { describe, expect, it } from "vitest";
+import {
+  MATERIAL_VALUATION_VARIANCE_PERCENT,
+  buildClientAcknowledgementRequired,
+  compareClientValueToMarketValuation,
+  normaliseVehicleRegistration,
+} from "./insuranceRequestValuation";
+
+describe("agency insurance-request valuation boundary", () => {
+  it("retains aligned client and market values as non-binding comparison evidence", () => {
+    const variance = compareClientValueToMarketValuation(1_000_000, 1_000_000);
+    expect(variance).toMatchObject({ direction: "aligned", variancePercent: 0, materiallyDifferent: false });
+    expect(buildClientAcknowledgementRequired(variance, false)).toBe(false);
+  });
+
+  it("requires client acknowledgement for a materially lower selected value", () => {
+    const variance = compareClientValueToMarketValuation(850_000, 1_000_000);
+    expect(variance.direction).toBe("below_market");
+    expect(variance.variancePercent).toBe(-15);
+    expect(variance.materiallyDifferent).toBe(true);
+    expect(variance.clientDisclosure).toContain("underinsurance");
+    expect(buildClientAcknowledgementRequired(variance, false)).toBe(true);
+  });
+
+  it("records materially higher selected values as a disclosure, not a decision", () => {
+    const variance = compareClientValueToMarketValuation(1_150_000, 1_000_000);
+    expect(variance.direction).toBe("above_market");
+    expect(variance.variancePercent).toBe(15);
+    expect(variance.materiallyDifferent).toBe(true);
+    expect(variance.clientDisclosure).toContain("overinsurance");
+    expect(buildClientAcknowledgementRequired(variance, true)).toBe(false);
+  });
+
+  it("does not manufacture a comparison when the market valuation is unavailable", () => {
+    const variance = compareClientValueToMarketValuation(1_000_000, null);
+    expect(variance).toMatchObject({ direction: "unavailable", variancePercent: null, materiallyDifferent: false });
+  });
+
+  it("uses a ten percent material-difference boundary and normalises vehicle identifiers", () => {
+    const variance = compareClientValueToMarketValuation(1_100_000, 1_000_000);
+    expect(MATERIAL_VALUATION_VARIANCE_PERCENT).toBe(10);
+    expect(variance.materiallyDifferent).toBe(true);
+    expect(normaliseVehicleRegistration(" abc 1234 ")).toBe("ABC1234");
+  });
+});

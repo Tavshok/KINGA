@@ -59,14 +59,6 @@ const updateClientInput = createClientInput.partial().extend({
   id: z.number().int().positive(),
 });
 
-const createAgencyClaimInput = z.object({
-  agencyClientId: z.number().int().positive(),
-  incidentDescription: z.string().min(1),
-  incidentDate: z.string(), // ISO date string
-  damageDescription: z.string().optional(),
-  estimatedDamageAmount: z.number().optional(),
-});
-
 const requestQuotesInput = z.object({
   claimId: z.number().int().positive(),
   insurerTenantIds: z.array(z.string()).min(1).max(20),
@@ -436,55 +428,6 @@ export const agencyBrokerRouter = router({
 
       if (!client) throw new TRPCError({ code: "NOT_FOUND", message: "Client not found." });
       return client;
-    }),
-
-  // ── Agency Claims ──────────────────────────────────────────────────────────
-
-  /**
-   * Create an agency-sourced claim linked to an agency client.
-   * Uses the shared claims table with claim_source = 'agency'.
-   */
-  createAgencyClaim: agencyProcedure
-    .input(createAgencyClaimInput)
-    .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
-
-      const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
-
-      // Verify client belongs to this agency
-      const [client] = await db
-        .select({ id: agencyClients.id, fullName: agencyClients.fullName })
-        .from(agencyClients)
-        .where(and(
-          eq(agencyClients.id, input.agencyClientId),
-          eq(agencyClients.agencyTenantId, tenantId)
-        ));
-
-      if (!client) throw new TRPCError({ code: "NOT_FOUND", message: "Agency client not found." });
-
-      const claimNumber = `AGY-${Date.now().toString(36).toUpperCase()}-${randomUUID().slice(0, 6).toUpperCase()}`;
-      const now = new Date().toISOString().slice(0, 19).replace("T", " ");
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const [result] = await db.insert(claims).values({
-        claimNumber,
-        claimantId: ctx.user.id,
-        tenantId,
-        status: "intake_pending" as any,
-        workflowState: "intake_queue" as any,
-        claimSource: "agency",
-        documentProcessingStatus: "pending",
-        incidentDescription: input.incidentDescription,
-        incidentDate: input.incidentDate,
-        damageDescription: input.damageDescription ?? null,
-        estimatedRepairCost: input.estimatedDamageAmount ? Math.round(input.estimatedDamageAmount) : null,
-        createdAt: now,
-        updatedAt: now,
-      } as any).$returningId() as { id: number }[];
-
-      console.log(`[AgencyBroker] Agency claim created: id=${result.id} claimNumber=${claimNumber} for client=${client.fullName}`);
-      return { id: result.id, claimNumber };
     }),
 
   // ── Multi-Insurer Quote Requests ───────────────────────────────────────────

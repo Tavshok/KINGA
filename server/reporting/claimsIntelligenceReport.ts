@@ -97,6 +97,21 @@ export async function generateClaimsIntelligenceReport(
        ORDER BY c2.created_at DESC LIMIT 5`,
       [vehicleRegRaw, claimId]
     ) as [Record<string, unknown>[], unknown] : [[], null];
+    const reportTenantId = tenantId ?? String(c.tenant_id ?? "");
+    const [preLossConditionRows] = c.vehicle_registry_id && reportTenantId ? await conn.execute(
+      `SELECT vcs.snapshot_version, vcs.snapshot_date, vcs.exterior_condition, vcs.interior_condition,
+              vcs.mechanical_condition, vcs.existing_damage_notes, vcs.odometer_km,
+              asr.request_number, asr.valuation_date
+       FROM vehicle_condition_snapshots vcs
+       JOIN agency_insurance_service_requests asr ON asr.id = vcs.insurance_service_request_id
+       JOIN agency_insurance_service_request_insurers asri ON asri.service_request_id = asr.id
+       WHERE vcs.vehicle_registry_id = ? AND asri.insurer_tenant_id = ?
+         AND asri.status IN ('invited','viewed','responded')
+         AND (c.incident_date IS NULL OR vcs.snapshot_date <= c.incident_date)
+       ORDER BY vcs.snapshot_date DESC LIMIT 1`,
+      [c.vehicle_registry_id, reportTenantId],
+    ) as [Record<string, unknown>[], unknown] : [[], null];
+    const preLossCondition = preLossConditionRows[0] ?? null;
     // ── 4. Parse JSON fields ─────────────────────────────────────────────────
     const costIntel  = safeJson(c.cost_intelligence_json as string) as any;
     const repairIntel = safeJson(c.repair_intelligence_json as string) as any;
@@ -493,6 +508,19 @@ ${(() => {
     <p class="caption" style="margin-top:4pt;color:var(--amber);">⚠ This vehicle has ${vh.length} prior claim${vh.length !== 1 ? 's' : ''} on record. Review claim history for patterns before authorising settlement.</p>
   </div>`;
   })() : ''}
+  ${preLossCondition ? `<div style="margin-top:10pt;border-left:3px solid var(--blue);padding-left:8pt;">
+    <h4 style="margin:0 0 6pt 0;font-size:9pt;">Vehicle Passport — Pre-Loss Condition Evidence</h4>
+    <table style="width:100%;border-collapse:collapse;font-size:8pt;">
+      <tbody>
+        <tr><td style="padding:3pt 6pt;font-weight:600;width:32%;">Valuation snapshot</td><td style="padding:3pt 6pt;">${esc(String(preLossCondition.request_number ?? '—'))} · v${esc(String(preLossCondition.snapshot_version ?? '1'))}</td></tr>
+        <tr><td style="padding:3pt 6pt;font-weight:600;">Snapshot date</td><td style="padding:3pt 6pt;">${fmtD(preLossCondition.snapshot_date)}</td></tr>
+        <tr><td style="padding:3pt 6pt;font-weight:600;">Recorded condition</td><td style="padding:3pt 6pt;">Exterior ${esc(String(preLossCondition.exterior_condition ?? '—'))} · Interior ${esc(String(preLossCondition.interior_condition ?? '—'))} · Mechanical ${esc(String(preLossCondition.mechanical_condition ?? '—'))}</td></tr>
+        ${preLossCondition.odometer_km != null ? `<tr><td style="padding:3pt 6pt;font-weight:600;">Odometer then</td><td style="padding:3pt 6pt;">${esc(String(preLossCondition.odometer_km))} km</td></tr>` : ''}
+        ${preLossCondition.existing_damage_notes ? `<tr><td style="padding:3pt 6pt;font-weight:600;">Pre-existing condition noted</td><td style="padding:3pt 6pt;">${esc(String(preLossCondition.existing_damage_notes))}</td></tr>` : ''}
+      </tbody>
+    </table>
+    <p class="caption" style="margin-top:4pt;">Dated pre-loss valuation evidence only. It does not determine causation, repair cost, policy, premium, settlement, fraud conclusion, or claim outcome.</p>
+  </div>` : ''}
 
 </div>
 </div>
