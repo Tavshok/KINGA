@@ -29,7 +29,9 @@ An insurance service request may record a **client-proposed insured value** as a
 
 The current valuation implementation is evidence-qualified rather than independently verified: it must not be described as highly accurate or multi-source until the individual comparable listings, recency, market coverage, adjustment provenance, and validation evidence are actually available. Until then, the service must disclose its method, source coverage, and uncertainty, and treat valuation output as non-binding decision support.
 
-Reliability controls remain detailed and auditable internally. Client-facing presentation must avoid unexplained raw confidence percentages and instead use evidence-led states: **Market-supported valuation** where sufficient comparable evidence is available; **Provisional valuation — more evidence needed** where coverage is limited; and **Expert review needed** where available evidence cannot support a reliable market view. Agencies and insurers may open a professional evidence view containing source coverage, comparable evidence, adjustments, and limitation reasons.
+Reliability controls remain detailed and auditable internally. Client-facing presentation must identify the result simply as **KINGA Market Valuation**, state its valuation date and the material vehicle information used, and avoid unexplained raw confidence percentages. The client must confirm that vehicle identity, specification, condition, mileage, modifications, and the selected insured value are accurate before relying on the request. Agencies and insurers may open a professional evidence view containing source coverage, comparable evidence, adjustments, and limitation reasons.
+
+Every valuation-assisted insurance request must also create a dated, versioned **vehicle-condition snapshot**. The snapshot must preserve the observed exterior, interior, mechanical and existing-damage condition; tyres, glass, odometer/mileage, modifications, photographs, source documents, observations, and the evidence origin for each material fact. It is pre-loss evidence, not a claim outcome. When a later claim is opened for the same vehicle, the Vehicle Passport must surface the relevant prior valuation-condition snapshot with its valuation date and provenance, so the assessment can distinguish pre-existing from newly reported condition without overwriting either record.
 
 Standalone valuation remains a separate access path and report-gating journey. The insurance-request valuation is contextual decision support inside the service-request lifecycle, not a disguised standalone-valuation or claim record.
 
@@ -37,7 +39,7 @@ The agency-assisted accident-claim route will be introduced separately and only 
 
 ## 5. Hard Boundaries
 
-Neither route may create or infer a policy, premium, settlement, repair cost, fraud conclusion, commission, payment, or insurer decision. Agency assistance never makes the agency the claimant. A restricted assisted claimant remains lower trust until the client later verifies and links a My Portal identity. A valuation variance may trigger disclosure and acknowledgement, never automatic acceptance, rejection, pricing, or underwriting outcome.
+Neither route may create or infer a policy, premium, settlement, repair cost, fraud conclusion, commission, payment, or insurer decision. Agency assistance never makes the agency the claimant. A restricted assisted claimant remains lower trust until the client later verifies and links a My Portal identity. A valuation variance may trigger disclosure and acknowledgement, never automatic acceptance, rejection, pricing, or underwriting outcome. The client retains responsibility for confirming the material valuation inputs and chosen insured value; an agency deviation record is required where the selected value differs from the KINGA Market Valuation.
 
 ## 6. Acceptance Criteria
 
