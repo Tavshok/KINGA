@@ -473,7 +473,7 @@ If the image is unclear or shows no vehicle damage, return an empty components a
 // Typical: 20 photos × ~8s = ~160s ✓ within budget. Worst case: ~4 photos × 45s = 180s.
 const PER_RUN_VISION_BUDGET = 20; // max photos per run; stage budget = TIMEOUT_VISION_MS (200s)
 
-async function readDamageFromPhotos(
+export async function readDamageFromPhotos(
   photoUrls: string[],
   claimRecord: ClaimRecord,
   ctx: PipelineContext,
@@ -483,7 +483,9 @@ async function readDamageFromPhotos(
   /** P5: per-URL provenance tag — set by the caller based on imageIntelligence classification */
   sourceTagMap?: Map<string, DamageAnalysisComponent['inputSource']>,
   /** R2: provenance and eligibility are carried per URL without suppressing damage analysis. */
-  evidenceByUrl?: Map<string, ImageEvidenceEnvelope>
+  evidenceByUrl?: Map<string, ImageEvidenceEnvelope>,
+  /** Test seam: defaults to the production vision analyser and never persists state itself. */
+  analyseImage: typeof analyseOneImage = analyseOneImage,
 ): Promise<{
   components: DamageAnalysisComponent[];
   perPhotoResults: import('./types').PerPhotoResult[];
@@ -566,7 +568,7 @@ async function readDamageFromPhotos(
         const i = batchStart + batchIdx;
         const evidence = evidenceByUrl?.get(url);
         try {
-          const result = await analyseOneImage(
+          const result = await analyseImage(
             url,
             i,
             vehicleContext,

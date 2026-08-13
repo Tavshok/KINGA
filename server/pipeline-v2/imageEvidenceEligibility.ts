@@ -149,3 +149,8 @@ export function removeIneligiblePhysicsMeasurements(
     return damageOnly;
   });
 }
+
+/** A vision measurement is eligible for Stage 7 only when Stage 6 explicitly confirmed its image provenance. */
+export function isPhysicsEligibleVisionComponent(component: DamageAnalysisComponent): boolean {
+  return component.inputSource === "confirmed_damage_photo";
+}

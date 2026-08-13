@@ -10,6 +10,7 @@
  */
 
 import { ensurePhysicsContract } from "./engineFallback";
+import { isPhysicsEligibleVisionComponent } from "./imageEvidenceEligibility";
 import {
   applyPhysicsNumericalContract,
   mergeNumericalContract,
@@ -887,7 +888,7 @@ export async function runPhysicsStage(
         // crush-depth-eligible image. Legacy/null provenance remains usable damage
         // evidence, but cannot silently enter a speed or energy calculation.
         const confirmedParts = damageAnalysis.damagedParts
-          .filter(p => p.inputSource === 'confirmed_damage_photo');
+          .filter(isPhysicsEligibleVisionComponent);
 
         // First pass: zone-matched components only
         const zoneMatchedDepths = confirmedParts
