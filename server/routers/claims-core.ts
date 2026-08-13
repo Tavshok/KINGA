@@ -52,6 +52,7 @@ import { logger } from "../logger";
 import { nanoid } from "nanoid";
 import { isAdminRole } from "@shared/role-permissions";
 import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment } from "../services/canonicalClaimIntake";
+import { submitAndStartCanonicalIntake } from "../services/canonicalIntakeSubmission";
 
 export const claimsRouter = router({
   /**
@@ -347,14 +348,14 @@ export const claimsRouter = router({
 
       const tenantId = ctx.user.tenantId ?? "";
       if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Unable to determine your insurer tenant." });
-      const result = await persistCanonicalClaimIntake({ id: ctx.user.id, tenantId, role: ctx.user.role }, {
+      const actor = { id: ctx.user.id, tenantId, role: ctx.user.role };
+      const result = await submitAndStartCanonicalIntake({ persist: persistCanonicalClaimIntake, startAssessment: startCanonicalIntakeAssessment }, actor, {
         idempotencyKey: input.idempotencyKey, channel: input.channel, vehicleMake: input.vehicleMake, vehicleModel: input.vehicleModel, vehicleYear: input.vehicleYear, vehicleRegistration: input.vehicleRegistration,
         incidentDate: input.incidentDate, incidentLocation: input.incidentLocation, incidentDescription: input.incidentDescription, policyNumber: input.policyNumber, vehicleMileage: input.vehicleMileage, currencyCode: input.currencyCode,
         attachments: [...input.damagePhotos.map((photo) => ({ ...photo, category: "damage_photo" as const })), ...input.supportingDocuments.map((document) => ({ key: document.key, url: document.url, fileName: document.fileName, fileSize: document.fileSize, mimeType: document.mimeType, category: document.type }))],
         repairerPreferences: input.repairerPreferences, claimantType: input.claimantType, companyName: input.companyName, companyRegistration: input.companyRegistration, claimantDepartment: input.claimantDepartment, fleetAccountId: input.fleetAccountId,
       });
-      await startCanonicalIntakeAssessment({ id: ctx.user.id, tenantId, role: ctx.user.role }, result.claimId, input.idempotencyKey);
-      return { success: true, claimId: result.claimId, claimNumber: result.claimNumber, idempotent: result.idempotent, repairerWarnings: result.repairerWarnings };
+      return { success: true, claimId: result.claimId, claimNumber: result.claimNumber, idempotent: result.idempotent, repairerWarnings: result.repairerWarnings, assessmentStartStatus: result.assessmentStartStatus };
 
       // ── Governance validation ─────────────────────────────────────────────
       // 1. No duplicates

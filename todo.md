@@ -69,21 +69,21 @@
 - [x] P0 Package 2-A: define and enforce the canonical server-owned intake evidence contract across all user-facing claim sources
 - [x] P0 Package 2-B: create authorised, idempotent claim-document and photo association during intake persistence
 - [x] P0 Package 2-C: replace exact-three panel-beater submission blocking with non-blocking exception routing and in-app warnings
-- [ ] P0 Package 2-D: prove web, My Portal, agency, WhatsApp, and any concrete mobile/API claimant submissions route through the shared intake service
+- [x] P0 Package 2-D: prove web, My Portal, agency, WhatsApp, and any concrete mobile/API claimant submissions route through the shared intake service
 - [x] P0 Package 2-E: preserve and surface post-intake assessment trigger failures as recoverable in-app operational work
 - [ ] P0 Package 2-F: execute complete multi-channel and tenant-negative runtime proof; current canonical, recovery, and identity focused tests pass but do not close every channel path
 - [ ] P0 Package 2-G: prove original attachment metadata, source association, and evidence provenance through persisted-output comparison for every real intake path
 - [x] P0 Package 2-H: test intake with 0, 1, 2, 3, and 4+ repairer preferences without changing pricing, settlement, fraud, or downstream assessment rules
-- [ ] P0 Package 2-I: execute interrupted-submission recovery proof; canonical idempotent retry and no-duplicate notification tests pass but do not yet cover a full interrupted request path
+- [ ] P0 Package 2-I: execute adapter-level interrupted-submission recovery proof; the isolated canonical transaction-interruption test proves one committed claim/evidence set, but not the complete replay path through every concrete adapter with assessment-start and notification side effects
 - [ ] P0 Package 2-J: compare persisted canonical claim and claim-document output across actual portal/web, agency, WhatsApp, and concrete API/mobile hand-off paths
 - [ ] P0 Package 2-K: execute adversarial runtime tests for cross-tenant claim, evidence, attachment, and existing-record modification attempts on Package 2 intake paths
 - [x] P0 Package 2-L: resolve WhatsApp submitters to an existing tenant-bound KINGA claimant account through verified prior claimant-phone evidence, without creating a duplicate claimant identity; record an explicit unregistered path where no verified account link exists
 - [x] P0 Package 2-M: create a restricted unregistered claimant identity only within a verified insurer tenant when no account-phone match exists, with later My Portal linkage support
 - [x] P0 Package 2-N: fail closed for WhatsApp submissions whose insurer cannot be mapped to an active tenant; prove no cross-tenant claim or evidence association
-- [ ] P0 Package 2-F1: add and run router-level P0 tests covering real web/My Portal, WhatsApp, and every concrete API/mobile claim-submit path into canonical intake
+- [x] P0 Package 2-F1: add and run router-level P0 tests covering real web/My Portal, WhatsApp, and every concrete API/mobile claim-submit path into canonical intake
 - [ ] P0 Package 2-F2: add and run adversarial P0 tests for foreign claim, evidence, attachment, and existing-record modification attempts on every Package 2 entry point
 - [ ] P0 Package 2-G1: compare persisted claims and claim_documents output for each real intake path to prove lossless metadata, associations, and source provenance
-- [ ] P0 Package 2-I1: add and run interrupted-submission retry tests proving no duplicate claim, documents, assessment start, or notification side effects
+- [ ] P0 Package 2-I1: add and run adapter-level interrupted-submission retry tests proving no duplicate claim, documents, assessment start, or notification side effects
 - [ ] P0 Package 2-OA1: run an isolated two-tenant canonical-intake fixture and compare persisted claim and claim-document records for portal, WhatsApp, and supported hand-off paths
 - [ ] P0 Package 2-OA2: run isolated duplicate, interrupted, and failed-assessment-start retries and prove one claim, evidence set, assessment start, and in-app notification effect
 - [ ] P0 Package 2-OA3: run isolated direct-ID foreign-tenant claim, attachment, and existing-intake mutation attempts and record denial evidence
@@ -106,9 +106,11 @@
 - [ ] Platform-wide valuation/service-request separation: audit and refactor remaining mixed quotation, valuation, and insurance-request flows in `server/routers/insurance-phase7.ts` so they use distinct record types and lifecycles.
 - [ ] Professional valuation evidence view: provide agency and insurer views of valuation provenance, adjustments, source coverage, and limitations without exposing raw confidence percentages to clients.
 - [x] Approved P0 Package 2 isolated acceptance harness: implemented no-write web/My Portal and local WhatsApp adapters over one canonical observable output contract; verified equivalent transient claim/document persistence shape, attachment-ownership denial, idempotent persistence, and recoverable assessment-start behavior with 14 focused tests and bundled server/Vite builds. Agency convergence remains a separate missing-adapter conformance item.
-- [ ] P0 Package 2 implemented-adapter deterministic acceptance: completed under the approved harness item above; broader two-tenant runtime, agency-adapter, and provider-level acceptance remain tracked separately.
+- [x] P0 Package 2 implemented-adapter deterministic acceptance: completed under the approved harness item above; broader two-tenant runtime and provider-level acceptance remain tracked separately.
 - [x] P0 Package 2 deterministic acceptance: 8 focused test files / 40 tests passed; server and Vite production builds passed, including downstream CI/FR evidence visibility
 - [x] P0 Package 2 concrete-adapter inventory acceptance: enumerated the current web/My Portal, agency-assisted, and WhatsApp local canonical writers; added a regression that fails if an unverified writer is introduced; verified no concrete mobile or generic API canonical writer exists; ran 24 focused no-write cross-channel, provenance, repairer-count, idempotency, recovery, and attachment-ownership tests plus bundled server/Vite builds.
+- [ ] P0 Package 2 interrupted adapter replay matrix: replay web/My Portal, agency-assisted, and WhatsApp-local submissions after a mid-flight persistence interruption and after recoverable assessment-start failure; prove one claim/evidence set, one assessment-start attempt per persisted request state, and no duplicate in-app notifications.
+- [x] P0 Package 2 replay-safe submission boundary: web/My Portal and WhatsApp now execute persistence plus assessment start through one shared helper; deterministic tests prove no assessment start after failed persistence, one start after a successful replay, and preservation of recoverable assessment-start status across an idempotent replay.
 - [ ] P0 Package 2 live WhatsApp acceptance gate: use a connected provider test number, webhook, media access, isolated tenant, synthetic claimant, and duplicate-delivery replay to prove the complete external path without side effects
 - [x] P0 Package 3-A: remove reachable mock executive claim and override records from every active runtime drill-down path
 - [x] P0 Package 3-B: add tenant-derived, role-authorised executive drill-down data retrieval with claim/object scope checks

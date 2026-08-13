@@ -20,6 +20,7 @@ import type { ClaimSessionData } from "./types";
 import { and, eq, or } from "drizzle-orm";
 import { createHash } from "crypto";
 import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment, type CanonicalIntakeActor } from "../services/canonicalClaimIntake";
+import { submitAndStartCanonicalIntake } from "../services/canonicalIntakeSubmission";
 
 // ─── Provider Singleton ───────────────────────────────────────────────────────
 
@@ -309,7 +310,7 @@ async function submitClaimToDb(
   const data = session.data as ClaimSessionData;
   try {
     const actor = await resolveWhatsAppCanonicalActor(phone, data.insurerName);
-    const result = await persistCanonicalClaimIntake(actor, {
+    const result = await submitAndStartCanonicalIntake({ persist: persistCanonicalClaimIntake, startAssessment: startCanonicalIntakeAssessment }, actor, {
       idempotencyKey: session.id,
       channel: "whatsapp",
       claimantPhone: phone,
@@ -326,7 +327,6 @@ async function submitClaimToDb(
       repairerPreferences: [],
       sourceMetadata: { insurerName: data.insurerName, driverIsSelf: data.driverIsSelf, driverName: data.driverName, driverLicenceNumber: data.driverLicenceNumber, licenceAgeRange: data.licenceAgeRange, roadSurface: data.roadSurface, weatherConditions: data.weatherConditions, gpsLat: data.gpsLat, gpsLng: data.gpsLng, policeAttended: data.policeAttended, waSessionId: session.id, waPhoneNumber: phone },
     });
-    await startCanonicalIntakeAssessment(actor, result.claimId, session.id);
 
     /* Legacy persistence shape retained below for historical reference only.
     await (await getDbOrThrow()).insert(claims).values({

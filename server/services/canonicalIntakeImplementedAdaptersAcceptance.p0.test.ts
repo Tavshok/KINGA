@@ -67,7 +67,8 @@ describe("P0 implemented canonical intake adapter acceptance", () => {
     const whatsapp = readFileSync("server/whatsapp/engine.ts", "utf8");
     expect(web).toContain("persistCanonicalClaimIntake");
     expect(web).toContain('channel: input.channel');
-    expect(whatsapp).toContain("persistCanonicalClaimIntake(actor");
+    expect(whatsapp).toContain("submitAndStartCanonicalIntake");
+    expect(whatsapp).toContain("persist: persistCanonicalClaimIntake");
     expect(whatsapp).toContain('channel: "whatsapp"');
   });
 
@@ -89,6 +90,43 @@ describe("P0 implemented canonical intake adapter acceptance", () => {
     expect(portal.documents.map(({ fileKey, mimeType, documentCategory }) => ({ fileKey, mimeType, documentCategory }))).toEqual(whatsapp.documents.map(({ fileKey, mimeType, documentCategory }) => ({ fileKey, mimeType, documentCategory })));
     expect(portal.documents).toHaveLength(2);
     expect(whatsapp.documents).toHaveLength(2);
+  });
+
+  it("normalizes an agency-assisted accident claim into the same canonical evidence contract with additional agency provenance", async () => {
+    const { submitAgencyAssistedCanonicalClaim } = await import("../agency/agencyAssistedClaimSubmission");
+    const persist = vi.fn().mockResolvedValue({ claimId: 502, claimNumber: "KNG-AGENCY", idempotent: false, repairerWarnings: [] });
+    const agencyAttachment = { key: "agency-claims/55/damage.jpg", url: "https://files.example.test/agency-damage.jpg", fileName: "agency-damage.jpg", fileSize: 256, mimeType: "image/jpeg", category: "damage_photo" as const };
+
+    await submitAgencyAssistedCanonicalClaim({
+      agencyTenantId: "agency-acceptance",
+      agencyUserId: 55,
+      loadScopedClient: vi.fn().mockResolvedValue({ id: 7, fullName: "Agency Client", phone: "+263771000001" }),
+      insurerExists: vi.fn().mockResolvedValue(true),
+      resolveActor: vi.fn().mockResolvedValue({ id: 71, tenantId: "tenant-acceptance", role: "claimant", uploadKeyPrefixes: ["agency-claims/55/"], identityId: 19, trustLevel: "restricted_agency_assisted" }),
+      persist,
+      startAssessment: vi.fn().mockResolvedValue({ status: "started" }),
+    }, {
+      agencyClientId: 7,
+      insurerTenantId: "tenant-acceptance",
+      idempotencyKey: "agency-acceptance-001",
+      vehicleMake: "Toyota",
+      vehicleModel: "Corolla",
+      vehicleRegistration: "ACCEPT-001",
+      incidentDate: "2026-08-13",
+      incidentLocation: "Harare",
+      incidentDescription: "Rear impact recorded for isolated acceptance.",
+      attachments: [agencyAttachment],
+      repairerPreferences: [],
+    });
+
+    expect(persist).toHaveBeenCalledWith(expect.objectContaining({ id: 71, tenantId: "tenant-acceptance" }), expect.objectContaining({
+      channel: "agency_assisted",
+      vehicleRegistration: "ACCEPT-001",
+      incidentDescription: "Rear impact recorded for isolated acceptance.",
+      idempotencyKey: "agency-acceptance-001",
+      attachments: [agencyAttachment],
+      sourceMetadata: expect.objectContaining({ agencyTenantId: "agency-acceptance", agencyClientId: 7, claimantIdentityTrust: "restricted_agency_assisted" }),
+    }));
   });
 
   it("rejects an attachment from another authenticated intake session before any persistence attempt", async () => {
