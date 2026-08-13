@@ -51,3 +51,64 @@ export type EvidenceFinding = {
   sourceLocation?: string | null;
   subjectKey?: string | null;
 };
+
+export type EvidenceGapCandidate = {
+  field: "component" | "quantity" | "unit_price" | "extended_amount";
+  displayValue: string;
+  amountCents?: number | null;
+  confidence: number;
+  method: "document_direct" | "ocr" | "vision" | "human_verified";
+  rationale: string;
+};
+
+export type EvidenceGap = {
+  tenantId: string;
+  claimId: number;
+  quoteId?: number | null;
+  quoteLineItemId?: number | null;
+  sourceDocumentId: number;
+  sourcePage?: number | null;
+  sourceLocation?: string | null;
+  sourceCropRef?: string | null;
+  sourceText?: string | null;
+  observableCharacters?: string | null;
+  ambiguityDescription: string;
+  componentConfidence?: number | null;
+  quantityConfidence?: number | null;
+  unitPriceConfidence?: number | null;
+  extendedAmountConfidence?: number | null;
+  transcriptionMethod: "document_direct" | "ocr" | "vision" | "human_verified";
+  candidates: EvidenceGapCandidate[];
+  arithmeticResidualCents?: number | null;
+  currency?: string | null;
+  impact: {
+    affectsVerifiedArithmetic: boolean;
+    affectsFinalAllInTotal: boolean;
+    affectsSavings: boolean;
+    affectsSettlement: boolean;
+    explanation: string;
+  };
+  resolutionStatus?: "open" | "human_verification_requested" | "human_verified" | "superseded" | "not_resolvable_from_source";
+  requiredReviewFields: Array<"component" | "quantity" | "unit_price" | "extended_amount">;
+};
+
+export type UncertaintyEnvelope = {
+  currency: string;
+  verifiedSubtotalCents: number;
+  minimumCandidateExposureCents: number;
+  maximumCandidateExposureCents: number;
+  minimumPossibleSubtotalCents: number;
+  maximumPossibleSubtotalCents: number;
+  includedGapCount: number;
+  isPayable: false;
+};
+
+export type HumanVerificationRequest = {
+  sourceDocumentId: number;
+  sourcePage: number | null;
+  sourceLocation: string | null;
+  fields: EvidenceGap["requiredReviewFields"];
+  reason: string;
+  consequence: string;
+  candidateReadings: EvidenceGapCandidate[];
+};

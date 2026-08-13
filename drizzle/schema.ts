@@ -104,6 +104,45 @@ export const quoteEvidenceLedger = mysqlTable("quote_evidence_ledger", {
 	index("quote_evidence_ledger_scope_status_idx").on(table.scopeFingerprint, table.evidenceStatus),
 ]);
 
+/**
+ * Preserves ambiguity from a primary source as an intelligence object. A gap
+ * cannot manufacture a monetary row: observed source text, candidates, and
+ * arithmetic constraints remain independently traceable.
+ */
+export const quoteEvidenceGaps = mysqlTable("quote_evidence_gaps", {
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	claimId: int("claim_id").notNull(),
+	quoteId: int("quote_id"),
+	quoteLineItemId: int("quote_line_item_id"),
+	sourceDocumentId: int("source_document_id").notNull(),
+	sourcePage: int("source_page"),
+	sourceLocation: varchar("source_location", { length: 512 }),
+	sourceCropRef: varchar("source_crop_ref", { length: 1024 }),
+	sourceText: text("source_text"),
+	observableCharacters: text("observable_characters"),
+	ambiguityDescription: text("ambiguity_description").notNull(),
+	componentConfidence: decimal("component_confidence", { precision: 5, scale: 4 }),
+	quantityConfidence: decimal("quantity_confidence", { precision: 5, scale: 4 }),
+	unitPriceConfidence: decimal("unit_price_confidence", { precision: 5, scale: 4 }),
+	extendedAmountConfidence: decimal("extended_amount_confidence", { precision: 5, scale: 4 }),
+	transcriptionMethod: mysqlEnum("transcription_method", ["document_direct", "ocr", "vision", "human_verified"]).notNull(),
+	candidateReadingsJson: json("candidate_readings_json"),
+	arithmeticResidualCents: bigint("arithmetic_residual_cents", { mode: "number" }),
+	currency: varchar({ length: 10 }),
+	impactJson: json("impact_json"),
+	resolutionStatus: mysqlEnum("resolution_status", ["open", "human_verification_requested", "human_verified", "superseded", "not_resolvable_from_source"]).default("open").notNull(),
+	reviewFieldsJson: json("review_fields_json"),
+	reviewedByUserId: int("reviewed_by_user_id"),
+	reviewedAt: timestamp("reviewed_at", { mode: "string" }),
+	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+}, (table) => [
+	index("quote_evidence_gaps_tenant_claim_idx").on(table.tenantId, table.claimId),
+	index("quote_evidence_gaps_quote_idx").on(table.quoteId, table.quoteLineItemId),
+	index("quote_evidence_gaps_source_idx").on(table.sourceDocumentId, table.sourcePage),
+	index("quote_evidence_gaps_resolution_idx").on(table.resolutionStatus),
+]);
+
 export const agencyDocuments = mysqlTable("agency_documents", {
 	id: int().autoincrement().notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),

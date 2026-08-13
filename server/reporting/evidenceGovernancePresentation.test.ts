@@ -120,4 +120,48 @@ describe("evidence governance report presentation", () => {
       totalsByCurrency: [{ currency: "USD", amountCents: 95000 }],
     });
   });
+
+  it("renders an evidence gap and a non-payable uncertainty envelope without assigning an arithmetic residual to the source row", () => {
+    const html = renderEvidenceGovernancePanel({
+      ledger: [{
+        quote_id: 10, description: "Verified repairs", amount_cents: 425000, currency: "USD",
+        source_document_id: 4650001, source_page: 13, source_location: "repairs-table:verified-rows", source_row_label: "VERIFIED ROWS",
+        canonical_component: null, financial_role: "component", tax_basis: "not_stated",
+        scope_fingerprint: null, revision_status: "original", evidence_status: "verified",
+      }],
+      findings: [],
+      gaps: [{
+        quote_id: 10,
+        quote_line_item_id: null,
+        source_document_id: 4650001,
+        source_page: 13,
+        source_location: "repairs-table:row-17",
+        source_crop_ref: "crop:row-17",
+        source_text: "Front ___ 1 x $8?0",
+        observable_characters: "Front; quantity 1; amount begins with 8",
+        ambiguity_description: "The final handwritten digits overlap.",
+        component_confidence: 0.94,
+        quantity_confidence: 0.99,
+        unit_price_confidence: 0.41,
+        extended_amount_confidence: 0.41,
+        transcription_method: "vision",
+        candidate_readings_json: [
+          { field: "extended_amount", displayValue: "$180", amountCents: 18000, confidence: 0.3, method: "vision", rationale: "Direct visual candidate." },
+          { field: "extended_amount", displayValue: "$880", amountCents: 88000, confidence: 0.29, method: "vision", rationale: "Direct visual candidate." },
+        ],
+        arithmetic_residual_cents: 55000,
+        currency: "USD",
+        impact_json: { affectsVerifiedArithmetic: true, affectsFinalAllInTotal: true, affectsSavings: true, affectsSettlement: true, explanation: "The row remains excluded from verified arithmetic." },
+        resolution_status: "human_verification_requested",
+        review_fields_json: ["unit_price", "extended_amount"],
+      }],
+    });
+
+    expect(html).toContain("Evidence Gap Intelligence");
+    expect(html).toContain("Evidence-qualified uncertainty envelope");
+    expect(html).toContain("USD 4,430.00–USD 5,130.00");
+    expect(html).toContain("Arithmetic residual: USD 550.00; this is not attributed to the source row");
+    expect(html).toContain("confirm unit_price, extended_amount");
+    expect(html).toContain("not a selected repair cost");
+  });
 });
