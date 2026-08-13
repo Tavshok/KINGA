@@ -133,6 +133,7 @@
 - [x] R0-E: correct shared typed physics, fraud-unavailable, photo-count, and coverage rendering contracts
 - [x] R0-F: persist immutable report input, generator, and provenance snapshots for every delivered output
 - [ ] R0-G: implement same-snapshot CL, CI, and FR acceptance fixtures for no-quote, total-only, incomplete, and complete all-in quote sets
+- [ ] R0 progressive-L2 invariant: prove every quote-evidence fixture keeps L2 analysis active, exposes what KINGA knows and does not know, and suppresses only unsupported conclusions—not available comparison intelligence.
 - [ ] R0-H: replace all top-of-report cost strips with the active submitted quote ledger, explicit quote receipt/scope status, and typed L2 state; no base-estimate substitution
 - [ ] R0-I: prove top-of-report UI and PDF views show every active submitted quote, do not show an incomplete L2 as a cost, and suppress savings/settlement under any integrity hold
 - [x] P0 Package 3-H2: add and run an Executive direct numeric claim-ID test proving a foreign object is unavailable even when no tenant override is supplied
