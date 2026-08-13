@@ -34,6 +34,7 @@
 - [x] P0 My Portal fleet claim-detail conformance: moved the claim-detail route from claimant-only portal admission to the customer/fleet service boundary so fleet managers and drivers can reach company-vehicle claim detail; report and object procedures remain authoritative.
 - [x] P0 agency and engineer route conformance: redirected deprecated agency valuation URLs to the agency service shell rather than denied client self-service, and applied the canonical engineer domain to engineering intelligence and asset-passport workspaces; deterministic route tests passed.
 - [x] P0 agency canonical landing conformance: added the missing agency role-to-portal map so agency users land directly in the agency service portal rather than the insurer fallback; deterministic route tests passed.
+- [x] P0 exhaustive active-role landing conformance: added regression coverage for every active top-level role, preventing a silent portal-hub or unrelated insurer fallback while retaining the insurer role-selection portal intentionally.
 - [ ] Report and image evidence audit: cost provenance and tables remediated in R1; raw-image side/zone classification verification remains open
 - [x] Report remediation batch R1: unify canonical cost hierarchy across CL, CI, and FR; extend CL cost intelligence; distinguish documented/agreed, L1, L2, and benchmark values; correct FR currency formatting
 - [x] Header cost-provenance trace: identify the exact source/calculation for every CL, CI, and FR header/decision-summary amount before approving any cost-table or label remediation

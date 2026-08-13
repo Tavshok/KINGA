@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { PORTAL_DOMAIN_ROLE_MAP, getRoleDashboardPath, isPortalShellAdmissionAllowed } from "../client/src/lib/roleRouting";
+import { PORTAL_DOMAIN_ROLE_MAP, ROLE_PORTAL_MAP, getRoleDashboardPath, isPortalShellAdmissionAllowed } from "../client/src/lib/roleRouting";
 
 describe("P0 role-to-workflow customer and agency route conformance", () => {
   it("keeps client self-service limited to customer and fleet roles, with explicit administrative test-shell access", () => {
@@ -17,6 +17,18 @@ describe("P0 role-to-workflow customer and agency route conformance", () => {
 
   it("lands agency users in the agency service portal rather than an insurer fallback", () => {
     expect(getRoleDashboardPath("agency")).toBe("/agency");
+  });
+
+  it("maps every active top-level portal role to a dedicated non-hub landing", () => {
+    const activeRoles = [
+      "user", "admin", "insurer", "assessor", "panel_beater", "claimant", "platform_super_admin",
+      "fleet_admin", "fleet_manager", "fleet_driver", "agency", "engineer",
+    ];
+    for (const role of activeRoles) {
+      expect(ROLE_PORTAL_MAP[role]).toBeTruthy();
+      expect(getRoleDashboardPath(role)).not.toBe("/portal-hub");
+      if (role !== "insurer") expect(getRoleDashboardPath(role)).not.toBe("/insurer-portal");
+    }
   });
 
   it("guards every customer self-service and agency execution route and retires the legacy fleet cross-role page", () => {
