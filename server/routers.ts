@@ -72,6 +72,7 @@ import { generateDemandLetter } from "./recovery/demandLetterGenerator";
 import { checkSingleCaseDeadline } from "./recovery/recoveryDeadlineAlerts";
 import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmitted, notifyFraudDetected } from "./notifications";
 import { invokeLLM } from "./_core/llm";
+import { getAuthorizedClaimDocumentContext } from "./documents/claimDocumentAuthority";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
 import { processExternalAssessment } from "./assessment-processor";
 import { exportAssessmentPDF } from "./pdf-export";
@@ -1016,6 +1017,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
+        await getAuthorizedClaimDocumentContext(ctx.user, input.claimId);
 
         // Extract base64 data
         const base64Data = input.fileData.split(',')[1] || input.fileData;
@@ -1045,7 +1047,7 @@ export const appRouter = router({
           documentTitle: input.documentTitle,
           documentDescription: input.documentDescription,
           documentCategory: input.documentCategory,
-          visibleToRoles: JSON.stringify(["insurer", "assessor", "panel_beater", "claimant"]),
+          visibleToRoles: JSON.stringify(["insurer", "assessor", "panel_beater", "claimant", "fleet_manager", "fleet_admin", "fleet_driver"]),
         });
 
         // Create audit trail entry
@@ -1120,6 +1122,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
+        await getAuthorizedClaimDocumentContext(ctx.user, input.claimId);
 
         const db = await import("./db").then(m => m.getDb());
         if (!db) return [];
@@ -1169,6 +1172,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         }
 
         const doc = docs[0];
+        await getAuthorizedClaimDocumentContext(ctx.user, doc.claimId);
 
         // Only allow deletion by uploader or admin/insurer
         if (doc.uploadedBy !== ctx.user.id && !['admin', 'insurer'].includes(ctx.user.role)) {
@@ -1199,6 +1203,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
+        const claimContext = await getAuthorizedClaimDocumentContext(ctx.user, input.claimId);
         const db = await getDb();
         if (!db) return [];
         const { claimDocuments: cdTable, ingestionDocuments: idTable, claims: claimsTable } = await import("../drizzle/schema");
@@ -1221,13 +1226,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         });
 
         // 2. ingestion document (original upload via multipart endpoint)
-        const claimRows = await db
-          .select({ sourceDocumentId: claimsTable.sourceDocumentId })
-          .from(claimsTable)
-          .where(eq(claimsTable.id, input.claimId))
-          .limit(1);
-
-        const sourceDocId = claimRows[0]?.sourceDocumentId;
+        const sourceDocId = claimContext.sourceDocumentId;
         let ingRow: (typeof idTable.$inferSelect) | null = null;
         if (sourceDocId) {
           const ingRows = await db
@@ -1269,6 +1268,12 @@ If any value is not found, use null or 0. Line items category must be one of: pa
 
         // Ingestion document first (primary source), then supplementary files
         return [...ingNormalised, ...cdNormalised];
+      }),
+    getClaimContext: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        return getAuthorizedClaimDocumentContext(ctx.user, input.claimId);
       }),
   }),
 

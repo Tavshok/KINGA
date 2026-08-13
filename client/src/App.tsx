@@ -716,9 +716,9 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
-        {/* Document Management Route - accessible by all authenticated users */}
+        {/* Claim documents — cross-workflow shell admission; object-level document authority remains server-side. */}
         <Route path="/claims/:id/documents">
-          <ProtectedRoute allowedRoles={["insurer", "admin", "assessor", "panel_beater", "claimant"]}>
+          <ProtectedRoute allowedRoles={["insurer", "admin", "platform_super_admin", "assessor", "panel_beater", "claimant", "fleet_manager", "fleet_admin", "fleet_driver"]}>
             <ClaimDocuments />
           </ProtectedRoute>
         </Route>

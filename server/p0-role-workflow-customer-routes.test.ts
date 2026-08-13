@@ -34,8 +34,12 @@ describe("P0 role-to-workflow customer and agency route conformance", () => {
   it("guards every customer self-service and agency execution route and retires the legacy fleet cross-role page", () => {
     const app = readFileSync("client/src/App.tsx", "utf8");
     for (const path of ["/my-profile", "/client/submit-claim", "/client/valuation", "/client/valuation/bulk", "/insurance/quote", "/insurance/dashboard", "/claims/:id"]) {
-      const route = app.slice(app.indexOf(`path=\"${path}\"`), app.indexOf(`path=\"${path}\"`) + 240);
+      const route = app.slice(app.indexOf(`path="${path}"`), app.indexOf(`path="${path}"`) + 240);
       expect(route).toContain('domain="customer"');
+    }
+    const claimDocuments = app.slice(app.indexOf('path="/claims/:id/documents"'), app.indexOf('path="/claims/:id/documents"') + 300);
+    for (const role of ["fleet_manager", "fleet_admin", "fleet_driver", "insurer", "assessor", "panel_beater", "claimant"]) {
+      expect(claimDocuments).toContain(`"${role}"`);
     }
     const agencyQuotes = app.slice(app.indexOf('path="/agency/quotes"'), app.indexOf('path="/agency/quotes"') + 180);
     expect(agencyQuotes).toContain('domain="agency"');

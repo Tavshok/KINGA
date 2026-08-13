@@ -23,9 +23,8 @@ export default function ClaimDocuments() {
   
   const claimId = params?.id ? parseInt(params.id) : 0;
 
-  // Get claim details
-  const { data: claims, isLoading } = trpc.claims.byStatus.useQuery({ status: "submitted" });
-  const claim = claims?.find(c => c.id === claimId);
+  // Object-scoped claim context. The server verifies claimant, tenant, fleet-vehicle, and driver authority.
+  const { data: claim, isLoading } = trpc.documents.getClaimContext.useQuery({ claimId }, { enabled: claimId > 0 });
 
   if (isLoading) {
     return (
