@@ -8,6 +8,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, insurerDomainProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
+import { assertRestrictedAgencyAssistedCapability } from "../agency/agencyAssistedClaimantIdentity";
 import { parsePhysicsAnalysis } from "../types/physics-validation";
 import {
   claims, insurerTenants, ingestionDocuments, fraudRules,
@@ -3248,6 +3249,7 @@ export const claimsRouter = router({
     .input(z.object({ claimId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      assertRestrictedAgencyAssistedCapability(ctx.user, "settlement_instruction");
       const _settleDb = await getDb();
       if (!_settleDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const claim = await _settleDb
@@ -3353,6 +3355,7 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      assertRestrictedAgencyAssistedCapability(ctx.user, "dispute_instruction");
       const _disputeDb = await getDb();
       if (!_disputeDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const claim = await _disputeDb
@@ -3435,6 +3438,7 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      assertRestrictedAgencyAssistedCapability(ctx.user, "payment_authority");
       const _authDb = await getDb();
       if (!_authDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const claim = await _authDb.select().from(claims).where(eq(claims.id, input.claimId)).limit(1).then(r => r[0]);

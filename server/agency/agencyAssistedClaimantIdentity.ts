@@ -13,6 +13,40 @@ export type RestrictedAgencyAssistedClaimant = {
   trustLevel: "restricted_agency_assisted";
 };
 
+export type RestrictedAgencyAssistedCapability =
+  | "insurance_request"
+  | "insurance_quote_acceptance"
+  | "insurance_document_access"
+  | "settlement_instruction"
+  | "dispute_instruction"
+  | "payment_authority";
+
+const RESTRICTED_CAPABILITY_LABEL: Record<RestrictedAgencyAssistedCapability, string> = {
+  insurance_request: "insurance service requests",
+  insurance_quote_acceptance: "insurance quote acceptance",
+  insurance_document_access: "insurance document access",
+  settlement_instruction: "settlement instructions",
+  dispute_instruction: "dispute instructions",
+  payment_authority: "payment authority",
+};
+
+/**
+ * Enforces the Option B lower-trust boundary at sensitive user-facing actions.
+ * A restricted agency-assisted claimant can be an anchor for canonical claim
+ * intake, but cannot independently exercise portal, document, insurance,
+ * financial, settlement, or dispute authority until verified linkage occurs.
+ */
+export function assertRestrictedAgencyAssistedCapability(
+  user: { isUnregisteredClaimant?: number | boolean | null },
+  capability: RestrictedAgencyAssistedCapability,
+): void {
+  if (Number(user.isUnregisteredClaimant ?? 0) !== 1) return;
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: `A restricted agency-assisted claimant cannot independently perform ${RESTRICTED_CAPABILITY_LABEL[capability]}. Verify and link a My Portal identity first.`,
+  });
+}
+
 /**
  * Resolves the claimant identity anchor for an actual agency-assisted accident claim.
  * An agency contact is not treated as a verified portal user. A restricted claimant

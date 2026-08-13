@@ -2791,6 +2791,63 @@ export const quotationRequests = mysqlTable("quotation_requests", {
 	index("request_number").on(table.requestNumber),
 ]);
 
+/**
+ * Standalone, client-owned market valuation request. This record is deliberately
+ * separate from insurance service requests, quotations, policies, and claims.
+ */
+export const clientVehicleValuationRequests = mysqlTable("client_vehicle_valuation_requests", {
+	id: int().autoincrement().notNull().primaryKey(),
+	requestNumber: varchar("request_number", { length: 50 }).notNull(),
+	userId: int("user_id"),
+	fullName: varchar("full_name", { length: 255 }).notNull(),
+	email: varchar({ length: 320 }).notNull(),
+	phone: varchar({ length: 50 }),
+	vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
+	vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
+	vehicleYear: int("vehicle_year").notNull(),
+	vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
+	vehicleVin: varchar("vehicle_vin", { length: 50 }),
+	mileage: int(),
+	condition: mysqlEnum("condition", ["excellent", "good", "fair", "poor"]).notNull(),
+	photoUrlsJson: longtext("photo_urls_json"),
+	registrationBookUrl: text("registration_book_url"),
+	status: mysqlEnum(["pending", "processing", "complete", "review_required", "failed"]).default("pending").notNull(),
+	submissionToken: varchar("submission_token", { length: 64 }).notNull(),
+	kingaMarketValuationCents: int("kinga_market_valuation_cents"),
+	valuationProvenanceJson: longtext("valuation_provenance_json"),
+	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+	updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+	index("client_valuation_request_number_idx").on(table.requestNumber),
+	index("client_valuation_token_idx").on(table.submissionToken),
+	index("client_valuation_user_idx").on(table.userId),
+]);
+
+/**
+ * Client-originated insurance service request. It is an intake record only and
+ * cannot store a premium, policy, quote, repair cost, settlement, or claim outcome.
+ */
+export const clientInsuranceServiceRequests = mysqlTable("client_insurance_service_requests", {
+	id: int().autoincrement().notNull().primaryKey(),
+	requestNumber: varchar("request_number", { length: 50 }).notNull(),
+	userId: int("user_id"),
+	fullName: varchar("full_name", { length: 255 }).notNull(),
+	email: varchar({ length: 320 }).notNull(),
+	phone: varchar({ length: 50 }),
+	productCategory: varchar("product_category", { length: 50 }).notNull(),
+	coverType: varchar("cover_type", { length: 100 }).notNull(),
+	vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
+	clientProposedValueCents: int("client_proposed_value_cents"),
+	requestPayloadJson: longtext("request_payload_json").notNull(),
+	status: mysqlEnum(["submitted", "under_review", "closed_without_quote"]).default("submitted").notNull(),
+	submissionToken: varchar("submission_token", { length: 64 }).notNull(),
+	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+	updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+	index("client_insurance_service_request_number_idx").on(table.requestNumber),
+	index("client_insurance_service_user_idx").on(table.userId),
+]);
+
 export const quoteLineItems = mysqlTable("quote_line_items", {
 	id: int().autoincrement().notNull(),
 	quoteId: int("quote_id").notNull(),

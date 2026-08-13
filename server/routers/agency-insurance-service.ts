@@ -17,9 +17,9 @@ import {
   vehicleRegistry,
 } from "../../drizzle/schema";
 import { getDb } from "../db";
-import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment, type CanonicalAttachment } from "../services/canonicalClaimIntake";
 import { valuateVehicle } from "../services/vehicleValuation";
 import { resolveAgencyAssistedClaimantIdentity } from "../agency/agencyAssistedClaimantIdentity";
+import { submitAgencyAssistedCanonicalClaim } from "../agency/agencyAssistedClaimSubmission";
 import {
   buildClientAcknowledgementRequired,
   compareClientValueToMarketValuation,
@@ -108,6 +108,38 @@ function marketValuationProvenance(result: Awaited<ReturnType<typeof valuateVehi
   };
 }
 
+function professionalValuationEvidence(request: {
+  requestNumber: string;
+  clientProposedValueCents: number | null;
+  kingaMarketValuationCents: number | null;
+  variancePercent: string | null;
+  valuationDate: string | null;
+  valuationProvenanceJson: unknown;
+  clientAcknowledgementJson?: unknown;
+}) {
+  const raw = request.valuationProvenanceJson && typeof request.valuationProvenanceJson === "string"
+    ? JSON.parse(request.valuationProvenanceJson)
+    : (request.valuationProvenanceJson ?? {});
+  return {
+    requestNumber: request.requestNumber,
+    clientProposedValueCents: request.clientProposedValueCents,
+    kingaMarketValuationCents: request.kingaMarketValuationCents,
+    variancePercent: request.variancePercent,
+    valuationDate: request.valuationDate,
+    evidence: {
+      label: raw.label ?? "KINGA Market Valuation",
+      evidenceStatus: raw.evidenceStatus ?? "Provisional",
+      method: raw.method ?? "Not recorded",
+      sourceCoverage: raw.dataPointsCount ?? 0,
+      priceRangeCents: raw.priceRangeCents ?? null,
+      adjustmentsCents: raw.adjustmentsCents ?? null,
+      limitations: raw.limitations ?? "Evidence provenance has not been recorded.",
+    },
+    clientAcknowledgementRecorded: Boolean(request.clientAcknowledgementJson),
+    decisionBoundary: "Professional decision support only. This information does not create or change a policy, premium, sum insured, claim, repair cost, settlement, payment, or underwriting decision.",
+  };
+}
+
 export const agencyInsuranceServiceRouter = router({
   createInsuranceServiceRequest: agencyProcedure.input(createInsuranceServiceRequestInput).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -185,26 +217,50 @@ export const agencyInsuranceServiceRouter = router({
     return { requests };
   }),
 
+  getAgencyProfessionalValuationEvidence: agencyProcedure.input(z.object({ serviceRequestId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable." });
+    const agencyTenantId = requireTenantScope(ctx, undefined, "agency-professional-valuation-evidence") as string;
+    const [request] = await db.select({
+      requestNumber: agencyInsuranceServiceRequests.requestNumber,
+      clientProposedValueCents: agencyInsuranceServiceRequests.clientProposedValueCents,
+      kingaMarketValuationCents: agencyInsuranceServiceRequests.kingaMarketValuationCents,
+      variancePercent: agencyInsuranceServiceRequests.variancePercent,
+      valuationDate: agencyInsuranceServiceRequests.valuationDate,
+      valuationProvenanceJson: agencyInsuranceServiceRequests.valuationProvenanceJson,
+      clientAcknowledgementJson: agencyInsuranceServiceRequests.clientAcknowledgementJson,
+    }).from(agencyInsuranceServiceRequests).where(and(
+      eq(agencyInsuranceServiceRequests.id, input.serviceRequestId),
+      eq(agencyInsuranceServiceRequests.agencyTenantId, agencyTenantId),
+    )).limit(1);
+    if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Insurance service request not found." });
+    return professionalValuationEvidence(request);
+  }),
+
   getInsurerDecisionSupport: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(100).default(50) })).query(async ({ ctx, input }) => {
     if (ctx.user.role !== "insurer" && !isAdminRole(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Insurer decision-support access is required." });
     const db = await getDb();
     if (!db || !ctx.user.tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Insurer tenant context is required." });
     const requests = await db.select({ serviceRequestId: agencyInsuranceServiceRequests.id, requestNumber: agencyInsuranceServiceRequests.requestNumber, coverType: agencyInsuranceServiceRequests.coverType, vehicleRegistration: agencyInsuranceServiceRequests.vehicleRegistration, vehicleMake: agencyInsuranceServiceRequests.vehicleMake, vehicleModel: agencyInsuranceServiceRequests.vehicleModel, vehicleYear: agencyInsuranceServiceRequests.vehicleYear, clientProposedValueCents: agencyInsuranceServiceRequests.clientProposedValueCents, kingaMarketValuationCents: agencyInsuranceServiceRequests.kingaMarketValuationCents, variancePercent: agencyInsuranceServiceRequests.variancePercent, valuationDate: agencyInsuranceServiceRequests.valuationDate, valuationProvenanceJson: agencyInsuranceServiceRequests.valuationProvenanceJson, status: agencyInsuranceServiceRequests.status }).from(agencyInsuranceServiceRequestInsurers).innerJoin(agencyInsuranceServiceRequests, eq(agencyInsuranceServiceRequests.id, agencyInsuranceServiceRequestInsurers.serviceRequestId)).where(and(eq(agencyInsuranceServiceRequestInsurers.insurerTenantId, ctx.user.tenantId), inArray(agencyInsuranceServiceRequestInsurers.status, ["invited", "viewed", "responded"]))).orderBy(desc(agencyInsuranceServiceRequests.createdAt)).limit(input.limit);
-    return { requests, decisionBoundary: "Decision support only. No value shown here creates or changes a policy, premium, sum insured, claim, repair cost, settlement, or underwriting decision." };
+    return {
+      requests: requests.map((request) => professionalValuationEvidence(request)),
+      decisionBoundary: "Decision support only. No value shown here creates or changes a policy, premium, sum insured, claim, repair cost, settlement, or underwriting decision.",
+    };
   }),
 
   createAgencyAssistedClaim: agencyProcedure.input(assistedClaimInput).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable." });
     const agencyTenantId = requireTenantScope(ctx, undefined, "agency-assisted-claim") as string;
-    const [client] = await db.select({ id: agencyClients.id, fullName: agencyClients.fullName, phone: agencyClients.phone }).from(agencyClients).where(and(eq(agencyClients.id, input.agencyClientId), eq(agencyClients.agencyTenantId, agencyTenantId))).limit(1);
-    if (!client) throw new TRPCError({ code: "NOT_FOUND", message: "Agency client not found." });
-    const [insurer] = await db.select({ id: insurerTenants.id }).from(insurerTenants).where(eq(insurerTenants.id, input.insurerTenantId)).limit(1);
-    if (!insurer) throw new TRPCError({ code: "NOT_FOUND", message: "Insurer tenant not found." });
-    const actor = await resolveAgencyAssistedClaimantIdentity({ agencyTenantId, agencyClientId: input.agencyClientId, insurerTenantId: input.insurerTenantId, agencyUserId: ctx.user.id });
-    const persisted = await persistCanonicalClaimIntake(actor, { idempotencyKey: input.idempotencyKey, channel: "agency_assisted", claimantPhone: client.phone ?? undefined, vehicleMake: input.vehicleMake, vehicleModel: input.vehicleModel, vehicleYear: input.vehicleYear, vehicleRegistration: input.vehicleRegistration, vehicleVin: input.vehicleVin, vehicleMileage: input.vehicleMileage, incidentDate: input.incidentDate, incidentLocation: input.incidentLocation, incidentDescription: input.incidentDescription, incidentTime: input.incidentTime, incidentType: input.incidentType, policyNumber: input.policyNumber, policeReportNumber: input.policeReportNumber, policeStation: input.policeStation, attachments: input.attachments as CanonicalAttachment[], repairerPreferences: input.repairerPreferences, sourceMetadata: { agencyTenantId, agencyClientId: input.agencyClientId, agencySubmittedBy: ctx.user.id, claimantIdentityTrust: actor.trustLevel, claimantName: client.fullName } });
-    await startCanonicalIntakeAssessment(actor, persisted.claimId, input.idempotencyKey);
-    return { ...persisted, claimantIdentityId: actor.identityId, claimantIdentityTrust: actor.trustLevel };
+    return submitAgencyAssistedCanonicalClaim({
+      agencyTenantId,
+      agencyUserId: ctx.user.id,
+      loadScopedClient: async (agencyClientId) => (await db.select({ id: agencyClients.id, fullName: agencyClients.fullName, phone: agencyClients.phone }).from(agencyClients).where(and(eq(agencyClients.id, agencyClientId), eq(agencyClients.agencyTenantId, agencyTenantId))).limit(1))[0] ?? null,
+      insurerExists: async (insurerTenantId) => Boolean((await db.select({ id: insurerTenants.id }).from(insurerTenants).where(eq(insurerTenants.id, insurerTenantId)).limit(1))[0]),
+      resolveActor: () => resolveAgencyAssistedClaimantIdentity({ agencyTenantId, agencyClientId: input.agencyClientId, insurerTenantId: input.insurerTenantId, agencyUserId: ctx.user.id }),
+      persist: async (actor, canonicalInput) => (await import("../services/canonicalClaimIntake")).persistCanonicalClaimIntake(actor, canonicalInput),
+      startAssessment: async (actor, claimId, idempotencyKey) => (await import("../services/canonicalClaimIntake")).startCanonicalIntakeAssessment(actor, claimId, idempotencyKey),
+    }, input);
   }),
 
   linkAgencyAssistedClaimantToVerifiedMyPortal: agencyProcedure.input(z.object({ identityId: z.number().int().positive(), verifiedClaimantUserId: z.number().int().positive(), confirmationStatement: z.string().min(10).max(2000) })).mutation(async ({ ctx, input }) => {

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const projectRoot = resolve(import.meta.dirname, "../..");
 const serviceRouter = readFileSync(resolve(projectRoot, "server/routers/agency-insurance-service.ts"), "utf8");
 const brokerRouter = readFileSync(resolve(projectRoot, "server/routers/agency-broker.ts"), "utf8");
+const assistedSubmissionService = readFileSync(resolve(projectRoot, "server/agency/agencyAssistedClaimSubmission.ts"), "utf8");
 const vehiclePassportRouter = readFileSync(resolve(projectRoot, "server/routers/vehicle-passport.ts"), "utf8");
 const claimsLedgerReport = readFileSync(resolve(projectRoot, "server/reporting/claimsIntelligenceReport.ts"), "utf8");
 const forensicReport = readFileSync(resolve(projectRoot, "server/reporting/forensicDecisionReport.ts"), "utf8");
@@ -25,10 +26,10 @@ describe("agency feature-separation contract", () => {
 
   it("routes only an actual agency-assisted accident through canonical claim intake", () => {
     const assistedClaimWriter = serviceRouter.split("createAgencyAssistedClaim:")[1]?.split("linkAgencyAssistedClaimantToVerifiedMyPortal:")[0] ?? "";
-    expect(assistedClaimWriter).toContain("resolveAgencyAssistedClaimantIdentity");
-    expect(assistedClaimWriter).toContain("persistCanonicalClaimIntake");
-    expect(assistedClaimWriter).toContain("startCanonicalIntakeAssessment");
-    expect(assistedClaimWriter).toContain('channel: "agency_assisted"');
+    expect(assistedClaimWriter).toContain("submitAgencyAssistedCanonicalClaim");
+    expect(assistedSubmissionService).toContain("assertCanonicalAttachmentOwnership");
+    expect(assistedSubmissionService).toContain("channel: \"agency_assisted\"");
+    expect(assistedSubmissionService).toContain("startAssessment");
   });
 
   it("retains dated snapshots in the Vehicle Passport as pre-loss evidence rather than a claim outcome", () => {

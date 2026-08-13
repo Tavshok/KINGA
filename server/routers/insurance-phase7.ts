@@ -9,11 +9,12 @@ import { getDb } from "../db";
 import {
   createNotification
 } from "../db";
-import { quotationRequests, vehicleMarketValuations, users } from "../../drizzle/schema";
+import { clientInsuranceServiceRequests, clientVehicleValuationRequests, quotationRequests, users } from "../../drizzle/schema";
 import { eq, desc, and, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { randomBytes } from "crypto";
 import { storagePut } from "../storage";
+import { assertRestrictedAgencyAssistedCapability } from "../agency/agencyAssistedClaimantIdentity";
 
 function generateToken(): string {
   return randomBytes(32).toString("hex");
@@ -60,18 +61,11 @@ export const insurancePhase7Router = router({
       const isFleet = (input.fleetVehicleCount ?? 1) > 1;
       const inspectionRequired = (input.fleetVehicleCount ?? 1) > 10 ? 1 : 0;
 
-      // Store photos as JSON in documents field
-      const documents = JSON.stringify({
-        photoUrls: input.photoUrls,
-        registrationBookUrl: input.registrationBookUrl ?? null,
-      });
-
-      const [result] = await db.insert(quotationRequests).values({
+      const [result] = await db.insert(clientVehicleValuationRequests).values({
         requestNumber,
         fullName: input.fullName,
         email: input.email,
         phone: input.phone,
-        insuranceType: input.insuranceType ?? "comprehensive",
         vehicleMake: input.vehicleMake,
         vehicleModel: input.vehicleModel,
         vehicleYear: input.vehicleYear,
@@ -79,16 +73,10 @@ export const insurancePhase7Router = router({
         vehicleVin: input.vehicleVin ?? null,
         mileage: input.mileage ?? null,
         condition: input.condition,
-        additionalCover: input.additionalCover ?? null,
-        documents,
         status: "pending",
-        reportGatingStatus: "teaser",
-        isStandaloneValuation: input.isStandaloneValuation ? 1 : 0,
-        inspectionRequired,
-        fleetVehicleCount: input.fleetVehicleCount ?? 1,
+        photoUrlsJson: JSON.stringify(input.photoUrls),
+        registrationBookUrl: input.registrationBookUrl ?? null,
         submissionToken: token,
-        contactVerified: 0,
-        vehicleForensicsStatus: "pending",
       } as any);
 
       const requestId = (result as any).insertId;
@@ -96,19 +84,27 @@ export const insurancePhase7Router = router({
       // Trigger valuation pipeline asynchronously (fire-and-forget)
       setImmediate(async () => {
         try {
-          const { generateVehicleValuation } = await import("./insurance/valuation-engine");
+          const { generateVehicleValuation } = await import("../insurance/valuation-engine");
           const valuation = await generateVehicleValuation({
             make: input.vehicleMake,
             model: input.vehicleModel,
             year: input.vehicleYear,
           });
           if (valuation && db) {
-            await db.update(quotationRequests)
+            await db.update(clientVehicleValuationRequests)
               .set({
-                vehicleValue: valuation.estimatedMarketValue ?? null,
-                vehicleForensicsStatus: "complete",
+                kingaMarketValuationCents: valuation.estimatedValue ?? null,
+                valuationProvenanceJson: JSON.stringify({
+                  label: "KINGA Market Valuation",
+                  evidenceStatus: valuation.confidence >= 60 ? "Market-supported" : "Provisional",
+                  source: valuation.source,
+                  factors: valuation.factors,
+                  comparableCount: valuation.comparables.length,
+                  limitations: "Decision support only. This does not create a policy, premium, sum insured, claim, repair cost, or settlement value.",
+                }),
+                status: valuation.confidence >= 30 ? "complete" : "review_required",
               } as any)
-              .where(eq(quotationRequests.id, requestId));
+              .where(eq(clientVehicleValuationRequests.id, requestId));
           }
         } catch (err) {
           console.error(`[Phase7] Valuation pipeline failed for request ${requestId}:`, err);
@@ -122,8 +118,8 @@ export const insurancePhase7Router = router({
         submissionToken: token,
         inspectionRequired: inspectionRequired === 1,
         message: inspectionRequired
-          ? "Your fleet valuation request has been received. A physical inspection will be arranged for your fleet."
-          : "Your valuation request has been received. You will receive your teaser report shortly.",
+          ? "Your fleet valuation request has been received. A physical inspection may be required."
+          : "Your valuation request has been received. KINGA Market Valuation will be prepared as evidence-qualified decision support.",
       };
     }),
 
@@ -139,6 +135,38 @@ export const insurancePhase7Router = router({
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const valuationRows = await db.select().from(clientVehicleValuationRequests)
+        .where(eq(clientVehicleValuationRequests.submissionToken, input.token))
+        .limit(1);
+      const valuationRequest = valuationRows[0];
+      if (valuationRequest) {
+        const valuation = valuationRequest.kingaMarketValuationCents;
+        return {
+          requestNumber: valuationRequest.requestNumber,
+          vehicleMake: valuationRequest.vehicleMake,
+          vehicleModel: valuationRequest.vehicleModel,
+          vehicleYear: valuationRequest.vehicleYear,
+          condition: valuationRequest.condition,
+          status: valuationRequest.status,
+          forensicsStatus: "not_applicable",
+          reportGatingStatus: "teaser",
+          isStandaloneValuation: true,
+          inspectionRequired: false,
+          createdAt: valuationRequest.createdAt,
+          valueLow: valuation ? Math.round(valuation * 0.9) : null,
+          valueHigh: valuation ? Math.round(valuation * 1.1) : null,
+          fullReport: valuation ? {
+            estimatedMarketValue: valuation,
+            vehicleForensicsJson: null,
+            vehicleRiskScore: null,
+            quoteNotes: "KINGA Market Valuation — evidence-qualified decision support.",
+            quotedPremium: null,
+            quoteValidUntil: null,
+            reportUnlockedAt: null,
+          } : null,
+        };
+      }
 
       const rows = await db.select().from(quotationRequests)
         .where(eq(quotationRequests.submissionToken as any, input.token))
@@ -188,15 +216,45 @@ export const insurancePhase7Router = router({
    */
   getMyRequests: protectedProcedure
     .query(async ({ ctx }) => {
+      assertRestrictedAgencyAssistedCapability(ctx.user, "insurance_document_access");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
-      const rows = await db.select().from(quotationRequests)
+      const legacyRows = await db.select().from(quotationRequests)
         .where(eq(quotationRequests.email, ctx.user.email ?? ""))
         .orderBy(desc(quotationRequests.createdAt))
         .limit(50);
+      const valuationRows = await db.select().from(clientVehicleValuationRequests)
+        .where(eq(clientVehicleValuationRequests.email, ctx.user.email ?? ""))
+        .orderBy(desc(clientVehicleValuationRequests.createdAt))
+        .limit(50);
+      const serviceRows = await db.select().from(clientInsuranceServiceRequests)
+        .where(eq(clientInsuranceServiceRequests.userId, ctx.user.id))
+        .orderBy(desc(clientInsuranceServiceRequests.createdAt))
+        .limit(50);
 
-      return rows;
+      return [
+        ...valuationRows.map((row) => ({
+          ...row,
+          sourceLifecycle: "standalone_valuation" as const,
+          isStandaloneValuation: 1,
+          vehicleValue: row.kingaMarketValuationCents,
+          reportGatingStatus: "teaser",
+          quoteNotes: "KINGA Market Valuation — evidence-qualified decision support.",
+        })),
+        ...serviceRows.map((row) => ({
+          ...row,
+          sourceLifecycle: "insurance_service_request" as const,
+          isStandaloneValuation: 0,
+          vehicleMake: "Insurance service request",
+          vehicleModel: row.coverType,
+          vehicleYear: null,
+          vehicleValue: row.clientProposedValueCents,
+          reportGatingStatus: "not_applicable",
+          quoteNotes: "Service request only. No quote, premium, policy, claim, repair cost, or settlement decision exists in this record.",
+        })),
+        ...legacyRows.map((row) => ({ ...row, sourceLifecycle: "legacy_quotation_history" as const })),
+      ].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
     }),
 
   /**
@@ -346,6 +404,7 @@ export const insurancePhase7Router = router({
       quotationRequestId: z.number(),
     }))
     .mutation(async ({ input, ctx }) => {
+      assertRestrictedAgencyAssistedCapability(ctx.user, "insurance_quote_acceptance");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
       const [request] = await db.select().from(quotationRequests)
@@ -489,42 +548,30 @@ export const insurancePhase7Router = router({
       additionalCover: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertRestrictedAgencyAssistedCapability(ctx.user, "insurance_request");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
       const token = generateToken();
       const requestNumber = `INS-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
       const motorTypes = ['comprehensive','third_party','third_party_fire_theft','fleet','commercial'];
       const safeInsuranceType = motorTypes.includes(input.insuranceType) ? input.insuranceType : 'comprehensive';
-      const [result] = await db.insert(quotationRequests).values({
+      const [result] = await db.insert(clientInsuranceServiceRequests).values({
         requestNumber,
         userId: ctx.user.id,
         fullName: input.fullName,
         email: input.email,
         phone: input.phone ?? '',
-        insuranceType: safeInsuranceType as any,
         productCategory: input.productCategory,
-        vehicleMake: input.vehicleMake,
-        vehicleModel: input.vehicleModel,
-        vehicleYear: input.vehicleYear,
         vehicleRegistration: input.vehicleRegistration ?? null,
-        vehicleValue: input.vehicleValue ?? null,
-        insuredAssetDescription: input.insuredAssetDescription ?? null,
-        insuredAssetValue: input.insuredAssetValue ?? null,
-        coverageAddress: input.coverageAddress ?? null,
-        businessType: input.businessType ?? null,
-        projectValue: input.projectValue ?? null,
-        projectDurationMonths: input.projectDurationMonths ?? null,
-        bondType: input.bondType ?? null,
-        bondAmount: input.bondAmount ?? null,
-        bondBeneficiary: input.bondBeneficiary ?? null,
-        additionalCover: input.additionalCover ?? null,
-        status: 'pending',
-        reportGatingStatus: 'teaser',
-        isStandaloneValuation: 0,
-        inspectionRequired: 0,
+        coverType: safeInsuranceType,
+        clientProposedValueCents: input.productCategory === "motor" ? input.vehicleValue ?? null : input.insuredAssetValue ?? null,
+        requestPayloadJson: JSON.stringify({
+          vehicle: input.productCategory === "motor" ? { make: input.vehicleMake, model: input.vehicleModel, year: input.vehicleYear, registration: input.vehicleRegistration ?? null, clientProposedValueCents: input.vehicleValue ?? null } : null,
+          asset: input.productCategory !== "motor" ? { description: input.insuredAssetDescription ?? null, clientProposedValueCents: input.insuredAssetValue ?? null, coverageAddress: input.coverageAddress ?? null, businessType: input.businessType ?? null, projectValue: input.projectValue ?? null, projectDurationMonths: input.projectDurationMonths ?? null, bondType: input.bondType ?? null, bondAmount: input.bondAmount ?? null, bondBeneficiary: input.bondBeneficiary ?? null } : null,
+          additionalCover: input.additionalCover ?? null,
+        }),
+        status: 'submitted',
         submissionToken: token,
-        contactVerified: 0,
-        documents: JSON.stringify({ productType: input.insuranceType }),
       } as any);
       const requestId = (result as any).insertId;
       // Notify owner/admin of new request
@@ -543,6 +590,7 @@ export const insurancePhase7Router = router({
    */
   getMyDocuments: protectedProcedure
     .query(async ({ ctx }) => {
+      assertRestrictedAgencyAssistedCapability(ctx.user, "insurance_document_access");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
       const docs = await db.select()

@@ -91,13 +91,20 @@ export async function startCanonicalIntakeAssessment(actor: CanonicalIntakeActor
   const where = and(eq(claimIntakeRequests.tenantId, actor.tenantId), eq(claimIntakeRequests.userId, actor.id), eq(claimIntakeRequests.idempotencyKey, idempotencyKey), eq(claimIntakeRequests.claimId, claimId));
   const [request] = await db.select().from(claimIntakeRequests).where(where).limit(1);
   if (!request || request.tenantId !== actor.tenantId || request.userId !== actor.id) throw new TRPCError({ code: "NOT_FOUND", message: "The canonical intake request is not available in this tenant." });
-  if (["assessment_starting", "assessment_started", "assessment_start_failed"].includes(request.status)) return;
+  if (["assessment_starting", "assessment_started", "assessment_start_failed"].includes(request.status)) {
+    return { status: request.status === "assessment_start_failed" ? "recoverable_failure" as const : "already_recorded" as const };
+  }
   await db.update(claimIntakeRequests).set({ status: "assessment_starting" }).where(where);
-  try { await triggerAiAssessment(claimId); await db.update(claimIntakeRequests).set({ status: "assessment_started" }).where(where); }
+  try {
+    await triggerAiAssessment(claimId);
+    await db.update(claimIntakeRequests).set({ status: "assessment_started" }).where(where);
+    return { status: "started" as const };
+  }
   catch (error) {
     await db.update(claims).set({ status: "intake_pending", workflowState: "intake_queue", documentProcessingStatus: "ASSESSMENT_START_FAILED" }).where(and(eq(claims.id, claimId), eq(claims.tenantId, actor.tenantId)));
     await db.update(claimIntakeRequests).set({ status: "assessment_start_failed" }).where(where);
     await createNotification({ userId: actor.id, title: "Claim received — assessment start needs attention", message: `Claim ${claimId} was saved with all evidence and queued for operational attention.`, type: "system_alert", claimId, entityType: "claim", entityId: claimId, priority: "high" });
     await createAuditEntry({ claimId, userId: actor.id, action: "assessment_start_recoverable_failure", entityType: "claim", changeDescription: error instanceof Error ? error.message : "Unknown assessment-start failure" });
+    return { status: "recoverable_failure" as const };
   }
 }

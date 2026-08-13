@@ -30,6 +30,7 @@ export default function KingaAgency() {
   const tabs = [
     { id: 'clients', label: 'Client Management' },
     { id: 'quotations', label: 'Client Requests & Quotes' },
+    { id: 'valuation-evidence', label: 'Valuation Evidence' },
     { id: 'policies', label: 'Policies' },
     { id: 'documents', label: 'Documents' },
     { id: 'timeline-intelligence', label: 'Timeline Intelligence' },
@@ -123,6 +124,7 @@ export default function KingaAgency() {
           {/* ── MAIN COLUMN ── */}
           <div>
           {activeTab === 'quotations' && <QuotationsTab />}
+          {activeTab === 'valuation-evidence' && <ProfessionalValuationEvidenceTab />}
           {activeTab === 'policies' && <PoliciesTab />}
           {activeTab === 'documents' && <DocumentsTab />}
           {activeTab === 'timeline-intelligence' && <TimelineIntelligenceTab />}
@@ -195,6 +197,49 @@ export default function KingaAgency() {
       </div>
     </div>
   );
+}
+
+function ProfessionalValuationEvidenceTab() {
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const { data: queueData, isLoading: queueLoading } = trpc.agencyInsuranceService.getInsuranceServiceRequests.useQuery({ limit: 50, offset: 0 });
+  const serviceRequests = queueData?.requests ?? [];
+  const activeRequestId = selectedId ?? serviceRequests[0]?.id ?? null;
+  const { data: evidence, isLoading: evidenceLoading } = trpc.agencyInsuranceService.getAgencyProfessionalValuationEvidence.useQuery(
+    { serviceRequestId: activeRequestId ?? 0 },
+    { enabled: activeRequestId !== null },
+  );
+  const money = (cents: number | null | undefined) => cents == null ? "Not available" : `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  if (queueLoading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-emerald-600" /></div>;
+  if (!serviceRequests.length) return <Card className="border-dashed"><CardContent className="py-16 text-center"><ShieldCheck className="mx-auto mb-4 h-11 w-11 text-muted-foreground" /><h3 className="text-lg font-semibold">No valuation evidence yet</h3><p className="mt-2 text-sm text-muted-foreground">Create an insurance service request with a vehicle-condition snapshot to retain professional valuation evidence.</p></CardContent></Card>;
+
+  return <div className="space-y-5">
+    <Card>
+      <CardHeader><CardTitle>Professional Valuation Evidence</CardTitle><CardDescription>Source coverage, recorded adjustments, limitations, selected insured value, and acknowledgement status. This is decision support only.</CardDescription></CardHeader>
+      <CardContent>
+        <Label htmlFor="valuation-evidence-request">Insurance service request</Label>
+        <Select value={activeRequestId ? String(activeRequestId) : ""} onValueChange={(value) => setSelectedId(Number(value))}>
+          <SelectTrigger id="valuation-evidence-request" className="mt-2"><SelectValue /></SelectTrigger>
+          <SelectContent>{serviceRequests.map((request: any) => <SelectItem key={request.id} value={String(request.id)}>{request.requestNumber} · {request.vehicleRegistration} · {request.clientName}</SelectItem>)}</SelectContent>
+        </Select>
+      </CardContent>
+    </Card>
+    {evidenceLoading ? <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-emerald-600" /></div> : evidence && <>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card><CardHeader className="pb-2"><CardDescription>Client-selected insured value</CardDescription><CardTitle>{money(evidence.clientProposedValueCents)}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>KINGA Market Valuation</CardDescription><CardTitle>{money(evidence.kingaMarketValuationCents)}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>Variance / acknowledgement</CardDescription><CardTitle>{evidence.variancePercent == null ? "Not available" : `${Number(evidence.variancePercent).toFixed(1)}%`}</CardTitle><CardDescription className="mt-1">{evidence.clientAcknowledgementRecorded ? "Client acknowledgement recorded" : "Client acknowledgement pending"}</CardDescription></CardHeader></Card>
+      </div>
+      <Card>
+        <CardHeader><CardTitle>{evidence.evidence.label}</CardTitle><CardDescription>{evidence.evidence.evidenceStatus} · {evidence.evidence.method} · Valuation date {evidence.valuationDate ? new Date(evidence.valuationDate).toLocaleDateString() : "not recorded"}</CardDescription></CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <div className="grid gap-3 md:grid-cols-2"><div><span className="font-medium">Source coverage:</span> {evidence.evidence.sourceCoverage} available data point(s)</div><div><span className="font-medium">Adjustment record:</span> {evidence.evidence.adjustmentsCents ? "Recorded in valuation provenance" : "No adjustments recorded"}</div></div>
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-950"><span className="font-medium">Material limitation:</span> {evidence.evidence.limitations}</div>
+          <p className="text-xs text-muted-foreground">{evidence.decisionBoundary}</p>
+        </CardContent>
+      </Card>
+    </>}
+  </div>;
 }
 
 // ========== QUOTATIONS TAB ==========
