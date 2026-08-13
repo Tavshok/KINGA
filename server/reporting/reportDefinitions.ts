@@ -44,7 +44,7 @@ import { generateEngineerInspectionReport } from "./engineerInspectionReport";
 import { generateRiskSurveyReport } from "./riskSurveyReport";
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
-import { renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { assessors, fraudIndicators, tenants, users } from "../../drizzle/schema";
 import {
@@ -350,6 +350,7 @@ async function generateClaimAssessmentReport(
       repairability: {
         totalLossIndicated: Boolean(claim.total_loss_indicated),
         repairToValueRatio: claim.repair_to_value_ratio == null ? null : Number(claim.repair_to_value_ratio),
+        ...extractExplicitStructuralReviewEvidence(claim.repair_intelligence_json),
       },
     });
     const activeQuoteIds = new Set(

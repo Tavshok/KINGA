@@ -21,7 +21,7 @@ import {
 } from "./templates/kingaDesignSystem";
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
-import { renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -181,6 +181,7 @@ export async function generateClaimsIntelligenceReport(
       repairability: {
         totalLossIndicated: Boolean(c.total_loss_indicated),
         repairToValueRatio: rtvRatio,
+        ...extractExplicitStructuralReviewEvidence(repairIntel),
       },
     });
     const quoteArr = costIntegrity.activeQuotes;

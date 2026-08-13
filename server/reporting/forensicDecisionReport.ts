@@ -17,7 +17,7 @@ import {
 } from "./templates/kingaDesignSystem";
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
-import { renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import type { CGIAvailabilitySummary } from "../pipeline-v2/stage-9-5-cgi";
 
@@ -243,6 +243,7 @@ export async function generateForensicDecisionReport(
       repairability: {
         totalLossIndicated: Boolean(c.total_loss_indicated),
         repairToValueRatio: c.repair_to_value_ratio == null ? null : rtvRatio,
+        ...extractExplicitStructuralReviewEvidence(repairIntel),
       },
     });
     const submittedQuoteLedgerDetail = quoteArr.length > 0

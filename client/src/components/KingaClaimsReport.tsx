@@ -301,7 +301,7 @@ function CostVerdictBadge({ verdict }: { verdict: string }) {
   );
 }
 
-function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalLossIndicated, repairToValueRatio }: { costIntelligence: any; quotes: any[]; fmtCurrency: (amount: number | null | undefined) => string; totalLossIndicated: boolean; repairToValueRatio: number | null }) {
+function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalLossIndicated, repairToValueRatio, repairIntelligence }: { costIntelligence: any; quotes: any[]; fmtCurrency: (amount: number | null | undefined) => string; totalLossIndicated: boolean; repairToValueRatio: number | null; repairIntelligence?: unknown }) {
   const composite = costIntelligence?.compositeOptimisation ?? {};
   const ledger = Array.isArray(composite.canonicalQuoteLedger) ? composite.canonicalQuoteLedger : [];
   const activeLedger = ledger.filter((quote: any) => quote?.status === "active" || quote?.status === "supplementary");
@@ -326,8 +326,20 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalL
           : "No material quote issue identified.";
   const optimised = complete ? Number(composite.l2CompositeOptimisedCostUsd) : null;
   const optimisedDetail = complete ? "KINGA insurer cost recommendation." : verification === "QUOTATION REQUIRED" ? "Pending submitted quotation evidence." : "Available comparison retained pending the identified quote evidence.";
+  let repairEvidence: any = repairIntelligence;
+  if (typeof repairEvidence === "string") {
+    try { repairEvidence = JSON.parse(repairEvidence); } catch { repairEvidence = null; }
+  }
+  const structuralReview = repairEvidence?.structuralReview;
+  const structuralReviewRequired = repairEvidence?.structuralReviewRequired === true
+    || repairEvidence?.requiresStructuralReview === true
+    || structuralReview?.required === true;
+  const structuralReviewDetail = [repairEvidence?.structuralReviewDetail, repairEvidence?.structuralReviewRationale, repairEvidence?.structuralReviewNote, structuralReview?.detail, structuralReview?.rationale]
+    .find((value) => typeof value === "string" && value.trim());
   const repairability = totalLossIndicated
     ? { label: "Total loss indicated", detail: "Repair-versus-replace assessment indicates total loss." }
+    : structuralReviewRequired
+      ? { label: "Further structural review required", detail: structuralReviewDetail ?? "Structural condition requires further review before final repairability confirmation." }
     : repairToValueRatio === null
       ? { label: "Repairable with conditions", detail: "Repairability is subject to confirmation of the repair-to-value assessment." }
       : { label: "Repairable", detail: "Repair-versus-replace assessment supports repair." };
@@ -731,6 +743,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 const value = aiAssessment?.repairToValueRatio ?? aiAssessment?.repair_to_value_ratio ?? ci?.repairToValuePct ?? ci?.repair_to_value_ratio;
                 return value == null || !Number.isFinite(Number(value)) ? null : Number(value);
               })()}
+              repairIntelligence={aiAssessment?.repairIntelligence ?? aiAssessment?.repair_intelligence_json ?? aiAssessment?.repairIntelligenceJson ?? ci?.repairIntelligence ?? ci?.repair_intelligence_json}
             />
 
             {primaryReason && (

@@ -21,6 +21,30 @@ export type RepairabilityEvidence = {
   structuralReviewDetail?: string | null;
 };
 
+/**
+ * Reads only an explicit structural-review field recorded in repair intelligence.
+ * It intentionally does not derive a structural-review outcome from pricing,
+ * damage severity, component count, or any assumed repair threshold.
+ */
+export function extractExplicitStructuralReviewEvidence(rawRepairIntelligence: unknown): Pick<RepairabilityEvidence, "structuralReviewRequired" | "structuralReviewDetail"> {
+  let source: any = rawRepairIntelligence;
+  if (typeof source === "string") {
+    try { source = JSON.parse(source); } catch { source = null; }
+  }
+  const review = source?.structuralReview;
+  const structuralReviewRequired = source?.structuralReviewRequired === true
+    || source?.requiresStructuralReview === true
+    || review?.required === true;
+  const structuralReviewDetail = [
+    source?.structuralReviewDetail,
+    source?.structuralReviewRationale,
+    source?.structuralReviewNote,
+    review?.detail,
+    review?.rationale,
+  ].find((value) => typeof value === "string" && value.trim()) ?? null;
+  return { structuralReviewRequired, structuralReviewDetail };
+}
+
 function quoteIssue(cost: ReportCostIntegrity): string {
   if (cost.quoteReceiptStatus === "no_quotes") return "No submitted repair quotation received.";
   if (cost.unreconciledQuoteCount > 0) {

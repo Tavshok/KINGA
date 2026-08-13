@@ -30,4 +30,11 @@ describe("R0 cross-surface concise cost-decision presentation", () => {
     expect(source).not.toContain("l3BenchmarkReferenceCostUsd");
     expect(source).not.toContain("assessorCalibrationCostUsd");
   });
+
+  it("passes explicit persisted repair intelligence to every report repairability surface", () => {
+    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts", "server/reporting/forensicDecisionReport.ts"]) {
+      expect(read(file)).toContain("extractExplicitStructuralReviewEvidence");
+    }
+    expect(read("client/src/components/KingaClaimsReport.tsx")).toContain("structuralReviewRequired");
+  });
 });

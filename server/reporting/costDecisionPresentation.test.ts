@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCostDecisionPresentation, renderCostDecisionSummaryHtml, resolveRepairabilityVerdict } from "./costDecisionPresentation";
+import { buildCostDecisionPresentation, extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml, resolveRepairabilityVerdict } from "./costDecisionPresentation";
 import type { ReportCostIntegrity } from "./costIntegrity";
 
 function cost(overrides: Partial<ReportCostIntegrity> = {}): ReportCostIntegrity {
@@ -96,5 +96,12 @@ describe("R0 concise cost decision presentation", () => {
     expect(resolveRepairabilityVerdict({ totalLossIndicated: false, repairToValueRatio: null }).label).toBe("Repairable with conditions");
     expect(resolveRepairabilityVerdict({ totalLossIndicated: false, repairToValueRatio: 48, structuralReviewRequired: true }).label).toBe("Further structural review required");
     expect(resolveRepairabilityVerdict({ totalLossIndicated: true, repairToValueRatio: 48 }).label).toBe("Total loss indicated");
+  });
+
+  it("propagates only explicit persisted structural-review evidence and rationale", () => {
+    expect(extractExplicitStructuralReviewEvidence({ structuralReviewRequired: true, structuralReviewRationale: "Front rail alignment measurement is required." }))
+      .toEqual({ structuralReviewRequired: true, structuralReviewDetail: "Front rail alignment measurement is required." });
+    expect(extractExplicitStructuralReviewEvidence({ structuralGaps: [{ severity: "critical" }] }))
+      .toEqual({ structuralReviewRequired: false, structuralReviewDetail: null });
   });
 });
