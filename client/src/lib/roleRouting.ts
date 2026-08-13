@@ -29,6 +29,52 @@ export const ROLE_PORTAL_MAP: Record<string, string> = {
   user: "/client",                  // No portal assigned yet
 };
 
+/**
+ * Top-level domain admission policy for portal shells. This concerns only
+ * route entry; it never substitutes for tenant, relationship, or object-level
+ * authorization inside procedures.
+ */
+export const PORTAL_DOMAIN_ROLE_MAP = {
+  platform: ["platform_super_admin"],
+  agency: ["agency", "admin", "platform_super_admin"],
+  insurer: ["insurer", "admin", "platform_super_admin"],
+  assessor: ["assessor", "admin", "platform_super_admin"],
+  panel_beater: ["panel_beater", "admin", "platform_super_admin"],
+  fleet: ["fleet_admin", "fleet_manager", "fleet_driver", "admin", "platform_super_admin"],
+  engineer: ["engineer", "admin", "platform_super_admin"],
+  administration: ["admin", "platform_super_admin"],
+  marketplace: ["admin", "insurer", "assessor", "panel_beater", "agency", "fleet_admin", "fleet_manager", "claimant", "user", "platform_super_admin"],
+  portal: ["claimant", "admin", "platform_super_admin"],
+  customer: ["claimant", "fleet_manager", "fleet_driver", "fleet_admin", "agency", "insurer", "assessor", "panel_beater", "engineer", "admin", "platform_super_admin", "user"],
+} as const;
+
+export type PortalDomain = keyof typeof PORTAL_DOMAIN_ROLE_MAP;
+
+export const PORTAL_SHELL_MATRIX: Array<{
+  path: string;
+  domain?: PortalDomain;
+  public?: boolean;
+}> = [
+  { path: "/", public: true },
+  { path: "/platform/overview", domain: "platform" },
+  { path: "/admin/dashboard", domain: "administration" },
+  { path: "/insurer-portal", domain: "insurer" },
+  { path: "/assessor/dashboard", domain: "assessor" },
+  { path: "/panel-beater/dashboard", domain: "panel_beater" },
+  { path: "/agency", domain: "agency" },
+  { path: "/fleet", domain: "fleet" },
+  { path: "/fleet/driver", domain: "fleet" },
+  { path: "/engineer/dashboard", domain: "engineer" },
+  { path: "/client", domain: "customer" },
+];
+
+export function isPortalShellAdmissionAllowed(path: string, userRoles: Array<string | null | undefined>): boolean {
+  const shell = PORTAL_SHELL_MATRIX.find((entry) => entry.path === path);
+  if (!shell) return false;
+  if (shell.public) return true;
+  return userRoles.some((role) => Boolean(role && shell.domain && PORTAL_DOMAIN_ROLE_MAP[shell.domain].includes(role as never)));
+}
+
 /** Map from insurerRole → canonical insurer sub-portal landing page */
 export const INSURER_ROLE_PORTAL_MAP: Record<string, string> = {
   claims_processor:  "/insurer-portal/claims-processor",

@@ -122,7 +122,7 @@
 - [x] P0 Package 4-A: consolidate approved server-side direct-admin checks through `isAdminRole()` or documented intentional distinctions
 - [x] P0 Package 4-B: correct platform-super-admin admission to intended client, professional, and administrative portal routes without loops
 - [x] P0 Package 4-C: preserve Package 1 tenant/object limits and audited explicit cross-tenant selection under platform-super-admin access
-- [ ] P0 Package 4-D: implement the explicit portal-route allow/deny/unavailable role matrix
+- [x] P0 Package 4-D: implement the explicit portal-route allow/deny/unavailable role matrix
 - [x] P0 Package 4-E: add server, client-route, ordinary-denial, super-admin-entry, object-boundary, and no-loop regression proof
 - [x] P0 Package 4-F: produce and maintain a file-by-file classification of direct administrative checks as canonical admin, intentional business role, UI display, workflow-specific, or object-security control
 - [x] P0 Package 4-G: prove platform-super-admin portal-shell admission separately from foreign tenant claim, report, document, and workflow object denial

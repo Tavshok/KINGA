@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Redirect, useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 import { isAdminRole } from "@shared/role-permissions";
+import { PORTAL_DOMAIN_ROLE_MAP, type PortalDomain } from "@/lib/roleRouting";
 
 /**
  * Domain → Allowed Roles mapping (mirrors server/_core/domain-middleware.ts)
@@ -14,24 +15,7 @@ import { isAdminRole } from "@shared/role-permissions";
  * /marketplace → all authenticated roles
  * /portal    → claimant, admin, platform_super_admin (route testing only; object procedures remain authoritative)
  */
-export const DOMAIN_ROLE_MAP: Record<string, string[]> = {
-  platform: ["platform_super_admin"],
-  agency: ["agency", "admin", "platform_super_admin"], // platform_super_admin: system testing access (confirmed 2026-07-30)
-  insurer: ["insurer", "admin", "platform_super_admin"],
-  fleet: ["fleet_admin", "fleet_manager", "fleet_driver", "admin", "platform_super_admin"],
-  engineer: ["engineer", "admin", "platform_super_admin"], // Epic 3 — Engineering Workspace (wired Epic 4.5)
-  marketplace: [
-    "admin", "insurer", "assessor", "panel_beater", "agency",
-    "fleet_admin", "fleet_manager", "claimant", "user", "platform_super_admin",
-  ],
-  portal: ["claimant", "admin", "platform_super_admin"],
-  // Phase 8: customer domain — any authenticated user can access customer-facing pages
-  customer: [
-    "claimant", "fleet_manager", "fleet_driver", "fleet_admin",
-    "agency", "insurer", "assessor", "panel_beater", "engineer",
-    "admin", "platform_super_admin", "user",
-  ],
-};
+export const DOMAIN_ROLE_MAP = PORTAL_DOMAIN_ROLE_MAP;
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -43,7 +27,7 @@ interface ProtectedRouteProps {
    * Domain key — automatically resolves allowedRoles from DOMAIN_ROLE_MAP.
    * Allowed values: 'platform' | 'agency' | 'insurer' | 'fleet' | 'marketplace' | 'portal'
    */
-  domain?: keyof typeof DOMAIN_ROLE_MAP;
+  domain?: PortalDomain;
 }
 
 /**
@@ -85,7 +69,7 @@ export default function ProtectedRoute({ children, allowedRoles, allowedInsurerR
 
   // Resolve effective role list: explicit allowedRoles > domain > none
   const effectiveRoles: string[] | undefined =
-    allowedRoles ?? (domain ? DOMAIN_ROLE_MAP[domain] : undefined);
+    allowedRoles ?? (domain ? [...DOMAIN_ROLE_MAP[domain]] : undefined);
 
   // Check role against effective list
   // Phase 8: also check secondaryRoles for role coexistence

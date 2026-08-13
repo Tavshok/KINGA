@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getRoleDashboardPath, isPortalNavigationAllowed } from "../client/src/lib/roleRouting";
+import { getRoleDashboardPath, isPortalNavigationAllowed, isPortalShellAdmissionAllowed, PORTAL_SHELL_MATRIX } from "../client/src/lib/roleRouting";
 
 describe("P0 Package 4 portal routing contract", () => {
   it("lands each top-level role in its canonical portal rather than the retired portal hub", () => {
@@ -17,5 +17,16 @@ describe("P0 Package 4 portal routing contract", () => {
   it("permits administrative portal-shell testing without asserting tenant-bound object authority", () => {
     expect(isPortalNavigationAllowed("/insurer-portal/executive", "admin", null)).toBe(true);
     expect(isPortalNavigationAllowed("/insurer-portal/executive", "platform_super_admin", null)).toBe(true);
+  });
+
+  it("declares every approved portal shell in one explicit route matrix", () => {
+    expect(PORTAL_SHELL_MATRIX.map((entry) => entry.path)).toEqual([
+      "/", "/platform/overview", "/admin/dashboard", "/insurer-portal", "/assessor/dashboard",
+      "/panel-beater/dashboard", "/agency", "/fleet", "/fleet/driver", "/engineer/dashboard", "/client",
+    ]);
+    expect(isPortalShellAdmissionAllowed("/", [])).toBe(true);
+    expect(isPortalShellAdmissionAllowed("/agency", ["platform_super_admin"])).toBe(true);
+    expect(isPortalShellAdmissionAllowed("/agency", ["claimant"])).toBe(false);
+    expect(isPortalShellAdmissionAllowed("/client", ["engineer"])).toBe(true);
   });
 });
