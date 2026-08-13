@@ -793,7 +793,7 @@ function Router() {
         <Route path="/claimant/documents"><RedirectToPortal to="/client" /></Route>
         {/* Claim detail — accessible from My Portal without old shell */}
         <Route path="/claims/:id">
-          <ProtectedRoute domain="portal">
+          <ProtectedRoute domain="customer">
             <ClaimantClaimDetail />
           </ProtectedRoute>
         </Route>
