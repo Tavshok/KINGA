@@ -26,4 +26,15 @@ describe("P0 role-to-workflow customer and agency route conformance", () => {
     const legacyFleet = app.slice(app.indexOf('path="/fleet-management"'), app.indexOf('path="/fleet-management"') + 140);
     expect(legacyFleet).toContain('RedirectToPortal to="/fleet"');
   });
+
+  it("keeps administration control-tower routes out of insurer shells while retaining administrative test-shell admission", () => {
+    const app = readFileSync("client/src/App.tsx", "utf8");
+    for (const path of ["/admin/integrity-metrics", "/admin/pipeline-health", "/admin/learning", "/admin/workflows", "/admin/escalation", "/admin/workflow-settings"]) {
+      const route = app.slice(app.indexOf(`path=\"${path}\"`), app.indexOf(`path=\"${path}\"`) + 220);
+      expect(route).toContain('domain="administration"');
+      expect(route).not.toContain('"insurer"');
+    }
+    expect(isPortalShellAdmissionAllowed("/admin/dashboard", ["platform_super_admin"])).toBe(true);
+    expect(isPortalShellAdmissionAllowed("/admin/dashboard", ["insurer"])).toBe(false);
+  });
 });

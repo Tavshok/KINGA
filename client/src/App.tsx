@@ -856,7 +856,7 @@ function Router() {
           </ProtectedRoute>
         </Route>
         <Route path="/admin/integrity-metrics">
-          <ProtectedRoute allowedRoles={["platform_super_admin", "admin", "insurer"]}>
+          <ProtectedRoute domain="administration">
             <AdminPortalLayout title="Integrity Metrics"><IntegrityMetricsDashboard /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
@@ -866,22 +866,22 @@ function Router() {
           </ProtectedRoute>
         </Route>
         <Route path="/admin/pipeline-health">
-          <ProtectedRoute allowedRoles={["platform_super_admin", "admin", "insurer"]}>
+          <ProtectedRoute domain="administration">
             <AdminPortalLayout title="Pipeline Health"><PipelineHealthDashboard /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/learning">
-          <ProtectedRoute allowedRoles={["platform_super_admin", "admin", "insurer"]}>
+          <ProtectedRoute domain="administration">
             <AdminPortalLayout title="Learning Dashboard"><LearningDashboard /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/workflows">
-          <ProtectedRoute allowedRoles={["admin", "platform_super_admin", "insurer"]} allowedInsurerRoles={["claims_manager", "executive", "insurer_admin"]}>
+          <ProtectedRoute domain="administration">
             <AdminPortalLayout title="Workflow Templates"><WorkflowTemplates /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/admin/escalation">
-          <ProtectedRoute allowedRoles={["admin", "platform_super_admin", "insurer"]}>
+          <ProtectedRoute domain="administration">
             <AdminPortalLayout title="Escalation Queue"><EscalationQueue /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
@@ -891,7 +891,7 @@ function Router() {
           </ProtectedRoute>
         </Route>
         <Route path="/admin/workflow-settings">
-          <ProtectedRoute allowedRoles={["admin", "platform_super_admin", "insurer"]} allowedInsurerRoles={["insurer_admin", "executive"]}>
+          <ProtectedRoute domain="administration">
             <AdminPortalLayout title="Workflow Settings"><WorkflowSettings /></AdminPortalLayout>
           </ProtectedRoute>
         </Route>
