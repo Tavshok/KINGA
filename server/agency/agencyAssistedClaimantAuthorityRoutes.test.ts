@@ -7,8 +7,11 @@ describe("P0 restricted agency-assisted claimant route authority", () => {
   it("denies independent portal access while preserving the separate agency-assisted canonical claim route", () => {
     const protectedRoute = read("client/src/components/ProtectedRoute.tsx");
     const agencyService = read("server/routers/agency-insurance-service.ts");
+    const trpc = read("server/_core/trpc.ts");
     expect(protectedRoute).toContain("isUnregisteredClaimant");
     expect(protectedRoute).toContain('Redirect to="/unauthorized"');
+    expect(trpc).toContain("rejectRestrictedAgencyAssistedIdentity");
+    expect(trpc).toContain("restricted to the agency claim workflow");
     expect(agencyService).toContain("createAgencyAssistedClaim");
     expect(agencyService).toContain("submitAgencyAssistedCanonicalClaim");
   });
@@ -18,6 +21,7 @@ describe("P0 restricted agency-assisted claimant route authority", () => {
     const claims = read("server/routers/claims-core.ts");
     const insurance = read("server/routers/insurance-phase7.ts");
     const notifications = read("server/routers/notifications.ts");
+    const rootRouter = read("server/routers.ts");
     expect(reports.match(/assertRestrictedAgencyAssistedCapability\(ctx\.user, "report_access"\)/g)).toHaveLength(3);
     expect(claims).toContain('assertRestrictedAgencyAssistedCapability(ctx.user, "settlement_instruction")');
     expect(claims).toContain('assertRestrictedAgencyAssistedCapability(ctx.user, "dispute_instruction")');
@@ -27,6 +31,7 @@ describe("P0 restricted agency-assisted claimant route authority", () => {
     expect(insurance.match(/assertRestrictedAgencyAssistedCapability\(ctx\.user, "insurance_document_access"\)/g)).toHaveLength(3);
     expect(notifications).toContain('assertRestrictedAgencyAssistedCapability(ctx.user, "communication_authority")');
     expect(notifications).toContain("const restrictedCommunicationProcedure = protectedProcedure.use");
+    expect(rootRouter).toContain('assertRestrictedAgencyAssistedCapability(ctx.user, "fraud_authority")');
   });
 
   it("retains auditable verified-link fields on the restricted identity ledger", () => {

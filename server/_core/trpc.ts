@@ -28,7 +28,22 @@ const requireUser = t.middleware(async opts => {
   });
 });
 
-export const protectedProcedure = t.procedure.use(requireUser);
+const rejectRestrictedAgencyAssistedIdentity = t.middleware(async opts => {
+  const { ctx, next } = opts;
+
+  if (ctx.user?.isUnregisteredClaimant) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "This agency-assisted claim identity is restricted to the agency claim workflow until it is verified and linked to My Portal.",
+    });
+  }
+
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
+
+export const protectedProcedure = t.procedure
+  .use(requireUser)
+  .use(rejectRestrictedAgencyAssistedIdentity);
 
 export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {

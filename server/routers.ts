@@ -166,6 +166,7 @@ import { panelBeatersRouter } from "./routers/panel-beaters-core"; // SPLIT-R06:
 import { claimReportsRouter } from "./routers/claim-reports-core"; // SPLIT-R07: extracted Aug 2026
 import { impersonationRouter } from "./routers/impersonation"; // Batch 2: superadmin impersonation
 import { isAdminRole } from "@shared/role-permissions";
+import { assertRestrictedAgencyAssistedCapability } from "./agency/agencyAssistedClaimantIdentity";
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -181,6 +182,7 @@ export const integrityRouter = router({
       days: z.number().default(30),
     }))
     .query(async ({ ctx, input }) => {
+      assertRestrictedAgencyAssistedCapability(ctx.user, "fraud_authority");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
