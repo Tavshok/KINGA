@@ -59,6 +59,10 @@ export interface ScoredImage {
   confidence:           "HIGH" | "MEDIUM" | "LOW";
   classification:       ImageClass;
   features:             ImageFeatures;
+  /** Why this page entered Stage 6 selection; retained for reports and physics eligibility. */
+  selectionReason?:     string;
+  /** True only when no confirmed damage photo existed and contextual fallback was required. */
+  usedSelectionFallback?: boolean;
 }
 
 // ── Feature extraction (deterministic, uses sharp) ────────────────────────────
@@ -415,9 +419,11 @@ export async function selectDamagePhotoPages(
 
   // ── Phase 4: Filter to damage photos only ─────────────────────────────────
   let damagePhotos = scored.filter(s => s.classification === "damage_photo");
+  let usedSelectionFallback = false;
 
   // Fallback: if nothing was classified as damage photo, use top 2 from ambiguous pool
   if (damagePhotos.length === 0) {
+    usedSelectionFallback = true;
     ctx.log("ImageIntelligence", "No damage photos found — using top 2 from ambiguous pool as fallback");
     damagePhotos = scored
       .filter(s => s.confidence === "MEDIUM")
@@ -426,7 +432,14 @@ export async function selectDamagePhotoPages(
     // If still nothing, return all pages (last resort)
     if (damagePhotos.length === 0) {
       ctx.log("ImageIntelligence", "No candidates at all — returning all pages");
-      return scored.sort((a, b) => b.qualityScore - a.qualityScore).slice(0, MAX_DAMAGE_PHOTOS);
+      return scored
+        .sort((a, b) => b.qualityScore - a.qualityScore)
+        .slice(0, MAX_DAMAGE_PHOTOS)
+        .map((page) => ({
+          ...page,
+          usedSelectionFallback: true,
+          selectionReason: "Last-resort contextual page selection after no damage-photo candidate was classified.",
+        }));
     }
   }
 
@@ -466,5 +479,11 @@ export async function selectDamagePhotoPages(
     `(pages: ${final.map(f => f.pageNumber).join(", ")})`
   );
 
-  return final;
+  return final.map((page) => ({
+    ...page,
+    usedSelectionFallback,
+    selectionReason: usedSelectionFallback
+      ? "Fallback contextual page selected because no confirmed damage photo was classified."
+      : "Classified damage photo selected by image-intelligence quality ranking.",
+  }));
 }

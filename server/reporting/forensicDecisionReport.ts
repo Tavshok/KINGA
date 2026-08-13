@@ -1456,6 +1456,15 @@ export async function generateForensicDecisionReport(
               usable: Number(p.confidenceScore ?? 0) >= 70,
               // Fix B: pass contradiction flag to render ⚠ badge (display-only, no scoring impact)
               directionContradiction: p.directionContradiction === true,
+              semanticType: p.semanticType ?? p.imageClassification ?? undefined,
+              detectedComponents: p.detectedComponents ?? undefined,
+              classificationConfidence: p.classificationConfidence ?? p.semanticConfidence ?? undefined,
+              classifier: p.classifier ?? undefined,
+              selectionReason: p.selectionReason ?? undefined,
+              fallbackWarning: p.fallbackWarning ?? undefined,
+              suitableForCrushDepth: p.suitableForCrushDepth ?? undefined,
+              physicsExclusionReason: p.physicsExclusionReason ?? undefined,
+              sourcePage: p.sourcePage ?? undefined,
             })),
             4
           )

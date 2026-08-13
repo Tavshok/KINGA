@@ -859,6 +859,26 @@ export interface PerPhotoResult {
   httpStatus?: number;       // for SKIPPED_INACCESSIBLE
   deferralReason?: string;   // for SKIPPED_BUDGET
   damageLikelihoodScore?: number; // from Image Intelligence Layer
+  /** R2: source, classifier, selection, and crush-depth eligibility audit envelope. */
+  evidence?: ImageEvidenceEnvelope;
+}
+
+/**
+ * R2 image-evidence envelope. A non-eligible image remains usable for contextual
+ * damage evidence but cannot contribute numeric crush-depth or physics measurements.
+ */
+export interface ImageEvidenceEnvelope {
+  url: string;
+  source: 'direct_upload' | 'pdf_extracted' | 'pdf_page_render' | 'pdf_direct_vision' | 'unknown';
+  pageNumber?: number;
+  classification?: string;
+  classificationConfidence?: number;
+  classifier: 'image_classifier_llm' | 'image_classifier_heuristic' | 'semantic_image_classifier' | 'image_intelligence' | 'pdf_direct_vision' | 'unknown';
+  damageLikelihoodScore?: number;
+  selectionReason: string;
+  fallbackWarning?: string;
+  suitableForCrushDepth: boolean;
+  exclusionReason?: string;
 }
 
 /** A component excluded by the direction-aware filter — kept for audit trail */

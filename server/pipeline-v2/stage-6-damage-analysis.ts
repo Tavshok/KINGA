@@ -35,6 +35,13 @@ import { normalisePartName, CANONICAL_PARTS_PROMPT_LIST } from "./canonicalParts
 import { renderSpecificPdfPages } from "./pdfToImages";
 import { KINGA_REPORT_SYSTEM_PROMPT } from "./kingaReportSystemPrompt";
 import { selectDamagePhotoPages } from "./imageIntelligence";
+import {
+  evidenceFromClassifiedImage,
+  evidenceFromPdfDirectPage,
+  evidenceFromScoredPdfPage,
+  evidenceFromSemanticImage,
+  removeIneligiblePhysicsMeasurements,
+} from "./imageEvidenceEligibility";
 import type {
   PipelineContext,
   StageResult,
@@ -45,6 +52,7 @@ import type {
   AccidentSeverity,
   Assumption,
   RecoveryAction,
+  ImageEvidenceEnvelope,
 } from "./types";
 import { TIMEOUT_VISION_MS } from "./pipelineContractRegistry";
 import { normaliseVisionComponentNames } from "../services/visionTermNormaliser";
@@ -473,7 +481,9 @@ async function readDamageFromPhotos(
   recoveryActions: RecoveryAction[],
   damageLikelihoodScores?: Map<string, number>,
   /** P5: per-URL provenance tag — set by the caller based on imageIntelligence classification */
-  sourceTagMap?: Map<string, DamageAnalysisComponent['inputSource']>
+  sourceTagMap?: Map<string, DamageAnalysisComponent['inputSource']>,
+  /** R2: provenance and eligibility are carried per URL without suppressing damage analysis. */
+  evidenceByUrl?: Map<string, ImageEvidenceEnvelope>
 ): Promise<{
   components: DamageAnalysisComponent[];
   perPhotoResults: import('./types').PerPhotoResult[];
@@ -546,6 +556,7 @@ async function readDamageFromPhotos(
     confidence: 'high' | 'medium' | 'low';
     usedFallback: boolean;
     succeeded: boolean;
+    evidence?: ImageEvidenceEnvelope;
   }> = [];
 
   for (let batchStart = 0; batchStart < toProcess.length; batchStart += PHOTO_BATCH_SIZE) {
@@ -553,6 +564,7 @@ async function readDamageFromPhotos(
     const batchResults = await Promise.all(
       batch.map(async (url, batchIdx) => {
         const i = batchStart + batchIdx;
+        const evidence = evidenceByUrl?.get(url);
         try {
           const result = await analyseOneImage(
             url,
@@ -563,14 +575,17 @@ async function readDamageFromPhotos(
           );
           return {
             url,
-            components: result.components,
+            components: evidence && !evidence.suitableForCrushDepth
+              ? removeIneligiblePhysicsMeasurements(result.components)
+              : result.components,
             confidence: result.confidence as 'high' | 'medium' | 'low',
             usedFallback: result.usedFallback,
             succeeded: true,
+            evidence,
           };
         } catch (e) {
           ctx.log("Stage 6", `Vision: photo[${i}] completely failed: ${String(e)}`);
-          return { url, components: [], confidence: 'low' as const, usedFallback: false, succeeded: false };
+          return { url, components: [], confidence: 'low' as const, usedFallback: false, succeeded: false, evidence };
         }
       })
     );
@@ -595,6 +610,7 @@ async function readDamageFromPhotos(
         usedFallback: false,
         httpStatus: check?.httpStatus,
         damageLikelihoodScore: damageLikelihoodScores?.get(url),
+        evidence: evidenceByUrl?.get(url),
       };
     }
     if (deferredSet.has(url)) {
@@ -607,6 +623,7 @@ async function readDamageFromPhotos(
         usedFallback: false,
         deferralReason: `Budget cap of ${PER_RUN_VISION_BUDGET} photos reached; this photo was not selected for this run`,
         damageLikelihoodScore: damageLikelihoodScores?.get(url),
+        evidence: evidenceByUrl?.get(url),
       };
     }
     const r = processedMap.get(url);
@@ -619,6 +636,7 @@ async function readDamageFromPhotos(
         succeeded: r.succeeded,
         usedFallback: r.usedFallback,
         damageLikelihoodScore: damageLikelihoodScores?.get(url),
+        evidence: r.evidence,
       };
     }
     // Should never happen — every URL is in one of the three sets
@@ -628,8 +646,9 @@ async function readDamageFromPhotos(
       components: [],
       confidence: 'low' as const,
       succeeded: false,
-      usedFallback: false,
-      deferralReason: 'Unknown — URL not found in any processing set',
+        usedFallback: false,
+        deferralReason: 'Unknown — URL not found in any processing set',
+        evidence: evidenceByUrl?.get(url),
     };
   });
 
@@ -640,6 +659,18 @@ async function readDamageFromPhotos(
   const succeededCount  = processedResults.filter(r => r.succeeded).length;
   const successRate     = photosProcessed > 0 ? succeededCount / photosProcessed : 0;
   const fallbackCount   = processedResults.filter(r => r.usedFallback).length;
+  const physicsExcludedCount = processedResults.filter((r) => r.evidence && !r.evidence.suitableForCrushDepth).length;
+
+  if (physicsExcludedCount > 0) {
+    assumptions.push({
+      field: "crushDepthImageEligibility",
+      assumedValue: `${physicsExcludedCount} visual evidence item(s) excluded from numeric physics`,
+      reason: "The image remained available for visual damage analysis, but its provenance, category, confidence, quality, or fallback state did not support crush-depth measurement.",
+      strategy: "partial_data",
+      confidence: 100,
+      stage: "Stage 6",
+    });
+  }
 
   ctx.log(
     "Stage 6",
@@ -792,6 +823,7 @@ async function readDamageFromPhotos(
   const enrichedPhotoSummary = processedResults.map((r, idx) => {
     // Attach semantic classification metadata if available (from Stage 2.6B)
     const semanticMeta = ctx.semanticImageClassifications?.get(r.url);
+    const evidence = r.evidence;
     const derivedZone = (r.components[0]?.location ?? 'unknown').toLowerCase();
     // Fix B: flag photos where the vision-derived zone contradicts the narrative collision direction.
     // This is a display-only flag — it does not feed into fraud or physics scoring.
@@ -819,6 +851,15 @@ async function readDamageFromPhotos(
       // Stage 2.6B semantic classification metadata
       semanticType: semanticMeta?.semanticType ?? null,
       semanticConfidence: semanticMeta?.semanticConfidence ?? null,
+      sourcePage: evidence?.pageNumber ?? null,
+      imageClassification: evidence?.classification ?? null,
+      classificationConfidence: evidence?.classificationConfidence ?? null,
+      classifier: evidence?.classifier ?? "unknown",
+      selectionReason: evidence?.selectionReason ?? "No selection provenance was available.",
+      fallbackWarning: evidence?.fallbackWarning ?? null,
+      suitableForCrushDepth: evidence?.suitableForCrushDepth ?? false,
+      physicsExclusionReason: evidence?.exclusionReason ?? null,
+      damageLikelihoodScore: evidence?.damageLikelihoodScore ?? damageLikelihoodScores?.get(r.url) ?? null,
       // Fix B: direction contradiction flag (display-only)
       directionContradiction,
     };
@@ -1068,6 +1109,16 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
       const batchResults = await Promise.all(batch.map(([pn, im]) => analyseOnePage(pn, im)));
 
       for (const { pageNum, img, pass1Page, imgResult, error } of batchResults) {
+        const evidence = evidenceFromPdfDirectPage({
+          url: img.url,
+          pageNumber: pageNum,
+          pageType: pass1Page?.page_type,
+          hasVisibleDamage: pass1Page?.has_visible_damage,
+          photoQuality: pass1Page?.photo_quality,
+          scanConfidence: pass1?.scan_confidence,
+          fallback: false,
+          source: 'pdf_page_render',
+        });
         if (imgResult && !error) {
           photosProcessed++;
           for (const c of (imgResult.components || [])) {
@@ -1075,20 +1126,22 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
             const dedupeKey = `${normName}::${c.location || "general"}`;
             if (seen.has(dedupeKey)) continue;
             seen.add(dedupeKey);
-            allComponents.push({
+            const component: DamageAnalysisComponent = {
               name: normName,
               location: c.location || "general",
               damageType: c.damageType || "impact",
               severity: normaliseSeverity(c.severity),
               visible: c.visible !== false,
               distanceFromImpact: allComponents.length * 0.3,
+              inputSource: evidence.suitableForCrushDepth ? "confirmed_damage_photo" : "pdf_direct_vision",
               panelDeformation: c.panelDeformation,
               crushDepthM: typeof c.crushDepthM === "number" ? Math.min(0.55, Math.max(0.0, c.crushDepthM)) : undefined,
               deformationEnergyJ: typeof c.deformationEnergyJ === "number" ? Math.min(500000, Math.max(0, c.deformationEnergyJ)) : undefined,
               structuralDisplacementM: typeof c.structuralDisplacementM === "number" ? Math.min(0.30, Math.max(0.0, c.structuralDisplacementM)) : undefined,
               visionConfidenceScore: typeof c.visionConfidenceScore === "number" ? Math.min(100, Math.max(0, c.visionConfidenceScore)) : undefined,
               damageFractionEstimate: typeof c.damageFractionEstimate === "number" ? Math.min(1.0, Math.max(0.0, c.damageFractionEstimate)) : undefined,
-            });
+            };
+            allComponents.push(evidence.suitableForCrushDepth ? component : removeIneligiblePhysicsMeasurements([component])[0]);
           }
           const severity = imgResult.components && imgResult.components.length > 0
             ? (imgResult.components.some((c: any) => c.severity === "severe" || c.severity === "catastrophic") ? "severe"
@@ -1110,6 +1163,14 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
             usedFallback: imgResult.usedFallback ?? false,
             enrichedAt: new Date().toISOString(),
             source: "pdf_targeted_render",
+            sourcePage: evidence.pageNumber,
+            imageClassification: evidence.classification,
+            classificationConfidence: evidence.classificationConfidence,
+            classifier: evidence.classifier,
+            selectionReason: evidence.selectionReason,
+            fallbackWarning: evidence.fallbackWarning ?? null,
+            suitableForCrushDepth: evidence.suitableForCrushDepth,
+            physicsExclusionReason: evidence.exclusionReason ?? null,
           });
         } else {
           // Analysis failed — still include the image URL so it appears in the report
@@ -1128,6 +1189,14 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
             usedFallback: true,
             enrichedAt: new Date().toISOString(),
             source: "pdf_targeted_render",
+            sourcePage: evidence.pageNumber,
+            imageClassification: evidence.classification,
+            classificationConfidence: evidence.classificationConfidence,
+            classifier: evidence.classifier,
+            selectionReason: evidence.selectionReason,
+            fallbackWarning: evidence.fallbackWarning ?? "PDF page analysis failed; retained as contextual evidence only.",
+            suitableForCrushDepth: false,
+            physicsExclusionReason: evidence.exclusionReason ?? "PDF page analysis failed before crush-depth eligibility could be confirmed.",
           });
         }
       }
@@ -1254,24 +1323,35 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
     }
 
     for (const page of damagePages) {
+      // Even when the page is subsequently rendered, the single-pass extraction has
+      // no independent page-level classification envelope. It remains non-physics evidence.
+      const pageUrl = singlePassRenderedMap.get(page.page_number) ?? `${pdfUrl}#page=${page.page_number}`;
+      const evidence = evidenceFromPdfDirectPage({
+        url: pageUrl,
+        pageNumber: page.page_number,
+        pageType: page.photo_type,
+        fallback: true,
+        source: 'pdf_direct_vision',
+      });
       for (const c of (page.components || [])) {
         const normName = normalisePartName(c.name || "Unknown Component");
         const dedupeKey = `${normName}::${c.location || "general"}`;
         if (seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
-        allComponents.push({
+        const component: DamageAnalysisComponent = {
           name: normName, location: c.location || "general", damageType: c.damageType || "impact",
           severity: normaliseSeverity(c.severity), visible: c.visible !== false,
           distanceFromImpact: allComponents.length * 0.3, panelDeformation: c.panelDeformation,
+          inputSource: "pdf_direct_vision",
           crushDepthM: typeof c.crushDepthM === "number" ? Math.min(0.55, Math.max(0.0, c.crushDepthM)) : undefined,
           deformationEnergyJ: typeof c.deformationEnergyJ === "number" ? Math.min(500000, Math.max(0, c.deformationEnergyJ)) : undefined,
           structuralDisplacementM: typeof c.structuralDisplacementM === "number" ? Math.min(0.30, Math.max(0.0, c.structuralDisplacementM)) : undefined,
           visionConfidenceScore: typeof c.visionConfidenceScore === "number" ? Math.min(100, Math.max(0, c.visionConfidenceScore)) : undefined,
           damageFractionEstimate: typeof c.damageFractionEstimate === "number" ? Math.min(1.0, Math.max(0.0, c.damageFractionEstimate)) : undefined,
-        });
+        };
+        allComponents.push(removeIneligiblePhysicsMeasurements([component])[0]);
       }
       // Use rendered PNG URL if available; fall back to PDF fragment URL
-      const pageUrl = singlePassRenderedMap.get(page.page_number) ?? `${pdfUrl}#page=${page.page_number}`;
       const usedRenderedPng = singlePassRenderedMap.has(page.page_number);
       enrichedPhotoSummary.push({
         url: pageUrl,
@@ -1291,6 +1371,14 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
         usedFallback: !usedRenderedPng,
         enrichedAt: new Date().toISOString(),
         source: usedRenderedPng ? "pdf_single_pass_then_render" : "pdf_single_pass_vision",
+        sourcePage: evidence.pageNumber,
+        imageClassification: evidence.classification,
+        classificationConfidence: evidence.classificationConfidence,
+        classifier: evidence.classifier,
+        selectionReason: evidence.selectionReason,
+        fallbackWarning: evidence.fallbackWarning,
+        suitableForCrushDepth: false,
+        physicsExclusionReason: evidence.exclusionReason,
       });
     }
     photosProcessed = succeeded ? 1 : 0;
@@ -1508,6 +1596,8 @@ export async function runDamageAnalysisStage(
     let visionSourceUrls: string[];
     // P5: track per-URL provenance for inputSource stamping
     let visionSourceTagMap: Map<string, DamageAnalysisComponent['inputSource']> | undefined;
+    // R2: retain exact source/classification/selection evidence for physics eligibility and reports.
+    let visionEvidenceByUrl = new Map<string, ImageEvidenceEnvelope>();
     if (photoUrls.length > 0) {
       // Stage 2.6B semantic gate: filter out non-vehicle images (quotation scans,
       // documents, ID pages) that were classified by the semantic classifier.
@@ -1525,11 +1615,45 @@ export async function runDamageAnalysisStage(
           })
         : photoUrls;
       visionSourceUrls = semanticFilteredUrls;
-      // Dedicated damage photos — all confirmed (semantically filtered)
-      visionSourceTagMap = new Map(semanticFilteredUrls.map(u => [u, 'confirmed_damage_photo' as const]));
+      const classifiedByUrl = new Map(
+        [
+          ...(ctx.classifiedImages?.damagePhotos ?? []),
+          ...(ctx.classifiedImages?.vehicleOverviews ?? []),
+          ...(ctx.classifiedImages?.quotationImages ?? []),
+          ...(ctx.classifiedImages?.documentPages ?? []),
+          ...(ctx.classifiedImages?.fallbackPool ?? []),
+        ].map((image) => [image.url, image])
+      );
+      for (const url of semanticFilteredUrls) {
+        const semantic = semanticClassifications?.get(url);
+        const classified = classifiedByUrl.get(url);
+        const evidence = semantic
+          ? evidenceFromSemanticImage(semantic)
+          : classified
+            ? evidenceFromClassifiedImage(classified)
+            : {
+                url,
+                source: 'unknown' as const,
+                classifier: 'unknown' as const,
+                selectionReason: 'Image classification metadata was unavailable; retained for non-physics damage analysis only.',
+                suitableForCrushDepth: false,
+                exclusionReason: 'No source classification provenance is available for crush-depth measurement.',
+              };
+        visionEvidenceByUrl.set(url, evidence);
+      }
+      visionSourceTagMap = new Map(semanticFilteredUrls.map((url) => [
+        url,
+        visionEvidenceByUrl.get(url)?.suitableForCrushDepth
+          ? ('confirmed_damage_photo' as const)
+          : ('ambiguous_page' as const),
+      ]));
     } else if (pdfPageUrls.length > 0) {
       const scoredPages = await selectDamagePhotoPages(pdfPageUrls, ctx);
       visionSourceUrls = scoredPages.map(p => p.url);
+      visionEvidenceByUrl = new Map(scoredPages.map((page) => [
+        page.url,
+        evidenceFromScoredPdfPage(page),
+      ]));
       // P5: tag each selected page based on imageIntelligence classification AND confidence.
       // HIGH or MEDIUM confidence damage_photo → confirmed_damage_photo
       //   Rationale: PDF-embedded damage photos are the dominant real-world submission pattern.
@@ -1539,14 +1663,12 @@ export async function runDamageAnalysisStage(
       //   and excluded crush depths from the physics consensus for all 7 PDF-photo claims.
       //   Fix (2026-07-13): MEDIUM confidence damage_photo → confirmed_damage_photo → MEDIUM reliability.
       // LOW confidence or non-damage_photo → ambiguous_page
-      visionSourceTagMap = new Map(
-        scoredPages.map(p => [
-          p.url,
-          (p.classification === 'damage_photo' && (p.confidence === 'HIGH' || p.confidence === 'MEDIUM'))
-            ? ('confirmed_damage_photo' as const)
-            : ('ambiguous_page' as const)
-        ])
-      );
+      visionSourceTagMap = new Map(scoredPages.map((page) => [
+        page.url,
+        visionEvidenceByUrl.get(page.url)?.suitableForCrushDepth
+          ? ('confirmed_damage_photo' as const)
+          : ('ambiguous_page' as const),
+      ]));
       // ── Stage 6 → imageIntelligence feedback log ─────────────────────────────────
       // Log a structured summary so operators can tune scoring thresholds.
       const totalPages = pdfPageUrls.length;
@@ -1638,7 +1760,8 @@ export async function runDamageAnalysisStage(
       const visionResult = await readDamageFromPhotos(
         visionSourceUrls, claimRecord, ctx, assumptions, recoveryActions,
         damageLikelihoodScores.size > 0 ? damageLikelihoodScores : undefined,
-        visionSourceTagMap
+        visionSourceTagMap,
+        visionEvidenceByUrl
       );
       visionParts = visionResult.components;
       visionPerPhotoResults = visionResult.perPhotoResults;

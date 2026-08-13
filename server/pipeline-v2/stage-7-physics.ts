@@ -883,8 +883,11 @@ export async function runPhysicsStage(
       let visionDepthsFromParts: number[] = [];
       let zoneFilterApplied = false;
       if (visionInputTrusted) {
+        // R2: numeric physics must have explicit Stage 6 confirmation from a
+        // crush-depth-eligible image. Legacy/null provenance remains usable damage
+        // evidence, but cannot silently enter a speed or energy calculation.
         const confirmedParts = damageAnalysis.damagedParts
-          .filter(p => p.inputSource === 'confirmed_damage_photo' || p.inputSource == null);
+          .filter(p => p.inputSource === 'confirmed_damage_photo');
 
         // First pass: zone-matched components only
         const zoneMatchedDepths = confirmedParts

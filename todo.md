@@ -42,8 +42,14 @@
 - [x] R1-G: Add focused Vitest regression coverage for duplicate repairer inputs, unbenchmarked all-in scope, unresolved scope, common tax basis, agreed-cost isolation, and report provenance
 - [x] R1-H: Display documented/agreed assessor cost in CL, CI, and FR only as a labelled calibration/comparison reference; add report-renderer regression coverage
 - [x] R1-I: Re-render CL, CI, and FR for claims 10719902, 11709902, and 12879902 and verify the distinct submitted ledger, L1, L2 status, benchmark, and assessor comparison treatment
-- [ ] Image evidence verification: compare raw representative images to their rendered side/zone labels; retain the image classification remediation decision until that evidence is documented
-- [ ] Image remediation batch R2: enforce crush-depth eligibility, preserve image confidence/provenance, disclose fallbacks, and extend FR photo evidence metadata
+- [x] Image evidence verification: compare raw representative images to their rendered side/zone labels; retain the image classification remediation decision until that evidence is documented
+- [ ] Image remediation batch R2: enforce crush-depth eligibility, preserve image confidence/provenance, disclose fallbacks, and extend FR photo evidence metadata across every Stage 6 source and degraded fallback path.
+- [ ] Approved R2 non-blocking safeguard: exclude unsuitable or uncertain imagery only from the affected crush-depth/physics calculation; preserve claim assessment, non-physics evidence processing, and report generation with an explicit qualified/unavailable explanation across every Stage 6 path.
+- [ ] R2 completion gap: map every Stage 6 fallback path to an R2 evidence envelope, physics exclusion rule, and report disclosure; add focused path-level regressions and rendered-report acceptance showing qualified metadata and no crush-depth contribution.
+- [ ] R2 PDF-direct acceptance: render a representative current-code PDF-direct/fallback claim and verify CL, CI, and FR show source page, classifier, fallback warning, and physics exclusion wording while Stage 7 receives no numeric crush-depth.
+- [ ] R2 fallback regression matrix: add focused coverage for targeted PDF render, single-pass PDF fallback, no-photo description inference, and Stage 6 degraded/error output; prove damage analysis and report generation continue while numeric physics remains unavailable.
+- [ ] R2 degraded-report disclosure: document and verify the consistent qualified/unavailable explanation in CL, CI, and FR for no-photo and Stage 6 degraded paths.
+- [x] R2 deterministic fallback-matrix implementation: added source envelopes and physics stripping for dedicated photos, scored PDF pages, targeted PDF-direct pages, single-pass PDF fallback, no-photo, and degraded paths; added shared-panel disclosure regressions and passed focused tests plus production builds.
 - [x] Functional audit F-01: establish the authoritative inventory of portals, routes, dashboards, services, and report entry points from the live codebase
 - [x] Functional audit F-02: create a route, tab, button, and action matrix with UI-to-procedure-to-data outcome evidence
 - [x] Functional audit F-03: trace end-to-end claims, agency, fleet, engineering, reporting, and administrative workflows, recording environmental limitations explicitly

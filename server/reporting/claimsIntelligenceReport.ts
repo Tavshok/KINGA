@@ -840,6 +840,15 @@ ${(() => {
         caption: p.caption ?? undefined,
         usable: Number(p.confidenceScore ?? 0) >= 70,
         directionContradiction: (p as any).directionContradiction === true,
+        semanticType: (p as any).semanticType ?? (p as any).imageClassification ?? undefined,
+        detectedComponents: (p as any).detectedComponents ?? undefined,
+        classificationConfidence: (p as any).classificationConfidence ?? (p as any).semanticConfidence ?? undefined,
+        classifier: (p as any).classifier ?? undefined,
+        selectionReason: (p as any).selectionReason ?? undefined,
+        fallbackWarning: (p as any).fallbackWarning ?? undefined,
+        suitableForCrushDepth: (p as any).suitableForCrushDepth ?? undefined,
+        physicsExclusionReason: (p as any).physicsExclusionReason ?? undefined,
+        sourcePage: (p as any).sourcePage ?? undefined,
       })),
       4
     )}
