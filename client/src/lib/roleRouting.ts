@@ -21,6 +21,7 @@ export const ROLE_PORTAL_MAP: Record<string, string> = {
   insurer: "/insurer-portal",          // insurerRole resolves to a dedicated workspace below
   assessor: "/assessor/dashboard",
   panel_beater: "/panel-beater/dashboard",
+  agency: "/agency",
   claimant: "/client",
   fleet_admin: "/fleet",
   fleet_manager: "/fleet",
