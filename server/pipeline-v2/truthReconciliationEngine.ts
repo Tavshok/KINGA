@@ -52,6 +52,7 @@ import type { ReconciliationLog } from "./reconciliation-engine";
 import type { ClaimQualityResult } from "./claimQualityScorer";
 import type { SpeedInferenceResult } from "./speedInferenceEnsemble";
 import type { ConsensusResult } from "./crossEngineConsensus";
+import { ECONOMIC_WRITE_OFF_THRESHOLD } from "./pipelineCostConstants";
 import {
   TRUTH_GOVERNANCE_REGISTRY,
   DEFAULT_CONFIDENCE_DECAY,
@@ -913,7 +914,7 @@ function buildVehicle(input: TREInput, now: string): CTOVehicle {
   const marketValueUsd = val?.marketValueUsd ?? 0;
   const optimisedCost = s9?.costDecision?.true_cost_usd ?? s9?.quoteOptimisation?.optimised_cost_usd ?? (s9?.expectedRepairCostCents ? s9.expectedRepairCostCents / 100 : 0);
   const repairToValueRatio = marketValueUsd > 0 ? optimisedCost / marketValueUsd : 0;
-  const isEconomicWriteOff = repairToValueRatio >= 0.75;
+  const isEconomicWriteOff = repairToValueRatio >= ECONOMIC_WRITE_OFF_THRESHOLD;
 
   return {
     make: v?.make ?? "Unknown",

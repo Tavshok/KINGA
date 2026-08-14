@@ -25,7 +25,7 @@ describe("R1 report cost provenance disclosures", () => {
       expect(source).toContain("L2 incomplete");
       expect(source).toContain("Submitted quotation ledger");
       expect(source).toContain("L1 — lowest active submitted quote");
-      expect(source).toContain("L2 — KINGA all-in recommendation");
+      expect(source).toContain("L2 — KINGA Optimised Quote");
       expect(source).toContain("L3 — benchmark reference");
     }
   });

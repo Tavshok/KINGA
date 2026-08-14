@@ -183,6 +183,7 @@ export async function generateClaimsIntelligenceReport(
       repairability: {
         totalLossIndicated: Boolean(c.total_loss_indicated),
         repairToValueRatio: rtvRatio,
+        kingaRecommendation: costIntel?.repairabilityDecision ?? null,
         ...extractExplicitStructuralReviewEvidence(repairIntel),
       },
     });

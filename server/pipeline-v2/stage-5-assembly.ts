@@ -41,6 +41,7 @@ import { selectScenarioEngine } from "./scenarioEngineSelector";
 import { markFallback } from "./engineFallback";
 import { invokeLLM, withRetry } from "../_core/llm";
 import { getDefaultCurrencyForCountry, getDefaultCurrencySymbolForCountry, COUNTRY_CURRENCY_MAP } from '../../shared/countryCurrency';
+import { ECONOMIC_WRITE_OFF_THRESHOLD } from "./pipelineCostConstants";
 // ── Utility: wrap async fn with a hard timeout (mirrors Stage 6 pattern) ─────
 // R-B-01 / R-B-02 fix: LLM calls in Stage 5 must be bounded so a slow or hung
 // LLM response cannot freeze the pipeline indefinitely.
@@ -614,17 +615,14 @@ Return ONLY valid JSON with no markdown.`,
         const ratio = repairCostUsd / marketValueUsdFinal;
         let verdict: VehicleValuation["verdict"];
         let verdictReason: string;
-        // CALIBRATION: Write-off (0.75) and borderline (0.60) repair-to-value thresholds
-        // are engineering-judgment. The pipelineCostConstants.ts ECONOMIC_WRITE_OFF_THRESHOLD
-        // (0.65) is insurer-agreed; these stage-5 thresholds are separate and may diverge.
-        // Do not change without insurer agreement.
-        /** Repair-to-value ratio above which vehicle is an economic write-off */
-        const WRITE_OFF_RATIO_THRESHOLD  = 0.75;
+        // User-confirmed policy: use the shared 70% recommendation threshold.
+        // Stage 5 is preliminary; final repairability uses the completed L2 basis.
+        const WRITE_OFF_RATIO_THRESHOLD = ECONOMIC_WRITE_OFF_THRESHOLD;
         /** Repair-to-value ratio above which vehicle is borderline */
         const BORDERLINE_RATIO_THRESHOLD = 0.60;
         if (ratio >= WRITE_OFF_RATIO_THRESHOLD) {
           verdict = "write_off";
-          verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Exceeds ${Math.round(WRITE_OFF_RATIO_THRESHOLD * 100)}% threshold — economic write-off.`;
+          verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Meets the ${Math.round(WRITE_OFF_RATIO_THRESHOLD * 100)}% economic write-off recommendation threshold.`;
         } else if (ratio >= BORDERLINE_RATIO_THRESHOLD) {
           verdict = "borderline";
           verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Borderline — recommend independent valuation.`;

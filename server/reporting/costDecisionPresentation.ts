@@ -2,6 +2,7 @@ import {
   buildCostDecisionPresentationContract,
   type CostDecisionPresentation,
 } from "../../shared/costDecisionPresentation";
+import type { KingaWriteOffRecommendation } from "../../shared/writeOffRecommendation";
 import type { ReportCostIntegrity } from "./costIntegrity";
 
 export type { CostDecisionPresentation } from "../../shared/costDecisionPresentation";
@@ -14,6 +15,7 @@ export type RepairabilityVerdict = {
 export type RepairabilityEvidence = {
   totalLossIndicated: boolean;
   repairToValueRatio?: number | null;
+  kingaRecommendation?: KingaWriteOffRecommendation | null;
   structuralReviewRequired?: boolean;
   structuralReviewDetail?: string | null;
 };
@@ -47,6 +49,22 @@ export function extractExplicitStructuralReviewEvidence(rawRepairIntelligence: u
  * persisted repair-versus-replace evidence and never invents a ratio threshold.
  */
 export function resolveRepairabilityVerdict(evidence: RepairabilityEvidence): RepairabilityVerdict {
+  if (evidence.kingaRecommendation) {
+    const recommendation = evidence.kingaRecommendation;
+    if (recommendation.kind === "economic_and_technical_write_off_recommended") {
+      return { label: "Economic and technical write-off recommended", detail: recommendation.detail };
+    }
+    if (recommendation.kind === "economic_write_off_recommended") {
+      return { label: "Economic write-off recommended", detail: recommendation.detail };
+    }
+    if (recommendation.kind === "technical_write_off_recommended") {
+      return { label: "Technical write-off recommended", detail: recommendation.detail };
+    }
+    if (recommendation.kind === "human_review_required") {
+      return { label: "Repairability review required", detail: recommendation.detail };
+    }
+    return { label: "Repair recommended", detail: recommendation.detail };
+  }
   if (evidence.totalLossIndicated) {
     return { label: "Total loss indicated", detail: "Repair-versus-replace assessment indicates total loss." };
   }

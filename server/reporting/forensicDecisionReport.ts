@@ -239,6 +239,7 @@ export async function generateForensicDecisionReport(
       repairability: {
         totalLossIndicated: Boolean(c.total_loss_indicated),
         repairToValueRatio: c.repair_to_value_ratio == null ? null : rtvRatio,
+        kingaRecommendation: costIntel?.repairabilityDecision ?? null,
         ...extractExplicitStructuralReviewEvidence(repairIntel),
       },
     });

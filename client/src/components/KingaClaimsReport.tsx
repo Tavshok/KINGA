@@ -357,7 +357,10 @@ export function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency,
     || structuralReview?.required === true;
   const structuralReviewDetail = [repairEvidence?.structuralReviewDetail, repairEvidence?.structuralReviewRationale, repairEvidence?.structuralReviewNote, structuralReview?.detail, structuralReview?.rationale]
     .find((value) => typeof value === "string" && value.trim());
-  const repairability = totalLossIndicated
+  const kingaRepairability = costIntelligence?.repairabilityDecision;
+  const repairability = kingaRepairability?.label && kingaRepairability?.detail
+    ? { label: String(kingaRepairability.label), detail: String(kingaRepairability.detail) }
+    : totalLossIndicated
     ? { label: "Total loss indicated", detail: "Repair-versus-replace assessment indicates total loss." }
     : structuralReviewRequired
       ? { label: "Further structural review required", detail: structuralReviewDetail ?? "Structural condition requires further review before final repairability confirmation." }

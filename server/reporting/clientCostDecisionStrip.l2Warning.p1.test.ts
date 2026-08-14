@@ -123,4 +123,56 @@ describe("AUD-L2-002 client top-cost warning presentation", () => {
       expect(html).toContain(name);
     }
   });
+
+  it("renders KINGA’s combined economic and technical write-off recommendation without creating settlement authority", () => {
+    const html = renderToStaticMarkup(createElement(ClientCostDecisionStrip, {
+      costIntelligence: {
+        repairabilityDecision: {
+          kind: "economic_and_technical_write_off_recommended",
+          label: "Economic and technical write-off recommended",
+          detail: "KINGA’s complete repair-to-value assessment is 85.0%, meeting the 70% economic threshold; dedicated structural analysis and severe physics evidence also support technical write-off.",
+          writeOffRecommended: true,
+          repairToValueRatio: 0.85,
+          economicEvidenceComplete: true,
+          technicalEvidenceComplete: true,
+        },
+        compositeOptimisation: { isComplete: true, l2Status: "complete", l2CompositeOptimisedCostUsd: 8500, l1SubmittedCostUsd: 9000 },
+      },
+      quotes: [], fmtCurrency: (amount: number | null | undefined) => `USD ${amount?.toFixed(2) ?? "—"}`,
+      totalLossIndicated: false, repairToValueRatio: 85,
+    }));
+
+    expect(html).toContain("Economic and technical write-off recommended");
+    expect(html).toContain("70% economic threshold");
+    expect(html).not.toContain("Settlement authorised");
+  });
+
+  it("keeps KINGA Optimised Quote visible as human review when every client quotation is history or ineligible", () => {
+    const html = renderToStaticMarkup(createElement(ClientCostDecisionStrip, {
+      costIntelligence: {
+        compositeOptimisation: {
+          isComplete: false,
+          l2Status: "incomplete_scope",
+          quoteScopeStatus: "incomplete_scope",
+          l1SubmittedCostUsd: null,
+          l2CompositeOptimisedCostUsd: null,
+          partialPricedScopeUsd: null,
+          missingRequiredComponents: ["No eligible active submitted component evidence"],
+          canonicalQuoteLedger: [
+            { quoteId: "q-cancelled", panelBeater: "Cancelled Quote", totalCostUsd: 600, status: "historical", evidenceEligibility: "comparison_only", evidenceEligibilityReason: "Cancelled quotation retained as history only." },
+            { quoteId: "q-ineligible", panelBeater: "Unsupported Scope", totalCostUsd: 500, status: "excluded", evidenceEligibility: "ineligible", evidenceEligibilityReason: "Unsupported repair scope." },
+          ],
+        },
+      },
+      quotes: [], fmtCurrency: (amount: number | null | undefined) => `USD ${amount?.toFixed(2) ?? "—"}`,
+      totalLossIndicated: false, repairToValueRatio: null,
+    }));
+
+    expect(html).toContain("KINGA Optimised Quote");
+    expect(html).toContain("Human review required");
+    expect(html).toContain("no supported submitted component amount is available");
+    expect(html).toContain("Cancelled Quote");
+    expect(html).toContain("Unsupported Scope");
+    expect(html).not.toContain("USD 600.00</span>");
+  });
 });

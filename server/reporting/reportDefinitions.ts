@@ -351,6 +351,7 @@ async function generateClaimAssessmentReport(
       repairability: {
         totalLossIndicated: Boolean(claim.total_loss_indicated),
         repairToValueRatio: claim.repair_to_value_ratio == null ? null : Number(claim.repair_to_value_ratio),
+        kingaRecommendation: costIntel?.repairabilityDecision ?? null,
         ...extractExplicitStructuralReviewEvidence(claim.repair_intelligence_json),
       },
     });

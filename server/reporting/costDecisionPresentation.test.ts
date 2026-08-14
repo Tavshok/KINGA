@@ -158,6 +158,43 @@ describe("R0 concise cost decision presentation", () => {
     expect(html).not.toContain("KINGA Optimised Quote</div><div style=\"margin-top:5px;font-size:16px;font-weight:800;color:#0d5849;\">USD 900.00");
   });
 
+  it("keeps KINGA Optimised Quote visible as human review when every quote is comparison-only or ineligible", () => {
+    const noEligibleEvidence = cost({
+      activeQuotes: [],
+      submittedQuotes: [],
+      historicalQuotes: [
+        { repairer: "Cancelled Repairs", amountUsd: 900, currency: "USD", status: "historical", sourceReference: "cancelled", statusReason: "Cancelled", workflowStatus: "cancelled", evidenceEligibility: "comparison_only", evidenceEligibilityReason: "Cancelled quotation retained as history only." },
+        { repairer: "Unsupported Scope", amountUsd: 1200, currency: "USD", status: "excluded", sourceReference: "ineligible", statusReason: "Unsupported", workflowStatus: "submitted", evidenceEligibility: "ineligible", evidenceEligibilityReason: "Unsupported repair scope." },
+      ],
+      legacyHistoryQualified: true,
+      sourceQuoteCount: 2,
+      quoteReceiptStatus: "quotes_received",
+      quoteScopeStatus: "incomplete_scope",
+      l2Status: "incomplete_scope",
+      l1SubmittedCostUsd: null,
+      l2OptimisedCostUsd: null,
+      l2EvidenceQualifiedComparisonUsd: null,
+      partialPricedScopeUsd: null,
+      l2IsComplete: false,
+      missingRequiredComponents: ["No eligible active submitted component evidence"],
+    });
+    const presentation = buildCostDecisionPresentation(noEligibleEvidence);
+    const html = renderCostDecisionSummaryHtml({
+      costIntegrity: noEligibleEvidence,
+      formatAmount: (amount) => `USD ${amount?.toFixed(2) ?? "—"}`,
+      escapeHtml: String,
+      repairability: { totalLossIndicated: false, repairToValueRatio: null },
+    });
+
+    expect(presentation.optimisedQuoteState).toBe("human_review_required");
+    expect(presentation.optimisedQuoteAmount).toBeNull();
+    expect(html).toContain("KINGA Optimised Quote");
+    expect(html).toContain("Human review required");
+    expect(html).toContain("Cancelled Repairs · USD 900.00 · Cancelled quotation retained as history only.");
+    expect(html).toContain("Unsupported Scope · USD 1200.00 · Unsupported repair scope.");
+    expect(html).not.toContain("USD 900.00</div><div style=\"margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;\">");
+  });
+
   it("renders benchmark-selection and high line-item variance evidence as explanation, not a separate decision", () => {
     const html = renderCostDecisionSummaryHtml({
       costIntegrity: cost({

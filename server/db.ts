@@ -54,6 +54,7 @@ import {
 import { ENV } from './_core/env';
 import { logger } from './logger';
 import * as dbPipeline from './db-pipeline.ts';
+import { resolveKingaWriteOffRecommendation } from '../shared/writeOffRecommendation';
 
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 let _db: MySql2Database<typeof schema> | null = null;
@@ -1705,7 +1706,7 @@ export async function triggerAiAssessment(claimId: number) {
     costAnalysis?.documentedPartsCostUsd
     ?? (repairQuote?.partsCostCents ? repairQuote.partsCostCents / 100 : null);
 
-  const costIntelligenceJson = costAnalysis ? JSON.stringify({
+  let costIntelligenceJson = costAnalysis ? JSON.stringify({
     expectedRepairCostCents: costAnalysis.expectedRepairCostCents,
     quoteDeviationPct: costAnalysis.quoteDeviationPct,
     recommendedRange: costAnalysis.recommendedCostRange,
@@ -1848,13 +1849,33 @@ export async function triggerAiAssessment(claimId: number) {
     vehicleMarketValueCents = Number((claim as any).vehicleMarketValue);
   }
   const vehicleMarketValueDollars = vehicleMarketValueCents ? vehicleMarketValueCents / 100 : null;
-  const repairToValueRatio = (vehicleMarketValueDollars && vehicleMarketValueDollars > 0 && estimatedCost > 0)
-    ? Math.round((estimatedCost / vehicleMarketValueDollars) * 100)
-    : null;
-  // Total loss: repair cost ≥ 75% of vehicle market value
-  const totalLossIndicated = (repairToValueRatio !== null && repairToValueRatio >= 75) ? 1 : 0;
+  const kingaWriteOffRecommendation = resolveKingaWriteOffRecommendation({
+    // Economic recommendation is deliberately limited to complete L2. A partial
+    // review-priced scope or preliminary estimate cannot create a write-off result.
+    completeL2CostUsd: completeL2Usd > 0 ? completeL2Usd : null,
+    verifiedMarketValueUsd: vehicleMarketValueDollars,
+    // Dedicated Stage 6 structural analysis plus executed Stage 7 physics evidence
+    // jointly support a technical recommendation; either source alone does not.
+    structuralDamageDetected: damageAnalysis?.structuralDamageDetected === true,
+    physicsExecuted: physicsAnalysis?.physicsExecuted === true,
+    physicsSeverity: physicsAnalysis?.accidentSeverity ?? null,
+  });
+  const repairToValueRatio = kingaWriteOffRecommendation.repairToValueRatio === null
+    ? null
+    : Math.round(kingaWriteOffRecommendation.repairToValueRatio * 100);
+  const totalLossIndicated = kingaWriteOffRecommendation.writeOffRecommended ? 1 : 0;
   if (totalLossIndicated) {
-    console.log(`[KINGA Assessment] Claim ${claimId}: TOTAL LOSS indicated — repair $${estimatedCost} vs vehicle value $${vehicleMarketValueDollars?.toFixed(0)} (${repairToValueRatio}%)`);
+    console.log(`[KINGA Assessment] Claim ${claimId}: ${kingaWriteOffRecommendation.kind} — ${kingaWriteOffRecommendation.detail}`);
+  }
+  if (costIntelligenceJson) {
+    try {
+      costIntelligenceJson = JSON.stringify({
+        ...JSON.parse(costIntelligenceJson),
+        repairabilityDecision: kingaWriteOffRecommendation,
+      });
+    } catch (repairabilitySerializationError) {
+      console.warn(`[KINGA Assessment] Claim ${claimId}: could not append repairability recommendation`, repairabilitySerializationError);
+    }
   }
 
   // Stage 36: Run Forensic Audit Validator on the completed pipeline result
@@ -1963,6 +1984,7 @@ export async function triggerAiAssessment(claimId: number) {
     processingTime: safeInt(summary.totalDurationMs),
     totalLossIndicated: safeInt(totalLossIndicated) ?? 0,
     repairToValueRatio: safeInt(repairToValueRatio),
+    totalLossReasoning: kingaWriteOffRecommendation.detail,
     structuralDamageSeverity: dbStructuralSeverity,
     damagedComponentsJson,
     physicsAnalysis: physicsJson,

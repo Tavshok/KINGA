@@ -9,9 +9,10 @@
  * the cost intelligence narrative, and the learning database.
  *
  * Threshold hierarchy:
- *   ECONOMIC_WRITE_OFF_THRESHOLD (0.65) — insurer-agreed adjuster-facing threshold.
+ *   ECONOMIC_WRITE_OFF_THRESHOLD (0.70) — KINGA economic write-off recommendation threshold.
  *     Used by: claimTruthLayer (decision panel), costIntelligenceNarrative (narrative text).
- *     Meaning: repair cost ≥ 65% of market value → economic write-off, recommend REVIEW.
+ *     Meaning: complete KINGA Optimised Quote ≥ 70% of verified market value →
+ *     economic write-off recommendation. This does not create settlement authority.
  *
  *   COST_TIER_TOTAL_LOSS_THRESHOLD (0.75) — learning DB cost tier classification only.
  *     Used by: caseSignatureGenerator (inferCostTier).
@@ -20,10 +21,8 @@
  *     uses a stricter threshold to avoid classifying borderline cases as total-loss benchmarks.
  *     It is NOT an adjuster-facing decision threshold.
  *
- * R-E-01 fix: previously these thresholds were hardcoded as 0.65 (claimTruthLayer),
- * 0.70 (costIntelligenceNarrative), and 0.75 (caseSignatureGenerator) — three
- * inconsistent values that caused contradictory adjuster guidance for claims
- * between 65–70% RTV. The adjuster-facing thresholds are now unified at 0.65.
+ * User-confirmed policy: all economic write-off recommendation paths use 0.70.
+ * The 0.75 learning cost-tier threshold remains classification-only.
  */
 
 /**
@@ -31,7 +30,7 @@
  * This is the single source of truth for adjuster-facing write-off decisions.
  * Applies to: decision panel (claimTruthLayer) and cost narrative text (costIntelligenceNarrative).
  */
-export const ECONOMIC_WRITE_OFF_THRESHOLD = 0.65; // 65% — insurer-agreed threshold
+export const ECONOMIC_WRITE_OFF_THRESHOLD = 0.7; // 70% — KINGA recommendation threshold
 
 /**
  * Repair-to-value ratio at which a claim is classified as "total_loss" cost tier

@@ -140,4 +140,82 @@ describe("AUD-P1-006 executed L2 selection traceability across CL, CI, and FR", 
       expect(html).not.toContain("KINGA insurer cost recommendation.");
     }
   });
+
+  it("keeps KINGA Optimised Quote visible as human review when all quote evidence is comparison-only or ineligible", async () => {
+    const noEligibleCost = JSON.parse(JSON.stringify(costIntelligence));
+    Object.assign(noEligibleCost.compositeOptimisation, {
+      isComplete: false,
+      l2Status: "incomplete_scope",
+      quoteScopeStatus: "incomplete_scope",
+      l1SubmittedCostUsd: null,
+      l2CompositeOptimisedCostUsd: null,
+      l2EvidenceQualifiedComparisonUsd: null,
+      partialPricedScopeUsd: null,
+      missingRequiredComponents: ["No eligible active submitted component evidence"],
+      canonicalQuoteLedger: [
+        { quoteId: "q-cancelled", panelBeater: "Cancelled Quote", totalCostUsd: 600, currency: "USD", status: "historical", evidenceEligibility: "comparison_only", evidenceEligibilityReason: "Cancelled quotation retained as history only." },
+        { quoteId: "q-rejected", panelBeater: "Rejected Quote", totalCostUsd: 650, currency: "USD", status: "historical", evidenceEligibility: "comparison_only", evidenceEligibilityReason: "Rejected quotation retained as history only." },
+        { quoteId: "q-ineligible", panelBeater: "Unsupported Scope", totalCostUsd: 500, currency: "USD", status: "excluded", evidenceEligibility: "ineligible", evidenceEligibilityReason: "Unsupported repair scope." },
+      ],
+    });
+    const noEligibleClaim = { ...claim, cost_intelligence_json: JSON.stringify(noEligibleCost) };
+    execute.mockImplementation(async (query: string) => {
+      if (query.includes("FROM claims c")) return [[noEligibleClaim], undefined];
+      if (query.includes("FROM ai_assessments a WHERE a.claim_id")) return [[{ damaged_components_json: "[]" }], undefined];
+      if (query.includes("FROM panel_beater_quotes q")) return [[...quotes], undefined];
+      return [[], undefined];
+    });
+
+    const outputs = await Promise.all([
+      generateReportHtml("claim.assessment", { claimId: 990010 }, "tenant-test"),
+      generateClaimsIntelligenceReport(990010, "tenant-test"),
+      generateForensicDecisionReport(990010, "tenant-test"),
+    ]);
+    for (const html of outputs) {
+      expect(html).toContain("KINGA Optimised Quote");
+      expect(html).toContain("Human review required");
+      expect(html).toContain("No eligible active submitted component evidence");
+      expect(html).toContain("Cancelled Quote");
+      expect(html).toContain("Rejected Quote");
+      expect(html).toContain("Unsupported Scope");
+      expect(html).not.toContain("Review-required priced scope");
+    }
+  });
+
+  it("renders the same combined KINGA economic and technical write-off recommendation across CL, CI, and FR", async () => {
+    const writeOffCost = JSON.parse(JSON.stringify(costIntelligence));
+    writeOffCost.repairabilityDecision = {
+      kind: "economic_and_technical_write_off_recommended",
+      label: "Economic and technical write-off recommended",
+      detail: "KINGA’s complete repair-to-value assessment is 85.0%, meeting the 70% economic threshold; dedicated structural analysis and severe physics evidence also support technical write-off.",
+      writeOffRecommended: true,
+      repairToValueRatio: 0.85,
+      economicEvidenceComplete: true,
+      technicalEvidenceComplete: true,
+    };
+    const writeOffClaim = {
+      ...claim,
+      total_loss_indicated: 1,
+      repair_to_value_ratio: 85,
+      cost_intelligence_json: JSON.stringify(writeOffCost),
+    };
+    execute.mockImplementation(async (query: string) => {
+      if (query.includes("FROM claims c")) return [[writeOffClaim], undefined];
+      if (query.includes("FROM ai_assessments a WHERE a.claim_id")) return [[{ damaged_components_json: "[]" }], undefined];
+      if (query.includes("FROM panel_beater_quotes q")) return [[...quotes], undefined];
+      return [[], undefined];
+    });
+
+    const outputs = await Promise.all([
+      generateReportHtml("claim.assessment", { claimId: 990010 }, "tenant-test"),
+      generateClaimsIntelligenceReport(990010, "tenant-test"),
+      generateForensicDecisionReport(990010, "tenant-test"),
+    ]);
+    for (const html of outputs) {
+      expect(html).toContain("Economic and technical write-off recommended");
+      expect(html).toContain("70% economic threshold");
+      expect(html).toContain("severe physics evidence");
+      expect(html).not.toContain("Settlement authorised");
+    }
+  });
 });
