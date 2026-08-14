@@ -6,10 +6,10 @@
 import { TRPCError } from "@trpc/server";
 import { isAdminRole } from "@shared/role-permissions";
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, requireTenantScope, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { panelBeaterQuotes, claims } from "../../drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import {
   getClaimById,
   getQuotesByClaimId,
@@ -322,13 +322,28 @@ export const quotesRouter = router({
 
   // Get quotes with line items for comparison
   getWithLineItems: protectedProcedure
-    .input(z.object({ claimId: z.number() }))
+    .input(z.object({ claimId: z.number(), tenantId: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      // Do NOT apply tenant filtering here — claimId already uniquely identifies the claim.
-      // Tenant filtering via innerJoin was causing quotes to be silently dropped when the
-      // user's tenantId didn't exactly match the claim's tenantId (e.g. "default" vs actual tenant).
-      const quotes = await getQuotesByClaimId(input.claimId);
+      // Resolve the object scope before reading quote or line-item evidence. A claim ID
+      // is not authority: every ordinary caller is fixed to their session tenant, while
+      // a platform super admin must explicitly select the tenant being audited.
+      if (ctx.user.role === "platform_super_admin" && !input.tenantId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Platform super admin must select a tenant before viewing claim quotations",
+        });
+      }
+      const tenantId = requireTenantScope(ctx, input.tenantId, "quotes.getWithLineItems");
+      if (!tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "A tenant scope is required to view claim quotations" });
+      }
+      const claim = await getClaimById(input.claimId, tenantId);
+      if (!claim) {
+        // Deliberately non-enumerating: an unauthorised foreign claim is unavailable.
+        throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      }
+      const quotes = await getQuotesByClaimId(input.claimId, tenantId);
       console.log(`[getWithLineItems] claimId=${input.claimId} quotes=${quotes.length} ids=${quotes.map(q=>q.id).join(',')} pbIds=${quotes.map(q=>q.panelBeaterId).join(',')}`);
       
       // Fetch panel beater details for name resolution

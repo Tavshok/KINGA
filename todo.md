@@ -3,6 +3,18 @@
 
 ---
 
+## Systematic Error Audit, Correction & Re-Verification Protocol — August 2026
+
+- [ ] Approved systematic audit discovery: establish an evidence-first audit ledger and baseline spanning source evidence, ingestion, structured ledgers, verification, L1, L2, findings, recommendations, reports, and UI without changing production behaviour.
+- [ ] Approved source-to-decision trace audit: compare source values, stored values, calculated values, and displayed values for material quote/L2 fields; classify divergence as verified source, documented revision, extraction defect, ledger reconstruction issue, scope difference, evidence gap, unresolved discrepancy, or pricing variance review signal.
+- [ ] Approved L2 and decision-boundary audit: verify no-quote, total-only, incomplete-itemised, complete all-in, source/ledger conflict, differing tax bases, and scope difference states; preserve useful intelligence and suppress only unsupported conclusions.
+- [ ] Approved cross-report and UI truth audit: verify CL, CI, FR, Claims Manager, L2, and Top Cost share claim, ledger, evidence, verification, L2, comparison-basis, and decision-boundary states; trace material UI values through API, service, persistence, and source evidence.
+- [ ] Approved systematic audit ledger: record every confirmed finding with ID, area, evidence, expected/actual behaviour, root cause, severity, correction, regression, and verification status; present correction work notices before any production behaviour change.
+- [x] AUD-P0-001 report quote-detail object authority: corrected `quotes.getWithLineItems` so tenant/object authority is derived from the target claim before any quote or line-item read; covered same-tenant success, foreign numeric claim denial, and explicitly selected platform-super-admin access.
+- [x] Approved AUD-P0-001 re-verification: proved denied foreign callers do not invoke quote or line-item reads, same-tenant callers retain report access, and platform-super-admin access requires explicit audited tenant selection.
+
+---
+
 ## Reports — Claims Intelligence & Forensic Claim Decision (Completed July 2026)
 
 - [x] Build shared KINGA CSS design system (kingaDesignSystem.ts)
@@ -171,6 +183,8 @@
 - [x] P0 Package 2 shared-boundary adversarial proof: portal, WhatsApp-local, and agency-assisted adapters are verified to enter the same tenant, attachment-ownership, and replay-safe canonical boundary; foreign attachment denial now executes for both portal and WhatsApp actors, while agency retains its scoped-client and foreign-insurer denials.
 - [x] P0 Package 2 shared replay-side-effect proof: no-write regression proves persistence interruption starts no assessment, a successful replay produces one external assessment start, idempotent replays return recorded state without another start, and recoverable assessment retries do not duplicate the recovery notification effect.
 - [ ] P0 Package 2 live WhatsApp acceptance gate: use a connected provider test number, webhook, media access, isolated tenant, synthetic claimant, and duplicate-delivery replay to prove the complete external path without side effects
+- [ ] Approved external validation sequence: execute and record Pass, Blocked, or Defect for the seven consolidated authenticated, provider, external-service, and curated-evidence gates without production business mutations.
+- [ ] External validation outcome register: record evidence, date, role/tenant or provider context, and precise blocker for every gate not executable in the current environment; do not substitute automated no-write proof for an external acceptance result.
 - [x] P0 Package 3-A: remove reachable mock executive claim and override records from every active runtime drill-down path
 - [x] P0 Package 3-B: add tenant-derived, role-authorised executive drill-down data retrieval with claim/object scope checks
 - [x] P0 Package 3-C: render explicit empty/unavailable executive detail states rather than invented operational values
