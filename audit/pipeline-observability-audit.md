@@ -22,3 +22,9 @@ The production database query on 11 August 2026 returned **191 pipeline run reco
 ## Conclusion
 
 `pipeline_runs` and `pipeline_jobs` are the canonical observability record. Future work should extend their dashboards or alerts rather than introduce a parallel execution-log store.
+
+## Approved model decision and implementation verification
+
+**Decision:** retain `pipeline_runs` and `pipeline_jobs` as the sole execution-observability model. A `pipeline_execution_logs` table is not authorised because it would duplicate lifecycle truth and weaken production diagnosis.
+
+The canonical run record carries run, claim, tenant, trigger, rerun, and aggregate lifecycle state. The canonical stage record carries the same run/claim/tenant linkage, ordered stage identity, status, degraded and timeout state, token/model metadata, assumptions, recovery actions, and bounded error evidence. These writes remain fire-and-forget: an observability failure never blocks claim assessment or changes a claim, policy, payment, settlement, or customer outcome.

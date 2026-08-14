@@ -14,11 +14,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ─── Hoisted mocks (must be declared before vi.mock calls) ───────────────────
 
-const { mockInsertValues, mockUpdateSetWhere, mockSelectFromWhereOrderByLimit } = vi.hoisted(() => {
+const { mockInsertValues, mockUpdateSet, mockUpdateSetWhere, mockSelectFromWhereOrderByLimit } = vi.hoisted(() => {
   const mockInsertValues = vi.fn().mockResolvedValue(undefined);
   const mockUpdateSetWhere = vi.fn().mockResolvedValue(undefined);
+  const mockUpdateSet = vi.fn().mockReturnValue({ where: mockUpdateSetWhere });
   const mockSelectFromWhereOrderByLimit = vi.fn().mockResolvedValue([]);
-  return { mockInsertValues, mockUpdateSetWhere, mockSelectFromWhereOrderByLimit };
+  return { mockInsertValues, mockUpdateSet, mockUpdateSetWhere, mockSelectFromWhereOrderByLimit };
 });
 
 // ─── Mock the DB layer ───────────────────────────────────────────────────────
@@ -27,7 +28,7 @@ vi.mock("./db", () => ({
   getDb: vi.fn().mockResolvedValue({
     insert: vi.fn().mockReturnValue({ values: mockInsertValues }),
     update: vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue({ where: mockUpdateSetWhere }),
+      set: mockUpdateSet,
     }),
     select: vi.fn().mockReturnValue({
       from: vi.fn().mockReturnValue({
@@ -177,6 +178,21 @@ describe("db-pipeline: read helpers return safe defaults on failure", () => {
 describe("db-pipeline: payload shape validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (getDb as any).mockResolvedValue({
+      insert: vi.fn().mockReturnValue({ values: mockInsertValues }),
+      update: vi.fn().mockReturnValue({
+        set: mockUpdateSet,
+      }),
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockReturnValue({ limit: mockSelectFromWhereOrderByLimit }),
+          }),
+          orderBy: vi.fn().mockReturnValue({ limit: mockSelectFromWhereOrderByLimit }),
+          groupBy: vi.fn().mockReturnValue({ orderBy: mockSelectFromWhereOrderByLimit }),
+        }),
+      }),
+    });
   });
 
   it("recordRunStart accepts all optional fields", async () => {
@@ -190,6 +206,33 @@ describe("db-pipeline: payload shape validation", () => {
         isRerun: true,
       })
     ).resolves.toBeUndefined();
+    expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({
+      runId: "run-abc",
+      claimId: 99,
+      tenantId: "tenant-1",
+      triggeredBy: "user-1",
+      triggerReason: "manual_rerun",
+      isRerun: 1,
+    }));
+  });
+
+  it("persists each running stage against the canonical run, claim, and tenant", async () => {
+    await recordStageStart({
+      runId: "run-abc",
+      claimId: 99,
+      tenantId: "tenant-1",
+      stageId: "6_damage_analysis",
+      stageLabel: "Stage 6 — Damage Analysis",
+      stageIndex: 6,
+    });
+    expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({
+      runId: "run-abc",
+      claimId: 99,
+      tenantId: "tenant-1",
+      stageId: "6_damage_analysis",
+      stageIndex: 6,
+      status: "running",
+    }));
   });
 
   it("recordStageComplete accepts degraded + timeout flags", async () => {
@@ -209,6 +252,14 @@ describe("db-pipeline: payload shape validation", () => {
         recoveryActionCount: 1,
       })
     ).resolves.toBeUndefined();
+    expect(mockUpdateSet).toHaveBeenCalledWith(expect.objectContaining({
+      status: "degraded",
+      isDegraded: 1,
+      isTimeout: 1,
+      llmModel: "gpt-4o",
+      assumptionCount: 3,
+      recoveryActionCount: 1,
+    }));
   });
 
   it("recordRunComplete accepts partial status", async () => {

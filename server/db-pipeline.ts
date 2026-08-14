@@ -17,6 +17,10 @@ import { pipelineRuns, pipelineJobs } from "../drizzle/schema";
 export interface RunStartPayload {
   runId: string;
   claimId: number;
+  tenantId?: string | null;
+  triggeredBy?: string | null;
+  triggerReason?: string | null;
+  isRerun?: boolean;
   startedAt?: string;
 }
 
@@ -32,9 +36,11 @@ export interface RunCompletePayload {
 
 export interface StageStartPayload {
   runId: string;
+  claimId: number;
   stageId: string;
   stageIndex: number;
   stageLabel: string;
+  tenantId?: string | null;
 }
 
 export interface StageCompletePayload {
@@ -42,9 +48,13 @@ export interface StageCompletePayload {
   stageId: string;
   status: "completed" | "failed" | "skipped" | "degraded";
   durationMs: number;
+  isDegraded?: boolean;
   isTimeout?: boolean;
   llmTokensInput?: number;
   llmTokensOutput?: number;
+  llmModel?: string;
+  assumptionCount?: number;
+  recoveryActionCount?: number;
   errorMessage?: string;
 }
 
@@ -57,6 +67,10 @@ export async function recordRunStart(payload: RunStartPayload): Promise<void> {
     await db.insert(pipelineRuns).values({
       runId: payload.runId,
       claimId: payload.claimId,
+      tenantId: payload.tenantId ?? null,
+      triggeredBy: payload.triggeredBy ?? null,
+      triggerReason: payload.triggerReason ?? null,
+      isRerun: payload.isRerun ? 1 : 0,
       status: "running",
       startedAt: payload.startedAt ?? new Date().toISOString(),
     });
@@ -91,9 +105,11 @@ export async function recordStageStart(payload: StageStartPayload): Promise<void
     if (!db) return;
     await db.insert(pipelineJobs).values({
       runId: payload.runId,
+      claimId: payload.claimId,
       stageId: payload.stageId,
       stageIndex: payload.stageIndex,
       stageLabel: payload.stageLabel,
+      tenantId: payload.tenantId ?? null,
       status: "running",
       startedAt: new Date().toISOString(),
     });
@@ -110,9 +126,13 @@ export async function recordStageComplete(payload: StageCompletePayload): Promis
       .set({
         status: payload.status,
         durationMs: payload.durationMs,
+        isDegraded: payload.isDegraded ? 1 : 0,
         isTimeout: payload.isTimeout ? 1 : 0,
         llmTokensInput: payload.llmTokensInput ?? 0,
         llmTokensOutput: payload.llmTokensOutput ?? 0,
+        llmModel: payload.llmModel ?? null,
+        assumptionCount: payload.assumptionCount ?? 0,
+        recoveryActionCount: payload.recoveryActionCount ?? 0,
         errorMessage: payload.errorMessage ?? null,
         completedAt: new Date().toISOString(),
       })
