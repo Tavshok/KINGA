@@ -1,0 +1,60 @@
+{
+  "claimId": 12909902,
+  "tenantId": "tenant-1771335377063",
+  "results": [
+    {
+      "reportKey": "claim.assessment",
+      "jobId": "ff39e43d-97be-46a1-b569-89a777d5cd44",
+      "job": {
+        "job_id": "ff39e43d-97be-46a1-b569-89a777d5cd44",
+        "report_key": "claim.assessment",
+        "status": "completed",
+        "output_format": "pdf",
+        "download_count": 0,
+        "error_message": null,
+        "started_at": 1786712035861,
+        "completed_at": 1786712039824,
+        "expires_at": 1787316835243,
+        "file_size_bytes": 6964365,
+        "page_count": 137,
+        "created_at": 1786712035243
+      }
+    },
+    {
+      "reportKey": "claim.intelligence",
+      "jobId": "4d6060ee-5028-43ff-8812-676b139d1129",
+      "job": {
+        "job_id": "4d6060ee-5028-43ff-8812-676b139d1129",
+        "report_key": "claim.intelligence",
+        "status": "failed",
+        "output_format": "pdf",
+        "download_count": 0,
+        "error_message": "Storage upload failed (400 Bad Request): {\"error\":\"failed to upload file: All attempts fail:\\n#1: operation error S3: CreateMultipartUpload, exceeded maximum number of attempts, 3, https response error StatusCode: 503, RequestID: RAC8225XN7ZP710N, HostID: TYgGYqtQsJrDb8VKP9PUG1oAlmWWoWDmUAy6+q3fneLecQLLHvt0TUhI6+k2kYbRlI01ritv+Wn6/VHStXuZkHqBDx/MO1ot, api error SlowDown: Please reduce your request rate.\\n#2: operation error S3: CreateMultipartUpload, exceeded maximum number of attempts, 3, https response error StatusCode: 503, RequestID: S9VZ6Q1ED3HM4N65, HostID: 1zxEY0T3Gk2yIlfC2VcY9s46Q6I8q/wdS+dZxFgPOpGBp1y4l7u9I3d1QkJmRu8op2DS69yEWvoeTutEgzv3mrOyW/ONhVrl, api error SlowDown: Please reduce your request rate.\\n#3: operation error S3: CreateMultipartUpload, exceeded maximum number of attempts, 3, https response error StatusCode: 503, RequestID: 1E5EFYKMF0BCKDTK, HostID: Ee0WNvJeifry5RqR86ZUnjVKVxyFMG5TvTyvzO4HC/uYmKDiWzDL0hZEa4Z6g2B+/oI7ZM7Zgpy0JtsdZqlNjQzPHI+HDz9Z, api error SlowDown",
+        "started_at": 1786712040940,
+        "completed_at": null,
+        "expires_at": 1787316840412,
+        "file_size_bytes": null,
+        "page_count": null,
+        "created_at": 1786712040412
+      }
+    },
+    {
+      "reportKey": "claim.forensic",
+      "jobId": "59dd1eff-a5ab-411e-b7fd-f4ff07e044be",
+      "job": {
+        "job_id": "59dd1eff-a5ab-411e-b7fd-f4ff07e044be",
+        "report_key": "claim.forensic",
+        "status": "completed",
+        "output_format": "pdf",
+        "download_count": 0,
+        "error_message": null,
+        "started_at": 1786712052786,
+        "completed_at": 1786712055636,
+        "expires_at": 1787316852261,
+        "file_size_bytes": 8496158,
+        "page_count": 166,
+        "created_at": 1786712052261
+      }
+    }
+  ]
+}

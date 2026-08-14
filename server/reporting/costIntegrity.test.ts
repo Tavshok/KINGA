@@ -116,4 +116,26 @@ describe("resolveReportCostIntegrity", () => {
     expect(resolved.unreconciledQuoteCount).toBe(1);
     expect(resolved.missingRequiredComponents).toEqual([]);
   });
+
+  it("preserves comparison-only and explicitly ineligible canonical history without admitting it to active quotation evidence", () => {
+    const resolved = resolveReportCostIntegrity({
+      compositeOptimisation: {
+        sourceQuotesReceived: 3,
+        canonicalQuoteLedger: [
+          { panelBeater: "Eligible Repairs", totalCostUsd: 1200, currency: "USD", status: "active", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Active submitted repair quotation is eligible for final L2 selection." },
+          { panelBeater: "Withdrawn Repairs", totalCostUsd: 900, currency: "USD", status: "historical", workflowStatus: "cancelled", evidenceEligibility: "comparison_only", evidenceEligibilityReason: "Withdrawn quotation retained as historical price evidence only." },
+          { panelBeater: "Scope Defect", totalCostUsd: 1100, currency: "USD", status: "excluded", evidenceEligibility: "ineligible", evidenceEligibilityReason: "Unsupported repair scope." },
+        ],
+        l2Status: "incomplete_scope",
+      },
+    }, []);
+
+    expect(resolved.activeQuotes).toMatchObject([{ repairer: "Eligible Repairs", evidenceEligibility: "final_l2_eligible" }]);
+    expect(resolved.historicalQuotes).toMatchObject([
+      { repairer: "Withdrawn Repairs", evidenceEligibility: "comparison_only", workflowStatus: "cancelled" },
+      { repairer: "Scope Defect", evidenceEligibility: "ineligible" },
+    ]);
+    expect(resolved.l1SubmittedCostUsd).toBe(1200);
+    expect(resolved.l2OptimisedCostUsd).toBeNull();
+  });
 });

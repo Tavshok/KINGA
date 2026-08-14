@@ -1,0 +1,16 @@
+{
+  "reports": [
+    {
+      "key": "reports/tenant-1771335377063/claim.assessment/ff39e43d-97be-46a1-b569-89a777d5cd44-1786712038258.pdf",
+      "url": "https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/reports/tenant-1771335377063/claim.assessment/ff39e43d-97be-46a1-b569-89a777d5cd44-1786712038258.pdf"
+    },
+    {
+      "key": "reports/tenant-1771335377063/claim.intelligence/f269c560-94ba-4e37-8baa-df6eb52cf02c-1786712135831.pdf",
+      "url": "https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/reports/tenant-1771335377063/claim.intelligence/f269c560-94ba-4e37-8baa-df6eb52cf02c-1786712135831.pdf"
+    },
+    {
+      "key": "reports/tenant-1771335377063/claim.forensic/59dd1eff-a5ab-411e-b7fd-f4ff07e044be-1786712055127.pdf",
+      "url": "https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/reports/tenant-1771335377063/claim.forensic/59dd1eff-a5ab-411e-b7fd-f4ff07e044be-1786712055127.pdf"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "claimId": 12909902,
+  "jobId": "f269c560-94ba-4e37-8baa-df6eb52cf02c",
+  "job": {
+    "job_id": "f269c560-94ba-4e37-8baa-df6eb52cf02c",
+    "report_key": "claim.intelligence",
+    "status": "completed",
+    "output_format": "pdf",
+    "download_count": 0,
+    "error_message": null,
+    "started_at": 1786712133124,
+    "completed_at": 1786712138223,
+    "expires_at": 1787316932518,
+    "file_size_bytes": 8475066,
+    "page_count": 166,
+    "created_at": 1786712132518
+  }
+}

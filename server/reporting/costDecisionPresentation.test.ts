@@ -5,9 +5,15 @@ import type { ReportCostIntegrity } from "./costIntegrity";
 function cost(overrides: Partial<ReportCostIntegrity> = {}): ReportCostIntegrity {
   return {
     activeQuotes: [
-      { repairer: "Repairer A", amountUsd: 4280, currency: "USD", status: "active", sourceReference: "a", statusReason: "Active" },
-      { repairer: "Repairer B", amountUsd: 3120, currency: "USD", status: "active", sourceReference: "b", statusReason: "Active" },
+      { repairer: "Repairer A", amountUsd: 4280, currency: "USD", status: "active", sourceReference: "a", statusReason: "Active", workflowStatus: "submitted", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Active submitted repair quotation." },
+      { repairer: "Repairer B", amountUsd: 3120, currency: "USD", status: "active", sourceReference: "b", statusReason: "Active", workflowStatus: "submitted", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Active submitted repair quotation." },
     ],
+    submittedQuotes: [
+      { repairer: "Repairer A", amountUsd: 4280, currency: "USD", status: "active", sourceReference: "a", statusReason: "Active", workflowStatus: "submitted", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Active submitted repair quotation." },
+      { repairer: "Repairer B", amountUsd: 3120, currency: "USD", status: "active", sourceReference: "b", statusReason: "Active", workflowStatus: "submitted", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Active submitted repair quotation." },
+    ],
+    historicalQuotes: [],
+    legacyHistoryQualified: false,
     sourceQuoteCount: 2,
     quoteReceiptStatus: "quotes_received",
     quoteScopeStatus: "complete",
@@ -103,5 +109,67 @@ describe("R0 concise cost decision presentation", () => {
       .toEqual({ structuralReviewRequired: true, structuralReviewDetail: "Front rail alignment measurement is required." });
     expect(extractExplicitStructuralReviewEvidence({ structuralGaps: [{ severity: "critical" }] }))
       .toEqual({ structuralReviewRequired: false, structuralReviewDetail: null });
+  });
+
+  it("renders comparison-only and ineligible price evidence separately from active payable comparison", () => {
+    const html = renderCostDecisionSummaryHtml({
+      costIntegrity: cost({
+        activeQuotes: [{ repairer: "Eligible Repairs", amountUsd: 1200, currency: "USD", status: "active", sourceReference: "a", statusReason: "Active", workflowStatus: "submitted", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Active submitted repair quotation." }],
+        submittedQuotes: [{ repairer: "Eligible Repairs", amountUsd: 1200, currency: "USD", status: "active", sourceReference: "a", statusReason: "Active", workflowStatus: "submitted", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Active submitted repair quotation." }],
+        historicalQuotes: [
+          { repairer: "Withdrawn Repairs", amountUsd: 900, currency: "USD", status: "historical", sourceReference: "w", statusReason: "Withdrawn", workflowStatus: "cancelled", evidenceEligibility: "comparison_only", evidenceEligibilityReason: "Withdrawn quotation retained as historical price evidence only." },
+          { repairer: "Scope Defect", amountUsd: 1100, currency: "USD", status: "excluded", sourceReference: "s", statusReason: "Unsupported", workflowStatus: "submitted", evidenceEligibility: "ineligible", evidenceEligibilityReason: "Unsupported repair scope." },
+        ],
+        legacyHistoryQualified: true,
+        l2IsComplete: false,
+        l2Status: "incomplete_scope",
+        l2OptimisedCostUsd: null,
+        l2EvidenceQualifiedComparisonUsd: null,
+      }),
+      formatAmount: (amount) => `USD ${amount?.toFixed(2) ?? "—"}`,
+      escapeHtml: String,
+      repairability: { totalLossIndicated: false, repairToValueRatio: 42 },
+    });
+    expect(html).toContain("Historical quotation evidence is retained separately");
+    expect(html).toContain("Withdrawn Repairs · USD 900.00 · Withdrawn quotation retained as historical price evidence only.");
+    expect(html).toContain("Scope Defect · USD 1100.00 · Unsupported repair scope.");
+    expect(html).not.toContain("KINGA Optimised Quote</div><div style=\"margin-top:5px;font-size:16px;font-weight:800;color:#0d5849;\">USD 900.00");
+  });
+
+  it("renders benchmark-selection and high line-item variance evidence as explanation, not a separate decision", () => {
+    const html = renderCostDecisionSummaryHtml({
+      costIntegrity: cost({
+        l2ComponentSelections: [
+          {
+            componentName: "Front bumper",
+            selectedCostUsd: 100,
+            selectionMethod: "BENCHMARK_WITHIN_30_PCT",
+            benchmarkP50Usd: 100,
+            benchmarkDeviationPct: 10,
+            lineItemSpreadPct: 12,
+            highLineItemVariance: false,
+            lineItemVarianceRemark: null,
+          },
+          {
+            componentName: "Headlamp",
+            selectedCostUsd: 120,
+            selectionMethod: "LOWER_OF_BENCHMARK_AND_SUBMITTED_OUTSIDE_30_PCT",
+            benchmarkP50Usd: 150,
+            benchmarkDeviationPct: 41.7,
+            lineItemSpreadPct: 25,
+            highLineItemVariance: true,
+            lineItemVarianceRemark: "High submitted-price spread; verify like-for-like scope.",
+          },
+        ],
+      }),
+      formatAmount: (amount) => `USD ${amount?.toFixed(2) ?? "—"}`,
+      escapeHtml: String,
+      repairability: { totalLossIndicated: false, repairToValueRatio: 42 },
+    });
+    expect(html).toContain("L2 Component Validation");
+    expect(html).toContain("Front bumper");
+    expect(html).toContain("Benchmark selected within 30% · 10.0% variance");
+    expect(html).toContain("Outside 30% · lower validated value selected · 41.7% variance");
+    expect(html).toContain("High submitted-price spread; verify like-for-like scope.");
   });
 });

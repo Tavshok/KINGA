@@ -42,6 +42,11 @@ export interface MatrixRow {
   benchmarkVehicleMakeFiltered?: boolean | null; // true = vehicle-make-specific benchmark
   benchmarkSampleSize?: number | null;        // number of observations in benchmark
   benchmarkP50Usd?: number | null;            // P50 benchmark value for this component
+  l2SelectionMethod?: string | null;
+  benchmarkDeviationPct?: number | null;
+  lineItemSpreadPct?: number | null;
+  highLineItemVariance?: boolean;
+  lineItemVarianceRemark?: string | null;
 }
 
 export interface AdvisoryFlag {
@@ -342,6 +347,20 @@ export function ComponentCostMatrix({
                           </span>
                         );
                       })()}
+                      {row.l2SelectionMethod && (
+                        <span style={{ fontSize: 9, color: row.l2SelectionMethod === 'BENCHMARK_WITHIN_30_PCT' ? '#0369a1' : '#475569' }}>
+                          {row.l2SelectionMethod === 'BENCHMARK_WITHIN_30_PCT'
+                            ? `Benchmark selected within 30%${row.benchmarkDeviationPct != null ? ` · ${row.benchmarkDeviationPct.toFixed(1)}% variance` : ''}`
+                            : row.l2SelectionMethod === 'LOWER_OF_BENCHMARK_AND_SUBMITTED_OUTSIDE_30_PCT'
+                              ? `Outside 30% · lower validated value selected${row.benchmarkDeviationPct != null ? ` · ${row.benchmarkDeviationPct.toFixed(1)}% variance` : ''}`
+                              : 'Lowest submitted price · no benchmark'}
+                        </span>
+                      )}
+                      {row.highLineItemVariance && (
+                        <span style={{ fontSize: 9, color: '#92400e', fontWeight: 600 }}>
+                          {row.lineItemVarianceRemark ?? `High line-item spread${row.lineItemSpreadPct != null ? ` · ${row.lineItemSpreadPct.toFixed(1)}%` : ''}; verify scope.`}
+                        </span>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -621,6 +640,11 @@ export function buildRowsFromComposite(
       benchmarkVehicleMakeFiltered: item.benchmarkVehicleMakeFiltered ?? null,
       benchmarkSampleSize: item.benchmarkSampleSize ?? null,
       benchmarkP50Usd: item.p50Usd ?? null,
+      l2SelectionMethod: item.l2SelectionMethod ?? null,
+      benchmarkDeviationPct: item.benchmarkDeviationPct ?? null,
+      lineItemSpreadPct: item.lineItemSpreadPct ?? null,
+      highLineItemVariance: item.highLineItemVariance ?? false,
+      lineItemVarianceRemark: item.lineItemVarianceRemark ?? null,
     };
   });
 }

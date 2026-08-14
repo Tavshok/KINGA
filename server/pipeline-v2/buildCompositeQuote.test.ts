@@ -76,9 +76,9 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     expect(result.negotiationSavingsUsd).toBe(0);
   });
 
-  it("retains the lowest submitted price when a lower benchmark is available", () => {
+  it("selects the benchmark when it is within 30% of the lowest submitted price", () => {
     // "front bumper" normalises to "Front Bumper"
-    // lowestSubmitted = 1000, benchmark P50 = 900 → L2 remains 1000.
+    // Qmin = 1000, benchmark P50 = 900 → 11.1% variance → L2 = 900.
     const quotes = [
       makeQuoteWithItems("Repairer A", [{ name: "front bumper", costUsd: 1000 }]),
       makeQuoteWithItems("Repairer B", [{ name: "front bumper", costUsd: 1200 }]),
@@ -89,30 +89,34 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
 
     const item = result.compositeLineItems.find(i => i.componentName === "Front Bumper");
     expect(item).toBeDefined();
-    expect(item!.selectedCostUsd).toBe(1000);
-    expect(item!.selectedFromQuote).toBe("Repairer A");
+    expect(item!.selectedCostUsd).toBe(900);
+    expect(item!.selectedFromQuote).toBe("KINGA Market Benchmark (P50)");
+    expect(item!.selectedSubmittedFromQuote).toBe("Repairer A");
     expect(item!.isBenchmarkFill).toBe(false);
-    expect(item!.kingaOptimisedTier).toBe("T3");
+    expect(item!.kingaOptimisedTier).toBe("T2");
+    expect(item!.l2SelectionMethod).toBe("BENCHMARK_WITHIN_30_PCT");
+    expect(item!.benchmarkWithinTolerance).toBe(true);
     expect(item!.scopeDecisionRule).toBe("COST_COMPARISON");
     expect(item!.p50Usd).toBe(900);
   });
 
-  it("retains the lowest submitted price when the benchmark differs materially", () => {
+  it("selects the lower benchmark when it differs materially below Qmin", () => {
     const quotes = [
       makeQuoteWithItems("Repairer A", [{ name: "front bumper", costUsd: 1000 }]),
       makeQuoteWithItems("Repairer B", [{ name: "front bumper", costUsd: 1200 }]),
     ];
-    const benchmarks = makeBenchmarks([{ name: "Front Bumper", p25: 700, p50: 800, p75: 900 }]);
+    const benchmarks = makeBenchmarks([{ name: "Front Bumper", p25: 500, p50: 600, p75: 700 }]);
     const result = buildCompositeQuote(quotes, benchmarks, 1000);
 
     const item = result.compositeLineItems.find(i => i.componentName === "Front Bumper");
     expect(item).toBeDefined();
-    expect(item!.selectedCostUsd).toBe(1000);
+    expect(item!.selectedCostUsd).toBe(600);
     expect(item!.isBenchmarkFill).toBe(false);
-    expect(item!.scopeDecisionRule).toBe("COST_COMPARISON");
+    expect(item!.l2SelectionMethod).toBe("LOWER_OF_BENCHMARK_AND_SUBMITTED_OUTSIDE_30_PCT");
+    expect(item!.benchmarkWithinTolerance).toBe(false);
   });
 
-  it("retains the lowest submitted price when a benchmark is far below market", () => {
+  it("selects the lower benchmark when it is far below Qmin", () => {
     const quotes = [
       makeQuoteWithItems("Repairer A", [{ name: "front bumper", costUsd: 1400 }]),
       makeQuoteWithItems("Repairer B", [{ name: "front bumper", costUsd: 1600 }]),
@@ -122,13 +126,13 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
 
     const item = result.compositeLineItems.find(i => i.componentName === "Front Bumper");
     expect(item).toBeDefined();
-    expect(item!.selectedCostUsd).toBe(1400);
+    expect(item!.selectedCostUsd).toBe(400);
     expect(item!.isBenchmarkFill).toBe(false);
     expect(item!.scopeDecisionRule).toBe("COST_COMPARISON");
   });
 
-  it("uses lowestSubmitted when benchmark is above market", () => {
-    // lowestSubmitted = 1000, K = 1200 (above market) → L2 = 1000
+  it("selects the benchmark when it is within tolerance above Qmin", () => {
+    // Qmin = 1000, B = 1200 → 16.7% variance → L2 = 1200
     const quotes = [
       makeQuoteWithItems("Repairer A", [{ name: "front bumper", costUsd: 1000 }]),
     ];
@@ -137,7 +141,7 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
 
     const item = result.compositeLineItems.find(i => i.componentName === "Front Bumper");
     expect(item).toBeDefined();
-    expect(item!.selectedCostUsd).toBe(1000);
+    expect(item!.selectedCostUsd).toBe(1200);
     expect(item!.isBenchmarkFill).toBe(false);
     expect(item!.scopeDecisionRule).toBe("SINGLE_SCOPE_AVAILABLE");
   });
@@ -182,10 +186,9 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     expect(itemB!.selectedFromQuote).toBe("Repairer 1");
   });
 
-  it("L2_total = sum of per-component L2 values", () => {
-    // "component a" → "component a", "component b" → "component b"
-    // Component a: lowestSubmitted = 800; component b: lowestSubmitted = 500.
-    // Benchmarks are comparative only, so L2_total = 1300.
+  it("L2_total = sum of benchmark-validated component values", () => {
+    // component a: Qmin 800, B 700 within 30% → 700.
+    // component b: Qmin 500, B 100 outside 30% → lower value 100.
     const quotes = [
       makeQuoteWithItems("Repairer 1", [
         { name: "component a", costUsd: 1000 },
@@ -200,7 +203,7 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
       { name: "component b", p25: 80, p50: 100, p75: 120 },
     ]);
     const result = buildCompositeQuote(quotes, benchmarks, 1500);
-    expect(result.compositeOptimisedCostUsd).toBe(1300);
+    expect(result.compositeOptimisedCostUsd).toBe(800);
   });
 
   it("cherry-pick across quotes produces lower L2 than best package deal", () => {
@@ -300,7 +303,7 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     expect(result.negotiationSavingsUsd).toBe(0);
   });
 
-  it("returns the submitted-price comparison across three quotes despite low benchmarks", () => {
+  it("selects the lower benchmark outside tolerance while retaining submitted evidence", () => {
     // "front bumper" → "Front Bumper", "bonnet" → "Bonnet (Hood)", "headlamp" → "Headlight Assembly (Left)"
     const quotes = [
       makeQuoteWithItems("Cedric Jonker", [
@@ -319,7 +322,7 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
         { name: "headlamp", costUsd: 340 },
       ]),
     ];
-    // Benchmarks remain comparative even when well below submitted prices.
+    // Each benchmark is materially below Qmin, so the approved rule selects the lower benchmark.
     const benchmarks = makeBenchmarks([
       { name: "Front Bumper", p25: 300, p50: 400, p75: 500 },
       { name: "Bonnet (Hood)", p25: 180, p50: 220, p75: 280 },
@@ -328,19 +331,42 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     // L1 = Grand Auto total = 2470
     const result = buildCompositeQuote(quotes, benchmarks, 2470);
 
-    // All components use submitted lowest prices.
-    // L2_front_bumper = 1350, L2_bonnet = 780, L2_headlamp = 340
-    // L2_total = 2470 = L1
-    expect(result.compositeOptimisedCostUsd).toBe(2470);
+    // L2_front_bumper = 400, L2_bonnet = 220, L2_headlamp = 100.
+    expect(result.compositeOptimisedCostUsd).toBe(720);
 
-    // All items use a submitted amount and preserve comparison metadata.
+    // All items retain submitted source evidence but select the lower benchmark.
     for (const item of result.compositeLineItems) {
       expect(item.isBenchmarkFill).toBe(false);
-      expect(item.scopeDecisionRule).toBe("COST_COMPARISON");
+      expect(item.l2SelectionMethod).toBe("LOWER_OF_BENCHMARK_AND_SUBMITTED_OUTSIDE_30_PCT");
     }
 
-    // negotiationSavingsUsd = L1 - L2 = 2470 - 2470 = 0
-    expect(result.negotiationSavingsUsd).toBe(0);
+    expect(result.negotiationSavingsUsd).toBe(1750);
+  });
+
+  it("adds a verification remark when like-for-like submitted prices exceed 20% spread", () => {
+    const quotes = [
+      makeQuoteWithItems("Repairer A", [{ name: "component a", costUsd: 100 }]),
+      makeQuoteWithItems("Repairer B", [{ name: "component a", costUsd: 130 }]),
+    ];
+    const result = buildCompositeQuote(quotes, {}, 100);
+    const item = result.compositeLineItems.find(i => i.componentName === "component a");
+
+    expect(item!.lineItemSpreadPct).toBe(30);
+    expect(item!.highLineItemVariance).toBe(true);
+    expect(item!.lineItemVarianceRemark).toContain("verify component scope");
+  });
+
+  it("does not add a high-variance remark at the exact 20% spread boundary", () => {
+    const quotes = [
+      makeQuoteWithItems("Repairer A", [{ name: "component a", costUsd: 100 }]),
+      makeQuoteWithItems("Repairer B", [{ name: "component a", costUsd: 120 }]),
+    ];
+    const result = buildCompositeQuote(quotes, {}, 100);
+    const item = result.compositeLineItems.find(i => i.componentName === "component a");
+
+    expect(item!.lineItemSpreadPct).toBe(20);
+    expect(item!.highLineItemVariance).toBe(false);
+    expect(item!.lineItemVarianceRemark).toBeNull();
   });
 });
 

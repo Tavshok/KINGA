@@ -1,0 +1,459 @@
+[PipelineSemaphore] Claim 12909902 acquired pipeline slot (active: 1, queued: 0)
+[KINGA Assessment] Claim 12909902: Memory check — systemFree=2387MB, rss=130MB, heapUsed=25MB
+[KINGA Assessment] Claim 12909902: Memory check passed — 2387MB system RAM free.
+[Database] Connection pool initialized
+[EvidencePluginRegistry] Registered plugin: Telematics (OBD/GPS) (telematics-stub v1.0.0)
+[EvidencePluginRegistry] Registered plugin: Event Data Recorder (EDR) (edr-stub v1.0.0)
+[EvidencePluginRegistry] Registered plugin: LiDAR 3D Scan (lidar-stub v1.0.0)
+[KINGA Assessment] Claim 12909902 — Pipeline v2 starting. State: DOCUMENT_VALIDATING.
+[KINGA Assessment] Claim 12909902: LLM PDF URL ready: A Dube AFK 7025 - Assessment Report-signed.pdf
+[KINGA Assessment] Claim 12909902: Presigned download URL obtained for server-side PDF fetch.
+[KINGA Assessment] Claim 12909902: PDF URL ready — proceeding with LLM extraction: https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/tenant-1771335377063...
+[KINGA Assessment] Claim 12909902: PDF pre-downloaded for recovery ladder (4294391 bytes).
+[KINGA Assessment] Claim 12909902: No cached photos — rendering PDF pages via pdftoppm (presigned URL: true).
+{"ts":"2026-08-14T12:50:15.622Z","level":"INFO","stage":"PDF Render","msg":"Rendering up to 25 pages at 100 DPI","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:15.622Z","level":"INFO","stage":"PDF Render","msg":"Downloading PDF from https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/tenant-1771335377063/ingestion/61972e47-0358-46a7-bf1e-c9c20bde88fb/8584c4c3-3080-42d6-85f8-80d65dfb5bc3-A Dube AFK 7025 - Assessment Report-signed.pdf","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:16.075Z","level":"INFO","stage":"PDF Render","msg":"PDF downloaded: 4294391 bytes","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:16.098Z","level":"INFO","stage":"PDF Render","msg":"PDF loaded: 14 pages, rendering 14 at 100 DPI","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:21.396Z","level":"INFO","stage":"PDF Render","msg":"pdftoppm rendered 14 page(s)","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:21.583Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 1/14 blur=718 colour=28 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-001.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:21.692Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 2/14 blur=1346 colour=32 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-002.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:21.829Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 3/14 blur=601 colour=77 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-003.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:22.012Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 4/14 blur=524 colour=72 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-004.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:22.141Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 5/14 blur=180 colour=41 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-005.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:22.354Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 6/14 blur=202 colour=40 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-006.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:22.500Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 7/14 blur=369 colour=18 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-007.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:22.705Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 8/14 blur=310 colour=17 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-008.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:22.839Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 9/14 blur=702 colour=23 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-009.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:22.950Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 10/14 blur=56 colour=17 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-010.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:23.075Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 11/14 blur=358 colour=21 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-011.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:23.217Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 12/14 blur=269 colour=21 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-012.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:23.374Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 13/14 blur=1960 colour=46 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-013.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:23.496Z","level":"INFO","stage":"PDF Render","msg":"Rendered + uploaded page 14/14 blur=503 colour=25 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-014.png","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:23.496Z","level":"INFO","stage":"PDF Render","msg":"Rendering complete: 14/14 pages uploaded","claimId":"12909902"}
+[KINGA Assessment] Claim 12909902: Rendered 14 page(s) from PDF (14 total pages rendered)
+[KINGA Assessment] Claim 12909902: Image normalisation — fresh_extraction (14 images with real metadata)
+[KINGA Assessment] Claim 12909902: Document Health Gate — score=90%, decision=PROCEED_WITH_WARNING, failureModes=F6
+[KINGA Assessment] Claim 12909902: Document Health Gate passed. State: DOCUMENT_READY → ANALYSIS_RUNNING.
+{"ts":"2026-08-14T12:50:23.655Z","level":"INFO","stage":"Pipeline","msg":"Starting self-healing pipeline for claim 12909902","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:23.677Z","level":"INFO","stage":"Stage 1","msg":"Document ingestion starting","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:23.677Z","level":"INFO","stage":"Stage 1","msg":"PRIMARY: Extracting images via pdfjs-dist (no system binaries)...","claimId":"12909902"}
+[PDF Extractor] Starting (with summary): claim-document.pdf (4294391 bytes, session: IERbxDLd)
+Warning: Cannot polyfill `DOMMatrix`, rendering may be broken.
+Warning: Cannot polyfill `Path2D`, rendering may be broken.
+[PDF Extractor] Loading PDF for scan detection (4294391 bytes, session: IERbxDLd)
+[PDF Extractor] PDF loaded: 14 pages
+Warning: fetchStandardFontData: failed to fetch file "FoxitSerif.pfb" with "UnknownErrorException: The standard font "baseUrl" parameter must be specified, ensure that the "standardFontDataUrl" API parameter is provided.".
+Warning: fetchStandardFontData: failed to fetch file "FoxitSerifBold.pfb" with "UnknownErrorException: The standard font "baseUrl" parameter must be specified, ensure that the "standardFontDataUrl" API parameter is provided.".
+Warning: fetchStandardFontData: failed to fetch file "FoxitSerifBoldItalic.pfb" with "UnknownErrorException: The standard font "baseUrl" parameter must be specified, ensure that the "standardFontDataUrl" API parameter is provided.".
+[PDF Extractor] R-A-06: Scanned detection: medianChars/page=0, isScanned=true, pages=14, sampled=5
+[PDF Extractor] PDF type: SCANNED, pages: 14, DPI: 200
+[PDF Extractor] [pdftoppm] Rendering up to 40 pages at 200 DPI
+[PDF Extractor] [pdftoppm] Downloading PDF from file:///tmp/kinga-ext-cm6yca/input.pdf
+[PDF Extractor] [pdftoppm] PDF downloaded: 4294391 bytes
+[PDF Extractor] [pdftoppm] PDF loaded: 14 pages, rendering 14 at 200 DPI
+[PDF Extractor] [pdftoppm] pdftoppm rendered 14 page(s)
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 1/14 blur=703 colour=28 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-001.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 2/14 blur=1282 colour=32 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-002.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 3/14 blur=602 colour=77 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-003.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 4/14 blur=516 colour=72 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-004.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 5/14 blur=169 colour=42 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-005.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 6/14 blur=206 colour=40 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-006.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 7/14 blur=365 colour=18 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-007.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 8/14 blur=305 colour=17 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-008.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 9/14 blur=697 colour=23 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-009.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 10/14 blur=56 colour=17 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-010.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 11/14 blur=359 colour=21 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-011.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 12/14 blur=268 colour=21 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-012.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 13/14 blur=1943 colour=46 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-013.png
+[PDF Extractor] [pdftoppm] Rendered + uploaded page 14/14 blur=505 colour=26 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/IERbxDLd/pages/cf556677/page-014.png
+[PDF Extractor] [pdftoppm] Rendering complete: 14/14 pages uploaded
+[PDF Extractor] Page 1: 1700x2200 blur=703 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 2: 1700x2200 blur=1282 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 3: 1700x2200 blur=602 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 4: 1700x2200 blur=516 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 5: 1700x2200 blur=169 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 6: 1700x2200 blur=206 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 7: 1654x2338 blur=365 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 8: 1654x2338 blur=305 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 9: 1654x2338 blur=697 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 10: 1654x2338 blur=56 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 11: 1654x2338 blur=359 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 12: 1654x2338 blur=268 textHeavy=true → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 13: 1654x2338 blur=1943 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Page 14: 1654x2338 blur=505 textHeavy=false → https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] pdftoppm complete: 14 pages rendered, 14 page images
+Warning: fetchStandardFontData: failed to fetch file "FoxitSerif.pfb" with "UnknownErrorException: The standard font "baseUrl" parameter must be specified, ensure that the "standardFontDataUrl" API parameter is provided.".
+Warning: fetchStandardFontData: failed to fetch file "FoxitSerifBold.pfb" with "UnknownErrorException: The standard font "baseUrl" parameter must be specified, ensure that the "standardFontDataUrl" API parameter is provided.".
+Warning: fetchStandardFontData: failed to fetch file "FoxitSerifBoldItalic.pfb" with "UnknownErrorException: The standard font "baseUrl" parameter must be specified, ensure that the "standardFontDataUrl" API parameter is provided.".
+[PDF Extractor] Uploaded embedded_image 1376x423 blur=1256 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+Warning: fetchStandardFontData: failed to fetch file "FoxitSerifItalic.pfb" with "UnknownErrorException: The standard font "baseUrl" parameter must be specified, ensure that the "standardFontDataUrl" API parameter is provided.".
+[PDF Extractor] Uploaded embedded_image 1770x886 blur=3817 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=657 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=435 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=576 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=324 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=556 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=800 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=500 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=458 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=454 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=602 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=1439 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 739x554 blur=607 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 1188x1669 blur=326 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 1421x1886 blur=285 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 1653x2338 blur=365 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Text-heavy: embedded_image 1653x2338
+[PDF Extractor] Uploaded embedded_image 1653x2338 blur=306 textHeavy=true -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 1653x2338 blur=698 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Text-heavy: embedded_image 1653x2338
+[PDF Extractor] Uploaded embedded_image 1653x2338 blur=58 textHeavy=true -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Text-heavy: embedded_image 1653x2338
+[PDF Extractor] Uploaded embedded_image 1653x2338 blur=362 textHeavy=true -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Text-heavy: embedded_image 1653x2338
+[PDF Extractor] Uploaded embedded_image 1653x2338 blur=272 textHeavy=true -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 1653x2338 blur=1963 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Uploaded embedded_image 1653x2338 blur=512 textHeavy=false -> https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/...
+[PDF Extractor] Embedded extraction complete: 24 candidates
+[PDF Extractor] Complete: 38 image(s) (14 pages rendered, 24 embedded candidates, 0 rejected, 0 blurry, 7 text-heavy)
+{"ts":"2026-08-14T12:50:59.725Z","level":"INFO","stage":"Stage 1","msg":"pdfjs extraction complete: 38 image(s) from 14 pages (14 rendered, 24 embedded candidates, 0 rejected, 0 blurry, 7 text-heavy, scanned=true, dpi=200)","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.725Z","level":"INFO","stage":"Stage 1","msg":"pdfjs: 24 embedded image(s) added to damagePhotoUrls","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.725Z","level":"INFO","stage":"Stage 1","msg":"PRIMARY succeeded: 14 page renders, 24 embedded images","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.725Z","level":"INFO","stage":"Stage 1","msg":"Stored 14 PDF page image URL(s) in context for Stage 6 vision","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.726Z","level":"INFO","stage":"Stage 1","msg":"Ingested PDF document: claim_form — claim-document.pdf (14 page images)","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.726Z","level":"INFO","stage":"Stage 1","msg":"Ingested 38 direct damage photo(s)","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.726Z","level":"INFO","stage":"Stage 1","msg":"Ingestion complete. 39 document(s) classified.","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.726Z","level":"INFO","stage":"1_ingestion","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":36049,"outcome":"complete"}
+{"ts":"2026-08-14T12:50:59.749Z","level":"INFO","stage":"Stage 1","msg":"Persisted 52 embedded image URL(s) to DB cache (was 38)","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.749Z","level":"INFO","stage":"Stage 2","msg":"OCR and text extraction starting","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.750Z","level":"INFO","stage":"Stage 2","msg":"[doc 0] Extracting text from PDF: claim-document.pdf","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.750Z","level":"INFO","stage":"Stage 2","msg":"[chunked-images] 14 page image(s) available — using chunked image extraction (4 pages/chunk)","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.750Z","level":"INFO","stage":"Stage 2","msg":"[chunked-images] Processing 4 chunk(s) in parallel","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.750Z","level":"INFO","stage":"Stage 2","msg":"[chunked-images] Starting chunk 1/4 (4 pages)","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.751Z","level":"INFO","stage":"Stage 2","msg":"[chunked-images] Starting chunk 2/4 (4 pages)","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.753Z","level":"INFO","stage":"Stage 2","msg":"[chunked-images] Starting chunk 3/4 (4 pages)","claimId":"12909902"}
+{"ts":"2026-08-14T12:50:59.753Z","level":"INFO","stage":"Stage 2","msg":"[chunked-images] Starting chunk 4/4 (2 pages)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:10.632Z","level":"INFO","stage":"Stage 2","msg":"[chunked-images] Merged: 15279 chars, 8 tables, confidence=97%","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:10.633Z","level":"INFO","stage":"Stage 2","msg":"[doc 0] Primary pass: 15279 chars, confidence=97%, fieldConf={agreedCost:45, quoteTotal:65, claimId:50}, flags={agreedHint:true, quoteDetected:true, totalInconsistent:false, textShort:false, missingFields:3}","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:10.635Z","level":"INFO","stage":"Stage 2","msg":"[doc 0] PDF extraction complete: 15279 chars, 8 tables, confidence: 97%","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:10.635Z","level":"INFO","stage":"Stage 2","msg":"Extraction complete. 39 document(s) processed, 39 pages total.","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:10.635Z","level":"INFO","stage":"2_extraction","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":10886,"outcome":"complete"}
+{"ts":"2026-08-14T12:51:11.871Z","level":"INFO","stage":"Stage 0a (Document Verification)","msg":"status=SUCCESS, confidence=100, pages=4, fields=claim_number,vehicle,incident_description,costs,dates, missing=none, reason=\"All critical fields are clearly visible and present within the structured document text.\"","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:11.876Z","level":"INFO","stage":"Stage 0 (Evidence Registry)","msg":"Registry built: pages=39, images=52, claim_form=PRESENT, driver_stmt=PRESENT, photos=PRESENT, quote=PRESENT, assessor=PRESENT, police=PRESENT, signature=PRESENT. Completeness: PROCEED (missing=none, unknown=none)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:11.877Z","level":"INFO","stage":"Stage 3","msg":"Structured data extraction starting","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:11.877Z","level":"INFO","stage":"Stage 3","msg":"Firing PDF extraction, photo extraction, and input recovery in parallel","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:11.878Z","level":"INFO","stage":"Stage 3","msg":"Preprocessor: 8 chunks, quoteText=11032chars, claimFormText=2167chars, multiDoc=true","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:11.878Z","level":"INFO","stage":"Stage 3","msg":"Extracting structured fields from PDF: claim-document.pdf (14 page images available)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:11.878Z","level":"INFO","stage":"Stage 3","msg":"PDF extraction: 14 page image(s) split into 1 batch(es) of up to 20","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:11.880Z","level":"INFO","stage":"Stage 3","msg":"Extracting structured fields from 38 damage photo(s)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:11.880Z","level":"INFO","stage":"Stage 3","msg":"Photo extraction: 38 photo(s) split into 2 batch(es) of up to 20","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:11.880Z","level":"INFO","stage":"Stage 3","msg":"Photo batch 1/2: 20 photo(s)","claimId":"12909902"}
+[Stage3] Using per-page vision extraction on 14 page image(s) (allText=42990 chars)
+{"ts":"2026-08-14T12:51:17.859Z","level":"INFO","stage":"Stage 3","msg":"Photo batch 2/2: 18 photo(s)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:21.877Z","level":"INFO","stage":"Stage 3","msg":"PDF extraction complete: 1/1 batch(es) succeeded, 27 component(s) extracted","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:21.878Z","level":"INFO","stage":"Stage 3","msg":"PDF extraction complete. Vehicle: TOYOTA HILUX, Components: 27, QuoteTotal: 650000. Quality: 95/100 (HIGH). Missing: Labour Cost, Parts Cost.","claimId":"12909902"}
+[QuoteExtractionEngine] Image extraction complete: 2 line items, total=6500, panel_beater=The Dent Doctor, confidence=high
+{"ts":"2026-08-14T12:51:23.261Z","level":"INFO","stage":"Stage 3","msg":"Photo extraction complete: 2/2 batch(es) succeeded, 15 component(s) extracted from 38 photo(s)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:23.262Z","level":"INFO","stage":"Stage 3","msg":"Photo extraction complete. Components: 15","claimId":"12909902"}
+[QuoteExtractionEngine] Multi-page image extraction complete: 29 line items, total=5640, panel_beater=The Dent Doctor, confidence=high
+[QuoteExtractionEngine] Image extraction complete: 28 line items, total=8349, panel_beater=Stylin Auto, confidence=high
+[Stage3] Unconditional vision pass: scanning claim-document.pdf for repair quotations
+[QuoteExtractionEngine] Vision extraction complete: 31 line items, total=5640, confidence=high
+[Stage3] Vision pass: "The Dent Doctor" already extracted from text — skipping duplicate
+[Stage3] R-A-16 Dedup: "The Dent Doctor" — same source, keeping existing entry (29 items, total 5640)
+[Stage3] Dedup: collapsed 5 → 4 quote(s) after same-repairer deduplication
+{"ts":"2026-08-14T12:51:36.945Z","level":"INFO","stage":"Stage 3","msg":"Input recovery complete. Quote recovered: USD 650000 (medium). LLM quotes extracted: 4. Images present: true. Flags: none.","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:36.945Z","level":"INFO","stage":"Stage 3","msg":"Field recovery: 4 null critical fields to recover: vehicleMileage, policyNumber, animalType, excessAmountCents","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:36.946Z","level":"INFO","stage":"Stage 3","msg":"Field recovery: policyNumber = \"EXCESS\" (regex_fallback, medium)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:36.946Z","level":"INFO","stage":"Stage 3","msg":"Field recovery: animalType = \"Third party\" (regex_fallback, medium)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:36.947Z","level":"INFO","stage":"Stage 3","msg":"Field recovery: firing 2 LLM calls in parallel for: vehicleMileage, excessAmountCents","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:37.672Z","level":"INFO","stage":"Stage 3","msg":"Field recovery: vehicleMileage = NOT FOUND","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:37.672Z","level":"INFO","stage":"Stage 3","msg":"Field recovery: excessAmountCents = NOT FOUND","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:37.672Z","level":"INFO","stage":"Stage 3","msg":"Field recovery complete: 2/4 fields recovered. Still missing: vehicleMileage, excessAmountCents","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:37.672Z","level":"INFO","stage":"Stage 3","msg":"Fields not recoverable from documents: vehicleMileage, excessAmountCents","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:38.371Z","level":"INFO","stage":"Stage 3","msg":"OCR spell-correction: no corrections needed","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:38.371Z","level":"INFO","stage":"Stage 3","msg":"Structured extraction complete. 1 extraction(s) produced.","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:38.372Z","level":"INFO","stage":"3_structured_extraction","msg":"Engine completed in 26496ms","durationMs":26496}
+{"ts":"2026-08-14T12:51:38.372Z","level":"INFO","stage":"3_structured_extraction","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":26494,"outcome":"complete"}
+{"ts":"2026-08-14T12:51:38.373Z","level":"INFO","stage":"Stage 4","msg":"Data validation starting","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:38.373Z","level":"INFO","stage":"Stage 4","msg":"Merged 1 extraction(s) into unified record","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:38.376Z","level":"INFO","stage":"Stage 4","msg":"Field validation: no source conflicts detected","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:38.377Z","level":"INFO","stage":"Stage 4","msg":"Consistency check BLOCKED: 1 HIGH conflict(s) — incident_conflict","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:38.377Z","level":"INFO","stage":"Stage 4","msg":"Gate HOLD: 1 reason(s) — HIGH_CONFLICT_EXISTS","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:38.377Z","level":"INFO","stage":"Stage 4","msg":"Validation complete. Completeness: 100%. Missing: 0. Assumptions: 1","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:38.377Z","level":"INFO","stage":"4_validation","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":4,"outcome":"complete"}
+{"ts":"2026-08-14T12:51:38.378Z","level":"INFO","stage":"Stage 5","msg":"Claim data assembly starting","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:39.852Z","level":"INFO","stage":"Stage 5","msg":"Collision scenario: sideswipe | struckParty=false | hitAndRun=false | parkingLot=false | 3rdPartyRequired=true | causation=UNKNOWN | speedCeiling=N/Akm/h | reversingContradiction=false","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.801Z","level":"INFO","stage":"Stage 5c","msg":"Valuation: market=USD 16,500, repair=USD 5,640, verdict=repairable","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.802Z","level":"INFO","stage":"Stage 5","msg":"Scenario engine selected: vehicle_collision_engine (sub-type: side_swipe, confidence: 90)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.802Z","level":"INFO","stage":"Stage 5","msg":"Assembly complete. Vehicle: TOYOTA HILUX (2010), Mass: 1900kg (inferred_model), Incident: sideswipe, Components: 42, Completeness: 100%, Assumptions: 1","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.803Z","level":"INFO","stage":"5_assembly","msg":"Engine completed in 3426ms","durationMs":3426}
+{"ts":"2026-08-14T12:51:41.803Z","level":"INFO","stage":"5_assembly","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":3424,"outcome":"complete"}
+{"ts":"2026-08-14T12:51:41.804Z","level":"INFO","stage":"Stage 5","msg":"[GUARD] claimant_stated_speed_kmh is NULL but estimated_speed_kmh=18 already set — prior run may have corrupted the original value. Setting needs_verification flag. M7 will skip CLAIMANT_STATED.","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.804Z","level":"INFO","stage":"Stage 0.5","msg":"Scenario evidence notes added: scenario=sideswipe, struckParty=false, hitAndRun=false, parkingLot=false","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.805Z","level":"INFO","stage":"Stage 2.5","msg":"Applied 1 domain correction(s): insuranceContext.policyNumber: 'EXCESS' → 'INVALID_EXTRACTION'","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.805Z","level":"INFO","stage":"Stage 2.5","msg":"Policy number flagged as label fragment — cleared for re-extraction","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.815Z","level":"INFO","stage":"Stage 2.6","msg":"Starting classification of 52 image(s)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 3 (quality 74)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 3 (quality 77)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 3 (quality 69)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 3 (quality 78)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 3 (quality 74)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 4 (quality 73)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 4 (quality 73)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: replacing page 4 image (quality 76) with better version (quality 77)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: replacing page 4 image (quality 77) with better version (quality 79)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 4 (quality 77)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 7 (quality 73)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 8 (quality 54)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.816Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 9 (quality 82)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.817Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 10 (quality 39)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.817Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 11 (quality 58)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.817Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 12 (quality 53)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.817Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 13 (quality 89)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.817Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity: removing duplicate from page 14 (quality 83)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.817Z","level":"INFO","stage":"Stage 2.6","msg":"Diversity filter: removed 18 near-duplicate(s), 34 remaining","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.817Z","level":"INFO","stage":"Stage 2.6","msg":"Tier 1 heuristic: 0 confident, 34 ambiguous","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:41.817Z","level":"INFO","stage":"Stage 2.6","msg":"Tier 2 LLM: classifying 15 ambiguous image(s)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:45.688Z","level":"INFO","stage":"Stage 2.6","msg":"Tier 2 LLM: classified 15/15 images successfully","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:45.689Z","level":"INFO","stage":"Stage 2.6","msg":"Classification complete in 3874ms: 2 damage, 0 overview, 6 quotation, 7 document, 19 fallback (18 duplicates removed, 15 LLM-classified, avg confidence: 0.65)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:45.689Z","level":"INFO","stage":"Stage 2.6","msg":"Selected 6 best images for vision analysis (from 52 total)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:45.689Z","level":"INFO","stage":"Stage 2.6","msg":"Primary pool: 2 damage photos above quality threshold","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:45.689Z","level":"INFO","stage":"Stage 2.6","msg":"Fallback pool: 19 images above quality threshold","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:45.689Z","level":"INFO","stage":"Stage 2.6","msg":"Selected 6/21 images: [0] damage_photo (score: 89.0), [1] damage_photo (score: 88.4), [2] fallback (score: 56.3), [3] fallback (score: 55.9), [4] fallback (score: 50.1), [5] fallback (score: 47.9)","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:45.696Z","level":"INFO","stage":"Stage 2.6B","msg":"SemanticClassifier: classifying 6 image(s) via LLM…","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:48.232Z","level":"INFO","stage":"Stage 2.6B","msg":"SemanticClassifier: DAMAGE_PHOTO:4, QUOTATION_SCAN:1, VIN:1","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:48.232Z","level":"INFO","stage":"Stage 2.6B","msg":"SemanticClassifier: 4 image(s) eligible for Stage 6, 2 excluded","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:48.232Z","level":"INFO","stage":"Stage 2.6B","msg":"Pipeline gate: 2 image(s) excluded from Stage 6 — types: QUOTATION_SCAN, VIN","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:48.232Z","level":"INFO","stage":"Stage 2.6B","msg":"  EXCLUDED: page-013.png → QUOTATION_SCAN (confidence: 100%) — The image is a clear scan of a vehicle repair quotation with itemized parts, labor costs, and totals.","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:48.232Z","level":"INFO","stage":"Stage 2.6B","msg":"  EXCLUDED: 8a2dhfgFPA.png → VIN (confidence: 100%) — Close-up photo of a vehicle manufacturer VIN and specifications plate.","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:48.232Z","level":"INFO","stage":"Stage 2.6B","msg":"Pipeline gate passed: 4/6 image(s) eligible for Stage 6","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:48.232Z","level":"INFO","stage":"Stage 2.7","msg":"Found 6 quotation scan image(s) — extracting quotes from each","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:48.233Z","level":"INFO","stage":"Stage 2.7","msg":"Extracting quote from image: https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-013.png","claimId":"12909902"}
+[QuoteExtractionEngine] Image extraction complete: 33 line items, total=8349, panel_beater=Stylin Auto, confidence=high
+{"ts":"2026-08-14T12:51:55.525Z","level":"INFO","stage":"Stage 2.7","msg":"Quote extracted: panel_beater=Stylin Auto, total=8349, line_items=33, confidence=high","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:55.525Z","level":"INFO","stage":"Stage 2.7","msg":"Extracting quote from image: https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-006.png","claimId":"12909902"}
+[QuoteExtractionEngine] Image extraction complete: 2 line items, total=5640, panel_beater=The Dent Doctor, confidence=high
+{"ts":"2026-08-14T12:51:57.938Z","level":"INFO","stage":"Stage 2.7","msg":"Quote extracted: panel_beater=The Dent Doctor, total=5640, line_items=2, confidence=high","claimId":"12909902"}
+{"ts":"2026-08-14T12:51:57.938Z","level":"INFO","stage":"Stage 2.7","msg":"Extracting quote from image: https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-005.png","claimId":"12909902"}
+[QuoteExtractionEngine] Image extraction complete: 27 line items, total=null, panel_beater=The Dent Doctor, confidence=low
+{"ts":"2026-08-14T12:52:06.026Z","level":"INFO","stage":"Stage 2.7","msg":"Quote extracted: panel_beater=The Dent Doctor, total=null, line_items=27, confidence=low","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:06.026Z","level":"INFO","stage":"Stage 2.7","msg":"Extracting quote from image: https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-014.png","claimId":"12909902"}
+[QuoteExtractionEngine] Image extraction complete: 20 line items, total=7230, panel_beater=C.A.M.E.L Body Shop Auto, confidence=high
+{"ts":"2026-08-14T12:52:13.768Z","level":"INFO","stage":"Stage 2.7","msg":"Quote extracted: panel_beater=C.A.M.E.L Body Shop Auto, total=7230, line_items=20, confidence=high","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:13.768Z","level":"INFO","stage":"Stage 2.7","msg":"Extracting quote from image: https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/claims/12909902/damage-pages/a717c6eb/page-011.png","claimId":"12909902"}
+[QuoteExtractionEngine] Image extraction complete: 27 line items, total=6480, panel_beater=The Dent Doctor, confidence=high
+{"ts":"2026-08-14T12:52:22.335Z","level":"INFO","stage":"Stage 2.7","msg":"Quote extracted: panel_beater=The Dent Doctor, total=6480, line_items=27, confidence=high","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.336Z","level":"INFO","stage":"Stage 2.7","msg":"Replaced existing quote for \"Stylin Auto\" with image-extracted version (priced: 33 vs 28, total: 8349 vs 8349)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.336Z","level":"INFO","stage":"Stage 2.7","msg":"Skipping image quote for \"The Dent Doctor\" — existing OCR quote preferred (priced: 29 vs 2, total: 5640 vs 5640)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.336Z","level":"INFO","stage":"Stage 2.7","msg":"Skipping image quote for \"The Dent Doctor\" — existing OCR quote preferred (priced: 29 vs 27, total: 5640 vs 0)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.336Z","level":"INFO","stage":"Stage 2.7","msg":"Replaced existing quote for \"C.A.M.E.L Body Shop Auto\" with image-extracted version (priced: 20 vs 7, total: 7230 vs 8349)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.336Z","level":"INFO","stage":"Stage 2.7","msg":"Skipping image quote for \"The Dent Doctor\" — existing OCR quote preferred (priced: 29 vs 27, total: 5640 vs 6480)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.336Z","level":"INFO","stage":"Stage 2.7","msg":"Embedded quote extraction complete: 2 quote(s) merged. Total quotes now: 4","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.337Z","level":"INFO","stage":"ComplexityGate","msg":"Tier: SIMPLE (score: 15/100). Skip 7b Pass 2: true. Reasons: Moderate claim value (6500 ZAR)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.338Z","level":"INFO","stage":"Stage 6","msg":"Damage analysis starting","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.338Z","level":"INFO","stage":"Stage 6","msg":"Structured: 42 components from claim record","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.338Z","level":"INFO","stage":"Stage 6","msg":"Semantic gate: excluding page-013.png (QUOTATION_SCAN, conf: 100%) — not eligible for Stage 6","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.338Z","level":"INFO","stage":"Stage 6","msg":"Semantic gate: excluding 8a2dhfgFPA.png (VIN, conf: 100%) — not eligible for Stage 6","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.339Z","level":"INFO","stage":"Stage 6","msg":"Vision: 4 photo(s) available for analysis","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:22.339Z","level":"INFO","stage":"Stage 6","msg":"Vision: starting analysis of 4 photo(s)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:24.870Z","level":"INFO","stage":"Stage 6","msg":"Image[3] primary: 4 components (confidence: high)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:25.416Z","level":"INFO","stage":"Stage 6","msg":"Image[1] primary: 4 components (confidence: high)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:25.728Z","level":"INFO","stage":"Stage 6","msg":"Image[0] primary: 6 components (confidence: high)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:25.744Z","level":"INFO","stage":"Stage 6","msg":"Image[2] primary: 6 components (confidence: high)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:25.744Z","level":"INFO","stage":"Stage 6","msg":"Vision: 4/4 processed succeeded (100%). Available: 4, Processed: 4, Deferred: 0, Failed: 0","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:25.745Z","level":"INFO","stage":"Stage 6","msg":"Vision complete: 7 unique components from 4/4 processed photos","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:25.745Z","level":"INFO","stage":"Stage 6","msg":"Merged: 42 structured + 7 vision = 49 total components","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:25.746Z","level":"INFO","stage":"Stage 6","msg":"Damage analysis complete. 49 parts, vision: 7 photo-detected, 4 zones, severity: 69/100, structural: true","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:25.747Z","level":"INFO","stage":"6_damage_analysis","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":3408,"outcome":"complete"}
+{"ts":"2026-08-14T12:52:27.416Z","level":"INFO","stage":"Stage 6.5A","msg":"VGE: no reference objects detected in any image — Stage 7 will use raw LLM estimate","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.416Z","level":"INFO","stage":"6_5a_vision_geo","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":1669,"isDegraded":true,"outcome":"complete"}
+{"ts":"2026-08-14T12:52:27.417Z","level":"INFO","stage":"Stage 6.5B","msg":"VGR skipped — no calibrated images from Stage 6.5A","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.417Z","level":"INFO","stage":"6_5b_vision_reconcile","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":0,"isDegraded":true,"outcome":"complete"}
+{"ts":"2026-08-14T12:52:27.428Z","level":"INFO","stage":"Stage 6.5C","msg":"SLPE: 0 components penetrated, integrity risk: none, frame: 0%, engine: 0%, confidence: 38%","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.429Z","level":"INFO","stage":"TruthResolver","msg":"Pre-physics: 1 conflict(s). Dominant: photo. [document] drivers side zone vs right_side photo -> photo_overridden","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.429Z","level":"INFO","stage":"Stage7Guard","msg":"Major gaps: accidentDetails.maxCrushDepthM","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.431Z","level":"INFO","stage":"Stage 7","msg":"Speed from claim form: 10 km/h — using as primary speed input","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.431Z","level":"INFO","stage":"Stage 7","msg":"Scenario routing: sideswipe | struckParty=false | hitAndRun=false | parkingLot=false","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.431Z","level":"INFO","stage":"Stage 7","msg":"Physics analysis starting","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.444Z","level":"INFO","stage":"Stage 7","msg":"Physics complete. Force: 10.2kN (sideswipe coeff 0.25), Speed: 10km/h, Energy: 5.4kJ, Severity: moderate","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.446Z","level":"INFO","stage":"Stage 7 (DamagePattern)","msg":"Pattern match: STRONG (confidence: 70/100). Structural: true. Image contradiction: false. Missing primary: quarter panel, airbag, radiator.","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.458Z","level":"INFO","stage":"Stage 7","msg":"Damage area: geometric panel calc (pickup) = 6.173 m² from 39 components","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.458Z","level":"INFO","stage":"Stage 7","msg":"[FIX-A] Zone-conditioned crush depth: collisionDirection='side_driver', 7 zone-matched component(s), max=0.150m","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.458Z","level":"INFO","stage":"Stage 7","msg":"[VGE] Falling back to raw LLM crush depth (VGE confidence: NONE) — raw value: 150 mm, used value: 150 mm","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.460Z","level":"INFO","stage":"Stage 7","msg":"Ensemble inputs: mass=1900kg, area=6.173m², airbag=false, seatbelt=false, visionDepth=0.15, deformEnergy=21400J, visionConf=90.7, claimedSpeed=null [immutable]","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.460Z","level":"INFO","stage":"Stage 7","msg":"Speed ensemble: consensus=23 km/h, methods=3, confidence=LOW [HIGH_DIVERGENCE]","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.460Z","level":"INFO","stage":"Stage 7","msg":"[ENSEMBLE_OVERRIDE] estimatedSpeedKmh: 10 km/h (legacy) → 23 km/h (ensemble consensus, LOW confidence)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.460Z","level":"INFO","stage":"Stage 7","msg":"[ENSEMBLE_RECOMPUTE] impactForceKn=53.857 kN, deltaVKmh=23.0 km/h, decelerationG=11.558 g, brakingDistanceM=2.97 m (μ=0.7)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.460Z","level":"INFO","stage":"Stage 7","msg":"Speed forensics: claimed=10 km/h, physics=23 km/h, deviation=57% [significant] ⚠️ REQUIRES_VERIFICATION","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.475Z","level":"INFO","stage":"Stage 7","msg":"Damage classification: ANOMALOUS (possible=20, impossible=0, unexplained=33)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:27.476Z","level":"INFO","stage":"Stage 7c (SeverityConsensus)","msg":"Final severity: severe (PARTIAL, confidence: 77%). Sources: physics=moderate, damage=severe, image=severe.","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:29.182Z","level":"INFO","stage":"Stage 7 (Unified)","msg":"Firing causal reasoning (7b) and narrative analysis (7e) in parallel","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:32.974Z","level":"INFO","stage":"Stage 7e (NarrativeReasoning)","msg":"Verdict: CONSISTENT, contaminated: false, stripped: 0 segment(s), fraud signals: 0, confidence: 85%.","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.764Z","level":"INFO","stage":"Stage 7b (CausalReasoning)","msg":"Causal verdict: cause=\"A lateral sideswipe collision occurred on the driver's side as the insured vehic\", plausibility=75% (high), direction=side_driver, physics=partially_consistent, images=consistent, fraudFlag=false, llmUsed=true","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.764Z","level":"INFO","stage":"7_unified","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":10335,"outcome":"complete"}
+{"ts":"2026-08-14T12:52:37.765Z","level":"INFO","stage":"Stage 7 (Unified)","msg":"Physics: severity=moderate, force=53.9 kN. Causal: cause=\"A lateral sideswipe collision occurred on the driver's side \", plausibility=75% (high), fraudFlag=false. Narrative: verdict=CONSISTENT, signals=0. Status: success.","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.765Z","level":"INFO","stage":"TruthResolver","msg":"Post-physics: 3 conflict(s). Dominant: physics. [document] drivers side zone vs right_side photo -> photo_overridden | [photo] severe severity vs moderate physics -> physics_overridden | [document] severe severity vs moderate physics -> physics_overridden","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.766Z","level":"INFO","stage":"CoherenceValidator","msg":"5 zone-direction mismatch(es). High-severity: 5. Confidence reduction: ×0.65. Fraud penalty: true. ConsistencyInput.highSeverityCount=5. FraudInput.highConflicts=5.","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.766Z","level":"INFO","stage":"Pipeline","msg":"Starting S8 (fraud) ‖ S9 (cost) in parallel...","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.767Z","level":"INFO","stage":"Stage 8","msg":"Fraud analysis starting","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.769Z","level":"INFO","stage":"Stage 8","msg":"Scenario fraud engine (3-tier): LOW (score: 0/100, flags: 0, FPP: 0)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.769Z","level":"INFO","stage":"Stage 8","msg":"Damage pattern: STRONG (confidence: 70/100, image_contradiction: false)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.774Z","level":"INFO","stage":"Stage 9","msg":"Cost optimisation starting","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.816Z","level":"INFO","stage":"Stage 9","msg":"Learning DB: excluded 1 outlier(s) for 'toyota hilux' (median=564000, bounds=[56400, 5640000])","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.816Z","level":"INFO","stage":"Stage 9","msg":"Learning DB benchmark: 9 historical claims for 'toyota hilux', clean_avg=428822 cents","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:37.817Z","level":"INFO","stage":"Stage 9","msg":"Canonical quote ledger: source=4, active=2, duplicate=0, superseded=0, excluded=2","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:38.105Z","level":"INFO","stage":"Stage 9","msg":"Quote optimisation: optimised_cost=USD 6979.94, confidence=68, spread=48%, selected=2/2","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:42.059Z","level":"INFO","stage":"Stage 8 (photo-forensics)","msg":"Vision crush depth: 6.0 cm (median across 2 photos)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:42.059Z","level":"INFO","stage":"Stage 8 (photo-forensics)","msg":"Analysed 2/2 photo(s). GPS present: false. Suspicious: false. Indicators injected: 2. Errors: 0.","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:42.066Z","level":"INFO","stage":"Stage 8 (quote-similarity)","msg":"4 quotes analysed. Verdict: not_detected (risk: 14/100). Unquoted damage components: 44. Extra quoted: 41.","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:42.066Z","level":"INFO","stage":"Stage 8 (date-crosscheck)","msg":"Submission date proxy: policeReportDate=2024-07-01 (system createdAt suppressed to avoid false late-submission flags)","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:42.067Z","level":"INFO","stage":"Stage 8 (date-crosscheck)","msg":"Verdict: consistent. Fraud score: +0. Pre-incident images: 0. Photos with EXIF: 0.","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:42.362Z","level":"INFO","stage":"Stage 8","msg":"Weighted fraud score: 15/100 (minimal). Category breakdown: physical_consistency=13.1/28, photo_forensics=1.5/5","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:42.364Z","level":"INFO","stage":"Stage 8/43","msg":"Cross-engine consistency: CONSISTENT (100/100), 7 agreements, 0 conflicts","claimId":"12909902"}
+{"ts":"2026-08-14T12:52:42.364Z","level":"INFO","stage":"Stage 8","msg":"Fraud analysis complete. Risk: minimal (15/100), Indicators: 5, Consistency: 53/100","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.732Z","level":"INFO","stage":"Stage 9","msg":"Cross-quote gap analysis: 2 quotes, 71 unique components, 0 copy flag(s)","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.732Z","level":"INFO","stage":"Stage 9","msg":"  [The Dent Doctor] coverage=31%, missing=19, est_gap_cost=USD 0.00","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.732Z","level":"INFO","stage":"Stage 9","msg":"  [Dynamic Africa Trading t/a Stylin Auto] coverage=27%, missing=30, est_gap_cost=USD 0.00","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.732Z","level":"INFO","stage":"Stage 9","msg":"LATENT DAMAGE WARNING: 26 damaged component(s) not quoted by any panel beater: Hub Carrier, Upper Control Arm, Stablizer Link, Right front mud flap, Starring nucle","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.761Z","level":"INFO","stage":"Stage 9","msg":"Quote-photo agreement: score=18%, visibleNotQuoted=40, quotedNotVisible=24, structuralGaps=6","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.761Z","level":"INFO","stage":"Stage 9","msg":"STRUCTURAL QUOTE GAP: Upper Control Arm, Lower Control Arm, Right Sill Panel, Upper control arm, Right Sill Panel, LH Sill — structural components visible in photos but absent from all quotes","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.761Z","level":"INFO","stage":"Stage 9","msg":"KINGA recommended quote: The Dent Doctor @ USD 5640.00 (coverage=94%, structurally_complete=true)","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.761Z","level":"INFO","stage":"Stage 9","msg":"WI-4 AGREED COST GATE: agreedCostCents=564000 cents (USD 5640.00) is present — using as authoritative cost.","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.761Z","level":"INFO","stage":"Stage 9","msg":"Document-sourced cost: submitted quote = 650000 cents (USD 6500.00). No AI estimate produced.","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.858Z","level":"INFO","stage":"Stage 9","msg":"Cost decision: basis=system_optimised, true_cost=USD 5640.00, recommendation=ESCALATE, confidence=0, anomalies=3","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.870Z","level":"INFO","stage":"Stage 9","msg":"Economic context: USD (NCI=0.1357, PPP=2.8, parts=RECONDITIONED, rate_source=hardcoded_default)","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.870Z","level":"INFO","stage":"Stage 9","msg":"IFE: completeness=77%, doeEligible=true, gaps=3","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.871Z","level":"INFO","stage":"Stage 9","msg":"DOE: status=OPTIMISED, selected=The Dent Doctor, confidence=high","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.872Z","level":"INFO","stage":"Stage 9","msg":"Quote[0] The Dent Doctor: 29 items, 29 priced, 0 unpriced, score=100, status=COMPLETE, sum_discrepancy=6.2%","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:12.872Z","level":"INFO","stage":"Stage 9","msg":"Quote[1] Dynamic Africa Trading t/a Stylin Auto: 27 items, 27 priced, 0 unpriced, score=75, status=COMPLETE, sum_discrepancy=-15.4%","claimId":"12909902"}
+[Database] Connection pool initialized
+{"ts":"2026-08-14T12:53:13.068Z","level":"INFO","stage":"Stage 9","msg":"Per-component benchmark query failed (non-fatal): ReferenceError: schema is not defined","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.068Z","level":"INFO","stage":"Stage 9","msg":"Cost optimisation complete. Expected: 6500.00 USD, Quoted: 6500.00, Deviation: N/A, Savings: 0.00","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.068Z","level":"INFO","stage":"Stage 9","msg":"Cost learning record not stored (policy): System-optimised cost basis with confidence 0/100 is below the minimum threshold of 60. Record not stored to prevent low-quality patterns from entering the learning corpus.","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.069Z","level":"INFO","stage":"8_fraud","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":4597,"outcome":"complete"}
+{"ts":"2026-08-14T12:53:13.069Z","level":"INFO","stage":"9_cost","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":35294,"outcome":"complete"}
+{"ts":"2026-08-14T12:53:13.069Z","level":"INFO","stage":"Pipeline","msg":"S8 fraud: minimal (score=15). S9 cost: deviation=N/A%.","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.069Z","level":"INFO","stage":"Signal-3","msg":"EXIF downgrade: visionSourceReliability HIGH→MEDIUM (2 photos, 0 with EXIF)","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.083Z","level":"INFO","stage":"Signal-5","msg":"Evidence independence: HIGH (T1=2, T2=1, T3=4)","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.091Z","level":"INFO","stage":"Signal-XV","msg":"Cross-validation: risk=HIGH, findings=5, flags=0, concerns=1","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.092Z","level":"INFO","stage":"Signal-XV","msg":"Injected 1 cross-validation indicator(s) into fraud scoring","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.092Z","level":"INFO","stage":"Signal-XV","msg":"Fraud score updated after XV injection: 15 → 20/100 (low)","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.093Z","level":"INFO","stage":"7d_confidence","msg":"overall=70 (MEDIUM), weakest=damage_pattern","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.096Z","level":"INFO","stage":"Pipeline","msg":"S9.5 CGI: verdict=MINOR_ANOMALY, flags=0, hiddenDamageProb=0%","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.096Z","level":"INFO","stage":"Pipeline","msg":"Starting Stage 7b re-run ‖ deterministic post-processing (36,37,38,40,41,42,9b) in parallel...","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.097Z","level":"INFO","stage":"Stage 36","msg":"Cost realism: validated=false, adjustments=false, confidence=×1.00. Cost realism validation skipped — zero cost breakdown.","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.098Z","level":"INFO","stage":"Stage 37","msg":"Causal chain built: 12 steps, outcome=escalate, escalation=true, critical=5","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.099Z","level":"INFO","stage":"Stage 38","msg":"Evidence bundle computed: composite=HIGH(0.77), damage=HIGH, physics=MEDIUM, fraud=HIGH, cost=MEDIUM","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.099Z","level":"INFO","stage":"Stage 40","msg":"Realism bundle: overall=false, confidence_multiplier=0.506, physics=true, cost=false, fraud=false","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.101Z","level":"INFO","stage":"Stage 41","msg":"Benchmark bundle: source=static, cost_flag=true(-74.9%), physics_flag=true(-48.9%), fraud_flag=true(8990.9%), overall=true","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.102Z","level":"INFO","stage":"Stage 42","msg":"Consensus: score=100, label=STRONG, conflict=false, conflicts=2","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.103Z","level":"INFO","stage":"Stage 43","msg":"Physics deviation score: N/A (non-quantitative mode)","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.103Z","level":"INFO","stage":"Stage 44","msg":"Consistency check: conflicts=0, proceed=true","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.103Z","level":"INFO","stage":"Stage 45","msg":"Contradiction gate: action=ALLOW, valid=true, contradictions=0","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.104Z","level":"INFO","stage":"Stage 9b","msg":"Turnaround time analysis starting","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.104Z","level":"INFO","stage":"Stage 9b","msg":"Turnaround estimate: 44 days (best: 31, worst: 66), confidence: 70%, bottlenecks: 3","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.106Z","level":"INFO","stage":"9b_turnaround","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":0,"outcome":"complete"}
+{"ts":"2026-08-14T12:53:13.106Z","level":"INFO","stage":"Pipeline","msg":"Post-S8/S9 parallel block complete. causalVerdict updated=false, stage9b=success","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.106Z","level":"INFO","stage":"Reconciliation","msg":"Congruency: 100% — 0 override(s), 5 agreement(s) across 5 fields.","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.110Z","level":"INFO","stage":"SchemaValidation","msg":"Compliance: 80% — 0 blocking, 2 warning(s). All required fields present.","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.112Z","level":"INFO","stage":"CTL","msg":"Claim Truth Layer resolved: quotes=4, optimisedCost=$5640.00, photos=2, decision=APPROVE, conflicts=1","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.112Z","level":"INFO","stage":"CTL","msg":"  CONFLICT [timeline.lateSubmission]: chose \"Not late (3 days based on assessor inspection date)\" over \"Would have been flagged as 771 days late using system ingestion date\" — System ingestion date is when KINGA processed the file, not when the claim was lodged","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.115Z","level":"INFO","stage":"TRE","msg":"Truth Reconciliation Engine complete: recommendation=ESCALATE, confidence=90, conflicts=1","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:13.115Z","level":"INFO","stage":"IntegrityGate","msg":"PROCEED WITH WARNINGS — Schema [policyNumber]: Policy number not extracted — report section will show estimated or N/A value | Schema [policeReportNumber]: Police report number not extracted — report section will show estimated or N/A value","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.359Z","level":"INFO","stage":"Pipeline","msg":"S10-I Interpretation: classification=CRITICAL, llmEnriched=false, sections=5","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.360Z","level":"INFO","stage":"Stage 10","msg":"Report generation starting","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.361Z","level":"INFO","stage":"Stage 10","msg":"Decision Readiness Gate: PROCEED — confidence 85%","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.361Z","level":"INFO","stage":"Stage 10","msg":"ℹ️ QUALITY GATE QG-3: No learning DB data available for cost benchmarks. All benchmarks are estimates.","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.366Z","level":"INFO","stage":"Stage 10","msg":"Claim quality score: 74/100 (Grade B), manual review: true","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.366Z","level":"INFO","stage":"Stage 10 [PrePublicationValidator]","msg":"Validation WARNED: 0 CRITICAL, 1 HIGH blockers. [CHECK-05] Claim was submitted 771 days after the incident (based on system createdAt) but the accidentDateCrossCheck did not flag a critical late submission. This is expected when no police report date is available — the system intentionally suppresses the late-submission check rather than using the system ingestion timestamp as a proxy.","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.366Z","level":"INFO","stage":"Stage 10","msg":"Report generation complete. 13 sections, confidence: 53%, assumptions: 7, missing docs: 0","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.367Z","level":"INFO","stage":"10_report","msg":"Stage COMPLETE","claimId":"12909902","runId":"12909902-1786711823635-yqsc81","durationMs":6,"outcome":"complete"}
+{"ts":"2026-08-14T12:53:24.367Z","level":"INFO","stage":"Stage11","msg":"Learning gate: store=false, tier=LOW","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.368Z","level":"INFO","stage":"Stage11.5","msg":"Case signature: unknown_unknown_unknown_severe_49c_high","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.368Z","level":"INFO","stage":"Pipeline","msg":"Pipeline complete. Total: 180713ms, Assumptions: 7, Recoveries: 3","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.368Z","level":"INFO","stage":"WI-5","msg":"Pre-generation consistency check FAILED: 2 contradiction(s) detected.","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.368Z","level":"INFO","stage":"WI-5","msg":"  [R1] Report recommends ESCALATE but fraud score is 20/100 (Low Risk < 40). An escalation decision requires a fraud score ≥ 40","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.368Z","level":"INFO","stage":"WI-5","msg":"  [R4] A submitted quotation document is present, but the cost basis is \"system_optimised\" (AI estimate). The QUOTATION-FIRST r","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.368Z","level":"INFO","stage":"WI-5","msg":"Overriding recommendation: ESCALATE → REVIEW_REQUIRED","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:24.369Z","level":"INFO","stage":"VALUATION","msg":"Using claim form mileage: 240,000 km","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.281Z","level":"INFO","stage":"VALUATION","msg":"Auto-valuation complete: USD 16500.00","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.282Z","level":"INFO","stage":"Stage12","msg":"Decision Authority: APPROVE (confidence: 100, basis: system_validated)","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.283Z","level":"INFO","stage":"Stage12.5","msg":"Report Readiness: HOLD (export_allowed: false, reason: Contradiction gate blocked — decision contains logical inconsistencies.)","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.283Z","level":"INFO","stage":"Stage13","msg":"Domain penalties applied: MISSING_POLICY_NUMBER","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.284Z","level":"INFO","stage":"Stage13","msg":"FCDI: 63% (MEDIUM) — 7 assumptions were introduced to fill missing data; MISSING POLICY NUMBER: Policy number could not b","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.284Z","level":"INFO","stage":"Stage13","msg":"FEL built: 13 stage records, replayable=true","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.285Z","level":"INFO","stage":"Stage13","msg":"FEL version snapshot: platform=3.0.0, stages=13, replaySupported=true","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.285Z","level":"INFO","stage":"Stage13","msg":"IFE result: present, DOE result: present","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.285Z","level":"INFO","stage":"Stage13","msg":"Forensic analysis built: 41 sections","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.286Z","level":"INFO","stage":"PTL","msg":"Physics Truth Layer built: crushDepth=N/Am, speed=23.0km/h, DQS=25","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.288Z","level":"INFO","stage":"PTL","msg":"Wave 3 engines complete: integrity=90/100, uncertaintyGrade=D, findings=5","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.325Z","level":"INFO","stage":"PTL","msg":"Wave 4A: Validation prediction persisted for claim 12909902","claimId":"12909902"}
+{"ts":"2026-08-14T12:53:27.325Z","level":"INFO","stage":"PTL","msg":"Wave 4B: 0 evidence plugins ran, 0 active","claimId":"12909902"}
+[KINGA Assessment] Claim 12909902: Pipeline result summary — claimRecord=YES, damageAnalysis=YES, physicsAnalysis=YES, fraudAnalysis=YES, costAnalysis=YES, decisionAuthority=APPROVE, reportReadiness=HOLD, forensicAnalysis=YES, stage2RawOcrText=43183 chars, totalDuration=183670ms
+[KINGA Assessment] Claim 12909902: Forensic audit validation complete — status=WARNING, consistencyScore=74, criticalFailures=0
+[KINGA Assessment] Claim 12909902: Deleting previous assessment and inserting new one...
+[KINGA Assessment] Claim 12909902: Persisting 2 quote(s) with line items
+[persistExtractedQuote] Claim 12909902: Created panel beater "Dynamic Africa Trading t/a Stylin Auto" (id=1470001)
+[persistExtractedQuote] Claim 12909902: Updated existing quote id=10620001 (pipeline_extracted)
+[persistExtractedQuote] Claim 12909902: Inserted new quote id=10830001 (pipeline_extracted)
+[persistExtractedQuote] Claim 12909902: Inserted 29 line items for quote id=10620001
+[KINGA Assessment] Claim 12909902: Quote[0] "The Dent Doctor" → panel_beater_quotes id=10620001 (29 line items)
+[persistExtractedQuote] Claim 12909902: Inserted 27 line items for quote id=10830001
+[KINGA Assessment] Claim 12909902: Quote[1] "Dynamic Africa Trading t/a Stylin Auto" → panel_beater_quotes id=10830001 (27 line items)
+[KINGA Assessment] Claim 12909902: OK Quote[0] "The Dent Doctor" persisted id=10620001, 29/29 priced items, total=5990.00 ZWL
+[KINGA Assessment] Claim 12909902: OK Quote[1] "Dynamic Africa Trading t/a Stylin Auto" persisted id=10830001, 27/27 priced items, total=7065.00 USD
+[KINGA Assessment] Claim 12909902: Deleted stale pipeline-extracted quotes (kept new ids: 10620001,10830001)
+[KINGA Assessment] Claim 12909902: Patched costIntelligenceJson documented_quote (2 quotes)
+[KINGA Assessment] Claim 12909902: claimUpdate keys = aiAssessmentCompleted, status, documentProcessingStatus, workflowState, fraudRiskScore, fraudFlags, estimatedCost, aiAssessmentCompletedAt, updatedAt, pipelineCurrentStage, pipelineRunUuid, pipelineHeartbeatAt, vehicleMake, vehicleModel, vehicleYear, vehicleRegistration, vehicleVin, vehicleColor, incidentDescription, claimantName, claimReference, insurerName, productType, productTypeSource, dataCompletenessScore, estimatedSpeedKmh, claimantSpeedNeedsVerification, incidentDate, incidentType
+[KINGA Assessment] Claim 12909902: DB insert + claim update complete. Pipeline v2 finished. Duration: 183670ms. Stages: {"1_ingestion":{"status":"success","durationMs":36049,"savedToDb":false,"degraded":false,"assumptionCount":0,"recoveryActionCount":0},"2_extraction":{"status":"success","durationMs":10886,"savedToDb":false,"degraded":false,"assumptionCount":0,"recoveryActionCount":0},"3_structured_extraction":{"status":"success","durationMs":26494,"savedToDb":false,"degraded":false,"assumptionCount":0,"recoveryActionCount":1},"4_validation":{"status":"success","durationMs":4,"savedToDb":false,"degraded":false,"assumptionCount":1,"recoveryActionCount":1},"5_assembly":{"status":"success","durationMs":3424,"savedToDb":false,"degraded":false,"assumptionCount":1,"recoveryActionCount":0},"6_damage_analysis":{"status":"success","durationMs":3408,"savedToDb":false,"degraded":false,"assumptionCount":1,"recoveryActionCount":1},"6_5a_vision_geo":{"status":"success","durationMs":1669,"savedToDb":false,"degraded":true,"assumptionCount":0,"recoveryActionCount":0},"6_5b_vision_reconcile":{"status":"success","durationMs":0,"savedToDb":false,"degraded":true,"assumptionCount":0,"recoveryActionCount":0},"7_unified":{"status":"success","durationMs":10335,"savedToDb":false,"degraded":false,"assumptionCount":0,"recoveryActionCount":0},"8_fraud":{"status":"success","durationMs":4597,"savedToDb":false,"degraded":false,"assumptionCount":0,"recoveryActionCount":0},"9_cost":{"status":"success","durationMs":35294,"savedToDb":false,"degraded":false,"assumptionCount":1,"recoveryActionCount":0},"9b_turnaround":{"status":"success","durationMs":0,"savedToDb":false,"degraded":false,"assumptionCount":1,"recoveryActionCount":0},"10_report":{"status":"success","durationMs":6,"savedToDb":false,"degraded":false,"assumptionCount":0,"recoveryActionCount":0}}
+[PipelineSemaphore] Claim 12909902 released pipeline slot (active: 0, queued: 0)
+[VehicleRegistry] Created new record id=390001 for AHTFZ299909046159
+{
+  "claimId": 12909902,
+  "tenantId": "tenant-1771335377063",
+  "reason": "User-authorised validation of benchmark-validated L2 and generated CL/CI/FR reports",
+  "startedAt": "2026-08-14T12:50:14.074Z",
+  "completedAt": "2026-08-14T12:53:30.689Z",
+  "preState": {
+    "label": "pre-trigger",
+    "state": {
+      "id": 12909902,
+      "claim_number": "DOC-20260810-84080652",
+      "kinga_ref": "KNG-TENANT17-2026-000099",
+      "tenant_id": "tenant-1771335377063",
+      "status": "analysis_complete",
+      "workflow_state": "ai_assessment_completed",
+      "ai_assessment_triggered": 1,
+      "ai_assessment_completed": 1,
+      "document_processing_status": "ANALYSIS_COMPLETE",
+      "ai_assessment_started_at": null,
+      "ai_assessment_completed_at": "2026-08-10T12:50:52.000Z",
+      "assessment_id": 19860001,
+      "version_number": 1,
+      "is_reanalysis": 0,
+      "has_cost_intelligence": 1
+    }
+  },
+  "postState": {
+    "label": "post-trigger",
+    "state": {
+      "id": 12909902,
+      "claim_number": "DOC-20260810-84080652",
+      "kinga_ref": "KNG-TENANT17-2026-000099",
+      "tenant_id": "tenant-1771335377063",
+      "status": "analysis_complete",
+      "workflow_state": "ai_assessment_completed",
+      "ai_assessment_triggered": 1,
+      "ai_assessment_completed": 1,
+      "document_processing_status": "ANALYSIS_COMPLETE",
+      "ai_assessment_started_at": null,
+      "ai_assessment_completed_at": "2026-08-14T12:53:30.000Z",
+      "assessment_id": 20370001,
+      "version_number": 1,
+      "is_reanalysis": 0,
+      "has_cost_intelligence": 1
+    }
+  }
+}

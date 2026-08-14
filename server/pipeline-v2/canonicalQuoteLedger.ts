@@ -12,7 +12,13 @@ export type QuoteLedgerStatus =
   | "duplicate"
   | "superseded"
   | "supplementary"
+  | "historical"
   | "excluded";
+
+export type QuoteEvidenceEligibility =
+  | "final_l2_eligible"
+  | "comparison_only"
+  | "ineligible";
 
 export interface QuoteLedgerSource {
   panel_beater?: string | null;
@@ -26,6 +32,12 @@ export interface QuoteLedgerSource {
   parentQuoteId?: number | string | null;
   quote_type?: string | null;
   quoteType?: string | null;
+  workflow_status?: string | null;
+  workflowStatus?: string | null;
+  evidence_eligibility?: QuoteEvidenceEligibility | string | null;
+  evidenceEligibility?: QuoteEvidenceEligibility | string | null;
+  evidence_eligibility_reason?: string | null;
+  evidenceEligibilityReason?: string | null;
   document_category?: string | null;
   total_cost?: number | null;
   currency?: string | null;
@@ -50,6 +62,9 @@ export interface CanonicalQuoteLedgerEntry {
   totalCostUsd: number | null;
   quoteType: string;
   parentQuoteId: string | null;
+  workflowStatus: string;
+  evidenceEligibility: QuoteEvidenceEligibility;
+  evidenceEligibilityReason: string;
   scopeFingerprint: string;
   status: QuoteLedgerStatus;
   duplicateOfLedgerId: string | null;
@@ -65,10 +80,26 @@ export interface CanonicalQuoteLedger {
   excludedCount: number;
 }
 
+/**
+ * The only repair quotation evidence that may enter Stage 9 L1/L2 selection.
+ * `activeQuotes` already excludes historical, ineligible, duplicate, and
+ * superseded entries. Parts-supplier quotations remain comparative reference
+ * evidence and are selected separately by Stage 9.
+ */
+export function selectFinalL2RepairQuoteEvidence(ledger: CanonicalQuoteLedger): QuoteLedgerSource[] {
+  return ledger.activeQuotes.filter((quote) =>
+    quote.document_category
+      ? quote.document_category === "repair_quote"
+      : (quote.quote_type ?? "repair") !== "parts_supplier"
+  );
+}
+
 const REPAIR_DOCUMENT_CATEGORY = "repair quote";
 const NON_REPAIR_CATEGORIES = new Set(["parts quote", "assessor report", "agreed cost", "other"]);
 const NON_REPAIR_QUOTE_TYPES = new Set(["parts supplier", "assessor report", "agreed cost"]);
 const REVISION_TYPES = new Set(["revised", "assessor_adjusted", "strip_requote"]);
+const WITHDRAWN_WORKFLOW_STATUSES = new Set(["cancelled", "canceled", "withdrawn", "void"]);
+const REJECTED_WORKFLOW_STATUSES = new Set(["rejected", "declined"]);
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -150,6 +181,49 @@ function quoteTypeOf(quote: QuoteLedgerSource): string {
   return canonicalText(text(quote.quote_type) || text(quote.quoteType)) || "original";
 }
 
+function workflowStatusOf(quote: QuoteLedgerSource): string {
+  return canonicalText(text(quote.workflow_status) || text(quote.workflowStatus)) || "submitted";
+}
+
+function explicitEligibilityOf(quote: QuoteLedgerSource): QuoteEvidenceEligibility | null {
+  const value = canonicalText(text(quote.evidence_eligibility) || text(quote.evidenceEligibility));
+  if (value === "final l2 eligible" || value === "final_l2_eligible") return "final_l2_eligible";
+  if (value === "comparison only" || value === "comparison_only") return "comparison_only";
+  if (value === "ineligible") return "ineligible";
+  return null;
+}
+
+/**
+ * Workflow state records commercial lifecycle; evidence eligibility controls the
+ * payable L2 selection boundary. A rejected or withdrawn price is preserved as
+ * traceable history unless a specific integrity/scope decision marks it
+ * ineligible. Only an active, explicitly eligible repair submission can be
+ * selected into L1/L2.
+ */
+function resolveEvidenceEligibility(quote: QuoteLedgerSource, repairQuote: boolean, workflowStatus: string): {
+  eligibility: QuoteEvidenceEligibility;
+  reason: string;
+} {
+  const explicitEligibility = explicitEligibilityOf(quote);
+  const explicitReason = text(quote.evidence_eligibility_reason) || text(quote.evidenceEligibilityReason);
+  if (!repairQuote) {
+    return { eligibility: "ineligible", reason: "Non-repair evidence cannot enter the repair-quote selection ledger." };
+  }
+  if (WITHDRAWN_WORKFLOW_STATUSES.has(workflowStatus)) {
+    return { eligibility: "comparison_only", reason: explicitReason || "Withdrawn or cancelled quotation retained as historical price evidence only." };
+  }
+  if (explicitEligibility === "ineligible") {
+    return { eligibility: "ineligible", reason: explicitReason || "Explicit integrity or scope decision excludes this quotation from comparison." };
+  }
+  if (explicitEligibility === "comparison_only") {
+    return { eligibility: "comparison_only", reason: explicitReason || "Explicit decision retains this quotation for comparison context only." };
+  }
+  if (REJECTED_WORKFLOW_STATUSES.has(workflowStatus)) {
+    return { eligibility: "comparison_only", reason: explicitReason || "Commercial or process rejection retains traceable price history but not an active payable offer." };
+  }
+  return { eligibility: "final_l2_eligible", reason: explicitReason || "Active submitted repair quotation is eligible for final L2 selection." };
+}
+
 /**
  * Produces a claim-scoped repair ledger. Exact same-repairer/same-currency/
  * same-total/same-scope submissions are duplicates. Revisions supersede their
@@ -159,16 +233,24 @@ export function buildCanonicalQuoteLedger(quotes: QuoteLedgerSource[]): Canonica
   const entries: CanonicalQuoteLedgerEntry[] = quotes.map((quote, sourceIndex) => {
     const quoteType = quoteTypeOf(quote);
     const repairQuote = isRepairQuote(quote);
-    const status: QuoteLedgerStatus = !repairQuote
+    const workflowStatus = workflowStatusOf(quote);
+    const { eligibility, reason: eligibilityReason } = resolveEvidenceEligibility(quote, repairQuote, workflowStatus);
+    const status: QuoteLedgerStatus = !repairQuote || eligibility === "ineligible"
       ? "excluded"
+      : eligibility === "comparison_only"
+        ? "historical"
       : quoteType === "supplementary"
         ? "supplementary"
         : "active";
     const reason = !repairQuote
       ? "Non-repair document excluded from repair-quote ledger."
+      : eligibility === "ineligible"
+        ? eligibilityReason
+      : eligibility === "comparison_only"
+        ? eligibilityReason
       : quoteType === "supplementary"
         ? "Supplementary quote retained as a distinct additional-scope submission."
-        : "Active repair quotation.";
+        : eligibilityReason;
     return {
       ledgerId: `quote-${sourceIndex + 1}`,
       sourceIndex,
@@ -182,6 +264,9 @@ export function buildCanonicalQuoteLedger(quotes: QuoteLedgerSource[]): Canonica
         : null,
       quoteType,
       parentQuoteId: parentQuoteIdOf(quote),
+      workflowStatus,
+      evidenceEligibility: eligibility,
+      evidenceEligibilityReason: eligibilityReason,
       scopeFingerprint: buildScopeFingerprint(quote),
       status,
       duplicateOfLedgerId: null,
@@ -225,6 +310,9 @@ export function buildCanonicalQuoteLedger(quotes: QuoteLedgerSource[]): Canonica
       ...quotes[entry.sourceIndex],
       canonical_quote_ledger_id: entry.ledgerId,
       canonical_quote_status: entry.status,
+      canonical_quote_workflow_status: entry.workflowStatus,
+      canonical_quote_evidence_eligibility: entry.evidenceEligibility,
+      canonical_quote_evidence_eligibility_reason: entry.evidenceEligibilityReason,
       canonical_repairer_key: entry.repairerKey,
       canonical_scope_fingerprint: entry.scopeFingerprint,
     })),

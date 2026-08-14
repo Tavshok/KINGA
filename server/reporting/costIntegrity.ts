@@ -2,7 +2,7 @@
 
 import { classifyLegacyQuoteEvidenceRows } from "../../shared/legacyQuoteEvidence";
 
-export type ReportQuoteStatus = "active" | "supplementary" | "duplicate" | "superseded" | "excluded" | "legacy_unverified";
+export type ReportQuoteStatus = "active" | "supplementary" | "duplicate" | "superseded" | "historical" | "excluded" | "legacy_unverified";
 
 export interface ReportQuoteLedgerRow {
   repairer: string;
@@ -11,11 +11,26 @@ export interface ReportQuoteLedgerRow {
   status: ReportQuoteStatus;
   sourceReference: string | null;
   statusReason: string;
+  workflowStatus: string | null;
+  evidenceEligibility: "final_l2_eligible" | "comparison_only" | "ineligible" | null;
+  evidenceEligibilityReason: string | null;
+}
+
+export interface ReportL2ComponentSelection {
+  componentName: string;
+  selectedCostUsd: number | null;
+  selectionMethod: string | null;
+  benchmarkP50Usd: number | null;
+  benchmarkDeviationPct: number | null;
+  lineItemSpreadPct: number | null;
+  highLineItemVariance: boolean;
+  lineItemVarianceRemark: string | null;
 }
 
 export interface ReportCostIntegrity {
   activeQuotes: ReportQuoteLedgerRow[];
   submittedQuotes: ReportQuoteLedgerRow[];
+  historicalQuotes: ReportQuoteLedgerRow[];
   legacyHistoryQualified: boolean;
   sourceQuoteCount: number;
   quoteReceiptStatus: "no_quotes" | "quotes_received";
@@ -35,6 +50,8 @@ export interface ReportCostIntegrity {
   assessorCalibrationCostUsd: number | null;
   allInReconciliationRequired: boolean;
   unreconciledQuoteCount: number;
+	/** Evidence-only explanation of the benchmark-validated L2 component selections. */
+  l2ComponentSelections?: ReportL2ComponentSelection[];
 	quoteReconciliations: Array<{
 		repairer: string;
 		quoteId: string | null;
@@ -64,6 +81,9 @@ function legacyQuoteRows(dbQuotes: unknown[]): ReportQuoteLedgerRow[] {
       status: quote.status,
       sourceReference: quote.quoteId,
       statusReason: quote.statusReason,
+      workflowStatus: null,
+      evidenceEligibility: quote.status === "legacy_unverified" ? "comparison_only" : quote.status === "excluded" ? "ineligible" : null,
+      evidenceEligibilityReason: quote.statusReason,
     };
   });
 }
@@ -85,6 +105,11 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
     status: String(entry.status ?? "excluded") as ReportQuoteStatus,
     sourceReference: entry.quoteId === null || entry.quoteId === undefined ? null : String(entry.quoteId),
     statusReason: String(entry.statusReason ?? ""),
+    workflowStatus: entry.workflowStatus === null || entry.workflowStatus === undefined ? null : String(entry.workflowStatus),
+    evidenceEligibility: entry.evidenceEligibility === "final_l2_eligible" || entry.evidenceEligibility === "comparison_only" || entry.evidenceEligibility === "ineligible"
+      ? entry.evidenceEligibility
+      : null,
+    evidenceEligibilityReason: entry.evidenceEligibilityReason === null || entry.evidenceEligibilityReason === undefined ? null : String(entry.evidenceEligibilityReason),
   }));
   const legacyRows = ledgerRows.length > 0 ? [] : legacyQuoteRows(dbQuotes);
   const activeQuotes = ledgerRows.length > 0
@@ -93,6 +118,9 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
   const submittedQuotes = ledgerRows.length > 0
     ? activeQuotes
     : legacyRows.filter((quote) => quote.status === "legacy_unverified");
+  const historicalQuotes = ledgerRows.length > 0
+    ? ledgerRows.filter((quote) => quote.status === "historical" || quote.status === "superseded" || quote.status === "excluded" || quote.status === "duplicate")
+    : legacyRows.filter((quote) => quote.status !== "legacy_unverified");
   const lowestActiveQuoteUsd = activeQuotes
     .map((quote) => quote.amountUsd)
     .filter((amount): amount is number => amount !== null)
@@ -137,10 +165,23 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
   const allInReconciliationRequired = composite.allInReconciliationRequired === true
     || l2Status === "reconciliation_required"
     || quoteScopeStatus === "reconciliation_required";
+	const l2ComponentSelections = Array.isArray(composite.compositeLineItems)
+	  ? composite.compositeLineItems.map(record).map((item): ReportL2ComponentSelection => ({
+	      componentName: String(item.componentName ?? item.component ?? "Component"),
+	      selectedCostUsd: finitePositive(item.selectedCostUsd ?? item.kingaOptimisedUsd),
+	      selectionMethod: typeof item.l2SelectionMethod === "string" ? item.l2SelectionMethod : null,
+	      benchmarkP50Usd: finitePositive(item.p50Usd ?? item.benchmarkP50Usd),
+	      benchmarkDeviationPct: Number.isFinite(Number(item.benchmarkDeviationPct)) ? Number(item.benchmarkDeviationPct) : null,
+	      lineItemSpreadPct: Number.isFinite(Number(item.lineItemSpreadPct)) ? Number(item.lineItemSpreadPct) : null,
+	      highLineItemVariance: item.highLineItemVariance === true,
+	      lineItemVarianceRemark: typeof item.lineItemVarianceRemark === "string" ? item.lineItemVarianceRemark : null,
+	    }))
+	  : [];
   return {
     activeQuotes,
     submittedQuotes,
-    legacyHistoryQualified: ledgerRows.length === 0 && submittedQuotes.length > 0,
+    historicalQuotes,
+    legacyHistoryQualified: historicalQuotes.length > 0 || (ledgerRows.length === 0 && submittedQuotes.length > 0),
     sourceQuoteCount,
     quoteReceiptStatus,
     quoteScopeStatus,
@@ -170,6 +211,7 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
     assessorCalibrationCostUsd: finitePositive(intelligence.documentedAgreedCostUsd),
     allInReconciliationRequired,
     unreconciledQuoteCount,
+		l2ComponentSelections,
     quoteReconciliations,
   };
 }

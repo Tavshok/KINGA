@@ -1236,6 +1236,8 @@ export interface CompositeLineItem {
   selectedCostUsd: number;
   /** Repairer supplying the selected submitted price, or 'data_gap'. */
   selectedFromQuote: string;
+  /** Submitted repairer that supplied the Qmin evidence used for benchmark validation. */
+  selectedSubmittedFromQuote?: string | null;
   /** Durable submitted quote source for the selected amount, when available. */
   selectedQuoteId?: string | null;
   /** Submitted line-item sources contributing to the selected amount, when available. */
@@ -1251,6 +1253,20 @@ export interface CompositeLineItem {
   p25Usd: number | null;
   p50Usd: number | null;
   p75Usd: number | null;
+  /** Lowest eligible submitted component price before the benchmark-validation rule. */
+  lowestEligibleSubmittedCostUsd?: number | null;
+  /** |Qmin - P50| / P50 × 100, when a P50 benchmark exists. */
+  benchmarkDeviationPct?: number | null;
+  /** Whether Qmin is within the approved 30% benchmark-relative tolerance. */
+  benchmarkWithinTolerance?: boolean | null;
+  /** Explicit formula path used to determine the displayed L2 component value. */
+  l2SelectionMethod?: 'SUBMITTED_NO_BENCHMARK' | 'BENCHMARK_WITHIN_30_PCT' | 'LOWER_OF_BENCHMARK_AND_SUBMITTED_OUTSIDE_30_PCT';
+  /** Like-for-like submitted-price spread: (max - min) / min × 100. */
+  lineItemSpreadPct?: number | null;
+  /** True when the like-for-like submitted-price spread exceeds 20%. */
+  highLineItemVariance?: boolean;
+  /** Verification remark retained when the 20% spread control is exceeded. */
+  lineItemVarianceRemark?: string | null;
   allQuotedPrices: Array<{
     quote: string;
     quoteId?: string | null;

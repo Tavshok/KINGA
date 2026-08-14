@@ -18,7 +18,7 @@ import { assessCost } from "./mlBenchmarkEngine";
 import { resolveComponent } from "../../shared/vehicleParts";
 import { sql as drizzleSql } from "drizzle-orm";
 import { optimiseRepairCost, type InputQuote, buildCompositeQuote, classifyComponents, computeProbableHiddenDamage, type InputQuoteWithLineItems, type BenchmarkMap } from "./quoteOptimisationEngine";
-import { buildCanonicalQuoteLedger } from "./canonicalQuoteLedger";
+import { buildCanonicalQuoteLedger, selectFinalL2RepairQuoteEvidence } from "./canonicalQuoteLedger";
 import { runCostDecision } from "./costDecisionEngine";
 import { runCrossQuoteGapAnalysis, type CrossQuoteGapAnalysisResult } from "./crossQuoteGapAnalysis";
 import { runQuotePhotoAgreement, type QuotePhotoAgreementResult } from "./quotePhotoAgreementEngine";
@@ -416,6 +416,7 @@ export async function runCostOptimisationStage(
                 quote_id: row.quoteId,
                 quote_type: row.quoteType ?? "original",
                 parent_quote_id: row.parentQuoteId ?? null,
+                workflow_status: row.status ?? "submitted",
                 document_category: "repair_quote",
                 total_cost: row.quotedAmount / 100,
                 currency: row.currencyCode ?? currency,
@@ -441,11 +442,7 @@ export async function runCostOptimisationStage(
     // active ledger. Source submissions remain in the ledger for audit, but a
     // duplicate or superseded quote cannot inflate count, L1, L2, variance, or savings.
     const canonicalQuoteLedger = buildCanonicalQuoteLedger(resolvedExtractedQuotes);
-    const activeRepairQuotes = canonicalQuoteLedger.activeQuotes.filter((quote: any) =>
-      quote.document_category
-        ? quote.document_category === "repair_quote"
-        : (quote.quote_type ?? "repair") !== "parts_supplier"
-    );
+    const activeRepairQuotes = selectFinalL2RepairQuoteEvidence(canonicalQuoteLedger);
     const partsSupplierReferenceQuotes = resolvedExtractedQuotes.filter((quote: any) =>
       (quote.document_category === "parts_quote") || (quote.quote_type === "parts_supplier")
     );
@@ -1794,13 +1791,13 @@ export async function runCostOptimisationStage(
             }
           }
 
-          // Build InputQuoteWithLineItems[] from all extracted quotes.
+          // Build InputQuoteWithLineItems[] from canonical eligible active repair evidence.
           // Exclude parts_supplier quotes (e.g. Sarjazz) from the composite matrix —
           // they are parts-only dealers, not panel beaters, and should not appear as
           // repairer columns.
           // R-A-22: Also exclude assessor_report and other non-repair documents when
           // document_category is available. Fall back to quote_type for legacy data.
-          const repairQuotes = allQuotes.filter((q: any) => {
+          const repairQuotes = activeRepairQuotes.filter((q: any) => {
             if (q.document_category) return q.document_category === 'repair_quote';
             return q.quote_type !== 'parts_supplier';
           });
@@ -1855,7 +1852,7 @@ export async function runCostOptimisationStage(
           // for legacy data without document_category. This prevents assessor fee invoices and
           // parts-supplier quotes from being included in the L1 baseline.
           // Use total_cost exactly as extracted (including VAT where applicable).
-          const allSubmittedTotalsForL1 = allQuotes
+          const allSubmittedTotalsForL1 = activeRepairQuotes
             .filter((q: any) => {
               if (q.document_category) return q.document_category === 'repair_quote';
               return (q.quote_type ?? 'repair') !== 'parts_supplier';

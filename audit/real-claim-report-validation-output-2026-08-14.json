@@ -1,0 +1,60 @@
+{
+  "claimId": 12909902,
+  "tenantId": "tenant-1771335377063",
+  "results": [
+    {
+      "reportKey": "claim.assessment",
+      "jobId": "9862d1cc-8981-4dbb-9d0b-ef4e4f2afd9d",
+      "job": {
+        "job_id": "9862d1cc-8981-4dbb-9d0b-ef4e4f2afd9d",
+        "report_key": "claim.assessment",
+        "status": "completed",
+        "output_format": "pdf",
+        "download_count": 0,
+        "error_message": null,
+        "started_at": 1786711478163,
+        "completed_at": 1786711480666,
+        "expires_at": 1787316277560,
+        "file_size_bytes": 3039891,
+        "page_count": 60,
+        "created_at": 1786711477560
+      }
+    },
+    {
+      "reportKey": "claim.intelligence",
+      "jobId": "8a361f0e-4a0f-4f24-b372-709e494dd5ac",
+      "job": {
+        "job_id": "8a361f0e-4a0f-4f24-b372-709e494dd5ac",
+        "report_key": "claim.intelligence",
+        "status": "completed",
+        "output_format": "pdf",
+        "download_count": 0,
+        "error_message": null,
+        "started_at": 1786711483281,
+        "completed_at": 1786711484888,
+        "expires_at": 1787316282731,
+        "file_size_bytes": 3288323,
+        "page_count": 65,
+        "created_at": 1786711482731
+      }
+    },
+    {
+      "reportKey": "claim.forensic",
+      "jobId": "021bbb6b-cd8c-43b8-98be-aa544c542163",
+      "job": {
+        "job_id": "021bbb6b-cd8c-43b8-98be-aa544c542163",
+        "report_key": "claim.forensic",
+        "status": "completed",
+        "output_format": "pdf",
+        "download_count": 0,
+        "error_message": null,
+        "started_at": 1786711486106,
+        "completed_at": 1786711487768,
+        "expires_at": 1787316285571,
+        "file_size_bytes": 3318485,
+        "page_count": 65,
+        "created_at": 1786711485571
+      }
+    }
+  ]
+}

@@ -98,13 +98,33 @@ export function renderCostDecisionSummaryHtml(input: {
     ? submittedQuoteRows.map((quote) => `<span style="display:inline-block;margin:4px 5px 0 0;padding:4px 6px;border:1px solid #d8e2df;font-size:8px;color:#35514a;">${input.escapeHtml(quote.repairer)} <b style="color:#15352f;">${quote.amountUsd === null ? "Amount unavailable" : input.formatAmount(quote.amountUsd)}</b></span>`).join("")
     : `<span style="font-size:10px;color:#62726e;">No submitted quotations</span>`;
   const legacyHistoryNote = input.costIntegrity.legacyHistoryQualified
-    ? `<div style="margin-top:4px;font-size:8px;color:#8a5a00;line-height:1.35;">Legacy quotation history — not used as active comparison evidence until ledger verification.</div>`
+    ? `<div style="margin-top:4px;font-size:8px;color:#8a5a00;line-height:1.35;">Historical quotation evidence is retained separately and is not used as active payable comparison evidence.</div>`
+    : "";
+  const historicalQuoteRows = input.costIntegrity.historicalQuotes ?? [];
+  const historicalQuotes = historicalQuoteRows.length > 0
+    ? `<div style="margin-top:5px;padding-top:5px;border-top:1px dashed #d8e2df;font-size:8px;color:#62726e;line-height:1.35;">${historicalQuoteRows.map((quote) => `${input.escapeHtml(quote.repairer)} · ${quote.amountUsd === null ? "Amount unavailable" : input.formatAmount(quote.amountUsd)} · ${input.escapeHtml(quote.evidenceEligibilityReason ?? quote.statusReason)}`).join("<br/>")}</div>`
     : "";
   const optimisedAmount = presentation.optimisedQuoteAmount === null
     ? "Not published"
     : presentation.optimisedQuoteState === "evidence_qualified"
       ? `Evidence-qualified comparison · ${input.formatAmount(presentation.optimisedQuoteAmount)}`
       : input.formatAmount(presentation.optimisedQuoteAmount);
+	const l2SelectionTrace = (input.costIntegrity.l2ComponentSelections ?? [])
+	  .filter((selection) => selection.selectionMethod || selection.highLineItemVariance)
+	  .map((selection) => {
+	    const method = selection.selectionMethod === "BENCHMARK_WITHIN_30_PCT"
+	      ? `Benchmark selected within 30%${selection.benchmarkDeviationPct === null ? "" : ` · ${selection.benchmarkDeviationPct.toFixed(1)}% variance`}`
+	      : selection.selectionMethod === "LOWER_OF_BENCHMARK_AND_SUBMITTED_OUTSIDE_30_PCT"
+	        ? `Outside 30% · lower validated value selected${selection.benchmarkDeviationPct === null ? "" : ` · ${selection.benchmarkDeviationPct.toFixed(1)}% variance`}`
+	        : "Lowest submitted price · no benchmark";
+	    const variance = selection.highLineItemVariance
+	      ? ` · ${selection.lineItemVarianceRemark ?? `High submitted-price spread${selection.lineItemSpreadPct === null ? "" : ` (${selection.lineItemSpreadPct.toFixed(1)}%)`}; verify like-for-like scope.`}`
+	      : "";
+	    return `<div style="margin-top:3px;line-height:1.35;"><b>${input.escapeHtml(selection.componentName)}</b> · ${input.escapeHtml(method + variance)}</div>`;
+	  }).join("");
+	const l2SelectionEvidence = l2SelectionTrace
+	  ? `<div style="padding:7px 10px;border-top:1px solid #d8e2df;background:#f7faf9;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">L2 Component Validation</div><div style="margin-top:3px;font-size:8px;color:#35514a;">${l2SelectionTrace}</div></div>`
+	  : "";
   return `
 <div style="margin:10px 0 12px;border:1px solid #d8e2df;background:#fff;font-family:'Helvetica Neue',Arial,sans-serif;">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #d8e2df;">
@@ -112,11 +132,11 @@ export function renderCostDecisionSummaryHtml(input: {
     <div style="font-size:8px;font-weight:700;color:${verificationColour};">KINGA Quote Verification · ${presentation.quoteVerification}</div>
   </div>
   <div style="display:grid;grid-template-columns:1.08fr 1fr .96fr .88fr .92fr;">
-    <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Submitted Quotations</div><div style="margin-top:4px;">${submittedQuotes}</div>${legacyHistoryNote}</div>
+    <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Submitted Quotations</div><div style="margin-top:4px;">${submittedQuotes}</div>${legacyHistoryNote}${historicalQuotes}</div>
     <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">KINGA Quote Verification</div><div style="margin-top:5px;font-size:13px;font-weight:700;color:${verificationColour};">${presentation.quoteVerification}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.quoteVerificationDetail)}</div></div>
     <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">${presentation.optimisedQuoteLabel}</div><div style="margin-top:5px;font-size:16px;font-weight:800;color:#0d5849;">${optimisedAmount}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.optimisedQuoteDetail)}</div></div>
     <div style="padding:10px;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Quote Issues</div><div style="margin-top:5px;font-size:11px;font-weight:700;color:${issueColour};">${verificationGood ? "None" : "Review required"}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.quoteIssue)}</div></div>
     <div style="padding:10px;border-left:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Repairability</div><div style="margin-top:5px;font-size:11px;font-weight:700;color:#15352f;">${input.escapeHtml(repairability.label)}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(repairability.detail)}</div></div>
-  </div>
+  </div>${l2SelectionEvidence}
 </div>`;
 }

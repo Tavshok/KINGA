@@ -878,39 +878,6 @@ function buildVarianceSignal(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CREDIBILITY GATE
-// ─────────────────────────────────────────────────────────────────────────────
-
-// CALIBRATION: Credibility gate thresholds (0.40 coverage floor, 0.70×P25 floor,
-// 2.00×P75 ceiling) are engineering-judgment.
-// Do not change without benchmarking against a labelled quote dataset.
-
-/** Minimum quote coverage ratio to pass the credibility gate */
-const CG_MIN_COVERAGE_RATIO  = 0.40;
-/** Credibility floor: reject prices below this fraction of P25 */
-const CG_P25_FLOOR_FACTOR    = 0.70;
-/** Credibility ceiling: reject prices above this multiple of P75 */
-const CG_P75_CEILING_FACTOR  = 2.00;
-
-function applyCredibilityGate(
-  costUsd: number,
-  p25Usd: number | null,
-  p75Usd: number | null,
-  quoteCoverageRatio: number
-): { passed: boolean; reason?: string } {
-  if (quoteCoverageRatio < CG_MIN_COVERAGE_RATIO) {
-    return { passed: false, reason: `Quote covers only ${Math.round(quoteCoverageRatio * 100)}% of damaged components (minimum ${Math.round(CG_MIN_COVERAGE_RATIO * 100)}% required)` };
-  }
-  if (p25Usd !== null && costUsd < p25Usd * CG_P25_FLOOR_FACTOR) {
-    return { passed: false, reason: `Price $${costUsd.toFixed(0)} is below the credibility floor ($${(p25Usd * CG_P25_FLOOR_FACTOR).toFixed(0)} = P25 × ${CG_P25_FLOOR_FACTOR}) — may exclude fitment or use unfit parts` };
-  }
-  if (p75Usd !== null && costUsd > p75Usd * CG_P75_CEILING_FACTOR) {
-    return { passed: false, reason: `Price $${costUsd.toFixed(0)} exceeds the credibility ceiling ($${(p75Usd * CG_P75_CEILING_FACTOR).toFixed(0)} = P75 × ${CG_P75_CEILING_FACTOR}) — likely a data entry error or scope mismatch` };
-  }
-  return { passed: true };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // BENCHMARK VERDICT + APPROVED SIGNAL LANGUAGE
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1285,12 +1252,50 @@ export function buildCompositeQuote(
       benchmarkReferenceUsd += p50;
       benchmarkCoverageCount++;
     }
-    const l2Component = Math.round(lowestSubmitted * 100) / 100;
-    const isBenchmarkFill = false;
-    const tier: CompositeLineItem['kingaOptimisedTier'] = entries.length > 1 ? 'T3' : 'T4';
-    const tierLabel = entries.length > 1
+    const benchmarkDeviationPct = p50 !== null && p50 > 0
+      ? Math.round((Math.abs(lowestSubmitted - p50) / p50) * 10_000) / 100
+      : null;
+    const benchmarkWithinTolerance = benchmarkDeviationPct !== null
+      ? benchmarkDeviationPct <= 30
+      : null;
+    const highestSubmitted = Math.max(...entries.map((entry) => entry.costUsd));
+    const lineItemSpreadPct = lowestSubmitted > 0
+      ? Math.round(((highestSubmitted - lowestSubmitted) / lowestSubmitted) * 10_000) / 100
+      : null;
+    const highLineItemVariance = lineItemSpreadPct !== null && lineItemSpreadPct > 20;
+    const lineItemVarianceRemark = highLineItemVariance
+      ? `Like-for-like submitted prices vary by ${lineItemSpreadPct.toFixed(1)}%; verify component scope and specification.`
+      : null;
+
+    let l2Component = lowestSubmitted;
+    let selectedFromQuote = lowestEntry.repairer;
+    let l2SelectionMethod: NonNullable<CompositeLineItem['l2SelectionMethod']> = 'SUBMITTED_NO_BENCHMARK';
+    let tier: CompositeLineItem['kingaOptimisedTier'] = entries.length > 1 ? 'T3' : 'T4';
+    let tierLabel = entries.length > 1
       ? `Lowest Submitted Quote · ${lowestEntry.repairer}`
       : `Single Submitted Quote · ${lowestEntry.repairer}`;
+
+    if (p50 !== null) {
+      if (benchmarkWithinTolerance) {
+        l2Component = p50;
+        selectedFromQuote = 'KINGA Market Benchmark (P50)';
+        l2SelectionMethod = 'BENCHMARK_WITHIN_30_PCT';
+        tier = 'T2';
+        tierLabel = `Benchmark Validated (within 30%) · Qmin from ${lowestEntry.repairer}`;
+      } else {
+        l2Component = Math.min(lowestSubmitted, p50);
+        l2SelectionMethod = 'LOWER_OF_BENCHMARK_AND_SUBMITTED_OUTSIDE_30_PCT';
+        if (p50 < lowestSubmitted) {
+          selectedFromQuote = 'KINGA Market Benchmark (P50)';
+          tier = 'T2';
+          tierLabel = `Lower Benchmark Selected (outside 30%) · Qmin from ${lowestEntry.repairer}`;
+        } else {
+          tierLabel = `Lower Submitted Quote (outside 30%) · ${lowestEntry.repairer}`;
+        }
+      }
+    }
+    l2Component = Math.round(l2Component * 100) / 100;
+    const isBenchmarkFill = false;
     const scopeDecisionRule: NonNullable<CompositeLineItem['scopeDecisionRule']> = entries.length > 1
       ? 'COST_COMPARISON'
       : 'SINGLE_SCOPE_AVAILABLE';
@@ -1301,21 +1306,34 @@ export function buildCompositeQuote(
     const rawPrices = entries.map(e => e.costUsd);
     const cv = coefficientOfVariation(rawPrices);
     const varianceSignal = buildVarianceSignal(cv, rawPrices.length);
+    const selectionSignal = benchmarkDeviationPct === null
+      ? 'No benchmark available; lowest submitted price retained.'
+      : benchmarkWithinTolerance
+        ? `Benchmark selected within 30% tolerance (${benchmarkDeviationPct.toFixed(1)}%).`
+        : `Outside 30% benchmark tolerance (${benchmarkDeviationPct.toFixed(1)}%); lower value selected.`;
 
     compositeLineItems.push({
       componentName: normName,
       selectedCostUsd: l2Component,
-      selectedFromQuote: lowestEntry.repairer,
+      selectedFromQuote,
+      selectedSubmittedFromQuote: lowestEntry.repairer,
       selectedQuoteId: lowestEntry.quoteId,
       selectedLineItemIds: lowestEntry.lineItemIds,
       isBenchmarkFill,
       kingaOptimisedTier: tier,
       kingaOptimisedTierLabel: tierLabel,
       benchmarkVerdict: verdict,
-      benchmarkSignal: `${signal} ${varianceSignal}`.trim(),
+      benchmarkSignal: `${signal} ${selectionSignal} ${varianceSignal} ${lineItemVarianceRemark ?? ''}`.trim(),
       p25Usd: p25,
       p50Usd: p50,
       p75Usd: p75,
+      lowestEligibleSubmittedCostUsd: lowestSubmitted,
+      benchmarkDeviationPct,
+      benchmarkWithinTolerance,
+      l2SelectionMethod,
+      lineItemSpreadPct,
+      highLineItemVariance,
+      lineItemVarianceRemark,
       allQuotedPrices,
       selectedScope: lowestEntry.scope,
       scopeDecisionRule,
