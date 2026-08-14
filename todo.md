@@ -191,9 +191,11 @@
 - [x] R0-D: quarantine base expected-repair estimates from L2, savings, settlement, and optimisation display paths
 - [x] R0-E: correct shared typed physics, fraud-unavailable, photo-count, and coverage rendering contracts
 - [x] R0-F: persist immutable report input, generator, and provenance snapshots for every delivered output
-- [ ] R0-G: implement same-snapshot CL, CI, and FR acceptance fixtures for no-quote, total-only, incomplete, and complete all-in quote sets
-- [ ] R0 progressive-L2 invariant: prove every quote-evidence fixture keeps L2 analysis active, exposes what KINGA knows and does not know, and suppresses only unsupported conclusions—not available comparison intelligence.
-- [ ] Approved R0 same-snapshot acceptance implementation: build one immutable fixture model for no-quote, total-only, incomplete-itemised, and complete-all-in states; assert shared cost/decision semantics and progressive L2 disclosures across CL, CI, FR, and the top cost view without production data mutation.
+- [x] R0-G: implemented reusable immutable same-snapshot CL, CI, and FR acceptance fixtures for no-quote, total-only, incomplete, and complete all-in quote sets.
+- [x] R0 progressive-L2 invariant: proved every quote-evidence fixture keeps L2 analysis active, exposes what KINGA knows and does not know, and suppresses only unsupported conclusions—not available comparison intelligence.
+- [x] Approved R0 same-snapshot acceptance implementation: built one immutable fixture model for no-quote, total-only, incomplete-itemised, and complete-all-in states; asserted shared cost/decision semantics and progressive L2 disclosures across CL, CI, FR, and the top cost view without production data mutation.
+- [x] Approved R0-G fixture consolidation: replaced duplicated R0 quote-evidence fixture data with one immutable reusable model for no-quote, total-only, incomplete-itemised, and complete-all-in states without production writes.
+- [x] Approved progressive-L2 cross-surface semantic proof: asserted each reusable evidence state retains available L2 comparison intelligence while consistently withholding only unsupported payable-cost, savings, and settlement conclusions in CL, CI, FR, and the client top view.
 - [x] R0 deterministic progressive-L2 contract acceptance: implemented immutable no-quote, total-only, incomplete-itemised, and complete-all-in fixtures; validated shared cost/decision boundaries, active-ledger exclusion, and top-view evidence-qualified disclosure with 26 focused regressions and production builds.
 - [x] R0-H: replaced CL, CI, FR, and client top-of-report cost strips with the active submitted quote ledger, explicit quote receipt/scope status, and typed L2 state; no base-estimate substitution.
 - [x] R0-I: proved rendered CL, CI, FR, and client top-cost views show active submitted quotes, label incomplete L2 as evidence-qualified comparison, and suppress savings/settlement conclusions under integrity holds.
