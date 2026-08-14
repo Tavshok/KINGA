@@ -116,4 +116,69 @@ describe("P0 fleet claim-document actual tRPC procedure acceptance", () => {
     await expect(caller("fleet_driver", 44).documents.allByClaim({ claimId: 701 }))
       .rejects.toMatchObject({ code: "FORBIDDEN" });
   });
+
+  it.each([
+    { role: "fleet_manager" as const, id: 30, driverRows: [] as unknown[][] },
+    { role: "fleet_admin" as const, id: 30, driverRows: [] as unknown[][] },
+    { role: "fleet_driver" as const, id: 44, driverRows: [[{ id: 17, userId: 44, employmentStatus: "active" }]] },
+  ])("permits $role through each actual procedure for its authorised company vehicle", async ({ role, id, driverRows }) => {
+    const authorityRows = () => [[claim], [{ ownerId: 30, fleetId: 4 }], ...driverRows];
+    const visibleDocument = { id: 501, claimId: 701, uploadedBy: id, fileName: "damage.jpg", fileUrl: "https://example.invalid/damage.jpg", fileSize: 2, mimeType: "image/jpeg", documentCategory: "damage_photo", createdAt: "2026-08-13", visibleToRoles: null };
+
+    mocks.getDb.mockResolvedValueOnce(createDb(authorityRows()));
+    await expect(caller(role, id).documents.getClaimContext({ claimId: 701 })).resolves.toMatchObject({ id: 701 });
+
+    mocks.getDb.mockResolvedValueOnce(createDb(authorityRows()));
+    mocks.getDb.mockResolvedValueOnce(createDb([[visibleDocument]]));
+    await expect(caller(role, id).documents.byClaim({ claimId: 701 })).resolves.toMatchObject([{ id: 501 }]);
+
+    mocks.getDb.mockResolvedValueOnce(createDb(authorityRows()));
+    mocks.getDb.mockResolvedValueOnce(createDb([[visibleDocument]]));
+    await expect(caller(role, id).documents.allByClaim({ claimId: 701 })).resolves.toMatchObject([{ id: 501, source: "claim_document" }]);
+
+    mocks.getDb.mockResolvedValueOnce(createDb(authorityRows()));
+    mocks.getDb.mockResolvedValueOnce(createDb([]));
+    await expect(caller(role, id).documents.upload({
+      claimId: 701,
+      fileName: `${role}-evidence.jpg`,
+      fileData: "data:image/jpeg;base64,AA==",
+      fileSize: 2,
+      mimeType: "image/jpeg",
+      documentCategory: "damage_photo",
+    })).resolves.toMatchObject({ success: true });
+
+    mocks.getDb.mockResolvedValueOnce(createDb([[visibleDocument]]));
+    mocks.getDb.mockResolvedValueOnce(createDb(authorityRows()));
+    await expect(caller(role, id).documents.delete({ documentId: 501 })).resolves.toEqual({ success: true });
+  });
+
+  it.each([
+    { label: "a foreign-tenant fleet manager", role: "fleet_manager" as const, id: 30, tenantId: "tenant-b", authorityRows: [[claim], [{ ownerId: 30, fleetId: 4 }]] },
+    { label: "an unrelated active fleet driver", role: "fleet_driver" as const, id: 44, tenantId: "tenant-a", authorityRows: [[claim], [{ ownerId: 30, fleetId: 4 }], [{ id: 17, userId: 45, employmentStatus: "active" }]] },
+  ])("denies $label through actual list, upload, and delete procedures before document side effects", async ({ role, id, tenantId, authorityRows }) => {
+    const deniedCaller = caller(role, id, tenantId);
+    const visibleDocument = { id: 501, claimId: 701, uploadedBy: id, fileName: "damage.jpg" };
+
+    mocks.getDb.mockResolvedValueOnce(createDb(authorityRows));
+    await expect(deniedCaller.documents.byClaim({ claimId: 701 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    mocks.getDb.mockResolvedValueOnce(createDb(authorityRows));
+    await expect(deniedCaller.documents.upload({
+      claimId: 701,
+      fileName: "denied-evidence.jpg",
+      fileData: "data:image/jpeg;base64,AA==",
+      fileSize: 2,
+      mimeType: "image/jpeg",
+      documentCategory: "damage_photo",
+    })).rejects.toMatchObject({ code: expect.stringMatching(/^(FORBIDDEN|NOT_FOUND)$/) });
+    expect(mocks.storagePut).not.toHaveBeenCalled();
+    expect(mocks.createAuditEntry).not.toHaveBeenCalled();
+
+    const documentDb = createDb([[visibleDocument]]);
+    mocks.getDb.mockResolvedValueOnce(documentDb);
+    mocks.getDb.mockResolvedValueOnce(createDb(authorityRows));
+    await expect(deniedCaller.documents.delete({ documentId: 501 })).rejects.toMatchObject({ code: expect.stringMatching(/^(FORBIDDEN|NOT_FOUND)$/) });
+    expect(documentDb.delete).not.toHaveBeenCalled();
+    expect(mocks.createAuditEntry).not.toHaveBeenCalled();
+  });
 });
