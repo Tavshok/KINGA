@@ -24,6 +24,7 @@ import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
+import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
 
 const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
@@ -1001,7 +1002,7 @@ ${(() => {
   </div>
 </div>`;
 
-    const body = cover + s1 + sP + s2 + s3 + s4 + s5;
+    const body = renderClaimReportReadinessBanner(c) + cover + s1 + sP + s2 + s3 + s4 + s5;
     return buildKingaHtml(`KINGA Claims Intelligence Report — ${claimRef}`, body);
 
   } finally {

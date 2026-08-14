@@ -47,6 +47,7 @@ import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
+import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
 import { assessors, fraudIndicators, tenants, users } from "../../drizzle/schema";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct as kFmtPct,
@@ -435,7 +436,7 @@ async function generateClaimAssessmentReport(
       ? esc(String(claim.claim_reference))
       : `DOC-${clDatePart}-${String(claim.claim_reference ?? claim.id).replace(/[^A-Z0-9]/gi,"").slice(0,8).toUpperCase()}-CL`;
 
-    const body = `
+    const body = renderClaimReportReadinessBanner(claim) + `
 <div class="page">
 <!-- ── MASTHEAD ── -->
 <div class="masthead">

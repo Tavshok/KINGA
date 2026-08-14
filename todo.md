@@ -21,6 +21,11 @@
 - [x] CI hardening: pre-commit hook blocking commits with git conflict markers — `.githooks/pre-commit`, portable installer, staged-content scanner, and regression tests verified
 - [ ] Pipeline observability: decide whether to retain the verified `pipeline_runs` + `pipeline_jobs` model as canonical or add a separate `pipeline_execution_logs` table; audit/pipeline-observability-audit.md documents the current evidence and duplication risk
 - [ ] End-to-end regression test suite: upload → analysis → report lifecycle — deterministic lifecycle wiring contract added in `server/claim-lifecycle-contract.test.ts`; isolated-tenant external-service OAT remains required
+- [x] Approved isolated claim-to-report lifecycle acceptance: production-shared readiness and report-access contract are in place; added no-write rendered CL, CI, and FR evidence proving the real consumers qualify failed/pending lifecycle states.
+- [x] Approved lifecycle non-blocking qualification proof: added runtime renderer acceptance for assessment_start_failed, intake_pending, and assessment-unavailable states; proved CL, CI, and FR render an explicit incomplete-intelligence qualification while retaining available claim and evidence transparency.
+- [x] P0 lifecycle production readiness boundary: added a shared report-lifecycle readiness helper and consumed it from the actual report contracts without blocking assessment or introducing a new write path.
+- [x] P0 lifecycle callable report-access proof: invoked the real report-access contract for permitted and denied roles while combining it with the production readiness boundary in isolated no-write acceptance.
+- [x] P0 lifecycle rendered consumer matrix: drove the shared production readiness consumer through CL, CI, and FR no-write render inputs and asserted the generated output carries the explicit qualified state and never marks the input as ready for completed assessment intelligence.
 
 ## Portal Conformance & Runtime Stability — August 2026
 

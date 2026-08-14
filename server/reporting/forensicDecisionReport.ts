@@ -20,6 +20,7 @@ import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
+import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
 import type { CGIAvailabilitySummary } from "../pipeline-v2/stage-9-5-cgi";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -1770,7 +1771,7 @@ export async function generateForensicDecisionReport(
   </div>
 </div>`;
 
-    const body = page1 + page2 + page3 + page4;
+    const body = renderClaimReportReadinessBanner(c) + page1 + page2 + page3 + page4;
     return buildKingaFdrHtml(`KINGA Forensic Claim Decision Report — ${claimRef}`, body);
 
   } finally {
