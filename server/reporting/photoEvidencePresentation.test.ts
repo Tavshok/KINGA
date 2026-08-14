@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { photoZonePanel } from "./templates/kingaDesignSystem";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 
 describe("R0 canonical photo evidence presentation", () => {
@@ -18,5 +19,20 @@ describe("R0 canonical photo evidence presentation", () => {
     ]);
     expect(result).toMatchObject({ totalPhotos: 2, unclassifiedZoneCount: 1, directionConflictCount: 1 });
     expect(result.photos.map((photo) => photo.uncertainty)).toEqual(["zone_unclassified", "direction_conflict"]);
+  });
+
+  it("retains a source-recorded conflicted zone only as a qualified label and never substitutes a new direction", () => {
+    const result = normaliseCanonicalPhotoEvidence([
+      { url: "https://evidence.example/reported-front.jpg", impactZone: "front", directionContradiction: true, confidenceScore: 0.88 },
+    ]);
+    expect(result.photos[0]).toMatchObject({
+      zone: "front",
+      uncertainty: "direction_conflict",
+      directionContradiction: true,
+    });
+    const html = photoZonePanel(result.photos);
+    expect(html).toContain("Recorded zone: front");
+    expect(html).toContain("Zone label requires verification");
+    expect(html).not.toContain("Recorded zone: rear");
   });
 });

@@ -630,7 +630,11 @@ export function photoZonePanel(
     const border = p.directionContradiction
       ? "2px solid #b8720b"
       : p.usable === false ? "2px solid #a83232" : "1px solid #d9d9d9";
-    const zoneLabel = p.zone ? `<div style="font-size:9px;color:#437D87;text-transform:uppercase;letter-spacing:0.4px;margin-top:3px">${esc(p.zone)}</div>` : "";
+    const zoneLabel = p.zone
+      ? p.directionContradiction
+        ? `<div style="font-size:9px;color:#b8720b;text-transform:uppercase;letter-spacing:0.4px;margin-top:3px">Recorded zone: ${esc(p.zone)}</div>`
+        : `<div style="font-size:9px;color:#437D87;text-transform:uppercase;letter-spacing:0.4px;margin-top:3px">${esc(p.zone)}</div>`
+      : "";
     const caption = p.caption ? `<div style="font-size:9px;color:#4a4a4a;margin-top:2px">${esc(p.caption)}</div>` : "";
     const unusable = p.usable === false ? `<div style="font-size:9px;color:#a83232;font-weight:600;margin-top:2px">Low quality</div>` : "";
     const semantic = p.semanticType ? `<div style="font-size:8px;color:#5c5c5c;margin-top:2px">Type: ${esc(p.semanticType)}</div>` : "";
@@ -647,7 +651,7 @@ export function photoZonePanel(
         : "";
     // ⚠ Direction contradiction badge — display-only, does not affect scoring
     const contradictionBadge = p.directionContradiction
-      ? `<div style="font-size:9px;color:#b8720b;font-weight:700;margin-top:2px">⚠ Zone contradicts narrative direction</div>`
+      ? `<div style="font-size:9px;color:#b8720b;font-weight:700;margin-top:2px">⚠ Zone label requires verification: it conflicts with narrative direction</div>`
       : "";
     return `<td style="padding:4px;vertical-align:top">
       <img src="${esc(p.url)}" style="width:100%;height:70px;object-fit:cover;border:${border};border-radius:2px;display:block" />

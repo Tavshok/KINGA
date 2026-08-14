@@ -19,4 +19,15 @@ describe("R0 cross-report canonical photo evidence presentation", () => {
     expect(source).toContain("const input = Array.isArray(raw) ? raw : []");
     expect(source).not.toContain("placeholder");
   });
+
+  it("routes conflicted direction metadata into the shared qualified-label panel for every report surface", () => {
+    const panel = read("server/reporting/templates/kingaDesignSystem.ts");
+    expect(panel).toContain("Recorded zone:");
+    expect(panel).toContain("Zone label requires verification");
+    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts", "server/reporting/forensicDecisionReport.ts"]) {
+      const source = read(file);
+      expect(source).toContain("directionContradiction");
+      expect(source).toContain("photoZonePanel");
+    }
+  });
 });
