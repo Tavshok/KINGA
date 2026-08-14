@@ -1409,7 +1409,8 @@ export async function triggerAiAssessment(claimId: number) {
         "Stage 6.5B — Vision Geometry Reconciliation": { id: "6_5b_vision_reconcile", index: 8 },
         "Stage 7 — Physics & Causality":           { id: "7_unified",             index: 9 },
         "Stage 8 — Analysis":                      { id: "8_fraud",               index: 10 },
-        "Stage 10 — Report Generation":            { id: "10_report",             index: 11 },
+        "Stage 9 — Cost Optimisation":             { id: "9_cost",                index: 11 },
+        "Stage 10 — Report Generation":            { id: "10_report",             index: 12 },
       };
       const _stageInfo = _stageLabelToId[stageLabel];
       if (_stageInfo) {

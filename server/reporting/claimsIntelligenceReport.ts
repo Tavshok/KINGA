@@ -19,7 +19,7 @@ import { fraudIndicators } from "../../drizzle/schema";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct, safeJson, scoreColour, chip, badge, photoZonePanel,
 } from "./templates/kingaDesignSystem";
-import { resolveReportCostIntegrity } from "./costIntegrity";
+import { resolveReportCostIntegrity, resolveReportQuoteEvidencePresentation } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
@@ -186,8 +186,10 @@ export async function generateClaimsIntelligenceReport(
         ...extractExplicitStructuralReviewEvidence(repairIntel),
       },
     });
-    const quoteArr = costIntegrity.submittedQuotes;
-    const comparisonQuoteArr = costIntegrity.activeQuotes;
+    const quoteEvidence = resolveReportQuoteEvidencePresentation(costIntegrity);
+    const quoteArr = quoteEvidence.visibleQuotes;
+    const comparisonQuoteArr = quoteEvidence.activeComparisonQuotes;
+    const { visibleQuoteCount, activeQuoteCount, reportedQuoteCount, state: quoteEvidenceState } = quoteEvidence;
     const submittedQuoteLedgerDetail = quoteArr.length > 0
       ? `${quoteArr.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtUSD(quote.amountUsd)}`).join(" · ")}${costIntegrity.legacyHistoryQualified ? " · Legacy quotation history; not active comparison evidence." : ""}`
       : "No submitted repair quotations";
@@ -197,9 +199,16 @@ export async function generateClaimsIntelligenceReport(
     const activeLineItems = activeQuoteIds.size > 0
       ? (lineItems as Record<string, unknown>[]).filter((line) => activeQuoteIds.has(String(line.quote_id)))
       : lineItems as Record<string, unknown>[];
-    const quoteAmounts = comparisonQuoteArr.map(q => q.amountUsd ?? 0).filter(amount => amount > 0);
-    const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
-    const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
+    const highestQuote = quoteEvidence.highestActiveQuoteUsd ?? 0;
+    const lowestQuote  = quoteEvidence.lowestActiveQuoteUsd ?? 0;
+    const highestQuoteDisplay = activeQuoteCount > 0
+      ? fmtUSD(highestQuote)
+      : "Not available — no active comparison quote";
+    const quoteEvidenceNarrative = quoteEvidenceState === "active_comparison"
+      ? `KINGA evaluated ${activeQuoteCount} eligible active market quote${activeQuoteCount === 1 ? "" : "s"}`
+      : quoteEvidenceState === "legacy_history_only"
+        ? `KINGA received ${visibleQuoteCount} submitted quotation record${visibleQuoteCount === 1 ? "" : "s"}; these remain visible as legacy quotation history and are not active comparison evidence`
+        : "No submitted repair quotations are available";
     const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
     const evidenceQualifiedL2 = costIntegrity.l2EvidenceQualifiedComparisonUsd;
     const l2Display = kingaOptimised !== null
@@ -299,7 +308,7 @@ export async function generateClaimsIntelligenceReport(
     const scoreCardFraudCls = fraudScore >= 70 ? "bad" : fraudScore >= 40 ? "warn" : "good";
     const scoreCardRtvCls = rtvRatio >= 70 ? "bad" : rtvRatio >= 50 ? "warn" : "good";
     const scoreCardDataCls = dataComplete >= 80 ? "good" : dataComplete >= 60 ? "warn" : "bad";
-    const scoreCardQCls = quoteArr.length >= 3 ? "good" : quoteArr.length >= 2 ? "warn" : "bad";
+    const scoreCardQCls = activeQuoteCount >= 3 ? "good" : activeQuoteCount >= 2 ? "warn" : "bad";
     const delayFlag = dayDelay !== null && dayDelay > 90;
 
     // FIX-BLANK-PAGE: Remove the standalone <div class="page"> wrapper from the cover.
@@ -325,7 +334,7 @@ export async function generateClaimsIntelligenceReport(
 <div class="scorecard">
   <div class="score-cell ${scoreCardFraudCls}"><div class="label">Fraud Score</div><div class="value">${fraudScore}</div><div class="sub">${fraudBadgeLabel}</div></div>
   <div class="score-cell ${scoreCardDataCls}"><div class="label">Data Complete</div><div class="value">${Math.round(dataComplete)}<span style="font-size:12px">%</span></div><div class="sub">${dataComplete >= 80 ? "Good" : dataComplete >= 60 ? "Partial" : "Incomplete"}</div></div>
-  <div class="score-cell ${scoreCardQCls}"><div class="label">Quotes Received</div><div class="value">${quoteArr.length}</div><div class="sub">${quoteArr.length >= 3 ? "Sufficient" : "Below minimum"}</div></div>
+  <div class="score-cell ${scoreCardQCls}"><div class="label">Quotes Received</div><div class="value">${reportedQuoteCount}</div><div class="sub">${quoteEvidenceState === "legacy_history_only" ? "History only" : activeQuoteCount >= 3 ? "Sufficient" : "Below minimum"}</div></div>
   <div class="score-cell ${scoreCardRtvCls}"><div class="label">Repair-to-Value</div><div class="value">${fmtPct(rtvRatio, 0)}</div><div class="sub">${rtvRatio >= 70 ? "Total loss risk" : rtvRatio >= 50 ? "Monitor" : "Within range"}</div></div>
 </div>
 ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Submission Flag — claim submitted ${dayDelay} days after incident.</b> A written explanation is required before this claim can proceed. This flag does not override the system recommendation; adjuster review is required before settlement authorisation.</div>` : ""}
@@ -652,7 +661,13 @@ ${(() => {
         <div class="quote-card">
           <div class="qc-label">${esc(q.repairer || `Quote ${i + 1}`)}</div>
           <div class="qc-amount">${q.amountUsd === null ? "—" : fmtUSD(q.amountUsd)}</div>
-          <div class="qc-sub">${q.status === "supplementary" ? "Supplementary scope" : "Active market quote"}</div>
+          <div class="qc-sub">${q.status === "supplementary"
+            ? "Eligible supplementary scope"
+            : q.status === "active"
+              ? "Eligible active market quote"
+              : q.status === "legacy_unverified"
+                ? "Legacy submitted history — not active comparison evidence"
+                : "Quotation history — not active comparison evidence"}</div>
         </div>`).join("") +
         `<div class="quote-card kinga">
           <div class="qc-label">KINGA Optimised</div>
@@ -702,17 +717,17 @@ ${(() => {
 <div class="page page-break">
 <div class="section">
   <div class="section-tab sans"><span class="num">02</span> Cost Intelligence</div>
-  <p class="small" style="margin:0 0 8px 0;">KINGA evaluated ${quoteArr.length} active market quote${quoteArr.length !== 1 ? "s" : ""}${costIntegrity.duplicateQuotesExcluded > 0 ? ` after excluding ${costIntegrity.duplicateQuotesExcluded} duplicate submission${costIntegrity.duplicateQuotesExcluded === 1 ? "" : "s"}` : ""} for the ${vehicleDesc}. ${kingaOptimised === null ? `<strong>${esc(l2IntegrityNote)}</strong>` : `The all-in optimised estimate of <strong>${l2Display}</strong> represents a saving of <strong>${fmtUSD(savings)} (${fmtPct(savingsPct)})</strong> against the highest submitted quote.`} ${criticalStructural.length > 0 ? `<strong>${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} identified in the damage scope do not appear in any submitted quote</strong> — an independent structural assessment is required before the cost can be finalised.` : "All major components are included in the submitted quotes."}</p>
+  <p class="small" style="margin:0 0 8px 0;">${esc(quoteEvidenceNarrative)}${costIntegrity.duplicateQuotesExcluded > 0 ? ` after excluding ${costIntegrity.duplicateQuotesExcluded} duplicate submission${costIntegrity.duplicateQuotesExcluded === 1 ? "" : "s"}` : ""} for the ${vehicleDesc}. ${kingaOptimised === null ? `<strong>${esc(l2IntegrityNote)}</strong>` : `The all-in optimised estimate of <strong>${l2Display}</strong> represents a saving of <strong>${fmtUSD(savings)} (${fmtPct(savingsPct)})</strong> against the highest active submitted quote.`} ${criticalStructural.length > 0 ? `<strong>${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} identified in the damage scope do not appear in any submitted quote</strong> — an independent structural assessment is required before the cost can be finalised.` : "All major components are included in the submitted quotes."}</p>
   <div class="cols-2">
     <div class="box">
-      <h4>Quote Comparison — ${quoteArr.length} quotes received</h4>
+      <h4>Quote Comparison — ${visibleQuoteCount} visible record${visibleQuoteCount === 1 ? "" : "s"}; ${activeQuoteCount} active comparison quote${activeQuoteCount === 1 ? "" : "s"}</h4>
       ${quoteCardHtml}
     </div>
 
     <div class="box">
       <h4>Repair Economics &amp; Verdict</h4>
       <table class="kv">
-        <tr><td class="k">Highest submitted quote</td><td class="v">${fmtUSD(highestQuote)}</td></tr>
+        <tr><td class="k">Highest active submitted quote</td><td class="v">${highestQuoteDisplay}</td></tr>
         <tr><td class="k">KINGA optimised estimate</td><td class="v">${l2Display}</td></tr>
         <tr><td class="k">Recommended settlement</td><td class="v">${recommendedSettlementDisplay}</td></tr>
         <tr><td class="k">Negotiation gap</td><td class="v">${kingaOptimised !== null && savings > 0 ? fmtUSD(savings) + " (" + fmtPct(savingsPct) + ")" : kingaOptimised === null ? "Not calculated — L2 incomplete" : "None detected"}</td></tr>

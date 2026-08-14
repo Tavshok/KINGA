@@ -57,10 +57,54 @@ export interface ReportCostIntegrity {
 		quoteId: string | null;
 		submittedHeaderTotalUsd: number | null;
 		submittedItemisedTotalUsd: number;
-		unexplainedResidualUsd: number | null;
-		residualCategory: "source_to_ledger_reconciliation" | null;
-		status: "reconciled" | "reconciliation_required" | "total_only" | "line_items_only";
-	}>;
+			unexplainedResidualUsd: number | null;
+			residualCategory: "source_to_ledger_reconciliation" | null;
+			status: "reconciled" | "reconciliation_required" | "total_only" | "line_items_only";
+		}>;
+}
+
+export type ReportQuoteEvidenceState = "active_comparison" | "legacy_history_only" | "no_quotes";
+
+export interface ReportQuoteEvidencePresentation {
+  visibleQuotes: ReportQuoteLedgerRow[];
+  activeComparisonQuotes: ReportQuoteLedgerRow[];
+  visibleQuoteCount: number;
+  activeQuoteCount: number;
+  reportedQuoteCount: number;
+  state: ReportQuoteEvidenceState;
+  highestActiveQuoteUsd: number | null;
+  lowestActiveQuoteUsd: number | null;
+}
+
+/**
+ * Provides the single report-facing quotation population contract. Visible
+ * legacy rows remain auditable history, while L1/L2 and active-market metrics
+ * remain bound to canonical active comparison evidence only.
+ */
+export function resolveReportQuoteEvidencePresentation(
+  costIntegrity: ReportCostIntegrity,
+): ReportQuoteEvidencePresentation {
+  const visibleQuotes = costIntegrity.submittedQuotes;
+  const activeComparisonQuotes = costIntegrity.activeQuotes;
+  const activeAmounts = activeComparisonQuotes
+    .map((quote) => quote.amountUsd)
+    .filter((amount): amount is number => amount !== null && amount > 0);
+  const visibleQuoteCount = visibleQuotes.length;
+  const activeQuoteCount = activeComparisonQuotes.length;
+  return {
+    visibleQuotes,
+    activeComparisonQuotes,
+    visibleQuoteCount,
+    activeQuoteCount,
+    reportedQuoteCount: Math.max(costIntegrity.sourceQuoteCount, visibleQuoteCount),
+    state: activeQuoteCount > 0
+      ? "active_comparison"
+      : visibleQuoteCount > 0
+        ? "legacy_history_only"
+        : "no_quotes",
+    highestActiveQuoteUsd: activeAmounts.length > 0 ? Math.max(...activeAmounts) : null,
+    lowestActiveQuoteUsd: activeAmounts.length > 0 ? Math.min(...activeAmounts) : null,
+  };
 }
 
 function finitePositive(value: unknown): number | null {

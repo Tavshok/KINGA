@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveReportCostIntegrity } from "./costIntegrity";
+import { resolveReportCostIntegrity, resolveReportQuoteEvidencePresentation } from "./costIntegrity";
 
 describe("resolveReportCostIntegrity", () => {
   it("uses only active ledger rows and a complete L2", () => {
@@ -34,6 +34,24 @@ describe("resolveReportCostIntegrity", () => {
     expect(resolved.submittedQuotes).toHaveLength(2);
     expect(resolved.legacyHistoryQualified).toBe(true);
     expect(resolved.l1SubmittedCostUsd).toBeNull();
+  });
+
+  it("exposes legacy quotation history and active comparison metrics through one typed report projection", () => {
+    const resolved = resolveReportCostIntegrity({}, [
+      { id: 1, panel_beater_name: "Alpha", quoted_amount: 564000, currency_code: "USD" },
+      { id: 2, panel_beater_name: "Beta", quoted_amount: 834900, currency_code: "USD" },
+    ]);
+    const presentation = resolveReportQuoteEvidencePresentation(resolved);
+
+    expect(presentation).toMatchObject({
+      state: "legacy_history_only",
+      visibleQuoteCount: 2,
+      activeQuoteCount: 0,
+      reportedQuoteCount: 2,
+      highestActiveQuoteUsd: null,
+      lowestActiveQuoteUsd: null,
+    });
+    expect(presentation.visibleQuotes.map((quote) => quote.amountUsd)).toEqual([5640, 8349]);
   });
 
   it("never substitutes documented agreed or estimated costs when L2 is incomplete", () => {

@@ -1766,6 +1766,7 @@ export async function runPipelineV2(
   } catch { /* guard must never break the pipeline */ }
   ctx.log("Pipeline", "Starting S8 (fraud) ‖ S9 (cost) in parallel...");
   ctx.onStageStart?.("Stage 8 — Analysis");
+  ctx.onStageStart?.("Stage 9 — Cost Optimisation");
   // Partial resume: check cache for both stages before launching the parallel block
   const _s8Cached = _resumeCache["8_fraud"] as Stage8Output | undefined;
   const _s9Cached = _resumeCache["9_cost"] as Stage9Output | undefined;

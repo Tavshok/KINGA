@@ -8,6 +8,7 @@ import {
   claimEvents, InsertClaimEvent, decisionSnapshots, DecisionSnapshot,
   tenants, users, claims,
   ingestionDocuments,} from "../../drizzle/schema";
+import * as schema from "../../drizzle/schema";
 import { getDb } from "../db-core";
 
 export async function emitClaimEvent(params: {

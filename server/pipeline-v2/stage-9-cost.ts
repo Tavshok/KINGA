@@ -1459,9 +1459,46 @@ export async function runCostOptimisationStage(
             structurally_complete: quoteOptimisation.best_quote_by_cost.structurally_complete,
           }
         : null,
-    }, isDegraded ? "degraded_estimate" : "success");
+	    }, isDegraded ? "degraded_estimate" : "success");
 
-    // ── Phase 2: Per-component KINGA benchmarks ─────────────────────────────
+	    // Persist the canonical quote-state baseline before optional benchmark enrichment.
+	    // Benchmark lookups may degrade or fail without preventing the claim lifecycle;
+	    // that must never erase the submitted-evidence ledger required by L1/L2
+	    // qualification and every downstream report surface.
+	    const baselineL1SubmittedCostUsd = activeRepairQuotes
+	      .map((quote: any) => Number(quote.total_cost ?? 0))
+	      .filter((amount: number) => Number.isFinite(amount) && amount > 0)
+	      .sort((left: number, right: number) => left - right)[0] ?? null;
+	    (output as any).compositeOptimisation = {
+	      l2Status: activeRepairQuotes.length > 0 ? "incomplete_scope" : "unavailable",
+	      quoteReceiptStatus: resolvedExtractedQuotes.length > 0 ? "quotes_received" : "no_quotes",
+	      quoteScopeStatus: "not_evaluated",
+	      l1SubmittedCostUsd: baselineL1SubmittedCostUsd,
+	      l2CompositeOptimisedCostUsd: null,
+	      l2EvidenceQualifiedComparisonUsd: null,
+	      partialPricedScopeUsd: null,
+	      isComplete: false,
+	      missingRequiredComponents: [],
+	      costBasis: null,
+	      l3BenchmarkReferenceCostUsd: null,
+	      compositeLineItems: [],
+	      quoteReconciliations: [],
+	      allInReconciliationRequired: false,
+	      quotesEvaluated: canonicalQuoteLedger.activeQuoteCount,
+	      sourceQuotesReceived: resolvedExtractedQuotes.length,
+	      duplicateQuotesExcluded: canonicalQuoteLedger.duplicateCount,
+	      supersededQuotesExcluded: canonicalQuoteLedger.supersededCount,
+	      canonicalQuoteLedger: canonicalQuoteLedger.entries,
+	      evidenceGovernance: {
+	        readiness: "not_evaluated",
+	        l2Eligible: false,
+	        progressiveComparisonAvailable: false,
+	        evidenceCoverage: null,
+	        findings: [],
+	      },
+	    };
+
+	    // ── Phase 2: Per-component KINGA benchmarks ─────────────────────────────
     // Fetch p25/median/p75 from componentRepairOutcomes for each damaged component.
     // This enriches the report with per-line-item over/fair/under flags.
     try {

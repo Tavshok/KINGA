@@ -42,7 +42,10 @@
 - [ ] Approved isolated live claim-to-report validation: submit a synthetic claim only in an authorised isolated test tenant, verify controlled evidence persistence, pipeline state, and CL/CI/FR outputs, then record Pass, Blocked, or Defect without creating a real customer or repairer record.
 - [x] User-authorised real-claim validation: selected eligible claim `12909902`, captured pre/post state, ran the real assessment pipeline, and generated CL/CI/FR; no policy, payment, settlement, dispute, recovery, or ownership action was performed.
 - [x] Real-claim validation register: recorded claim, tenant, pre/post state, pipeline action, three report jobs, evidence limitation, transient S3 retry, and outcome; the report inconsistency is separately open as AUD-P1-007.
-- [ ] AUD-P1-007 live CI quote-state consistency: trace the reanalysed claim's submitted quote rows, canonical ledger state, cost-integrity projection, and CI renderer so visible amounts, active/legacy state, L1 availability, and highest quote derive from one evidence population.
+- [x] AUD-P1-007 live CI quote-state consistency: added one typed report quote-evidence projection; CI now distinguishes visible legacy history from active comparison evidence and never renders a false `$0.00` highest quote.
+- [x] AUD-P1-007 diagnostic trace: confirmed CI displays legacy-qualified `submittedQuotes` while deriving highest/L1 and active state from empty `activeQuotes`; visible legacy cards are incorrectly labelled active and absent active metrics render as `$0.00`.
+- [x] AUD-P1-008 Stage 9 benchmark split dependency: restored the schema namespace import, persisted the canonical ledger before optional benchmark enrichment, and registered the Stage 9 `9_cost` observability lifecycle; no-write pipeline and observability regressions pass.
+- [x] Approved AUD-P1-007/008 correction batch: repaired benchmark-helper schema access, persisted canonical quote state before the non-fatal benchmark branch, aligned CI historical versus active quotation labels and metrics, and verified through no-write pipeline, rendered-report, read-only live HTML, and observability regressions.
 
 ---
 
