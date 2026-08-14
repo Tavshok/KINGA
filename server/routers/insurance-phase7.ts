@@ -9,7 +9,7 @@ import { getDb } from "../db";
 import {
   createNotification
 } from "../db";
-import { clientInsuranceServiceRequests, clientVehicleValuationRequests, quotationRequests, users, valuationComparableEvidence } from "../../drizzle/schema";
+import { clientInsuranceServiceRequests, clientVehicleValuationRequests, quotationRequestDocuments, quotationRequests, users, valuationComparableEvidence } from "../../drizzle/schema";
 import { eq, desc, and, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { randomBytes } from "crypto";
@@ -210,8 +210,10 @@ export const insurancePhase7Router = router({
       const isFullUnlocked = req.reportGatingStatus === "full" || req.reportGatingStatus === "paid";
 
       // Always return teaser fields
-      const teaser = {
-        requestNumber: req.requestNumber,
+        const teaser = {
+          sourceLifecycle: "legacy_quotation_history" as const,
+          legacyHistoryNotice: "This is a legacy quotation history record. It is not a standalone valuation or an insurance service request.",
+          requestNumber: req.requestNumber,
         vehicleMake: req.vehicleMake,
         vehicleModel: req.vehicleModel,
         vehicleYear: req.vehicleYear,
@@ -338,7 +340,11 @@ export const insurancePhase7Router = router({
         .orderBy(desc(quotationRequests.createdAt))
         .limit(input.limit);
 
-      return rows;
+      return rows.map((row) => ({
+        ...row,
+        sourceLifecycle: "legacy_quotation_history" as const,
+        legacyHistoryNotice: "This is a legacy quotation history record. It is not a standalone valuation or an insurance service request.",
+      }));
     }),
 
   /**

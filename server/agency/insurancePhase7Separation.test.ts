@@ -32,6 +32,8 @@ describe("legacy phase-7 valuation and insurance request separation", () => {
 
   it("labels legacy quotation rows as history and provides a bounded professional valuation evidence projection", () => {
     expect(routerSource).toContain('sourceLifecycle: "legacy_quotation_history"');
+    expect(routerSource).toContain("legacyHistoryNotice");
+    expect(routerSource).toContain("quotationRequestDocuments");
     expect(agencyServiceSource).toContain("getAgencyProfessionalValuationEvidence");
     expect(agencyServiceSource).toContain("Professional decision support only");
     expect(agencyServiceSource).not.toContain("internalConfidenceScore: raw");
@@ -58,5 +60,17 @@ describe("legacy phase-7 valuation and insurance request separation", () => {
     expect(policyIssuanceSource).toContain("insurancePolicies");
     expect(policyIssuanceSource).not.toContain("clientVehicleValuationRequests");
     expect(policyIssuanceSource).not.toContain("clientInsuranceServiceRequests");
+  });
+
+  it("keeps legacy quotation read and document operations explicitly labelled history rather than relabelling them as future valuation or service-request writers", () => {
+    const legacyTeaserReader = procedureBlock("getTeaserReport:", "getMyRequests:");
+    const legacyAgencyReader = procedureBlock("getValuationRequests:", "assignInspector:");
+    const legacyDocumentWriter = procedureBlock("sendDocumentToClient:", "submitRequest:");
+
+    expect(legacyTeaserReader).toContain('sourceLifecycle: "legacy_quotation_history"');
+    expect(legacyAgencyReader).toContain('sourceLifecycle: "legacy_quotation_history"');
+    expect(legacyDocumentWriter).toContain("quotationRequestDocuments");
+    expect(legacyDocumentWriter).not.toContain("clientVehicleValuationRequests");
+    expect(legacyDocumentWriter).not.toContain("clientInsuranceServiceRequests");
   });
 });
