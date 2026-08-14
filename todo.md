@@ -96,7 +96,9 @@
 - [x] P0 Package 2-M: create a restricted unregistered claimant identity only within a verified insurer tenant when no account-phone match exists, with later My Portal linkage support
 - [x] P0 Package 2-N: fail closed for WhatsApp submissions whose insurer cannot be mapped to an active tenant; prove no cross-tenant claim or evidence association
 - [x] P0 Package 2-F1: add and run router-level P0 tests covering real web/My Portal, WhatsApp, and every concrete API/mobile claim-submit path into canonical intake
-- [ ] P0 Package 2-F2: add and run adversarial P0 tests for foreign claim, evidence, attachment, and existing-record modification attempts on every Package 2 entry point
+- [x] P0 Package 2-F2: added and ran adversarial P0 tests for foreign attachment and existing-record mutation attempts through every implemented Package 2 entry point; no concrete API/mobile canonical entry point exists.
+- [x] Approved P0 Package 2-F/F2 internal entry-point matrix: proved concrete web/My Portal, WhatsApp-local, and agency-assisted boundaries derive actor/tenant identity server-side and deny foreign mutation attempts without persistence, assessment, audit, event, or notification effects.
+- [x] P0 Package 2 external-provider gate record: retained the connected-provider WhatsApp webhook/media/duplicate-delivery scenario as the explicitly unclosed external acceptance item after internal adapter proof.
 - [x] P0 Package 2-G1: compare persisted claims and claim_documents output for each real intake path to prove lossless metadata, associations, and source provenance
 - [x] P0 Package 2-I1: added and ran adapter-level interrupted-submission retry tests proving no duplicate canonical claim/evidence set, assessment start, or recovery notification side effects across every implemented adapter.
 - [x] P0 Package 2-OA1: ran an isolated two-tenant canonical-intake fixture and compared normalised persisted claim and claim-document records for web/My Portal, WhatsApp-local, and agency-assisted hand-off paths.

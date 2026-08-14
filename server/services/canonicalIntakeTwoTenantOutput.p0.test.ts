@@ -120,6 +120,69 @@ function comparableOutput(captured: Captured) {
   };
 }
 
+async function expectForeignExistingRecordDenied(adapter: Adapter) {
+  const actor: CanonicalIntakeActor = adapter === "web_my_portal"
+    ? { id: 101, tenantId: "tenant-output-a", role: "claimant" }
+    : adapter === "whatsapp_local"
+      ? { id: 102, tenantId: "tenant-output-a", role: "claimant", uploadKeyPrefixes: ["whatsapp-claims/"] }
+      : { id: 55, tenantId: "tenant-output-a", role: "claimant", uploadKeyPrefixes: ["agency-claims/55/"] };
+  const input = canonicalInput(adapter, actor.id, `foreign-existing-${adapter}`);
+  const canonicalPersistInput = adapter === "agency_assisted"
+    ? {
+      ...input,
+      agencyClientId: 7,
+      insurerTenantId: "tenant-output-a",
+      claimantPhone: "+263771000001",
+      sourceMetadata: {
+        agencyTenantId: "agency-output",
+        agencyClientId: 7,
+        agencySubmittedBy: 55,
+        claimantIdentityTrust: "restricted_agency_assisted",
+        claimantName: "Agency Client",
+      },
+    }
+    : input;
+  const requestHash = createHash("sha256").update(JSON.stringify(canonicalPersistInput)).digest("hex");
+  let selects = 0;
+  const db: any = {
+    select: vi.fn(() => {
+      const builder: any = {
+        from: () => builder,
+        where: () => builder,
+        limit: async () => {
+          selects += 1;
+          return selects === 1
+            ? [{ tenantId: "tenant-output-a", userId: actor.id, idempotencyKey: input.idempotencyKey, requestHash, claimId: 9099 }]
+            : [{ id: 9099, tenantId: "tenant-output-b", claimNumber: "CLM-FOREIGN" }];
+        },
+      };
+      return builder;
+    }),
+    transaction: vi.fn(),
+  };
+  getDb.mockResolvedValueOnce(db);
+  const startAssessment = vi.fn();
+
+  const attempt = adapter === "web_my_portal"
+    ? submitPortalCanonicalIntake({ persist: persistCanonicalClaimIntake, startAssessment }, actor, input)
+    : adapter === "whatsapp_local"
+      ? submitWhatsAppCanonicalIntake({ persist: persistCanonicalClaimIntake, startAssessment }, actor, input)
+      : submitAgencyAssistedCanonicalClaim({
+        agencyTenantId: "agency-output", agencyUserId: 55,
+        loadScopedClient: vi.fn().mockResolvedValue({ id: 7, fullName: "Agency Client", phone: "+263771000001" }),
+        insurerExists: vi.fn().mockResolvedValue(true),
+        resolveActor: vi.fn().mockResolvedValue({ ...actor, identityId: 81, trustLevel: "restricted_agency_assisted" }),
+        persist: persistCanonicalClaimIntake, startAssessment,
+      }, { ...input, agencyClientId: 7, insurerTenantId: "tenant-output-a", attachments: input.attachments });
+
+  await expect(attempt).rejects.toMatchObject({ code: "NOT_FOUND" });
+  expect(db.transaction).not.toHaveBeenCalled();
+  expect(startAssessment).not.toHaveBeenCalled();
+  expect(createAuditEntry).not.toHaveBeenCalled();
+  expect(emitClaimEvent).not.toHaveBeenCalled();
+  expect(createNotification).not.toHaveBeenCalled();
+}
+
 describe("Approved P0 Package 2 isolated two-tenant adapter output and direct-ID boundaries", () => {
   beforeEach(() => vi.resetAllMocks());
 
@@ -162,35 +225,7 @@ describe("Approved P0 Package 2 isolated two-tenant adapter output and direct-ID
     expect(getDb).not.toHaveBeenCalled();
   });
 
-  it("denies an existing intake record whose claim is not available in the actor tenant before any write or assessment start", async () => {
-    const actor: CanonicalIntakeActor = { id: 101, tenantId: "tenant-output-a", role: "claimant" };
-    const input = canonicalInput("web_my_portal", actor.id, "foreign-existing-record");
-    const requestHash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
-    let selects = 0;
-    const db: any = {
-      select: vi.fn(() => {
-        const builder: any = {
-          from: () => builder,
-          where: () => builder,
-          limit: async () => {
-            selects += 1;
-            return selects === 1
-              ? [{ tenantId: "tenant-output-a", userId: actor.id, idempotencyKey: input.idempotencyKey, requestHash, claimId: 9099 }]
-              : [{ id: 9099, tenantId: "tenant-output-b", claimNumber: "CLM-FOREIGN" }];
-          },
-        };
-        return builder;
-      }),
-      transaction: vi.fn(),
-    };
-    getDb.mockResolvedValue(db);
-    const startAssessment = vi.fn();
-
-    await expect(submitPortalCanonicalIntake({ persist: persistCanonicalClaimIntake, startAssessment }, actor, input)).rejects.toMatchObject({ code: "NOT_FOUND" });
-    expect(db.transaction).not.toHaveBeenCalled();
-    expect(startAssessment).not.toHaveBeenCalled();
-    expect(createAuditEntry).not.toHaveBeenCalled();
-    expect(emitClaimEvent).not.toHaveBeenCalled();
-    expect(createNotification).not.toHaveBeenCalled();
+  it.each(["web_my_portal", "whatsapp_local", "agency_assisted"] as const)("denies a foreign existing intake record through the %s boundary before any write or assessment start", async (adapter) => {
+    await expectForeignExistingRecordDenied(adapter);
   });
 });
