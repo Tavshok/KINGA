@@ -273,7 +273,7 @@ describe("AUD-P1-008 no-write Stage 9 canonical evidence persistence", () => {
     ]));
   });
 
-  it("withholds L2 only when a required component has no usable submitted price beyond an extraction fallback", async () => {
+  it("presents human review with no numeric L1/L2 when every price is an extraction fallback", async () => {
     getComponentBenchmarks.mockReset();
     getComponentBenchmarksFromTrainingData.mockReset();
     getComponentBenchmarks.mockResolvedValue([]);
@@ -310,14 +310,13 @@ describe("AUD-P1-008 no-write Stage 9 canonical evidence persistence", () => {
     const composite = (result.data as any).compositeOptimisation;
 
     expect(composite).toMatchObject({
-      l1SubmittedCostUsd: 1000,
+      l1SubmittedCostUsd: null,
       l2CompositeOptimisedCostUsd: null,
-      l2Status: "incomplete_scope",
+      l2Status: "unavailable",
       isComplete: false,
     });
-    expect(composite.missingRequiredComponents).toEqual(expect.arrayContaining(["Front Bumper"]));
-    expect(composite.evidenceGovernance.findings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "line_pricing_not_source_verified" }),
+    expect(composite.canonicalQuoteLedger).toEqual(expect.arrayContaining([
+      expect.objectContaining({ quoteId: "q-inferred-only", status: "historical", evidenceEligibility: "comparison_only" }),
     ]));
   });
 
@@ -357,10 +356,10 @@ describe("AUD-P1-008 no-write Stage 9 canonical evidence persistence", () => {
     const composite = (result.data as any).compositeOptimisation;
 
     expect(composite).toMatchObject({
-      l1SubmittedCostUsd: 900,
+      l1SubmittedCostUsd: 1100,
       l2Status: "complete",
       isComplete: true,
-      quotesEvaluated: 2,
+      quotesEvaluated: 1,
     });
     expect(composite.l2CompositeOptimisedCostUsd).toBeGreaterThan(0);
     expect(composite.savingsL1vsL2Usd).toBe(
@@ -373,8 +372,8 @@ describe("AUD-P1-008 no-write Stage 9 canonical evidence persistence", () => {
         allQuotedPrices: [expect.objectContaining({ quote: "Eligible Repairs", costUsd: 1000 })],
       }),
     ]));
-    expect(composite.evidenceGovernance.findings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "line_pricing_not_source_verified" }),
+    expect(composite.canonicalQuoteLedger).toEqual(expect.arrayContaining([
+      expect.objectContaining({ quoteId: "q-defective", status: "historical", evidenceEligibility: "comparison_only" }),
     ]));
   });
 
@@ -399,10 +398,10 @@ describe("AUD-P1-008 no-write Stage 9 canonical evidence persistence", () => {
         quote("q-defective", "Defective Extraction", 900, "submitted", [{ component: "Front Bumper", line_total: 900, is_repair: true, is_replacement: false }], { extraction_warnings: ["proportional_fallback_used"] }),
         quote("q-total-only", "Total-only Quote", 1300, "submitted", []),
         quote("q-incomplete", "Incomplete Scope", 1250, "submitted", [{ component: "Door Trim", line_total: 1250, is_repair: true, is_replacement: false }]),
-        quote("q-cancelled", "Cancelled Quote", 600, "cancelled", [{ component: "Front Bumper", line_total: 600, is_repair: true, is_replacement: false }]),
-        quote("q-rejected", "Rejected Quote", 650, "rejected", [{ component: "Front Bumper", line_total: 650, is_repair: true, is_replacement: false }]),
-        quote("q-ineligible", "Unsupported Scope", 500, "submitted", [{ component: "Front Bumper", line_total: 500, is_repair: true, is_replacement: false }], { evidence_eligibility: "ineligible" }),
-        quote("q-original", "Revised Repairer", 1500, "submitted", [{ component: "Front Bumper", line_total: 1500, is_repair: true, is_replacement: false }]),
+        quote("q-cancelled", "Cancelled Quote", 16000, "cancelled", [{ component: "Front Bumper", line_total: 16000, is_repair: true, is_replacement: false }]),
+        quote("q-rejected", "Rejected Quote", 15000, "rejected", [{ component: "Front Bumper", line_total: 15000, is_repair: true, is_replacement: false }]),
+        quote("q-ineligible", "Unsupported Scope", 13000, "submitted", [{ component: "Front Bumper", line_total: 13000, is_repair: true, is_replacement: false }], { evidence_eligibility: "ineligible" }),
+        quote("q-original", "Revised Repairer", 14000, "submitted", [{ component: "Front Bumper", line_total: 14000, is_repair: true, is_replacement: false }]),
         quote("q-revised", "Revised Repairer", 1400, "submitted", [], { quote_type: "revised", parent_quote_id: "q-original" }),
       ] } } as any,
       null,
@@ -411,10 +410,10 @@ describe("AUD-P1-008 no-write Stage 9 canonical evidence persistence", () => {
     vi.useRealTimers();
     const composite = (result.data as any).compositeOptimisation;
     expect(composite).toMatchObject({
-      l1SubmittedCostUsd: 900,
+      l1SubmittedCostUsd: 1100,
       l2Status: "complete",
       isComplete: true,
-      quotesEvaluated: 5,
+      quotesEvaluated: 4,
       sourceQuotesReceived: 9,
     });
     expect(composite.l2CompositeOptimisedCostUsd).toBeGreaterThan(0);
@@ -424,10 +423,23 @@ describe("AUD-P1-008 no-write Stage 9 canonical evidence persistence", () => {
     ]));
     const statusByQuote = Object.fromEntries(composite.canonicalQuoteLedger.map((entry: any) => [entry.quoteId, entry.status]));
     expect(statusByQuote).toMatchObject({
-      "q-eligible": "active", "q-defective": "active", "q-total-only": "active", "q-incomplete": "active", "q-cancelled": "historical", "q-rejected": "historical", "q-ineligible": "excluded", "q-original": "superseded", "q-revised": "active",
+      "q-eligible": "active", "q-defective": "historical", "q-total-only": "active", "q-incomplete": "active", "q-cancelled": "historical", "q-rejected": "historical", "q-ineligible": "excluded", "q-original": "superseded", "q-revised": "active",
     });
-    expect(composite.evidenceGovernance.findings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "line_pricing_not_source_verified" }),
+    expect(composite.canonicalQuoteLedger).toEqual(expect.arrayContaining([
+      expect.objectContaining({ quoteId: "q-defective", status: "historical", evidenceEligibility: "comparison_only" }),
     ]));
+    const costDecision = (result.data as any).costDecision;
+    expect(costDecision?.deviation_analysis.highest_quote_usd).toBe(1400);
+    expect(costDecision?.recommendation).toBe("PROCEED_TO_ASSESSMENT");
+    expect(costDecision?.anomalies).toEqual([]);
+    expect(costDecision?.negotiation_guidance).toMatchObject({
+      target_usd: 1100,
+      overpriced_quotes: [],
+      strategy: expect.stringContaining("within acceptable range"),
+    });
+    expect(JSON.stringify(costDecision)).not.toContain("Cancelled Quote");
+    expect(JSON.stringify(costDecision)).not.toContain("Rejected Quote");
+    expect(JSON.stringify(costDecision)).not.toContain("Unsupported Scope");
+    expect(JSON.stringify(costDecision)).not.toContain("Defective Extraction");
   });
 });

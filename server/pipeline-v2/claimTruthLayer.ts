@@ -170,6 +170,17 @@ export interface ClaimTruthInput {
   /** Stage 6 vision-enriched photos — used as fallback when classifiedImages is null */
   enrichedPhotos?: { url: string; confidenceScore?: number }[] | null;
   extractedQuotes: ExtractedQuote[];
+  /**
+   * Canonical Stage 9 repair evidence. When supplied, this is the only quote
+   * population that may influence cost verdicts, anomaly signals, negotiation
+   * guidance, recommendations, savings, or settlement-facing conclusions.
+   * Raw extracted rows remain evidence history, not decision authority.
+   */
+  canonicalEligibleQuotes?: Array<{
+    panelBeater: string;
+    totalUsd: number;
+    lineItemCount?: number;
+  }>;
   kingaEstimateUsd: number | null;
   kingaEstimateSource: string | null;
   systemCreatedAt: Date | null; // KINGA system ingestion date — used ONLY for metadata, never for timeline
@@ -390,45 +401,65 @@ function resolveTimeline(input: ClaimTruthInput, conflicts: ConflictResolved[]):
 // ─── COST RESOLVER ──────────────────────────────────────────────────────────
 
 function resolveCostBasis(input: ClaimTruthInput, conflicts: ConflictResolved[]): ClaimTruthCostBasis {
-  const { extractedQuotes, claimRecord, kingaEstimateUsd, kingaEstimateSource } = input;
+  const { extractedQuotes, claimRecord, kingaEstimateUsd, kingaEstimateSource, canonicalEligibleQuotes } = input;
 
-  // Build the unified quote list from ALL sources
+  // Canonical Stage 9 authority takes precedence. Where it is available,
+  // historical, rejected, superseded, duplicate, and explicitly ineligible
+  // raw rows must never re-enter Claim Truth decision calculations.
   const quotes: ClaimTruthQuote[] = [];
+  const hasCanonicalQuoteAuthority = canonicalEligibleQuotes !== undefined;
 
-  // Source 1: Extracted quotes from Stage 2.7 / Stage 3 (inputRecovery)
-  for (const eq of extractedQuotes) {
-    if (eq.total_cost && eq.total_cost > 0) {
-      quotes.push({
-        repairerName: eq.panel_beater || "Unknown Repairer",
-        totalUsd: eq.total_cost,
-        isAssessorSelected: false, // will be resolved below
-        lineItemCount: eq.line_items?.length || 0,
-        source: "extracted_quote",
-      });
+  if (hasCanonicalQuoteAuthority) {
+    for (const quote of canonicalEligibleQuotes) {
+      if (Number.isFinite(quote.totalUsd) && quote.totalUsd > 0) {
+        quotes.push({
+          repairerName: quote.panelBeater || "Unknown Repairer",
+          totalUsd: quote.totalUsd,
+          isAssessorSelected: false,
+          lineItemCount: quote.lineItemCount ?? 0,
+          source: "canonical_stage9_eligible_quote",
+        });
+      }
     }
   }
 
-  // Source 2: ClaimRecord repairQuote (from Stage 5 assembly)
-  if (claimRecord.repairQuote?.quoteTotalCents && claimRecord.repairQuote.quoteTotalCents > 0) {
-    const existingRepairer = (claimRecord.repairQuote.repairerCompany || claimRecord.repairQuote.repairerName || "").toLowerCase();
-    // Only add if not already in quotes list (avoid duplicates)
-    const alreadyExists = quotes.some(q =>
-      q.repairerName.toLowerCase() === existingRepairer && existingRepairer !== ""
-    );
-    if (!alreadyExists && existingRepairer) {
-      quotes.push({
-        repairerName: claimRecord.repairQuote.repairerCompany || claimRecord.repairQuote.repairerName || "Unknown",
-        totalUsd: claimRecord.repairQuote.quoteTotalCents / 100,
-        isAssessorSelected: !!claimRecord.repairQuote.assessorName, // if assessor is named, they selected this repairer
-        lineItemCount: claimRecord.repairQuote.lineItems?.length || 0,
-        source: "claim_record_assembly",
-      });
+  if (!hasCanonicalQuoteAuthority) {
+    // Legacy direct callers without a Stage 9 ledger retain their historic
+    // extraction fallback. The live orchestrator always supplies the canonical
+    // population above.
+    for (const eq of extractedQuotes) {
+      if (eq.total_cost && eq.total_cost > 0) {
+        quotes.push({
+          repairerName: eq.panel_beater || "Unknown Repairer",
+          totalUsd: eq.total_cost,
+          isAssessorSelected: false,
+          lineItemCount: eq.line_items?.length || 0,
+          source: "extracted_quote",
+        });
+      }
+    }
+
+    // Source 2: ClaimRecord repairQuote (legacy direct callers only).
+    if (claimRecord.repairQuote?.quoteTotalCents && claimRecord.repairQuote.quoteTotalCents > 0) {
+      const existingRepairer = (claimRecord.repairQuote.repairerCompany || claimRecord.repairQuote.repairerName || "").toLowerCase();
+      const alreadyExists = quotes.some(q =>
+        q.repairerName.toLowerCase() === existingRepairer && existingRepairer !== ""
+      );
+      if (!alreadyExists && existingRepairer) {
+        quotes.push({
+          repairerName: claimRecord.repairQuote.repairerCompany || claimRecord.repairQuote.repairerName || "Unknown",
+          totalUsd: claimRecord.repairQuote.quoteTotalCents / 100,
+          isAssessorSelected: !!claimRecord.repairQuote.assessorName,
+          lineItemCount: claimRecord.repairQuote.lineItems?.length || 0,
+          source: "claim_record_assembly",
+        });
+      }
     }
   }
 
   // Mark assessor-selected quote: if assessorName exists and repairerCompany matches a quote
   const assessorRepairer = (claimRecord.repairQuote?.repairerCompany || "").toLowerCase();
-  if (assessorRepairer) {
+  if (!hasCanonicalQuoteAuthority && assessorRepairer) {
     for (const q of quotes) {
       if (q.repairerName.toLowerCase() === assessorRepairer) {
         q.isAssessorSelected = true;

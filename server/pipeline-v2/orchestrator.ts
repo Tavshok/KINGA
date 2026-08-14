@@ -2321,6 +2321,15 @@ export async function runPipelineV2(
   try {
     // Build CTL input from all available stage outputs
     const ctlExtractedQuotes = stage3Data?.inputRecovery?.extracted_quotes ?? [];
+    const ctlCanonicalLedger = (stage9Data as any)?.compositeOptimisation?.canonicalQuoteLedger;
+    const ctlCanonicalEligibleQuotes = Array.isArray(ctlCanonicalLedger)
+      ? ctlCanonicalLedger
+          .filter((entry: any) => entry?.status === "active" && entry?.evidenceEligibility === "final_l2_eligible")
+          .map((entry: any) => ({
+            panelBeater: String(entry.panelBeater ?? "Unknown Repairer"),
+            totalUsd: Number(entry.totalCostUsd ?? 0),
+          }))
+      : undefined;
     const ctlKingaEstimate = stage9Data?.expectedRepairCostCents
       ? stage9Data.expectedRepairCostCents / 100
       : null;
@@ -2341,6 +2350,7 @@ export async function runPipelineV2(
       classifiedImages: ctx.classifiedImages ?? null,
       enrichedPhotos: ctlEnrichedPhotos.length > 0 ? ctlEnrichedPhotos : null,
       extractedQuotes: ctlExtractedQuotes,
+      canonicalEligibleQuotes: ctlCanonicalEligibleQuotes,
       kingaEstimateUsd: ctlKingaEstimate,
       kingaEstimateSource: ctlKingaEstimateSource,
       systemCreatedAt: ctx.claim?.createdAt ? new Date(ctx.claim.createdAt) : null,

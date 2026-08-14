@@ -38,6 +38,8 @@ export interface QuoteLedgerSource {
   evidenceEligibility?: QuoteEvidenceEligibility | string | null;
   evidence_eligibility_reason?: string | null;
   evidenceEligibilityReason?: string | null;
+  extraction_warnings?: string[] | null;
+  extractionWarnings?: string[] | null;
   document_category?: string | null;
   total_cost?: number | null;
   currency?: string | null;
@@ -194,6 +196,26 @@ function explicitEligibilityOf(quote: QuoteLedgerSource): QuoteEvidenceEligibili
 }
 
 /**
+ * Explicitly inferred or proportional-fallback prices are useful extraction
+ * history but are not submitted prices, so they cannot enter L1/L2 or any
+ * downstream cost-decision calculation.
+ */
+function hasNonSubmittedPricing(quote: QuoteLedgerSource): boolean {
+  const warnings = [
+    ...(Array.isArray(quote.extraction_warnings) ? quote.extraction_warnings : []),
+    ...(Array.isArray(quote.extractionWarnings) ? quote.extractionWarnings : []),
+  ];
+  return warnings.some((warning) => {
+    const value = canonicalText(text(warning));
+    return value === "proportional fallback used"
+      || value === "proportional fallback"
+      || value === "inferred component pricing"
+      || value === "inferred quote pricing"
+      || value === "estimated component pricing";
+  });
+}
+
+/**
  * Workflow state records commercial lifecycle; evidence eligibility controls the
  * payable L2 selection boundary. A rejected or withdrawn price is preserved as
  * traceable history unless a specific integrity/scope decision marks it
@@ -208,6 +230,12 @@ function resolveEvidenceEligibility(quote: QuoteLedgerSource, repairQuote: boole
   const explicitReason = text(quote.evidence_eligibility_reason) || text(quote.evidenceEligibilityReason);
   if (!repairQuote) {
     return { eligibility: "ineligible", reason: "Non-repair evidence cannot enter the repair-quote selection ledger." };
+  }
+  if (hasNonSubmittedPricing(quote)) {
+    return {
+      eligibility: "comparison_only",
+      reason: "Quotation contains explicitly inferred or proportional-fallback pricing and is retained as review history, not submitted-price decision evidence.",
+    };
   }
   if (WITHDRAWN_WORKFLOW_STATUSES.has(workflowStatus)) {
     return { eligibility: "comparison_only", reason: explicitReason || "Withdrawn or cancelled quotation retained as historical price evidence only." };
