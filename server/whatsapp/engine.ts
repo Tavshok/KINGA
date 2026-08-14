@@ -20,7 +20,7 @@ import type { ClaimSessionData } from "./types";
 import { and, eq, or } from "drizzle-orm";
 import { createHash } from "crypto";
 import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment, type CanonicalIntakeActor } from "../services/canonicalClaimIntake";
-import { submitAndStartCanonicalIntake } from "../services/canonicalIntakeSubmission";
+import { submitWhatsAppCanonicalIntake } from "../services/canonicalIntakeAdapters";
 import { applyWhatsAppSubmissionSideEffects } from "./submissionSideEffects";
 
 // ─── Provider Singleton ───────────────────────────────────────────────────────
@@ -311,7 +311,7 @@ async function submitClaimToDb(
   const data = session.data as ClaimSessionData;
   try {
     const actor = await resolveWhatsAppCanonicalActor(phone, data.insurerName);
-    const result = await submitAndStartCanonicalIntake({ persist: persistCanonicalClaimIntake, startAssessment: startCanonicalIntakeAssessment }, actor, {
+    const result = await submitWhatsAppCanonicalIntake({ persist: persistCanonicalClaimIntake, startAssessment: startCanonicalIntakeAssessment }, actor, {
       idempotencyKey: session.id,
       channel: "whatsapp",
       claimantPhone: phone,

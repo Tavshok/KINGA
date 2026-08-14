@@ -66,8 +66,9 @@ describe("P0 implemented canonical intake adapter acceptance", () => {
     const web = readFileSync("server/routers/claims-core.ts", "utf8");
     const whatsapp = readFileSync("server/whatsapp/engine.ts", "utf8");
     expect(web).toContain("persistCanonicalClaimIntake");
+    expect(web).toContain("submitPortalCanonicalIntake");
     expect(web).toContain('channel: input.channel');
-    expect(whatsapp).toContain("submitAndStartCanonicalIntake");
+    expect(whatsapp).toContain("submitWhatsAppCanonicalIntake");
     expect(whatsapp).toContain("persist: persistCanonicalClaimIntake");
     expect(whatsapp).toContain('channel: "whatsapp"');
   });
@@ -168,7 +169,9 @@ describe("P0 implemented canonical intake adapter acceptance", () => {
     const whatsapp = readFileSync("server/whatsapp/engine.ts", "utf8");
     const agency = readFileSync("server/agency/agencyAssistedClaimSubmission.ts", "utf8");
     const canonical = readFileSync("server/services/canonicalClaimIntake.ts", "utf8");
-    for (const source of [web, whatsapp, agency]) expect(source).toContain("submitAndStartCanonicalIntake");
+    expect(web).toContain("submitPortalCanonicalIntake");
+    expect(whatsapp).toContain("submitWhatsAppCanonicalIntake");
+    expect(agency).toContain("submitAndStartCanonicalIntake");
     expect(canonical).toContain("assertCanonicalAttachmentOwnership(actor, input.attachments)");
     expect(canonical).toContain("claimIntakeRequests.tenantId, actor.tenantId");
   });
