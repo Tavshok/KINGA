@@ -209,4 +209,225 @@ describe("AUD-P1-008 no-write Stage 9 canonical evidence persistence", () => {
     expect(composite.canonicalQuoteLedger.filter((entry: any) => entry.status !== "active").map((entry: any) => entry.quoteId))
       .toEqual(expect.arrayContaining(["q-cancelled", "q-rejected", "q-ineligible", "q-original"]));
   });
+
+  it("publishes L2 from covered active submitted lines while retaining provenance and header reconciliation as quote issues", async () => {
+    getComponentBenchmarks.mockReset();
+    getComponentBenchmarksFromTrainingData.mockReset();
+    getComponentBenchmarks.mockResolvedValue([]);
+    getComponentBenchmarksFromTrainingData.mockResolvedValue([]);
+    vi.useFakeTimers();
+    const result = await runCostOptimisationStage(
+      { log: vi.fn(), db: null, tenantRates: null, tenantCountry: "ZW", runId: "no-write-quote-issues-published-l2" } as any,
+      { claimId: 990004, marketRegion: "ZW", vehicle: { make: "Unknown", model: "Fixture", year: 2021 }, repairQuote: {}, valuation: null } as any,
+      { damagedParts: [{ name: "Front Bumper", severity: "moderate" }] } as any,
+      { accidentSeverity: "minor" } as any,
+      {
+        inputRecovery: {
+          extracted_quotes: [{
+            quote_id: "q-warning-only",
+            panel_beater: "Repairer With A Quote Issue",
+            total_cost: 1100,
+            currency: "USD",
+            quote_type: "original",
+            workflow_status: "submitted",
+            document_category: "repair_quote",
+            components: ["Front Bumper"],
+            // Deliberately no source document/page metadata. The itemised price
+            // is still submitted evidence and must remain usable for L2.
+            line_items: [{ component: "Front Bumper", line_total: 1000, is_repair: true, is_replacement: false }],
+            confidence: "high",
+          }],
+        },
+      } as any,
+      null,
+    );
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    const composite = (result.data as any).compositeOptimisation;
+
+    expect(composite).toMatchObject({
+      l1SubmittedCostUsd: 1100,
+      l2Status: "complete",
+      isComplete: true,
+      allInReconciliationRequired: true,
+      evidenceGovernance: {
+        readiness: "published_with_quote_issues",
+        l2Eligible: true,
+      },
+    });
+    expect(composite.l2CompositeOptimisedCostUsd).toBeGreaterThan(0);
+    expect(composite.savingsL1vsL2Usd).toBe(
+      composite.l1LowestSubmittedCostUsd - composite.l2CompositeOptimisedCostUsd,
+    );
+    expect(composite.compositeLineItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        componentName: "Front Bumper",
+        allQuotedPrices: expect.arrayContaining([expect.objectContaining({ costUsd: 1000 })]),
+      }),
+    ]));
+    expect(composite.evidenceGovernance.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "source_provenance_pending" }),
+    ]));
+    expect(composite.quoteReconciliations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ status: "reconciliation_required", unexplainedResidualUsd: 100 }),
+    ]));
+  });
+
+  it("withholds L2 only when a required component has no usable submitted price beyond an extraction fallback", async () => {
+    getComponentBenchmarks.mockReset();
+    getComponentBenchmarksFromTrainingData.mockReset();
+    getComponentBenchmarks.mockResolvedValue([]);
+    getComponentBenchmarksFromTrainingData.mockResolvedValue([]);
+    vi.useFakeTimers();
+    const result = await runCostOptimisationStage(
+      { log: vi.fn(), db: null, tenantRates: null, tenantCountry: "ZW", runId: "no-write-inferred-price-hard-stop" } as any,
+      { claimId: 990005, marketRegion: "ZW", vehicle: { make: "Unknown", model: "Fixture", year: 2021 }, repairQuote: {}, valuation: null } as any,
+      { damagedParts: [{ name: "Front Bumper", severity: "moderate" }] } as any,
+      { accidentSeverity: "minor" } as any,
+      {
+        inputRecovery: {
+          extracted_quotes: [{
+            quote_id: "q-inferred-only",
+            panel_beater: "Repairer With Inferred Pricing",
+            total_cost: 1000,
+            currency: "USD",
+            quote_type: "original",
+            workflow_status: "submitted",
+            document_category: "repair_quote",
+            source_document_index: 1,
+            source_page_numbers: [1],
+            extraction_warnings: ["proportional_fallback_used"],
+            components: ["Front Bumper"],
+            line_items: [{ component: "Front Bumper", line_total: 1000, is_repair: true, is_replacement: false }],
+            confidence: "high",
+          }],
+        },
+      } as any,
+      null,
+    );
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    const composite = (result.data as any).compositeOptimisation;
+
+    expect(composite).toMatchObject({
+      l1SubmittedCostUsd: 1000,
+      l2CompositeOptimisedCostUsd: null,
+      l2Status: "incomplete_scope",
+      isComplete: false,
+    });
+    expect(composite.missingRequiredComponents).toEqual(expect.arrayContaining(["Front Bumper"]));
+    expect(composite.evidenceGovernance.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "line_pricing_not_source_verified" }),
+    ]));
+  });
+
+  it("continues final L2 from the remaining eligible submitted line when another active quote has only inferred pricing", async () => {
+    getComponentBenchmarks.mockReset();
+    getComponentBenchmarksFromTrainingData.mockReset();
+    getComponentBenchmarks.mockResolvedValue([]);
+    getComponentBenchmarksFromTrainingData.mockResolvedValue([]);
+    vi.useFakeTimers();
+    const result = await runCostOptimisationStage(
+      { log: vi.fn(), db: null, tenantRates: null, tenantCountry: "ZW", runId: "no-write-remaining-eligible-l2" } as any,
+      { claimId: 990006, marketRegion: "ZW", vehicle: { make: "Unknown", model: "Fixture", year: 2021 }, repairQuote: {}, valuation: null } as any,
+      { damagedParts: [{ name: "Front Bumper", severity: "moderate" }] } as any,
+      { accidentSeverity: "minor" } as any,
+      {
+        inputRecovery: {
+          extracted_quotes: [
+            {
+              quote_id: "q-eligible", panel_beater: "Eligible Repairs", total_cost: 1100, currency: "USD",
+              quote_type: "original", workflow_status: "submitted", document_category: "repair_quote",
+              source_document_index: 1, source_page_numbers: [1], components: ["Front Bumper"],
+              line_items: [{ component: "Front Bumper", line_total: 1000, is_repair: true, is_replacement: false }], confidence: "high",
+            },
+            {
+              quote_id: "q-defective", panel_beater: "Defective Extraction", total_cost: 900, currency: "USD",
+              quote_type: "original", workflow_status: "submitted", document_category: "repair_quote",
+              source_document_index: 2, source_page_numbers: [1], extraction_warnings: ["proportional_fallback_used"], components: ["Front Bumper"],
+              line_items: [{ component: "Front Bumper", line_total: 900, is_repair: true, is_replacement: false }], confidence: "low",
+            },
+          ],
+        },
+      } as any,
+      null,
+    );
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    const composite = (result.data as any).compositeOptimisation;
+
+    expect(composite).toMatchObject({
+      l1SubmittedCostUsd: 900,
+      l2Status: "complete",
+      isComplete: true,
+      quotesEvaluated: 2,
+    });
+    expect(composite.l2CompositeOptimisedCostUsd).toBeGreaterThan(0);
+    expect(composite.savingsL1vsL2Usd).toBe(
+      composite.l1LowestSubmittedCostUsd - composite.l2CompositeOptimisedCostUsd,
+    );
+    expect(composite.compositeLineItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        componentName: "Front Bumper",
+        selectedSubmittedFromQuote: "Eligible Repairs",
+        allQuotedPrices: [expect.objectContaining({ quote: "Eligible Repairs", costUsd: 1000 })],
+      }),
+    ]));
+    expect(composite.evidenceGovernance.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "line_pricing_not_source_verified" }),
+    ]));
+  });
+
+  it("isolates every non-selected quote state while preserving L1, L2, savings, and review findings from remaining eligible evidence", async () => {
+    getComponentBenchmarks.mockReset();
+    getComponentBenchmarksFromTrainingData.mockReset();
+    getComponentBenchmarks.mockResolvedValue([]);
+    getComponentBenchmarksFromTrainingData.mockResolvedValue([]);
+    vi.useFakeTimers();
+    const quote = (quoteId: string, repairer: string, total: number, workflowStatus: string, lineItems: any[], extra: Record<string, unknown> = {}) => ({
+      quote_id: quoteId, panel_beater: repairer, total_cost: total, currency: "USD", quote_type: "original",
+      workflow_status: workflowStatus, document_category: "repair_quote", source_document_index: 1, source_page_numbers: [1],
+      components: ["Front Bumper"], line_items: lineItems, confidence: "high", ...extra,
+    });
+    const result = await runCostOptimisationStage(
+      { log: vi.fn(), db: null, tenantRates: null, tenantCountry: "ZW", runId: "no-write-all-nonselected-states" } as any,
+      { claimId: 990007, marketRegion: "ZW", vehicle: { make: "Unknown", model: "Fixture", year: 2021 }, repairQuote: {}, valuation: null } as any,
+      { damagedParts: [{ name: "Front Bumper", severity: "moderate" }] } as any,
+      { accidentSeverity: "minor" } as any,
+      { inputRecovery: { extracted_quotes: [
+        quote("q-eligible", "Eligible Repairs", 1100, "submitted", [{ component: "Front Bumper", line_total: 1000, is_repair: true, is_replacement: false }]),
+        quote("q-defective", "Defective Extraction", 900, "submitted", [{ component: "Front Bumper", line_total: 900, is_repair: true, is_replacement: false }], { extraction_warnings: ["proportional_fallback_used"] }),
+        quote("q-total-only", "Total-only Quote", 1300, "submitted", []),
+        quote("q-incomplete", "Incomplete Scope", 1250, "submitted", [{ component: "Door Trim", line_total: 1250, is_repair: true, is_replacement: false }]),
+        quote("q-cancelled", "Cancelled Quote", 600, "cancelled", [{ component: "Front Bumper", line_total: 600, is_repair: true, is_replacement: false }]),
+        quote("q-rejected", "Rejected Quote", 650, "rejected", [{ component: "Front Bumper", line_total: 650, is_repair: true, is_replacement: false }]),
+        quote("q-ineligible", "Unsupported Scope", 500, "submitted", [{ component: "Front Bumper", line_total: 500, is_repair: true, is_replacement: false }], { evidence_eligibility: "ineligible" }),
+        quote("q-original", "Revised Repairer", 1500, "submitted", [{ component: "Front Bumper", line_total: 1500, is_repair: true, is_replacement: false }]),
+        quote("q-revised", "Revised Repairer", 1400, "submitted", [], { quote_type: "revised", parent_quote_id: "q-original" }),
+      ] } } as any,
+      null,
+    );
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    const composite = (result.data as any).compositeOptimisation;
+    expect(composite).toMatchObject({
+      l1SubmittedCostUsd: 900,
+      l2Status: "complete",
+      isComplete: true,
+      quotesEvaluated: 5,
+      sourceQuotesReceived: 9,
+    });
+    expect(composite.l2CompositeOptimisedCostUsd).toBeGreaterThan(0);
+    expect(composite.savingsL1vsL2Usd).toBe(composite.l1LowestSubmittedCostUsd - composite.l2CompositeOptimisedCostUsd);
+    expect(composite.compositeLineItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({ componentName: "Front Bumper", selectedSubmittedFromQuote: "Eligible Repairs" }),
+    ]));
+    const statusByQuote = Object.fromEntries(composite.canonicalQuoteLedger.map((entry: any) => [entry.quoteId, entry.status]));
+    expect(statusByQuote).toMatchObject({
+      "q-eligible": "active", "q-defective": "active", "q-total-only": "active", "q-incomplete": "active", "q-cancelled": "historical", "q-rejected": "historical", "q-ineligible": "excluded", "q-original": "superseded", "q-revised": "active",
+    });
+    expect(composite.evidenceGovernance.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "line_pricing_not_source_verified" }),
+    ]));
+  });
 });

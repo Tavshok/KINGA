@@ -789,6 +789,8 @@ export interface InputQuoteLineItem {
   /** Durable source identifiers used to prove an L2 selection originated in a submitted quotation. */
   sourceQuoteId?: string | number | null;
   sourceLineItemId?: string | number | null;
+  /** False only where extraction records that the line value was inferred rather than read from the submitted quote. */
+  sourcePricingVerified?: boolean;
   /** True when this row is a repair operation (not a replacement part supply) */
   isRepair?: boolean;
   /** True when this row is a replacement part supply */
@@ -1024,6 +1026,10 @@ export function buildCompositeQuote(
     for (const item of items) {
       if (!item.costUsd || item.costUsd <= 0) continue;
       if (!item.componentName || item.componentName.trim() === '') continue;
+      // L2 must never convert an inferred or proportional fallback amount into
+      // a submitted component price. The quote-quality finding remains visible,
+      // but a genuine absence of another submitted price is an L2 hard stop.
+      if (item.sourcePricingVerified === false) continue;
       // Paint, sundries, strip & assemble, labour, VAT, and mandatory fees are
       // all payable repair-scope rows. Keep them as independent normalised rows
       // so an unbenchmarked row falls back to the submitted price rather than
@@ -1347,8 +1353,15 @@ export function buildCompositeQuote(
 
   // Add data-gap items from safety-critical scope checks and confirmed damage
   // that has no traceable submitted price.
+  // A repair-only price for a safety-critical component is a hard stop only
+  // when no eligible submitted quote supplies the required replacement scope.
+  // One weaker quote must not suppress KINGA Optimised Quote when another
+  // eligible submitted quote covers the same component correctly.
+  const unresolvedSafetyCriticalGaps = validNormalisedQuotes
+    .flatMap((quote) => quote.dataGaps)
+    .filter((name) => !componentMatrix.has(name));
   const allDataGapNames = new Set([
-    ...validNormalisedQuotes.flatMap(q => q.dataGaps),
+    ...unresolvedSafetyCriticalGaps,
     ...missingRequiredComponents,
   ]);
   for (const gapName of allDataGapNames) {
@@ -1383,7 +1396,12 @@ export function buildCompositeQuote(
 
   compositeOptimisedCostUsd = Math.round(compositeOptimisedCostUsd * 100) / 100;
   const partialPricedScopeUsd = compositeOptimisedCostUsd;
-  const isComplete = allDataGapNames.size === 0 && !allInReconciliationRequired;
+  // Header/item reconciliation is a quote-quality issue, not a reason to
+  // withhold L2. KINGA never allocates an unexplained residual; it selects
+  // only traceable submitted component prices and presents the residual in
+  // Quote Issues. L2 is withheld only where required submitted component
+  // evidence is genuinely absent or a required safety scope is unpriced.
+  const isComplete = allDataGapNames.size === 0;
 
   // ── 4. L1 for savings calculation ──────────────────────────────────────────
   // L1 = lowest normalised quote total (best real package deal)

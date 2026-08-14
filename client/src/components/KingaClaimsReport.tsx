@@ -22,7 +22,7 @@ import { ReportSectionThread } from "./ReportSectionThread";
 import { ConfidenceImprovementChecklist } from "./ConfidenceImprovementChecklist";
 import { expandShorthand } from "../../../shared/expandShorthand";
 import { ComponentCostMatrix, buildRowsFromComposite, buildRowsFromLineItems, MatrixQuote } from "./ComponentCostMatrix";
-import { buildCostDecisionPresentationContract } from "@shared/costDecisionPresentation";
+import { buildCostDecisionPresentationContract, extractNonBlockingQuoteQualityIssues } from "@shared/costDecisionPresentation";
 import { classifyLegacyQuoteEvidenceRows } from "@shared/legacyQuoteEvidence";
 import { resolveQuoteComparisonEvidence } from "@/lib/quoteComparisonEvidence";
 
@@ -304,10 +304,11 @@ function CostVerdictBadge({ verdict }: { verdict: string }) {
   );
 }
 
-function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalLossIndicated, repairToValueRatio, repairIntelligence }: { costIntelligence: any; quotes: any[]; fmtCurrency: (amount: number | null | undefined) => string; totalLossIndicated: boolean; repairToValueRatio: number | null; repairIntelligence?: unknown }) {
+export function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalLossIndicated, repairToValueRatio, repairIntelligence }: { costIntelligence: any; quotes: any[]; fmtCurrency: (amount: number | null | undefined) => string; totalLossIndicated: boolean; repairToValueRatio: number | null; repairIntelligence?: unknown }) {
   const composite = costIntelligence?.compositeOptimisation ?? {};
   const ledger = Array.isArray(composite.canonicalQuoteLedger) ? composite.canonicalQuoteLedger : [];
   const activeLedger = ledger.filter((quote: any) => quote?.status === "active" || quote?.status === "supplementary");
+  const qualifiedLedgerHistory = ledger.filter((quote: any) => quote?.status !== "active" && quote?.status !== "supplementary");
   const legacyQuoteHistory = ledger.length === 0 ? classifyLegacyQuoteEvidenceRows(quotes) : [];
   const submittedQuotes = activeLedger.length > 0
     ? activeLedger.map((quote: any, index: number) => ({ name: quote.panelBeater ?? `Quote ${index + 1}`, amount: Number(quote.totalCostUsd ?? 0) || null }))
@@ -318,6 +319,7 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalL
   const missingComponents = Array.isArray(composite.missingRequiredComponents) ? composite.missingRequiredComponents.map(String) : [];
   const duplicateCount = Number(composite.duplicateQuotesExcluded ?? 0) || 0;
   const hasQuotes = submittedQuotes.length > 0;
+  const quoteQualityIssues = extractNonBlockingQuoteQualityIssues(composite);
   const costDecision = buildCostDecisionPresentationContract({
     quoteReceiptStatus: hasQuotes ? "quotes_received" : "no_quotes",
     activeQuoteCount: submittedQuotes.length,
@@ -326,8 +328,11 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalL
     l2IsComplete: complete,
     l2OptimisedCostUsd: complete ? Number(composite.l2CompositeOptimisedCostUsd) : null,
     l2EvidenceQualifiedComparisonUsd: Number(composite.l2EvidenceQualifiedComparisonUsd ?? composite.partialPricedScopeUsd ?? 0) || null,
+    partialPricedScopeUsd: Number(composite.partialPricedScopeUsd ?? 0) || null,
+    l1SubmittedCostUsd: Number(composite.l1LowestSubmittedCostUsd ?? composite.l1SubmittedCostUsd ?? 0) || null,
     missingRequiredComponents: missingComponents,
     duplicateQuotesExcluded: duplicateCount,
+    quoteQualityIssues,
     reconciliationRepairers: [],
   });
   const verification = costDecision.quoteVerification;
@@ -336,9 +341,11 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalL
   const optimised = costDecision.optimisedQuoteAmount;
   const optimisedDetail = costDecision.optimisedQuoteDetail;
   const optimisedDisplay = optimised === null
-    ? "Not published"
+    ? costDecision.optimisedQuoteState === "human_review_required" ? "Human review required" : "Not published"
     : costDecision.optimisedQuoteState === "evidence_qualified"
       ? `Evidence-qualified comparison · ${fmtCurrency(optimised)}`
+      : costDecision.optimisedQuoteState === "human_review_required"
+        ? `Review-required priced scope · ${fmtCurrency(optimised)}`
       : fmtCurrency(optimised);
   let repairEvidence: any = repairIntelligence;
   if (typeof repairEvidence === "string") {
@@ -371,9 +378,10 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalL
             {submittedQuotes.length > 0 ? submittedQuotes.map((quote: { name: string; amount: number | null }, index: number) => <span key={`${quote.name}-${index}`} style={{ fontSize: 10, padding: "3px 5px", color: "#35514a", border: "1px solid #d8e2df" }}>{quote.name} <strong style={{ color: "#15352f" }}>{fmtCurrency(quote.amount)}</strong></span>) : <span style={S.muted}>No submitted quotations</span>}
           </div>
           {legacyHistoryQualified && <p style={{ ...S.muted, fontSize: 10, margin: "5px 0 0", color: "#8a5a00" }}>Legacy quotation history — not active comparison evidence until ledger verification.</p>}
+          {qualifiedLedgerHistory.length > 0 && <p style={{ ...S.muted, fontSize: 9, margin: "5px 0 0", color: "#8a5a00" }}>Qualified quotation history — not used for active comparison: {qualifiedLedgerHistory.map((quote: any) => `${quote.panelBeater ?? "Unknown repairer"} (${quote.status ?? "history"})`).join(", ")}.</p>}
         </div>
         <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>KINGA Quote Verification</p><p style={{ fontSize: 13, fontWeight: 800, color: verificationColour, margin: "5px 0 3px" }}>{verification}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{costDecision.quoteVerificationDetail}</p></div>
-        <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>{costDecision.optimisedQuoteLabel}</p><p style={{ fontSize: costDecision.optimisedQuoteState === "evidence_qualified" ? 12 : 18, fontWeight: 800, color: "#0d5849", margin: "4px 0 3px" }}>{optimisedDisplay}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{optimisedDetail}</p></div>
+        <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>{costDecision.optimisedQuoteLabel}</p><p style={{ fontSize: costDecision.optimisedQuoteState === "complete" ? 18 : 12, fontWeight: 800, color: "#0d5849", margin: "4px 0 3px" }}>{optimisedDisplay}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{optimisedDetail}</p>{costDecision.reviewAnchorLabel && costDecision.reviewAnchorAmount !== null && costDecision.reviewAnchorAmount !== undefined && <p style={{ ...S.muted, color: "#8a5a00", fontSize: 9, margin: "4px 0 0" }}>{costDecision.reviewAnchorLabel} · {fmtCurrency(costDecision.reviewAnchorAmount)}</p>}</div>
         <div style={{ padding: 10 }}><p style={S.label}>Quote Issues</p><p style={{ fontSize: 11, fontWeight: 800, color: verification === "PASSED" ? "#14664f" : "#8a5a00", margin: "5px 0 3px" }}>{verification === "PASSED" ? "None" : "Review required"}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{issue}</p></div>
         <div style={{ padding: 10, borderLeft: "1px solid #d8e2df" }}><p style={S.label}>Repairability</p><p style={{ fontSize: 11, fontWeight: 800, color: "#15352f", margin: "5px 0 3px" }}>{repairability.label}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{repairability.detail}</p></div>
       </div>

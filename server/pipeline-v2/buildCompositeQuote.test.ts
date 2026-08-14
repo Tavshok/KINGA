@@ -455,7 +455,7 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
     });
   });
 
-  it("withholds an all-in L2 when explicit submitted lines do not reconcile to the submitted quote header", () => {
+  it("publishes L2 from submitted component evidence while retaining an unreconciled quote header as a quote issue", () => {
     const quotes: InputQuoteWithLineItems[] = [{
       panel_beater: "Repairer A",
       sourceQuoteId: "quote-101",
@@ -478,9 +478,9 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
 
     const result = buildCompositeQuote(quotes, {}, 1100, undefined, ["Front Bumper"]);
 
-    expect(result.compositeOptimisedCostUsd).toBeNull();
+    expect(result.compositeOptimisedCostUsd).toBe(1000);
     expect(result.partialPricedScopeUsd).toBe(1000);
-    expect(result.isComplete).toBe(false);
+    expect(result.isComplete).toBe(true);
     expect(result.allInReconciliationRequired).toBe(true);
     expect(result.quoteReconciliations).toEqual([expect.objectContaining({
       quoteId: "quote-101",
@@ -519,4 +519,106 @@ describe("buildCompositeQuote — per-component L2 formula", () => {
       dataGap: true,
       selectedFromQuote: "data_gap",
     });
+  });
+
+  it("withholds L2 when the only required component value is an inferred extraction fallback", () => {
+    const result = buildCompositeQuote([{
+      panel_beater: "Repairer A",
+      total_cost: 540,
+      currency: "USD",
+      components: ["Front bumper"],
+      confidence: "high",
+      lineItems: [{
+        componentName: "Front bumper",
+        costUsd: 540,
+        sourcePricingVerified: false,
+        isRepair: true,
+        isReplacement: false,
+        isNonPartCost: false,
+      }],
+    }], {}, 540, undefined, ["Front bumper"]);
+
+    expect(result).toMatchObject({
+      isComplete: false,
+      compositeOptimisedCostUsd: null,
+    });
+    expect(result.missingRequiredComponents).toContain("Front Bumper");
+  });
+
+  it("continues L2 from remaining eligible submitted evidence when another quote has only inferred pricing", () => {
+    const result = buildCompositeQuote([
+      {
+        panel_beater: "Eligible Repairs",
+        total_cost: 500,
+        currency: "USD",
+        components: ["Front bumper"],
+        confidence: "high",
+        lineItems: [{
+          componentName: "Front bumper",
+          costUsd: 500,
+          sourcePricingVerified: true,
+          isRepair: true,
+          isReplacement: false,
+          isNonPartCost: false,
+        }],
+      },
+      {
+        panel_beater: "Defective Extraction",
+        total_cost: 650,
+        currency: "USD",
+        components: ["Front bumper"],
+        confidence: "low",
+        lineItems: [{
+          componentName: "Front bumper",
+          costUsd: 650,
+          sourcePricingVerified: false,
+          isRepair: true,
+          isReplacement: false,
+          isNonPartCost: false,
+        }],
+      },
+    ], {}, 500, undefined, ["Front bumper"]);
+
+    expect(result).toMatchObject({
+      isComplete: true,
+      compositeOptimisedCostUsd: 500,
+      missingRequiredComponents: [],
+    });
+    expect(result.compositeLineItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        componentName: "Front Bumper",
+        selectedSubmittedFromQuote: "Eligible Repairs",
+        lowestEligibleSubmittedCostUsd: 500,
+      }),
+    ]));
+  });
+
+  it("continues L2 when another active quote is total-only and therefore contributes no component price", () => {
+    const result = buildCompositeQuote([
+      {
+        panel_beater: "Eligible Repairs",
+        total_cost: 500,
+        currency: "USD",
+        components: ["Front bumper"],
+        confidence: "high",
+        lineItems: [{ componentName: "Front bumper", costUsd: 500, sourcePricingVerified: true, isRepair: true, isReplacement: false, isNonPartCost: false }],
+      },
+      {
+        panel_beater: "Total-only quotation",
+        total_cost: 650,
+        currency: "USD",
+        components: ["Front bumper"],
+        confidence: "medium",
+        lineItems: [],
+      },
+    ], {}, 500, undefined, ["Front bumper"]);
+
+    expect(result).toMatchObject({
+      isComplete: true,
+      compositeOptimisedCostUsd: 500,
+      missingRequiredComponents: [],
+    });
+    expect(result.compositeLineItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({ componentName: "Front Bumper", selectedSubmittedFromQuote: "Eligible Repairs" }),
+    ]));
   });

@@ -73,20 +73,22 @@ describe("R0 concise cost decision presentation", () => {
       l2IsComplete: false,
       l2OptimisedCostUsd: null,
       l2EvidenceQualifiedComparisonUsd: 2740,
+      partialPricedScopeUsd: 2740,
       missingRequiredComponents: ["Front bumper garnish"],
     }));
     expect(presentation.quoteVerification).toBe("SCOPE GAP");
     expect(presentation.optimisedQuoteAmount).toBe(2740);
+    expect(presentation.optimisedQuoteState).toBe("human_review_required");
     expect(presentation.quoteIssue).toBe("Missing submitted price: Front bumper garnish.");
   });
 
-  it("names a concrete quote reconciliation issue rather than inventing a charge or amount", () => {
+  it("names a concrete quote reconciliation issue without suppressing a complete L2 from submitted component evidence", () => {
     const presentation = buildCostDecisionPresentation(cost({
       quoteScopeStatus: "reconciliation_required",
-      l2Status: "reconciliation_required",
-      l2IsComplete: false,
-      l2OptimisedCostUsd: null,
-      l2EvidenceQualifiedComparisonUsd: 2600,
+      l2Status: "complete",
+      l2IsComplete: true,
+      l2OptimisedCostUsd: 2940,
+      l2EvidenceQualifiedComparisonUsd: null,
       allInReconciliationRequired: true,
       unreconciledQuoteCount: 1,
       quoteReconciliations: [
@@ -95,6 +97,26 @@ describe("R0 concise cost decision presentation", () => {
     }));
     expect(presentation.quoteVerification).toBe("RECONCILIATION REQUIRED");
     expect(presentation.quoteIssue).toBe("Repairer A: submitted total requires line-item reconciliation.");
+    expect(presentation).toMatchObject({
+      optimisedQuoteAmount: 2940,
+      optimisedQuoteState: "complete",
+      optimisedQuoteDetail: "KINGA insurer cost recommendation. Quote reconciliation issue retained separately.",
+    });
+  });
+
+  it("keeps a complete L2 published while provenance and extraction findings remain visible as Quote Issues", () => {
+    const presentation = buildCostDecisionPresentation(cost({
+      quoteQualityIssues: [
+        { code: "source_provenance_pending", title: "Source provenance pending", summary: "Document and page provenance requires confirmation." },
+        { code: "line_pricing_not_source_verified", title: "Extraction review", summary: "One or more submitted line prices require extraction review." },
+      ],
+    }));
+    expect(presentation).toMatchObject({
+      quoteVerification: "REVIEW REQUIRED",
+      optimisedQuoteAmount: 2940,
+      optimisedQuoteState: "complete",
+      quoteIssue: "Document and page provenance requires confirmation. One or more submitted line prices require extraction review.",
+    });
   });
 
   it("keeps repairability as a separate evidence-grounded verdict without inventing a threshold", () => {

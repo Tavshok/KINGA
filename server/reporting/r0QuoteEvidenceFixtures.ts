@@ -11,10 +11,11 @@ export type R0QuoteEvidenceFixture = {
     l2Status: "unavailable" | "evidence_qualified" | "complete";
     quoteReceiptStatus: "no_quotes" | "quotes_received";
     comparisonUsd: number | null;
+    presentationAmount: number | null;
     complete: boolean;
     conclusion: "review" | "approved";
     verification: "QUOTATION REQUIRED" | "SCOPE GAP" | "PASSED";
-    presentationState: "pending" | "evidence_qualified" | "complete";
+    presentationState: "human_review_required" | "evidence_qualified" | "complete";
     presentationDetail: string;
   };
 };
@@ -61,11 +62,12 @@ export const R0_QUOTE_EVIDENCE_FIXTURES: readonly R0QuoteEvidenceFixture[] = dee
       l2Status: "unavailable",
       quoteReceiptStatus: "no_quotes",
       comparisonUsd: null,
+      presentationAmount: null,
       complete: false,
       conclusion: "review",
       verification: "QUOTATION REQUIRED",
-      presentationState: "pending",
-      presentationDetail: "Pending submitted quotation evidence.",
+      presentationState: "human_review_required",
+      presentationDetail: "Human review required — no supported submitted component amount is available. Obtain a repair quotation; KINGA will not invent a cost.",
     },
   },
   {
@@ -92,6 +94,7 @@ export const R0_QUOTE_EVIDENCE_FIXTURES: readonly R0QuoteEvidenceFixture[] = dee
       l2IsComplete: false,
       l2OptimisedCostUsd: null,
       l2EvidenceQualifiedComparisonUsd: 1240,
+      l1SubmittedCostUsd: 1240,
       missingRequiredComponents: [],
       duplicateQuotesExcluded: 0,
       reconciliationRepairers: [],
@@ -100,11 +103,12 @@ export const R0_QUOTE_EVIDENCE_FIXTURES: readonly R0QuoteEvidenceFixture[] = dee
       l2Status: "evidence_qualified",
       quoteReceiptStatus: "quotes_received",
       comparisonUsd: 1240,
+      presentationAmount: null,
       complete: false,
       conclusion: "review",
       verification: "SCOPE GAP",
-      presentationState: "evidence_qualified",
-      presentationDetail: "Available comparison retained pending the identified quote evidence.",
+      presentationState: "human_review_required",
+      presentationDetail: "Human review required — no supported submitted component amount is available for the unresolved scope. KINGA will not invent a cost.",
     },
   },
   {
@@ -133,6 +137,8 @@ export const R0_QUOTE_EVIDENCE_FIXTURES: readonly R0QuoteEvidenceFixture[] = dee
       l2IsComplete: false,
       l2OptimisedCostUsd: null,
       l2EvidenceQualifiedComparisonUsd: 1480,
+      partialPricedScopeUsd: 1480,
+      l1SubmittedCostUsd: 1820,
       missingRequiredComponents: ["Headlamp alignment"],
       duplicateQuotesExcluded: 0,
       reconciliationRepairers: [],
@@ -141,11 +147,12 @@ export const R0_QUOTE_EVIDENCE_FIXTURES: readonly R0QuoteEvidenceFixture[] = dee
       l2Status: "evidence_qualified",
       quoteReceiptStatus: "quotes_received",
       comparisonUsd: 1480,
+      presentationAmount: 1480,
       complete: false,
       conclusion: "review",
       verification: "SCOPE GAP",
-      presentationState: "evidence_qualified",
-      presentationDetail: "Available comparison retained pending the identified quote evidence.",
+      presentationState: "human_review_required",
+      presentationDetail: "Review-required priced submitted component scope — not all-in. KINGA identifies the unresolved evidence and recommends human review; no missing price is invented.",
     },
   },
   {
@@ -183,6 +190,7 @@ export const R0_QUOTE_EVIDENCE_FIXTURES: readonly R0QuoteEvidenceFixture[] = dee
       l2Status: "complete",
       quoteReceiptStatus: "quotes_received",
       comparisonUsd: 1725,
+      presentationAmount: 1725,
       complete: true,
       conclusion: "approved",
       verification: "PASSED",

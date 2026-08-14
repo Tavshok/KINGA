@@ -1840,6 +1840,13 @@ export async function runCostOptimisationStage(
           });
           const evidenceGate = assessPipelineEvidenceGate(repairQuotes);
           const compositeInputQuotes: InputQuoteWithLineItems[] = repairQuotes.map((q: any) => {
+            const extractionWarnings = Array.isArray(q.extraction_warnings)
+              ? q.extraction_warnings
+              : Array.isArray(q.extractionWarnings)
+                ? q.extractionWarnings
+                : [];
+            const sourcePricingVerified = !extractionWarnings.includes("line_pricing_not_extracted")
+              && !extractionWarnings.includes("proportional_fallback_used");
             // Pass ALL line items to buildCompositeQuote with their scope flags.
             // buildCompositeQuote now groups rows by component+scope to compute the
             // total-cost-of-operation per component per quote, so it needs the full
@@ -1853,6 +1860,7 @@ export async function runCostOptimisationStage(
                 isRepair: !!(li.is_repair),
                 isReplacement: !!(li.is_replacement),
                 isNonPartCost: !!(li.is_non_part_cost),
+                sourcePricingVerified,
               }))
               .filter((li: any) => li.componentName && li.costUsd > 0);
 
@@ -1908,7 +1916,14 @@ export async function runCostOptimisationStage(
               componentSeverityMap,
               damageAnalysis.damagedParts.map((part: any) => part.name).filter(Boolean)
             );
-            const l2EvidenceEligible = compositeResult.isComplete && evidenceGate.eligibleForFinalL2;
+            // Quote provenance, extraction-quality warnings, and header/item
+            // reconciliation remain visible in Quote Issues but do not block a
+            // completed L2 where eligible active submitted component evidence
+            // covers the required repair scope. Hard stops are represented by
+            // compositeResult.isComplete: no usable component matrix, a
+            // confirmed required component without a submitted price, or an
+            // unresolved safety-critical required scope.
+            const l2EvidenceEligible = compositeResult.isComplete;
             const l2EvidenceQualified = !l2EvidenceEligible
               && evidenceGate.progressiveComparisonAvailable
               && compositeResult.compositeLineItems.some((item) => item.selectedCostUsd > 0);
@@ -1956,16 +1971,12 @@ export async function runCostOptimisationStage(
                 ? "complete"
                 : l2EvidenceQualified
                   ? "evidence_qualified"
-                  : compositeResult.allInReconciliationRequired || !evidenceGate.eligibleForFinalL2
-                  ? "reconciliation_required"
                   : "incomplete_scope",
               quoteReceiptStatus: canonicalQuoteLedger.activeQuoteCount > 0 ? "quotes_received" : "no_quotes",
               quoteScopeStatus: l2EvidenceEligible
                 ? "complete"
                 : l2EvidenceQualified
                   ? "evidence_qualified"
-                  : compositeResult.allInReconciliationRequired || !evidenceGate.eligibleForFinalL2
-                  ? "reconciliation_required"
                   : "incomplete_scope",
               l1SubmittedCostUsd: l1TotalUsd,
               l2CompositeOptimisedCostUsd: l2EvidenceEligible ? compositeResult.compositeOptimisedCostUsd : null,
@@ -1994,7 +2005,9 @@ export async function runCostOptimisationStage(
               canonicalQuoteLedger: canonicalQuoteLedger.entries,
               evidenceGovernance: {
                 readiness: l2EvidenceEligible
-                  ? "verified_equivalent"
+                  ? evidenceGate.findings.length > 0 || compositeResult.allInReconciliationRequired
+                    ? "published_with_quote_issues"
+                    : "verified_equivalent"
                   : l2EvidenceQualified
                     ? "evidence_qualified"
                     : "reconciliation_required",
@@ -2080,16 +2093,10 @@ export async function runCostOptimisationStage(
                 ? `KINGA savings [L1-L2]: USD ${kingaSavingsUsd.toFixed(2)} (lowest submitted $${lowestSubmittedUsd.toFixed(2)} minus KINGA per-component optimised $${l2Usd.toFixed(2)})`
                 : `SUPPLEMENTARY CLAIM RISK [L1-L2]: USD ${Math.abs(kingaSavingsUsd).toFixed(2)} (cheapest quote $${lowestSubmittedUsd.toFixed(2)} is below KINGA optimised $${l2Usd.toFixed(2)} — likely incomplete)`;
               ctx.log('Stage 9', savingsLabel);
-            } else if (compositeResult.allInReconciliationRequired || !evidenceGate.eligibleForL2) {
-              ctx.log(
-                'Stage 9',
-                `L2 RECONCILIATION REQUIRED: explicit itemised submitted-price comparison is available, but ${evidenceGate.eligibleForL2 ? "one or more quote headers do not reconcile to their submitted line totals" : "one or more quote values lack document/page provenance or source-verifiable pricing"}. ` +
-                `No residual amount is allocated; savings and settlement recommendation are suppressed.`
-              );
             } else if (!compositeResult.isComplete) {
               ctx.log(
                 'Stage 9',
-                `L2 INCOMPLETE: ${compositeResult.missingRequiredComponents.length} required component(s) without traceable price: ` +
+                `L2 EXTREME EVIDENCE GAP: ${compositeResult.missingRequiredComponents.length} required component(s) without an eligible submitted price: ` +
                 `${compositeResult.missingRequiredComponents.join(', ') || 'scope/replacement data gap'}. ` +
                 `Partial priced scope=$${compositeResult.partialPricedScopeUsd.toFixed(2)}; savings and settlement recommendation suppressed.`
               );

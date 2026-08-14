@@ -32,15 +32,15 @@ describe("Approved R0-H/R0-I cross-surface cost-strip acceptance", () => {
     expect(html).not.toContain("benchmark");
   });
 
-  it("renders an incomplete L2 only as an evidence-qualified comparison, never a complete payable quote", () => {
+  it("keeps an incomplete L2 visible as a review-required priced scope, never a complete payable quote", () => {
     const presentation = buildCostDecisionPresentationContract({
       quoteReceiptStatus: "quotes_received", activeQuoteCount: 2, allInReconciliationRequired: false, unreconciledQuoteCount: 0,
-      l2IsComplete: false, l2OptimisedCostUsd: null, l2EvidenceQualifiedComparisonUsd: 990,
+      l2IsComplete: false, l2OptimisedCostUsd: null, l2EvidenceQualifiedComparisonUsd: 990, partialPricedScopeUsd: 990,
       missingRequiredComponents: ["Headlamp alignment"], duplicateQuotesExcluded: 0, reconciliationRepairers: [],
     });
-    expect(presentation).toMatchObject({ optimisedQuoteState: "evidence_qualified", optimisedQuoteAmount: 990, optimisedQuoteDetail: "Available comparison retained pending the identified quote evidence." });
-    const html = renderCostDecisionSummaryHtml({ costIntegrity: cost({ quoteScopeStatus: "incomplete_scope", l2Status: "incomplete_scope", l2IsComplete: false, l2OptimisedCostUsd: null, l2EvidenceQualifiedComparisonUsd: 990, missingRequiredComponents: ["Headlamp alignment"] }), formatAmount: (amount) => `USD ${amount?.toFixed(2)}`, escapeHtml: String, repairability: { totalLossIndicated: false, repairToValueRatio: 42 } });
-    expect(html).toContain("Evidence-qualified comparison · USD 990.00");
+    expect(presentation).toMatchObject({ optimisedQuoteState: "human_review_required", optimisedQuoteAmount: 990, optimisedQuoteDetail: "Review-required priced submitted component scope — not all-in. KINGA identifies the unresolved evidence and recommends human review; no missing price is invented." });
+    const html = renderCostDecisionSummaryHtml({ costIntegrity: cost({ quoteScopeStatus: "incomplete_scope", l2Status: "incomplete_scope", l2IsComplete: false, l2OptimisedCostUsd: null, l2EvidenceQualifiedComparisonUsd: 990, partialPricedScopeUsd: 990, missingRequiredComponents: ["Headlamp alignment"] }), formatAmount: (amount) => `USD ${amount?.toFixed(2)}`, escapeHtml: String, repairability: { totalLossIndicated: false, repairToValueRatio: 42 } });
+    expect(html).toContain("Review-required priced scope · USD 990.00");
     expect(html).not.toContain("KINGA insurer cost recommendation.");
   });
 
@@ -50,12 +50,12 @@ describe("Approved R0-H/R0-I cross-surface cost-strip acceptance", () => {
       expect(source).toContain("renderCostDecisionSummaryHtml");
       expect(source).toContain("Submitted quotation ledger");
       expect(source).toContain("l2LedgerLabel");
-      expect(source).toContain("KINGA Optimised Quote (evidence-qualified comparison)");
+      expect(source).toContain("KINGA Optimised Quote");
     }
     const client = read("client/src/components/KingaClaimsReport.tsx");
     expect(client).toContain("submittedQuotes.map");
-    expect(client).toContain("optimisedQuoteState === \"evidence_qualified\"");
-    expect(client).toContain("Evidence-qualified comparison ·");
+    expect(client).toContain("optimisedQuoteState === \"human_review_required\"");
+    expect(client).toContain("Review-required priced scope ·");
   });
 
   it("guards CI and FR savings and settlement conclusions behind a complete KINGA Optimised Quote", () => {

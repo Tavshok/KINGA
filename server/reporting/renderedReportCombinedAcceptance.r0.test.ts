@@ -67,11 +67,13 @@ describe("R0 immutable combined rendered-report acceptance", () => {
       l2IsComplete: false,
       l2OptimisedCostUsd: null,
       l2EvidenceQualifiedComparisonUsd: 3290,
+      partialPricedScopeUsd: 3290,
       missingRequiredComponents: ["Front bumper garnish"],
     }));
     expect(decision).toMatchObject({ quoteVerification: "SCOPE GAP", optimisedQuoteAmount: 3290, quoteIssue: "Missing submitted price: Front bumper garnish." });
     expect(decision.optimisedQuoteLabel).toBe("KINGA Optimised Quote");
-    expect(decision.optimisedQuoteDetail).toContain("pending the identified quote evidence");
+    expect(decision.optimisedQuoteState).toBe("human_review_required");
+    expect(decision.optimisedQuoteDetail).toContain("Review-required priced submitted component scope");
   });
 
   it("keeps a concrete quote reconciliation exception separate from repairability and cost invention", () => {

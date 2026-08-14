@@ -20,6 +20,7 @@ describe("R0 cross-surface concise cost-decision presentation", () => {
     expect(source).toContain("ClientCostDecisionStrip");
     expect(source).toContain('from "@shared/costDecisionPresentation"');
     expect(source).toContain("buildCostDecisionPresentationContract");
+    expect(source).toContain("extractNonBlockingQuoteQualityIssues");
     expect(source).toContain("Submitted Quotations");
     expect(source).toContain("KINGA Quote Verification");
     expect(read("shared/costDecisionPresentation.ts")).toContain("KINGA Optimised Quote");

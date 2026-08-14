@@ -74,8 +74,11 @@ export function buildCostDecisionPresentation(cost: ReportCostIntegrity): CostDe
     l2IsComplete: cost.l2IsComplete,
     l2OptimisedCostUsd: cost.l2OptimisedCostUsd,
     l2EvidenceQualifiedComparisonUsd: cost.l2EvidenceQualifiedComparisonUsd,
+    partialPricedScopeUsd: cost.partialPricedScopeUsd,
+    l1SubmittedCostUsd: cost.l1SubmittedCostUsd,
     missingRequiredComponents: cost.missingRequiredComponents,
     duplicateQuotesExcluded: cost.duplicateQuotesExcluded,
+    quoteQualityIssues: cost.quoteQualityIssues,
     reconciliationRepairers: cost.quoteReconciliations
       .filter((quote) => quote.status === "reconciliation_required")
       .map((quote) => quote.repairer),
@@ -105,10 +108,15 @@ export function renderCostDecisionSummaryHtml(input: {
     ? `<div style="margin-top:5px;padding-top:5px;border-top:1px dashed #d8e2df;font-size:8px;color:#62726e;line-height:1.35;">${historicalQuoteRows.map((quote) => `${input.escapeHtml(quote.repairer)} · ${quote.amountUsd === null ? "Amount unavailable" : input.formatAmount(quote.amountUsd)} · ${input.escapeHtml(quote.evidenceEligibilityReason ?? quote.statusReason)}`).join("<br/>")}</div>`
     : "";
   const optimisedAmount = presentation.optimisedQuoteAmount === null
-    ? "Not published"
+    ? presentation.optimisedQuoteState === "human_review_required" ? "Human review required" : "Not published"
     : presentation.optimisedQuoteState === "evidence_qualified"
       ? `Evidence-qualified comparison · ${input.formatAmount(presentation.optimisedQuoteAmount)}`
+      : presentation.optimisedQuoteState === "human_review_required"
+        ? `Review-required priced scope · ${input.formatAmount(presentation.optimisedQuoteAmount)}`
       : input.formatAmount(presentation.optimisedQuoteAmount);
+  const reviewAnchor = presentation.reviewAnchorLabel && presentation.reviewAnchorAmount !== null && presentation.reviewAnchorAmount !== undefined
+    ? `<div style="margin-top:3px;font-size:7.5px;color:#8a5a00;line-height:1.35;">${input.escapeHtml(presentation.reviewAnchorLabel)} · ${input.formatAmount(presentation.reviewAnchorAmount)}</div>`
+    : "";
 	const l2SelectionTrace = (input.costIntegrity.l2ComponentSelections ?? [])
 	  .filter((selection) => selection.selectionMethod || selection.highLineItemVariance)
 	  .map((selection) => {
@@ -134,7 +142,7 @@ export function renderCostDecisionSummaryHtml(input: {
   <div style="display:grid;grid-template-columns:1.08fr 1fr .96fr .88fr .92fr;">
     <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Submitted Quotations</div><div style="margin-top:4px;">${submittedQuotes}</div>${legacyHistoryNote}${historicalQuotes}</div>
     <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">KINGA Quote Verification</div><div style="margin-top:5px;font-size:13px;font-weight:700;color:${verificationColour};">${presentation.quoteVerification}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.quoteVerificationDetail)}</div></div>
-    <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">${presentation.optimisedQuoteLabel}</div><div style="margin-top:5px;font-size:16px;font-weight:800;color:#0d5849;">${optimisedAmount}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.optimisedQuoteDetail)}</div></div>
+    <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">${presentation.optimisedQuoteLabel}</div><div style="margin-top:5px;font-size:16px;font-weight:800;color:#0d5849;">${optimisedAmount}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.optimisedQuoteDetail)}</div>${reviewAnchor}</div>
     <div style="padding:10px;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Quote Issues</div><div style="margin-top:5px;font-size:11px;font-weight:700;color:${issueColour};">${verificationGood ? "None" : "Review required"}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.quoteIssue)}</div></div>
     <div style="padding:10px;border-left:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Repairability</div><div style="margin-top:5px;font-size:11px;font-weight:700;color:#15352f;">${input.escapeHtml(repairability.label)}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(repairability.detail)}</div></div>
   </div>${l2SelectionEvidence}

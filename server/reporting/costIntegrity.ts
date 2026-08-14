@@ -1,6 +1,7 @@
 /** Shared, provenance-safe cost presentation model for CL, CI, and FR. */
 
 import { classifyLegacyQuoteEvidenceRows } from "../../shared/legacyQuoteEvidence";
+import { extractNonBlockingQuoteQualityIssues, type QuoteQualityIssue } from "../../shared/costDecisionPresentation";
 
 export type ReportQuoteStatus = "active" | "supplementary" | "duplicate" | "superseded" | "historical" | "excluded" | "legacy_unverified";
 
@@ -50,6 +51,8 @@ export interface ReportCostIntegrity {
   assessorCalibrationCostUsd: number | null;
   allInReconciliationRequired: boolean;
   unreconciledQuoteCount: number;
+	/** Non-blocking provenance and extraction findings retained beside a published L2. */
+  quoteQualityIssues: QuoteQualityIssue[];
 	/** Evidence-only explanation of the benchmark-validated L2 component selections. */
   l2ComponentSelections?: ReportL2ComponentSelection[];
 	quoteReconciliations: Array<{
@@ -221,6 +224,7 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
 	      lineItemVarianceRemark: typeof item.lineItemVarianceRemark === "string" ? item.lineItemVarianceRemark : null,
 	    }))
 	  : [];
+	const quoteQualityIssues = extractNonBlockingQuoteQualityIssues(composite);
   return {
     activeQuotes,
     submittedQuotes,
@@ -255,6 +259,7 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
     assessorCalibrationCostUsd: finitePositive(intelligence.documentedAgreedCostUsd),
     allInReconciliationRequired,
     unreconciledQuoteCount,
+		quoteQualityIssues,
 		l2ComponentSelections,
     quoteReconciliations,
   };

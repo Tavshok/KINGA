@@ -25,9 +25,15 @@ const costIntelligence = {
     l2CompositeOptimisedCostUsd: 1180,
     quotesEvaluated: 2,
     sourceQuotesReceived: 2,
+    evidenceGovernance: {
+      findings: [
+        { code: "source_provenance_pending", title: "Alpha Repairs requires document and page provenance", summary: "Document and page provenance requires confirmation; the submitted component evidence remains visible for review." },
+        { code: "line_pricing_not_source_verified", title: "Defective Extraction contains non-verifiable line pricing", summary: "Defective Extraction: one or more submitted line prices require extraction review; no cost has been created or inferred." },
+      ],
+    },
     canonicalQuoteLedger: [
       { quoteId: "1", panelBeater: "Alpha Repairs", totalCostUsd: 1200, currency: "USD", status: "active", evidenceEligibility: "final_l2_eligible" },
-      { quoteId: "2", panelBeater: "Beta Repairs", totalCostUsd: 1350, currency: "USD", status: "active", evidenceEligibility: "final_l2_eligible" },
+      { quoteId: "2", panelBeater: "Defective Extraction", totalCostUsd: 1350, currency: "USD", status: "supplementary", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Line prices retained for review but not used as submitted component evidence." },
     ],
     compositeLineItems: [
       { componentName: "Front bumper", selectedCostUsd: 100, l2SelectionMethod: "BENCHMARK_WITHIN_30_PCT", benchmarkP50Usd: 100, benchmarkDeviationPct: 10, lineItemSpreadPct: 12, highLineItemVariance: false },
@@ -49,7 +55,7 @@ const claim = {
 };
 const quotes = [
   { id: 1, quoted_amount: 120000, currency: "USD", currency_code: "USD", quote_type: "original", parent_quote_id: null, status: "submitted", panel_beater_name: "Alpha Repairs" },
-  { id: 2, quoted_amount: 135000, currency: "USD", currency_code: "USD", quote_type: "original", parent_quote_id: null, status: "submitted", panel_beater_name: "Beta Repairs" },
+  { id: 2, quoted_amount: 135000, currency: "USD", currency_code: "USD", quote_type: "original", parent_quote_id: null, status: "submitted", panel_beater_name: "Defective Extraction" },
 ];
 
 describe("AUD-P1-006 executed L2 selection traceability across CL, CI, and FR", () => {
@@ -63,7 +69,7 @@ describe("AUD-P1-006 executed L2 selection traceability across CL, CI, and FR", 
     });
   });
 
-  it("renders benchmark method, deviation, and high-variance evidence without changing the L2 decision amount", async () => {
+  it("renders benchmark evidence and non-blocking provenance/extraction warnings without changing the complete L2 decision amount", async () => {
     const outputs = await Promise.all([
       generateReportHtml("claim.assessment", { claimId: 990010 }, "tenant-test"),
       generateClaimsIntelligenceReport(990010, "tenant-test"),
@@ -75,7 +81,63 @@ describe("AUD-P1-006 executed L2 selection traceability across CL, CI, and FR", 
       expect(html).toContain("Outside 30% · lower validated value selected · 41.7% variance");
       expect(html).toContain("High submitted-price spread; verify like-for-like scope.");
       expect(html).toContain("$1,180.00");
+      expect(html).toContain("Document and page provenance requires confirmation; the submitted component evidence remains visible for review.");
+      expect(html).toContain("Defective Extraction: one or more submitted line prices require extraction review; no cost has been created or inferred.");
+      expect(html).toContain("Defective Extraction");
+      expect(html).toContain("KINGA Optimised Quote");
     }
     expect(end).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps KINGA Optimised Quote visible as a review-required priced scope across CL, CI, and FR", async () => {
+    const reviewCost = JSON.parse(JSON.stringify(costIntelligence));
+    Object.assign(reviewCost.compositeOptimisation, {
+      isComplete: false,
+      l2Status: "incomplete_scope",
+      quoteScopeStatus: "incomplete_scope",
+      l2CompositeOptimisedCostUsd: null,
+      l2EvidenceQualifiedComparisonUsd: 990,
+      partialPricedScopeUsd: 990,
+      l1LowestSubmittedCostUsd: 1200,
+      missingRequiredComponents: ["Headlamp alignment"],
+      canonicalQuoteLedger: [
+        { quoteId: "q-eligible", panelBeater: "Eligible Repairs", totalCostUsd: 1200, currency: "USD", status: "active", evidenceEligibility: "final_l2_eligible" },
+        { quoteId: "q-defective", panelBeater: "Defective Extraction", totalCostUsd: 900, currency: "USD", status: "supplementary", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Inferred line price excluded from component selection." },
+        { quoteId: "q-total-only", panelBeater: "Total-only Quote", totalCostUsd: 1300, currency: "USD", status: "active", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Whole-quote anchor only; no submitted component rows." },
+        { quoteId: "q-incomplete", panelBeater: "Incomplete Scope", totalCostUsd: 1250, currency: "USD", status: "active", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Does not price the required Headlamp alignment component." },
+        { quoteId: "q-cancelled", panelBeater: "Cancelled Quote", totalCostUsd: 600, currency: "USD", status: "historical", evidenceEligibility: "comparison_only", evidenceEligibilityReason: "Cancelled quotation retained as history." },
+        { quoteId: "q-rejected", panelBeater: "Rejected Quote", totalCostUsd: 650, currency: "USD", status: "historical", evidenceEligibility: "comparison_only", evidenceEligibilityReason: "Rejected quotation retained as history." },
+        { quoteId: "q-ineligible", panelBeater: "Unsupported Scope", totalCostUsd: 500, currency: "USD", status: "excluded", evidenceEligibility: "ineligible", evidenceEligibilityReason: "Unsupported repair scope." },
+        { quoteId: "q-original", panelBeater: "Revised Repairer", totalCostUsd: 1500, currency: "USD", status: "superseded", evidenceEligibility: "final_l2_eligible", evidenceEligibilityReason: "Superseded by revised quotation." },
+        { quoteId: "q-revised", panelBeater: "Revised Repairer", totalCostUsd: 1400, currency: "USD", status: "active", evidenceEligibility: "final_l2_eligible" },
+      ],
+    });
+    const reviewClaim = { ...claim, cost_intelligence_json: JSON.stringify(reviewCost) };
+    execute.mockImplementation(async (query: string) => {
+      if (query.includes("FROM claims c")) return [[reviewClaim], undefined];
+      if (query.includes("FROM ai_assessments a WHERE a.claim_id")) return [[{ damaged_components_json: "[]" }], undefined];
+      if (query.includes("FROM panel_beater_quotes q")) return [[...quotes], undefined];
+      return [[], undefined];
+    });
+
+    const outputs = await Promise.all([
+      generateReportHtml("claim.assessment", { claimId: 990010 }, "tenant-test"),
+      generateClaimsIntelligenceReport(990010, "tenant-test"),
+      generateForensicDecisionReport(990010, "tenant-test"),
+    ]);
+    for (const html of outputs) {
+      expect(html).toContain("KINGA Optimised Quote");
+      expect(html).toContain("Review-required priced scope");
+      expect(html).toContain("not all-in");
+      expect(html).toContain("Headlamp alignment");
+      expect(html).toContain("human review");
+      expect(html).toContain("Defective Extraction");
+      expect(html).toContain("Total-only Quote");
+      expect(html).toContain("Incomplete Scope");
+      expect(html).toContain("Cancelled Quote");
+      expect(html).toContain("Rejected Quote");
+      expect(html).toContain("Unsupported Scope");
+      expect(html).not.toContain("KINGA insurer cost recommendation.");
+    }
   });
 });
