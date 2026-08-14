@@ -22,6 +22,13 @@ describe("agency feature-separation contract", () => {
     expect(insuranceRequestWriter).not.toContain("persistCanonicalClaimIntake");
     expect(insuranceRequestWriter).not.toContain("startCanonicalIntakeAssessment");
     expect(insuranceRequestWriter).not.toContain("estimatedRepairCost");
+    expect(insuranceRequestWriter).toContain("buildInsuranceRequestValuationPresentation");
+  });
+
+  it("projects client and professional valuation variance without creating policy or claim authority", () => {
+    expect(serviceRouter).toContain("varianceDecisionSupport");
+    expect(serviceRouter).toContain("agencyDeviation");
+    expect(serviceRouter).toContain("Decision support only");
   });
 
   it("routes only an actual agency-assisted accident through canonical claim intake", () => {

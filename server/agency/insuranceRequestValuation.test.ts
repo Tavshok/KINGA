@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MATERIAL_VALUATION_VARIANCE_PERCENT,
   buildClientAcknowledgementRequired,
+  buildInsuranceRequestValuationPresentation,
   compareClientValueToMarketValuation,
   normaliseVehicleRegistration,
 } from "./insuranceRequestValuation";
@@ -41,5 +42,22 @@ describe("agency insurance-request valuation boundary", () => {
     expect(MATERIAL_VALUATION_VARIANCE_PERCENT).toBe(10);
     expect(variance.materiallyDifferent).toBe(true);
     expect(normaliseVehicleRegistration(" abc 1234 ")).toBe("ABC1234");
+  });
+
+  it("projects one source-labelled material variance to the client, agency, and insurer without raw confidence or policy effects", () => {
+    const presentation = buildInsuranceRequestValuationPresentation({
+      clientProposedValueCents: 850_000,
+      kingaMarketValuationCents: 1_000_000,
+      acknowledgementRecorded: false,
+    });
+
+    expect(presentation.client.selectedValue.label).toBe("Client proposed insured value");
+    expect(presentation.client.marketValuation.label).toBe("KINGA Market Valuation");
+    expect(presentation.client.variance.clientDisclosure).toContain("underinsurance");
+    expect(presentation.client.acknowledgementRequired).toBe(true);
+    expect(presentation.agency).toMatchObject({ deviationRecordRequired: true, acknowledgementRecorded: false });
+    expect(presentation.insurer.decisionBoundary).toContain("Decision support only");
+    expect(JSON.stringify(presentation)).not.toContain("confidence");
+    expect(presentation.insurer.decisionBoundary).not.toContain("premium decision");
   });
 });

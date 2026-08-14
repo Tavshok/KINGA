@@ -22,6 +22,7 @@ import { resolveAgencyAssistedClaimantIdentity } from "../agency/agencyAssistedC
 import { submitAgencyAssistedCanonicalClaim } from "../agency/agencyAssistedClaimSubmission";
 import {
   buildClientAcknowledgementRequired,
+  buildInsuranceRequestValuationPresentation,
   compareClientValueToMarketValuation,
   normaliseVehicleRegistration,
 } from "../agency/insuranceRequestValuation";
@@ -134,6 +135,11 @@ function professionalValuationEvidence(request: {
   const raw = request.valuationProvenanceJson && typeof request.valuationProvenanceJson === "string"
     ? JSON.parse(request.valuationProvenanceJson)
     : (request.valuationProvenanceJson ?? {});
+  const valuationPresentation = buildInsuranceRequestValuationPresentation({
+    clientProposedValueCents: request.clientProposedValueCents,
+    kingaMarketValuationCents: request.kingaMarketValuationCents,
+    acknowledgementRecorded: Boolean(request.clientAcknowledgementJson),
+  });
   return {
     requestNumber: request.requestNumber,
     clientProposedValueCents: request.clientProposedValueCents,
@@ -153,6 +159,8 @@ function professionalValuationEvidence(request: {
       requiresHumanReview: raw.professionalReliability?.requiresHumanReview ?? true,
     },
     clientAcknowledgementRecorded: Boolean(request.clientAcknowledgementJson),
+    varianceDecisionSupport: valuationPresentation.insurer,
+    agencyDeviation: valuationPresentation.agency,
     decisionBoundary: "Professional decision support only. This information does not create or change a policy, premium, sum insured, claim, repair cost, settlement, payment, or underwriting decision.",
   };
 }
@@ -168,13 +176,18 @@ export const agencyInsuranceServiceRouter = router({
     const valuation = await valuateVehicle({ make: input.vehicleMake, model: input.vehicleModel, year: input.vehicleYear, registration: input.vehicleRegistration, mileage: input.vehicleMileageKm, condition: input.conditionSnapshot.exteriorCondition.toLowerCase() as "excellent" | "good" | "fair" | "poor", country: "Zimbabwe" });
     const marketValueCents = valuation.finalAdjustedValue;
     const variance = compareClientValueToMarketValuation(input.clientProposedValueCents, marketValueCents);
+    const valuationProvenance = marketValuationProvenance(valuation, { make: input.vehicleMake, model: input.vehicleModel, year: input.vehicleYear, mileage: input.vehicleMileageKm, condition: input.conditionSnapshot.exteriorCondition });
+    const valuationPresentation = buildInsuranceRequestValuationPresentation({
+      clientProposedValueCents: input.clientProposedValueCents,
+      kingaMarketValuationCents: marketValueCents,
+    });
     const now = new Date().toISOString().slice(0, 19).replace("T", " ");
     const requestNumber = `ASR-${Date.now().toString(36).toUpperCase()}-${randomUUID().slice(0, 6).toUpperCase()}`;
     const [created] = await db.transaction(async (tx) => {
       const [request] = await tx.insert(agencyInsuranceServiceRequests).values({
         requestNumber, agencyTenantId, agencyClientId: input.agencyClientId, vehicleRegistryId: vehicle.id, coverType: input.coverType, status: "awaiting_client_acknowledgement",
         clientInstruction: input.clientInstruction, vehicleRiskNotes: input.vehicleRiskNotes ?? null, vehicleRegistration: normaliseVehicleRegistration(input.vehicleRegistration), vehicleMake: input.vehicleMake, vehicleModel: input.vehicleModel, vehicleYear: input.vehicleYear, vehicleVin: input.vehicleVin ?? null, vehicleMileageKm: input.vehicleMileageKm ?? null,
-        clientProposedValueCents: input.clientProposedValueCents, kingaMarketValuationCents: marketValueCents, valuationDate: now, valuationProvenanceJson: marketValuationProvenance(valuation, { make: input.vehicleMake, model: input.vehicleModel, year: input.vehicleYear, mileage: input.vehicleMileageKm, condition: input.conditionSnapshot.exteriorCondition }), variancePercent: variance.variancePercent === null ? null : String(variance.variancePercent), createdBy: ctx.user.id,
+        clientProposedValueCents: input.clientProposedValueCents, kingaMarketValuationCents: marketValueCents, valuationDate: now, valuationProvenanceJson: valuationProvenance, variancePercent: variance.variancePercent === null ? null : String(variance.variancePercent), createdBy: ctx.user.id,
       }).$returningId() as { id: number }[];
       const [snapshot] = await tx.insert(vehicleConditionSnapshots).values({
         vehicleRegistryId: vehicle.id, insuranceServiceRequestId: request.id, snapshotVersion: 1, snapshotDate: now,
@@ -186,7 +199,9 @@ export const agencyInsuranceServiceRouter = router({
     });
     return {
       id: created.id, snapshotId: created.snapshotId, requestNumber, status: "awaiting_client_acknowledgement" as const,
-      clientProposedValueCents: input.clientProposedValueCents, kingaMarketValuationCents: marketValueCents, variance, valuationDate: valuation.valuationDate, valuationEvidenceStatus: "Expert review needed" as const,
+      clientProposedValueCents: input.clientProposedValueCents, kingaMarketValuationCents: marketValueCents, variance, valuationDate: valuation.valuationDate, valuationEvidenceStatus: valuationProvenance.evidenceStatus,
+      valuationComparison: valuationPresentation.client,
+      agencyDeviation: valuationPresentation.agency,
     };
   }),
 
@@ -203,6 +218,11 @@ export const agencyInsuranceServiceRouter = router({
     const available = await db.select({ id: insurerTenants.id }).from(insurerTenants).where(inArray(insurerTenants.id, insurers));
     if (available.length !== insurers.length) throw new TRPCError({ code: "NOT_FOUND", message: "One or more selected insurer tenants are unavailable." });
     const acknowledgement = { clientConfirmedVehicleFacts: true, clientConfirmedSelectedValue: true, acknowledgesValuationImplications: input.acknowledgesValuationImplications, statement: input.acknowledgementStatement, recordedByAgencyUserId: ctx.user.id, recordedAt: new Date().toISOString(), clientResponsibility: "The client confirms that the vehicle facts and selected insured value are accurate." };
+    const valuationPresentation = buildInsuranceRequestValuationPresentation({
+      clientProposedValueCents: request.clientProposedValueCents,
+      kingaMarketValuationCents: request.kingaMarketValuationCents,
+      acknowledgementRecorded: input.acknowledgesValuationImplications,
+    });
     await db.transaction(async (tx) => {
       await tx.update(agencyInsuranceServiceRequests).set({ status: "ready_for_insurer_review", clientAcknowledgementJson: acknowledgement }).where(and(eq(agencyInsuranceServiceRequests.id, request.id), eq(agencyInsuranceServiceRequests.agencyTenantId, agencyTenantId)));
       await tx.insert(agencyInsuranceServiceRequestInsurers).values(insurers.map((insurerTenantId) => ({ serviceRequestId: request.id, agencyTenantId, insurerTenantId, status: "invited" }))).onDuplicateKeyUpdate({ set: { status: "invited" } });
@@ -210,7 +230,14 @@ export const agencyInsuranceServiceRouter = router({
         await tx.insert(agencyInsuranceValuationDeviations).values({ serviceRequestId: request.id, agencyTenantId, clientProposedValueCents: request.clientProposedValueCents, kingaMarketValuationCents: request.kingaMarketValuationCents, variancePercent: String(variance.variancePercent), acknowledgementJson: acknowledgement, recordedBy: ctx.user.id }).onDuplicateKeyUpdate({ set: { acknowledgementJson: acknowledgement, recordedBy: ctx.user.id } });
       }
     });
-    return { success: true, status: "ready_for_insurer_review" as const, insurerInvitations: insurers.length, variance };
+    return {
+      success: true,
+      status: "ready_for_insurer_review" as const,
+      insurerInvitations: insurers.length,
+      variance,
+      valuationComparison: valuationPresentation.client,
+      agencyDeviation: valuationPresentation.agency,
+    };
   }),
 
   recordVehicleConditionSnapshot: agencyProcedure.input(z.object({ serviceRequestId: z.number().int().positive(), conditionSnapshot: conditionInput })).mutation(async ({ ctx, input }) => {

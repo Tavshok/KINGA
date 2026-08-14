@@ -8,6 +8,29 @@ export type ValuationVariance = {
   clientDisclosure: string;
 };
 
+export type InsuranceRequestValuationPresentation = {
+  client: {
+    selectedValue: { label: "Client proposed insured value"; amountCents: number | null };
+    marketValuation: { label: "KINGA Market Valuation"; amountCents: number | null };
+    variance: ValuationVariance;
+    acknowledgementRequired: boolean;
+    acknowledgementRecorded: boolean;
+    responsibilityMessage: string;
+  };
+  agency: {
+    variance: ValuationVariance;
+    deviationRecordRequired: boolean;
+    acknowledgementRecorded: boolean;
+  };
+  insurer: {
+    selectedValueLabel: "Client proposed insured value";
+    marketValuationLabel: "KINGA Market Valuation";
+    variance: ValuationVariance;
+    acknowledgementRecorded: boolean;
+    decisionBoundary: string;
+  };
+};
+
 /**
  * Compares the client's chosen insured value with the non-binding KINGA Market
  * Valuation. The result is decision support only: it cannot set a premium,
@@ -47,6 +70,46 @@ export function buildClientAcknowledgementRequired(
   clientConfirmed: boolean,
 ): boolean {
   return variance.materiallyDifferent && !clientConfirmed;
+}
+
+/**
+ * Keeps client, agency, and insurer projections on one source-labelled comparison
+ * while preserving their distinct language and the insurance-service boundary.
+ */
+export function buildInsuranceRequestValuationPresentation(input: {
+  clientProposedValueCents: number | null | undefined;
+  kingaMarketValuationCents: number | null | undefined;
+  acknowledgementRecorded?: boolean;
+}): InsuranceRequestValuationPresentation {
+  const variance = compareClientValueToMarketValuation(
+    input.clientProposedValueCents,
+    input.kingaMarketValuationCents,
+  );
+  const acknowledgementRecorded = Boolean(input.acknowledgementRecorded);
+  const acknowledgementRequired = buildClientAcknowledgementRequired(variance, acknowledgementRecorded);
+
+  return {
+    client: {
+      selectedValue: { label: "Client proposed insured value", amountCents: input.clientProposedValueCents ?? null },
+      marketValuation: { label: "KINGA Market Valuation", amountCents: input.kingaMarketValuationCents ?? null },
+      variance,
+      acknowledgementRequired,
+      acknowledgementRecorded,
+      responsibilityMessage: "The client remains responsible for confirming vehicle facts and the selected insured value.",
+    },
+    agency: {
+      variance,
+      deviationRecordRequired: variance.materiallyDifferent,
+      acknowledgementRecorded,
+    },
+    insurer: {
+      selectedValueLabel: "Client proposed insured value",
+      marketValuationLabel: "KINGA Market Valuation",
+      variance,
+      acknowledgementRecorded,
+      decisionBoundary: "Decision support only. This comparison does not create or change a policy, premium, sum insured, claim, repair cost, settlement, payment, or underwriting decision.",
+    },
+  };
 }
 
 export function normaliseVehicleRegistration(value?: string | null): string | null {
