@@ -24,13 +24,16 @@ describe("resolveReportCostIntegrity", () => {
     expect(resolved.assessorCalibrationCostUsd).toBe(1600);
   });
 
-  it("derives L1 from the lowest active submitted quote when legacy composite metadata is absent", () => {
+  it("keeps legacy quotation history visible but excludes it from active comparison and L1 when ledger metadata is absent", () => {
     const resolved = resolveReportCostIntegrity({}, [
       { id: 1, panel_beater_name: "Alpha", quoted_amount: 230000, currency_code: "USD" },
       { id: 2, panel_beater_name: "Beta", quoted_amount: 199533, currency_code: "USD" },
     ]);
 
-    expect(resolved.l1SubmittedCostUsd).toBe(1995.33);
+    expect(resolved.activeQuotes).toHaveLength(0);
+    expect(resolved.submittedQuotes).toHaveLength(2);
+    expect(resolved.legacyHistoryQualified).toBe(true);
+    expect(resolved.l1SubmittedCostUsd).toBeNull();
   });
 
   it("never substitutes documented agreed or estimated costs when L2 is incomplete", () => {
@@ -69,10 +72,23 @@ describe("resolveReportCostIntegrity", () => {
     ]);
 
     expect(resolved.sourceQuoteCount).toBe(3);
-    expect(resolved.activeQuotes).toHaveLength(3);
+    expect(resolved.activeQuotes).toHaveLength(0);
+    expect(resolved.submittedQuotes).toHaveLength(3);
     expect(resolved.quoteReceiptStatus).toBe("quotes_received");
     expect(resolved.quoteScopeStatus).toBe("incomplete_scope");
     expect(resolved.l2OptimisedCostUsd).toBeNull();
+  });
+
+  it("deterministically excludes a persisted superseded legacy parent while retaining its revision as qualified history", () => {
+    const resolved = resolveReportCostIntegrity({}, [
+      { id: 1, panel_beater_name: "Alpha", quoted_amount: 230000, currency_code: "USD", quote_type: "original" },
+      { id: 2, panel_beater_name: "Alpha", quoted_amount: 250000, currency_code: "USD", quote_type: "revised", parent_quote_id: 1 },
+    ]);
+
+    expect(resolved.submittedQuotes.map((quote) => quote.sourceReference)).toEqual(["2"]);
+    expect(resolved.submittedQuotes[0].status).toBe("legacy_unverified");
+    expect(resolved.activeQuotes).toEqual([]);
+    expect(resolved.l1SubmittedCostUsd).toBeNull();
   });
 
   it("preserves an explicit all-in reconciliation requirement without mislabelling it as an unpriced scope", () => {

@@ -61,7 +61,7 @@ export async function generateClaimsIntelligenceReport(
 
     // ── 2. Fetch quote line items ────────────────────────────────────────────
     const [quotes] = await conn.execute(
-      `SELECT q.id, q.quoted_amount, q.currency, q.quote_type, q.quote_congruency_score,
+      `SELECT q.id, q.quoted_amount, q.currency, q.quote_type, q.parent_quote_id, q.status, q.quote_congruency_score,
               pb.business_name AS panel_beater_name
        FROM panel_beater_quotes q
        LEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id
@@ -186,17 +186,18 @@ export async function generateClaimsIntelligenceReport(
         ...extractExplicitStructuralReviewEvidence(repairIntel),
       },
     });
-    const quoteArr = costIntegrity.activeQuotes;
+    const quoteArr = costIntegrity.submittedQuotes;
+    const comparisonQuoteArr = costIntegrity.activeQuotes;
     const submittedQuoteLedgerDetail = quoteArr.length > 0
-      ? quoteArr.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtUSD(quote.amountUsd)}`).join(" · ")
+      ? `${quoteArr.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtUSD(quote.amountUsd)}`).join(" · ")}${costIntegrity.legacyHistoryQualified ? " · Legacy quotation history; not active comparison evidence." : ""}`
       : "No submitted repair quotations";
     const activeQuoteIds = new Set(
-      quoteArr.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
+      comparisonQuoteArr.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
     );
     const activeLineItems = activeQuoteIds.size > 0
       ? (lineItems as Record<string, unknown>[]).filter((line) => activeQuoteIds.has(String(line.quote_id)))
       : lineItems as Record<string, unknown>[];
-    const quoteAmounts = quoteArr.map(q => q.amountUsd ?? 0).filter(amount => amount > 0);
+    const quoteAmounts = comparisonQuoteArr.map(q => q.amountUsd ?? 0).filter(amount => amount > 0);
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
     const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
     const kingaOptimised = costIntegrity.l2OptimisedCostUsd;

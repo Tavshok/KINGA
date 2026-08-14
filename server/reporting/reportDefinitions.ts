@@ -260,7 +260,7 @@ async function generateClaimAssessmentReport(
     ) as [Record<string, unknown>[], unknown];
     // Load all panel beater quotes and their line items for the §04b comparison table
     const [quoteRows] = await conn.execute(
-      `SELECT q.id, q.quoted_amount, q.labor_cost, q.parts_cost, q.status, q.currency_code,
+      `SELECT q.id, q.quoted_amount, q.labor_cost, q.parts_cost, q.status, q.quote_type, q.parent_quote_id, q.currency_code,
               pb.business_name AS panel_beater_name
        FROM panel_beater_quotes q
        LEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id
@@ -359,11 +359,11 @@ async function generateClaimAssessmentReport(
     );
     const activeQuoteRows = activeQuoteIds.size > 0
       ? quoteRows.filter((quote) => activeQuoteIds.has(String(quote.id)))
-      : quoteRows;
+      : costIntegrity.legacyHistoryQualified ? [] : quoteRows;
     const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
     const evidenceQualifiedL2 = costIntegrity.l2EvidenceQualifiedComparisonUsd;
-    const submittedQuoteLedgerDetail = costIntegrity.activeQuotes.length > 0
-      ? costIntegrity.activeQuotes.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtUSD(quote.amountUsd)}`).join(" · ")
+    const submittedQuoteLedgerDetail = costIntegrity.submittedQuotes.length > 0
+      ? `${costIntegrity.submittedQuotes.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtUSD(quote.amountUsd)}`).join(" · ")}${costIntegrity.legacyHistoryQualified ? " · Legacy quotation history; not active comparison evidence." : ""}`
       : "No submitted repair quotations";
     const l2Display = kingaOptimised !== null
       ? fmtUSD(kingaOptimised)

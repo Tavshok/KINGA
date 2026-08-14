@@ -58,7 +58,7 @@ export async function generateForensicDecisionReport(
 
     // ── 2. Fetch quotes ──────────────────────────────────────────────────────
     const [quotes] = await conn.execute(
-      `SELECT q.id, q.quoted_amount, q.currency, q.quote_type, q.quote_congruency_score,
+      `SELECT q.id, q.quoted_amount, q.currency, q.quote_type, q.parent_quote_id, q.status, q.quote_congruency_score,
               pb.business_name AS panel_beater_name
        FROM panel_beater_quotes q
        LEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id
@@ -219,9 +219,10 @@ export async function generateForensicDecisionReport(
       workflowState: c.workflow_state,
       costIntegrity,
     });
-    const quoteArr = costIntegrity.activeQuotes;
+    const quoteArr = costIntegrity.submittedQuotes;
+    const comparisonQuoteArr = costIntegrity.activeQuotes;
     const activeQuoteIds = new Set(
-      quoteArr.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
+      comparisonQuoteArr.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
     );
 
     // Bug #8: derive currency from cost intel or quotes (not hardcoded USD)
@@ -242,9 +243,9 @@ export async function generateForensicDecisionReport(
       },
     });
     const submittedQuoteLedgerDetail = quoteArr.length > 0
-      ? quoteArr.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtCurrency(quote.amountUsd, claimCurrency)}`).join(" · ")
+      ? `${quoteArr.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtCurrency(quote.amountUsd, claimCurrency)}`).join(" · ")}${costIntegrity.legacyHistoryQualified ? " · Legacy quotation history; not active comparison evidence." : ""}`
       : "No submitted repair quotations";
-    const quoteAmounts = quoteArr.map(q => q.amountUsd ?? 0).filter(amount => amount > 0);
+    const quoteAmounts = comparisonQuoteArr.map(q => q.amountUsd ?? 0).filter(amount => amount > 0);
     const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
 

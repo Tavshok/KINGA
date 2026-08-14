@@ -12,6 +12,11 @@
 - [ ] Approved systematic audit ledger: record every confirmed finding with ID, area, evidence, expected/actual behaviour, root cause, severity, correction, regression, and verification status; present correction work notices before any production behaviour change.
 - [x] AUD-P0-001 report quote-detail object authority: corrected `quotes.getWithLineItems` so tenant/object authority is derived from the target claim before any quote or line-item read; covered same-tenant success, foreign numeric claim denial, and explicitly selected platform-super-admin access.
 - [x] Approved AUD-P0-001 re-verification: proved denied foreign callers do not invoke quote or line-item reads, same-tenant callers retain report access, and platform-super-admin access requires explicit audited tenant selection.
+- [x] AUD-P1-001 legacy quote-ledger fallback: completed executed CL/CI/FR renderer, client evidence-state, and client top-cost component acceptance for the shared legacy classification and qualification boundary.
+- [x] Approved AUD-P1-001 re-verification: executed persisted revision/supersession and unknown legacy scenarios through the actual client top-cost component and confirmed the full cross-surface state.
+- [x] AUD-P1-001 cross-surface legacy-history fixture: extended the no-write fixture with actual client top-cost component rendering for persisted revision/supersession and unknown legacy rows.
+- [x] AUD-P1-001 client quote-matrix acceptance: executed client quote comparison state derivation against qualified legacy history and proved it does not use raw row count or raw rows as comparison evidence.
+- [x] AUD-P1-001 client top-cost rendering acceptance: rendered `KingaClaimsReport` with no-write legacy-history fixtures and asserted the top-cost output shows qualified legacy history while excluding L1, L2, savings, and settlement treatment.
 
 ---
 

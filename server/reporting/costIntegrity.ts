@@ -1,6 +1,8 @@
 /** Shared, provenance-safe cost presentation model for CL, CI, and FR. */
 
-export type ReportQuoteStatus = "active" | "supplementary" | "duplicate" | "superseded" | "excluded";
+import { classifyLegacyQuoteEvidenceRows } from "../../shared/legacyQuoteEvidence";
+
+export type ReportQuoteStatus = "active" | "supplementary" | "duplicate" | "superseded" | "excluded" | "legacy_unverified";
 
 export interface ReportQuoteLedgerRow {
   repairer: string;
@@ -13,6 +15,8 @@ export interface ReportQuoteLedgerRow {
 
 export interface ReportCostIntegrity {
   activeQuotes: ReportQuoteLedgerRow[];
+  submittedQuotes: ReportQuoteLedgerRow[];
+  legacyHistoryQualified: boolean;
   sourceQuoteCount: number;
   quoteReceiptStatus: "no_quotes" | "quotes_received";
   quoteScopeStatus: "complete" | "evidence_qualified" | "incomplete_scope" | "reconciliation_required" | "not_evaluated";
@@ -52,16 +56,14 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 function legacyQuoteRows(dbQuotes: unknown[]): ReportQuoteLedgerRow[] {
-  return dbQuotes.map((value, index) => {
-    const quote = record(value);
-    const cents = finitePositive(quote.quoted_amount);
+  return classifyLegacyQuoteEvidenceRows(dbQuotes).map((quote) => {
     return {
-      repairer: String(quote.panel_beater_name ?? quote.panel_beater ?? `Repairer ${index + 1}`),
-      amountUsd: cents === null ? null : cents / 100,
-      currency: String(quote.currency_code ?? "USD"),
-      status: "active",
-      sourceReference: quote.id === undefined || quote.id === null ? null : String(quote.id),
-      statusReason: "Legacy quotation record; no R1 ledger metadata available.",
+      repairer: quote.repairer,
+      amountUsd: quote.amountCents === null ? null : quote.amountCents / 100,
+      currency: quote.currency,
+      status: quote.status,
+      sourceReference: quote.quoteId,
+      statusReason: quote.statusReason,
     };
   });
 }
@@ -84,9 +86,13 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
     sourceReference: entry.quoteId === null || entry.quoteId === undefined ? null : String(entry.quoteId),
     statusReason: String(entry.statusReason ?? ""),
   }));
+  const legacyRows = ledgerRows.length > 0 ? [] : legacyQuoteRows(dbQuotes);
   const activeQuotes = ledgerRows.length > 0
     ? ledgerRows.filter((quote) => quote.status === "active" || quote.status === "supplementary")
-    : legacyQuoteRows(dbQuotes);
+    : [];
+  const submittedQuotes = ledgerRows.length > 0
+    ? activeQuotes
+    : legacyRows.filter((quote) => quote.status === "legacy_unverified");
   const lowestActiveQuoteUsd = activeQuotes
     .map((quote) => quote.amountUsd)
     .filter((amount): amount is number => amount !== null)
@@ -133,6 +139,8 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
     || quoteScopeStatus === "reconciliation_required";
   return {
     activeQuotes,
+    submittedQuotes,
+    legacyHistoryQualified: ledgerRows.length === 0 && submittedQuotes.length > 0,
     sourceQuoteCount,
     quoteReceiptStatus,
     quoteScopeStatus,

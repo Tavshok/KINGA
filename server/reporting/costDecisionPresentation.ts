@@ -65,9 +65,10 @@ export function resolveRepairabilityVerdict(evidence: RepairabilityEvidence): Re
  * It does not expose benchmark values as a replacement cost or narrate L2 math.
  */
 export function buildCostDecisionPresentation(cost: ReportCostIntegrity): CostDecisionPresentation {
+  const submittedQuotes = cost.submittedQuotes ?? cost.activeQuotes;
   return buildCostDecisionPresentationContract({
     quoteReceiptStatus: cost.quoteReceiptStatus,
-    activeQuoteCount: cost.activeQuotes.length,
+    activeQuoteCount: submittedQuotes.length,
     allInReconciliationRequired: cost.allInReconciliationRequired,
     unreconciledQuoteCount: cost.unreconciledQuoteCount,
     l2IsComplete: cost.l2IsComplete,
@@ -92,9 +93,13 @@ export function renderCostDecisionSummaryHtml(input: {
   const verificationGood = presentation.quoteVerification === "PASSED";
   const verificationColour = verificationGood ? "#14664f" : presentation.quoteVerification === "QUOTATION REQUIRED" ? "#526560" : "#8a5a00";
   const issueColour = verificationGood ? "#14664f" : "#8a5a00";
-  const submittedQuotes = input.costIntegrity.activeQuotes.length > 0
-    ? input.costIntegrity.activeQuotes.map((quote) => `<span style="display:inline-block;margin:4px 5px 0 0;padding:4px 6px;border:1px solid #d8e2df;font-size:8px;color:#35514a;">${input.escapeHtml(quote.repairer)} <b style="color:#15352f;">${quote.amountUsd === null ? "Amount unavailable" : input.formatAmount(quote.amountUsd)}</b></span>`).join("")
+  const submittedQuoteRows = input.costIntegrity.submittedQuotes ?? input.costIntegrity.activeQuotes;
+  const submittedQuotes = submittedQuoteRows.length > 0
+    ? submittedQuoteRows.map((quote) => `<span style="display:inline-block;margin:4px 5px 0 0;padding:4px 6px;border:1px solid #d8e2df;font-size:8px;color:#35514a;">${input.escapeHtml(quote.repairer)} <b style="color:#15352f;">${quote.amountUsd === null ? "Amount unavailable" : input.formatAmount(quote.amountUsd)}</b></span>`).join("")
     : `<span style="font-size:10px;color:#62726e;">No submitted quotations</span>`;
+  const legacyHistoryNote = input.costIntegrity.legacyHistoryQualified
+    ? `<div style="margin-top:4px;font-size:8px;color:#8a5a00;line-height:1.35;">Legacy quotation history — not used as active comparison evidence until ledger verification.</div>`
+    : "";
   const optimisedAmount = presentation.optimisedQuoteAmount === null
     ? "Not published"
     : presentation.optimisedQuoteState === "evidence_qualified"
@@ -107,7 +112,7 @@ export function renderCostDecisionSummaryHtml(input: {
     <div style="font-size:8px;font-weight:700;color:${verificationColour};">KINGA Quote Verification · ${presentation.quoteVerification}</div>
   </div>
   <div style="display:grid;grid-template-columns:1.08fr 1fr .96fr .88fr .92fr;">
-    <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Submitted Quotations</div><div style="margin-top:4px;">${submittedQuotes}</div></div>
+    <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Submitted Quotations</div><div style="margin-top:4px;">${submittedQuotes}</div>${legacyHistoryNote}</div>
     <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">KINGA Quote Verification</div><div style="margin-top:5px;font-size:13px;font-weight:700;color:${verificationColour};">${presentation.quoteVerification}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.quoteVerificationDetail)}</div></div>
     <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">${presentation.optimisedQuoteLabel}</div><div style="margin-top:5px;font-size:16px;font-weight:800;color:#0d5849;">${optimisedAmount}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.optimisedQuoteDetail)}</div></div>
     <div style="padding:10px;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Quote Issues</div><div style="margin-top:5px;font-size:11px;font-weight:700;color:${issueColour};">${verificationGood ? "None" : "Review required"}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.quoteIssue)}</div></div>

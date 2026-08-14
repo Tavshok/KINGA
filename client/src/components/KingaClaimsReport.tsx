@@ -23,6 +23,8 @@ import { ConfidenceImprovementChecklist } from "./ConfidenceImprovementChecklist
 import { expandShorthand } from "../../../shared/expandShorthand";
 import { ComponentCostMatrix, buildRowsFromComposite, buildRowsFromLineItems, MatrixQuote } from "./ComponentCostMatrix";
 import { buildCostDecisionPresentationContract } from "@shared/costDecisionPresentation";
+import { classifyLegacyQuoteEvidenceRows } from "@shared/legacyQuoteEvidence";
+import { resolveQuoteComparisonEvidence } from "@/lib/quoteComparisonEvidence";
 
 // ─── Print CSS injected once per mount ───────────────────────────────────────
 const CLAIMS_PRINT_CSS = `
@@ -306,9 +308,11 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalL
   const composite = costIntelligence?.compositeOptimisation ?? {};
   const ledger = Array.isArray(composite.canonicalQuoteLedger) ? composite.canonicalQuoteLedger : [];
   const activeLedger = ledger.filter((quote: any) => quote?.status === "active" || quote?.status === "supplementary");
+  const legacyQuoteHistory = ledger.length === 0 ? classifyLegacyQuoteEvidenceRows(quotes) : [];
   const submittedQuotes = activeLedger.length > 0
     ? activeLedger.map((quote: any, index: number) => ({ name: quote.panelBeater ?? `Quote ${index + 1}`, amount: Number(quote.totalCostUsd ?? 0) || null }))
-    : quotes.map((quote: any, index: number) => ({ name: quote.panelBeaterName ?? quote.repairerName ?? `Quote ${index + 1}`, amount: Number(quote.quotedAmount ?? 0) > 0 ? Number(quote.quotedAmount) / 100 : null }));
+    : legacyQuoteHistory.filter((quote) => quote.status === "legacy_unverified").map((quote) => ({ name: quote.repairer, amount: quote.amountCents === null ? null : quote.amountCents / 100 }));
+  const legacyHistoryQualified = ledger.length === 0 && submittedQuotes.length > 0;
   const complete = composite.isComplete === true && Number(composite.l2CompositeOptimisedCostUsd ?? 0) > 0;
   const reconciliationRequired = composite.allInReconciliationRequired === true || composite.l2Status === "reconciliation_required" || composite.quoteScopeStatus === "reconciliation_required";
   const missingComponents = Array.isArray(composite.missingRequiredComponents) ? composite.missingRequiredComponents.map(String) : [];
@@ -361,11 +365,12 @@ function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalL
         <span style={{ fontSize: 9, fontWeight: 700, color: verificationColour }}>KINGA Quote Verification · {verification}</span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1.08fr 1fr .96fr .88fr .92fr" }}>
-        <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}>
+          <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}>
           <p style={S.label}>Submitted Quotations</p>
           <div style={{ marginTop: 5, display: "flex", flexWrap: "wrap", gap: 4 }}>
             {submittedQuotes.length > 0 ? submittedQuotes.map((quote: { name: string; amount: number | null }, index: number) => <span key={`${quote.name}-${index}`} style={{ fontSize: 10, padding: "3px 5px", color: "#35514a", border: "1px solid #d8e2df" }}>{quote.name} <strong style={{ color: "#15352f" }}>{fmtCurrency(quote.amount)}</strong></span>) : <span style={S.muted}>No submitted quotations</span>}
           </div>
+          {legacyHistoryQualified && <p style={{ ...S.muted, fontSize: 10, margin: "5px 0 0", color: "#8a5a00" }}>Legacy quotation history — not active comparison evidence until ledger verification.</p>}
         </div>
         <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>KINGA Quote Verification</p><p style={{ fontSize: 13, fontWeight: 800, color: verificationColour, margin: "5px 0 3px" }}>{verification}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{costDecision.quoteVerificationDetail}</p></div>
         <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>{costDecision.optimisedQuoteLabel}</p><p style={{ fontSize: costDecision.optimisedQuoteState === "evidence_qualified" ? 12 : 18, fontWeight: 800, color: "#0d5849", margin: "4px 0 3px" }}>{optimisedDisplay}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{optimisedDetail}</p></div>
@@ -968,9 +973,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
           <SectionHeader
             num={5}
             title="Quotation & Cost Optimisation"
-            subtitle={quotes.length > 1
-              ? `${quotes.length} quotes received — composite optimisation with KINGA four-tier benchmark hierarchy`
-              : "Quote analysis with KINGA benchmark reference"}
+            subtitle="Quote analysis with KINGA benchmark reference"
             sectionKey="quote_analysis"
             claimId={claimId}
             pipelineRunId={pipelineRunId}
@@ -993,24 +996,26 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
             {/* ── Unified Cost Matrix Table (shared ComponentCostMatrix) ── */}
             {(() => {
               const compOpt = (ci as any)?.compositeOptimisation ?? null;
+              const quoteComparisonEvidence = resolveQuoteComparisonEvidence(quotes, compOpt);
+              const { comparisonQuotes, legacyHistory: matrixLegacyHistory, legacyHistoryQualified } = quoteComparisonEvidence;
               const compositeLineItems: any[] = compOpt?.compositeLineItems ?? [];
-              const l1 = compOpt?.l1LowestSubmittedCostUsd ?? compOpt?.l1SubmittedCostUsd ?? null;
-              const l2 = compOpt?.isComplete === true
+              const l1 = legacyHistoryQualified ? null : (compOpt?.l1LowestSubmittedCostUsd ?? compOpt?.l1SubmittedCostUsd ?? null);
+              const l2 = !legacyHistoryQualified && compOpt?.isComplete === true
                 ? compOpt?.l2CompositeOptimisedCostUsd ?? null
                 : null;
-              const evidenceQualifiedL2 = l2 === null && compOpt?.l2Status === "evidence_qualified"
+              const evidenceQualifiedL2 = !legacyHistoryQualified && l2 === null && compOpt?.l2Status === "evidence_qualified"
                 ? compOpt?.l2EvidenceQualifiedComparisonUsd ?? compOpt?.partialPricedScopeUsd ?? null
                 : null;
               const nfs = compOpt?.negotiationFeasibilityScore ?? null;
               const qndFlags: any[] = compOpt?.quotedNotDamaged ?? [];
               const dnqFlags: any[] = compOpt?.damagedNotQuoted ?? [];
-              const savingsUsd: number | null = compOpt?.savingsL1vsL2Usd ?? (l1 != null && l2 != null ? l1 - l2 : null);
+              const savingsUsd: number | null = legacyHistoryQualified ? null : (compOpt?.savingsL1vsL2Usd ?? (l1 != null && l2 != null ? l1 - l2 : null));
               const savingsPct: number | null = savingsUsd != null && l1 != null && l1 > 0
                 ? Math.round((savingsUsd / l1) * 1000) / 10
                 : null;
 
               // Build MatrixQuote array
-              const matrixQuotes: MatrixQuote[] = quotes.map((q: any, qi: number) => ({
+              const matrixQuotes: MatrixQuote[] = comparisonQuotes.map((q: any, qi: number) => ({
                 name: q.panelBeaterName ?? q.repairerName ?? q.repairer_name ?? `Quote ${qi + 1}`,
                 total: (q.lineItems ?? []).length > 0
                   ? (q.lineItems as any[]).reduce((sum: number, li: any) => sum + Number(li.lineTotal ?? 0), 0)
@@ -1030,18 +1035,20 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 ? buildRowsFromComposite(compositeLineItems, matrixQuotes)
                 : buildRowsFromLineItems(matrixQuotes);
 
-              const quoteScopeState = quotes.length === 0
+              const quoteScopeState = legacyHistoryQualified
+                ? `${matrixLegacyHistory.filter((quote) => quote.status === "legacy_unverified").length} legacy quotation histor${matrixLegacyHistory.filter((quote) => quote.status === "legacy_unverified").length === 1 ? "y is" : "ies are"} visible but not comparison evidence until ledger verification`
+                : comparisonQuotes.length === 0
                 ? "L2 analysis active — no submitted quotation evidence is available"
                 : l2 === null
                   ? evidenceQualifiedL2 !== null
-                    ? `${quotes.length} submitted quotation${quotes.length === 1 ? "" : "s"}; L2 analysis evidence-qualified at ${fmtC(evidenceQualifiedL2)} — itemised repair scope remains incomplete`
-                    : `${quotes.length} submitted quotation${quotes.length === 1 ? "" : "s"}; L2 analysis active — itemised repair scope is incomplete`
-                  : `${quotes.length} submitted quotation${quotes.length === 1 ? "" : "s"}; all-in repair scope complete`;
+                    ? `${comparisonQuotes.length} submitted quotation${comparisonQuotes.length === 1 ? "" : "s"}; L2 analysis evidence-qualified at ${fmtC(evidenceQualifiedL2)} — itemised repair scope remains incomplete`
+                    : `${comparisonQuotes.length} submitted quotation${comparisonQuotes.length === 1 ? "" : "s"}; L2 analysis active — itemised repair scope is incomplete`
+                  : `${comparisonQuotes.length} submitted quotation${comparisonQuotes.length === 1 ? "" : "s"}; all-in repair scope complete`;
 
               return (
                 <>
                   <div style={{ marginBottom: 10, padding: "8px 10px", border: "1px solid #e2e8f0", background: l2 === null ? "#fffbeb" : "#f0fdf4", fontSize: 11, color: "#334155" }}>
-                    <strong>Submitted quotation ledger:</strong> {quoteScopeState}. {l2 === null && "The available L2 intelligence remains visible; no final all-in L2, savings, settlement, or KINGA Optimised amount is displayed until scope is complete."}
+                    <strong>Submitted quotation ledger:</strong> {quoteScopeState}. {legacyHistoryQualified ? "No L1, L2, savings, settlement, or KINGA Optimised amount is displayed until ledger verification." : l2 === null && "The available L2 intelligence remains visible; no final all-in L2, savings, settlement, or KINGA Optimised amount is displayed until scope is complete."}
                   </div>
                   <ComponentCostMatrix
                     quotes={matrixQuotes}
