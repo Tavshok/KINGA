@@ -4,6 +4,7 @@ import {
   buildClientAcknowledgementRequired,
   buildInsuranceRequestValuationPresentation,
   compareClientValueToMarketValuation,
+  evaluateAgencyServiceRequestProgression,
   normaliseVehicleRegistration,
 } from "./insuranceRequestValuation";
 
@@ -59,5 +60,31 @@ describe("agency insurance-request valuation boundary", () => {
     expect(presentation.insurer.decisionBoundary).toContain("Decision support only");
     expect(JSON.stringify(presentation)).not.toContain("confidence");
     expect(presentation.insurer.decisionBoundary).not.toContain("premium decision");
+  });
+
+  it("does not require an insurer valuation for agency progression while retaining selected-insurer dispatch and material acknowledgement controls", () => {
+    const materialVariance = compareClientValueToMarketValuation(850_000, 1_000_000);
+    const blockedForAcknowledgement = evaluateAgencyServiceRequestProgression({
+      variance: materialVariance,
+      acknowledgementRecorded: false,
+      selectedInsurerRecipientCount: 1,
+    });
+    expect(blockedForAcknowledgement).toMatchObject({
+      canDispatch: false,
+      acknowledgementRequired: true,
+      insurerValuationRequired: false,
+      selectedInsurerRecipientsRequired: true,
+    });
+
+    const readyWithoutInsurerValuation = evaluateAgencyServiceRequestProgression({
+      variance: materialVariance,
+      acknowledgementRecorded: true,
+      selectedInsurerRecipientCount: 1,
+    });
+    expect(readyWithoutInsurerValuation).toMatchObject({
+      canDispatch: true,
+      acknowledgementSatisfied: true,
+      insurerValuationRequired: false,
+    });
   });
 });

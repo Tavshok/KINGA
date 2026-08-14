@@ -31,6 +31,14 @@ export type InsuranceRequestValuationPresentation = {
   };
 };
 
+export type AgencyServiceRequestProgression = {
+  canDispatch: boolean;
+  acknowledgementRequired: boolean;
+  acknowledgementSatisfied: boolean;
+  selectedInsurerRecipientsRequired: true;
+  insurerValuationRequired: false;
+};
+
 /**
  * Compares the client's chosen insured value with the non-binding KINGA Market
  * Valuation. The result is decision support only: it cannot set a premium,
@@ -109,6 +117,28 @@ export function buildInsuranceRequestValuationPresentation(input: {
       acknowledgementRecorded,
       decisionBoundary: "Decision support only. This comparison does not create or change a policy, premium, sum insured, claim, repair cost, settlement, payment, or underwriting decision.",
     },
+  };
+}
+
+/**
+ * Insurers are dispatch recipients and optional decision-support consumers; they
+ * are never a required valuation provider for an agency service request.
+ */
+export function evaluateAgencyServiceRequestProgression(input: {
+  variance: ValuationVariance;
+  acknowledgementRecorded: boolean;
+  selectedInsurerRecipientCount: number;
+}): AgencyServiceRequestProgression {
+  const acknowledgementRequired = buildClientAcknowledgementRequired(
+    input.variance,
+    input.acknowledgementRecorded,
+  );
+  return {
+    canDispatch: !acknowledgementRequired && input.selectedInsurerRecipientCount > 0,
+    acknowledgementRequired,
+    acknowledgementSatisfied: !acknowledgementRequired,
+    selectedInsurerRecipientsRequired: true,
+    insurerValuationRequired: false,
   };
 }
 

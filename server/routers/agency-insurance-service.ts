@@ -24,6 +24,7 @@ import {
   buildClientAcknowledgementRequired,
   buildInsuranceRequestValuationPresentation,
   compareClientValueToMarketValuation,
+  evaluateAgencyServiceRequestProgression,
   normaliseVehicleRegistration,
 } from "../agency/insuranceRequestValuation";
 import { buildValuationReliabilityEvidence } from "../valuation/valuationReliabilityEvidence";
@@ -213,8 +214,13 @@ export const agencyInsuranceServiceRouter = router({
     if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Insurance service request not found." });
     if (request.status !== "awaiting_client_acknowledgement") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This service request is not awaiting client confirmation." });
     const variance = compareClientValueToMarketValuation(request.clientProposedValueCents, request.kingaMarketValuationCents);
-    if (buildClientAcknowledgementRequired(variance, input.acknowledgesValuationImplications)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Client acknowledgement of the material valuation difference is required before insurer review." });
     const insurers = [...new Set(input.insurerTenantIds)];
+    const progression = evaluateAgencyServiceRequestProgression({
+      variance,
+      acknowledgementRecorded: input.acknowledgesValuationImplications,
+      selectedInsurerRecipientCount: insurers.length,
+    });
+    if (progression.acknowledgementRequired) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Client acknowledgement of the material valuation difference is required before insurer review." });
     const available = await db.select({ id: insurerTenants.id }).from(insurerTenants).where(inArray(insurerTenants.id, insurers));
     if (available.length !== insurers.length) throw new TRPCError({ code: "NOT_FOUND", message: "One or more selected insurer tenants are unavailable." });
     const acknowledgement = { clientConfirmedVehicleFacts: true, clientConfirmedSelectedValue: true, acknowledgesValuationImplications: input.acknowledgesValuationImplications, statement: input.acknowledgementStatement, recordedByAgencyUserId: ctx.user.id, recordedAt: new Date().toISOString(), clientResponsibility: "The client confirms that the vehicle facts and selected insured value are accurate." };
@@ -237,6 +243,7 @@ export const agencyInsuranceServiceRouter = router({
       variance,
       valuationComparison: valuationPresentation.client,
       agencyDeviation: valuationPresentation.agency,
+      insurerValuationRequired: progression.insurerValuationRequired,
     };
   }),
 
