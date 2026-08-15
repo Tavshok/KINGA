@@ -105,11 +105,13 @@ describe("AUD cross-report and UI truth audit — no-write", () => {
     expect(html).not.toContain("$80,000");
   });
 
-  it("exposes the assessment-cent scaling and mixed-unit variance divergence for controlled audit classification", () => {
+  it("renders the KINGA assessment and assessor comparison on one cent-safe basis", () => {
     const html = renderToStaticMarkup(React.createElement(ClaimsManagerComparisonView));
 
-    expect(html).toContain("USD 150000.00");
+    expect(html).toContain("USD 1500.00");
     expect(html).toContain("USD 1000.00");
-    expect(html).toContain("-99.3%");
+    expect(html).toContain("-33.3%");
+    expect(html).not.toContain("USD 150000.00");
+    expect(html).not.toContain("-99.3%");
   });
 });

@@ -179,7 +179,9 @@ export default function ClaimsManagerComparisonView() {
   }
 
   const aiCost = aiAssessment?.estimatedCost ? aiAssessment.estimatedCost : null;
-  const assessorCost = assessorEval?.estimatedRepairCost ? assessorEval.estimatedRepairCost / 100 : null;
+  // Assessment and assessor repair costs are both persisted in cents. Keep that
+  // unit through comparison and pass it to the tenant formatter exactly once.
+  const assessorCost = assessorEval?.estimatedRepairCost ? assessorEval.estimatedRepairCost : null;
 
   const claimsManagerCost = buildClaimsManagerCostProjection(aiAssessment?.costIntelligenceJson, quotes);
   const selectedQuote = quotes?.find((q: any) => q.isSelected) || null;
@@ -422,7 +424,7 @@ export default function ClaimsManagerComparisonView() {
               }`}>
                 <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Estimated Cost</p>
                 <p className={`${isRiskManager ? "text-3xl" : "text-5xl"} font-bold text-blue-900 dark:text-blue-200`}>
-                  {aiCost ? fmt(aiCost * 100) : "N/A"}
+                  {aiCost ? fmt(aiCost) : "N/A"}
                 </p>
               </div>
 
@@ -570,7 +572,7 @@ export default function ClaimsManagerComparisonView() {
                   }`}>
                     <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Assessed Cost</p>
                     <p className={`${isRiskManager ? "text-3xl" : "text-5xl"} font-bold text-green-900 dark:text-green-200`}>
-                      {assessorCost ? fmt(assessorCost * 100) : "N/A"}
+                      {assessorCost ? fmt(assessorCost) : "N/A"}
                     </p>
                   </div>
 
