@@ -26,20 +26,20 @@ const sections = [
     title: "My Work",
     items: [
       { label: "Dashboard", href: "/panel-beater/dashboard", icon: LayoutDashboard, description: "Overview & active quotes" },
-      { label: "Quote Requests", href: "/panel-beater/dashboard", icon: ClipboardList, description: "Claims awaiting quotes" },
+      { label: "Quote Requests", href: "/panel-beater/dashboard", icon: ClipboardList, description: "Open a claim to quote", contextOnly: true },
     ],
   },
   {
     title: "Financials",
     items: [
-      { label: "Quote History", href: "/panel-beater/dashboard", icon: DollarSign, description: "Submitted quotes & status" },
+      { label: "Quote History", href: "/panel-beater/dashboard", icon: DollarSign, description: "Available within the active quote workspace", contextOnly: true },
     ],
   },
   {
     title: "Performance",
     items: [
-      { label: "My Performance", href: "/panel-beater/dashboard", icon: TrendingUp, description: "Cost accuracy & quality score" },
-      { label: "Documents", href: "/panel-beater/dashboard", icon: FileText, description: "Claim documents & photos" },
+      { label: "My Performance", href: "/panel-beater/dashboard", icon: TrendingUp, description: "Available in your active quote workspace", contextOnly: true },
+      { label: "Documents", href: "/panel-beater/dashboard", icon: FileText, description: "Available inside an assigned claim", contextOnly: true },
     ],
   },
 ];
@@ -78,7 +78,25 @@ export default function PanelBeaterPortalLayout({ children }: { children: React.
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                 {section.items.map((item) => {
-                  const active = location === item.href;
+                  const active = !item.contextOnly && location === item.href;
+                  if (item.contextOnly) {
+                    return (
+                      <div
+                        key={item.label}
+                        aria-disabled="true"
+                        title={item.description}
+                        style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px", borderRadius: "6px", opacity: 0.62, cursor: "not-allowed" }}
+                      >
+                        <div style={{ width: "26px", height: "26px", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "rgba(255,255,255,0.06)" }}>
+                          <item.icon style={{ width: "14px", height: "14px", color: "rgba(255,255,255,0.60)" }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.82)", lineHeight: 1.2 }}>{item.label}</div>
+                          <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>{item.description}</div>
+                        </div>
+                      </div>
+                    )
+                  }
                   return (
                     <Link
                       key={item.label}

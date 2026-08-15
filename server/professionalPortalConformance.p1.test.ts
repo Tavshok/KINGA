@@ -39,12 +39,14 @@ describe("professional portal conformance — insurer navigation and admission",
     expect(appSource).toContain("object-level document authority remains server-side");
   });
 
-  it("records assessor and panel-beater sidebar entries that reuse their dashboard destination", () => {
-    expect(assessorLayoutSource).toContain('{ label: "Assessment Form", href: "/assessor"');
-    expect(assessorLayoutSource).toContain('{ label: "Documents", href: "/assessor"');
-    expect(panelBeaterLayoutSource).toContain('{ label: "Quote Requests", href: "/panel-beater/dashboard"');
-    expect(panelBeaterLayoutSource).toContain('{ label: "Quote History", href: "/panel-beater/dashboard"');
-    expect(panelBeaterLayoutSource).toContain('{ label: "Documents", href: "/panel-beater/dashboard"');
+  it("proves assessor and panel-beater context-only tools no longer imply a separate dashboard destination", () => {
+    expect(assessorLayoutSource).toContain('{ label: "Assessment Form", href: "/assessor", icon: Wrench, description: "Open an assigned claim to assess", contextOnly: true }');
+    expect(assessorLayoutSource).toContain('{ label: "Documents", href: "/assessor", icon: FileText, description: "Available inside an assigned claim", contextOnly: true }');
+    expect(panelBeaterLayoutSource).toContain('{ label: "Quote Requests", href: "/panel-beater/dashboard", icon: ClipboardList, description: "Open a claim to quote", contextOnly: true }');
+    expect(panelBeaterLayoutSource).toContain('{ label: "Quote History", href: "/panel-beater/dashboard", icon: DollarSign, description: "Available within the active quote workspace", contextOnly: true }');
+    expect(panelBeaterLayoutSource).toContain('{ label: "Documents", href: "/panel-beater/dashboard", icon: FileText, description: "Available inside an assigned claim", contextOnly: true }');
+    expect(assessorLayoutSource).toContain('if (item.contextOnly)');
+    expect(panelBeaterLayoutSource).toContain('if (item.contextOnly)');
   });
 
   it("proves fleet registration controls are restricted to managers while drivers receive an explanatory state", () => {

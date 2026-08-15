@@ -37,3 +37,7 @@ This inventory does not change routes, permissions, records, or workflows. Each 
 | Engineer work navigation reuses generic inspection destination | Evidence, Measurements, Observations, KINGA Analysis, Physics Check, and Sign-off all link to `/engineer/inspections` rather than a selected inspection work state. | P1 orphaned-navigation candidate |
 
 These are route-contract observations only. Procedure authority and actual user-visible outcomes remain to be tested before any correction is proposed.
+
+## Navigation-Correction Evidence
+
+The current assessor and panel-beater sidebars confirm the recorded repeated-destination issue. Assessor Assessment Form and Documents both route to `/assessor`, while the actionable claim surface is selected only after navigating to `/assessor/claims/:id`. Panel-beater Quote Requests, Quote History, My Performance, and Documents all route to `/panel-beater/dashboard`, while direct authorised quoting occurs within `/panel-beater/claims/:id/quote`. The correction must make this in-context dependency explicit rather than imply separate destinations that do not exist.
