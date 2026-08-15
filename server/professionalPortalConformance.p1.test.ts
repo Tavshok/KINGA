@@ -77,4 +77,12 @@ describe("professional portal conformance — insurer navigation and admission",
     expect(platformLayoutSource).not.toContain("<Link key={item.href} href={item.href}>\n                <a");
     expect(platformLayoutSource).not.toContain('<Link href="/">\n            <a');
   });
+
+  it("proves platform Claim Trace does not navigate without the required claim identifier", () => {
+    expect(platformLayoutSource).toContain('label: "Claim Trace",');
+    expect(platformLayoutSource).toContain('href: "/platform/claim-trace",');
+    expect(platformLayoutSource).toContain('unavailable: true,');
+    expect(platformLayoutSource).toContain('if (item.unavailable)');
+    expect(appSource).toContain('path="/platform/claim-trace/:claimId"');
+  });
 });

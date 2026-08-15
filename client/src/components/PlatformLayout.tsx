@@ -76,7 +76,8 @@ const navItems = [
     label: "Claim Trace",
     href: "/platform/claim-trace",
     icon: GitBranch,
-    description: "Full claim lifecycle trace",
+    description: "Open a claim to trace its lifecycle",
+    unavailable: true,
   },
   {
     label: "Operations Centre",
@@ -114,6 +115,22 @@ export default function PlatformLayout({
             const active =
               location === item.href ||
               (item.href !== "/platform/overview" && location.startsWith(item.href));
+            if (item.unavailable) {
+              return (
+                <div
+                  key={item.href}
+                  aria-disabled="true"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 cursor-default"
+                  title={item.description}
+                >
+                  <item.icon className="w-4 h-4 flex-shrink-0 text-gray-700 dark:text-gray-400 dark:text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium leading-none">{item.label}</div>
+                    <div className="text-[10px] text-gray-600 dark:text-muted-foreground mt-0.5 truncate">{item.description}</div>
+                  </div>
+                </div>
+              );
+            }
             return (
               <Link
                 key={item.href}
