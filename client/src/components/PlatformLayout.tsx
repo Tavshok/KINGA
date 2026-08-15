@@ -115,29 +115,29 @@ export default function PlatformLayout({
               location === item.href ||
               (item.href !== "/platform/overview" && location.startsWith(item.href));
             return (
-              <Link key={item.href} href={item.href}>
-                <a
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors group",
+                  active
+                    ? "bg-purple-900/60 text-purple-200"
+                    : "text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 hover:bg-gray-800 hover:text-gray-100"
+                )}
+              >
+                <item.icon
                   className={cn(
-                    "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors group",
-                    active
-                      ? "bg-purple-900/60 text-purple-200"
-                      : "text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 hover:bg-gray-800 hover:text-gray-100"
+                    "w-4 h-4 flex-shrink-0",
+                    active ? "text-purple-300" : "text-gray-700 dark:text-gray-400 dark:text-muted-foreground group-hover:text-gray-600 dark:text-gray-300"
                   )}
-                >
-                  <item.icon
-                    className={cn(
-                      "w-4 h-4 flex-shrink-0",
-                      active ? "text-purple-300" : "text-gray-700 dark:text-gray-400 dark:text-muted-foreground group-hover:text-gray-600 dark:text-gray-300"
-                    )}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium leading-none">{item.label}</div>
-                    <div className="text-[10px] text-gray-600 dark:text-muted-foreground group-hover:text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-0.5 truncate">
-                      {item.description}
-                    </div>
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium leading-none">{item.label}</div>
+                  <div className="text-[10px] text-gray-600 dark:text-muted-foreground group-hover:text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-0.5 truncate">
+                    {item.description}
                   </div>
-                  {active && <ChevronRight className="w-3 h-3 text-purple-400 flex-shrink-0" />}
-                </a>
+                </div>
+                {active && <ChevronRight className="w-3 h-3 text-purple-400 flex-shrink-0" />}
               </Link>
             );
           })}
@@ -149,10 +149,8 @@ export default function PlatformLayout({
           <div className="mb-3">
             <GlobalSearchBar variant="bar" placeholder="Search…" className="bg-white/5 border-white/10 text-white/70 hover:bg-white/10 text-xs" />
           </div>
-          <Link href="/">
-            <a className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:text-gray-300 transition-colors">
-              ← Back to app
-            </a>
+          <Link href="/" className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:text-gray-300 transition-colors">
+            ← Back to app
           </Link>
         </div>
       </aside>

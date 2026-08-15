@@ -13,6 +13,7 @@ const assessorLayoutSource = readFileSync(new URL("../client/src/components/Asse
 const panelBeaterLayoutSource = readFileSync(new URL("../client/src/components/PanelBeaterPortalLayout.tsx", import.meta.url), "utf8");
 const fleetSource = readFileSync(new URL("../client/src/pages/FleetManagement.tsx", import.meta.url), "utf8");
 const engineerLayoutSource = readFileSync(new URL("../client/src/components/EngineerWorkspaceLayout.tsx", import.meta.url), "utf8");
+const platformLayoutSource = readFileSync(new URL("../client/src/components/PlatformLayout.tsx", import.meta.url), "utf8");
 
 describe("professional portal conformance — insurer navigation and admission", () => {
   it("records shared-registry routes that are narrowed by actual App role guards", () => {
@@ -68,5 +69,12 @@ describe("professional portal conformance — insurer navigation and admission",
     expect(engineerLayoutSource).toContain("<Icon");
     expect(engineerLayoutSource).toContain("if (item.contextOnly)");
     expect((engineerLayoutSource.match(/contextOnly: true/g) ?? []).length).toBe(6);
+  });
+
+  it("proves platform navigation uses direct Link content without nested anchors", () => {
+    expect(platformLayoutSource).toContain("<Link\n                key={item.href}");
+    expect(platformLayoutSource).toContain('href="/" className="text-xs');
+    expect(platformLayoutSource).not.toContain("<Link key={item.href} href={item.href}>\n                <a");
+    expect(platformLayoutSource).not.toContain('<Link href="/">\n            <a');
   });
 });
