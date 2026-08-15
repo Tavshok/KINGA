@@ -85,4 +85,9 @@ describe("professional portal conformance — insurer navigation and admission",
     expect(platformLayoutSource).toContain('if (item.unavailable)');
     expect(appSource).toContain('path="/platform/claim-trace/:claimId"');
   });
+
+  it("admits platform-super-admin testing access to legacy platform administration routes", () => {
+    expect(appSource).toMatch(/path="\/historical-claims"[\s\S]{0,160}allowedRoles=\{\["admin", "platform_super_admin"\]\}/);
+    expect(appSource).toMatch(/path="\/ml\/review\/queue"[\s\S]{0,160}allowedRoles=\{\["admin", "platform_super_admin"\]\}/);
+  });
 });

@@ -705,14 +705,14 @@ function Router() {
         
         {/* Historical Claims Intelligence Pipeline - Admin only, accessed via Admin Panel */}
         <Route path="/historical-claims">
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
             <HistoricalClaimsPipeline />
           </ProtectedRoute>
         </Route>
         
         {/* ML Training Data Review Queue - Admin only */}
         <Route path="/ml/review/queue">
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "platform_super_admin"]}>
             <ReviewQueue />
           </ProtectedRoute>
         </Route>
