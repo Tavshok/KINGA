@@ -32,7 +32,8 @@ describe("AUD assessor report evidence-authority and routing audit — no-write"
     expect(submit).toContain("assessorId: z.number()");
     expect(submit).toContain("createAssessorEvaluation({");
     expect(submit).toContain("status: \"submitted\"");
-    expect(submit).toContain("toState: \"internal_review\"");
+    expect(submit).toContain('updateClaimStatus(input.claimId, "quotes_pending"');
+    expect(submit).not.toContain("toState: \"internal_review\"");
     expect(submit).not.toContain("ctx.user.id !== input.assessorId");
     expect(submit).not.toContain("sourceReport");
     expect(submit).not.toContain("attest");
