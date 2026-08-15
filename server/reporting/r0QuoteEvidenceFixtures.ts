@@ -195,7 +195,7 @@ export const R0_QUOTE_EVIDENCE_FIXTURES: readonly R0QuoteEvidenceFixture[] = dee
       conclusion: "approved",
       verification: "PASSED",
       presentationState: "complete",
-      presentationDetail: "KINGA insurer cost recommendation.",
+      presentationDetail: "KINGA’s fair repair-cost recommendation.",
     },
   },
 ]);

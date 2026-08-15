@@ -47,6 +47,8 @@ describe("R0 concise cost decision presentation", () => {
       quoteVerification: "PASSED",
       optimisedQuoteLabel: "KINGA Optimised Quote",
       optimisedQuoteAmount: 2940,
+      potentialSavingsAmount: 180,
+      potentialSavingsLabel: "Potential savings",
       quoteIssue: "No material quote issue identified.",
     });
     const html = renderCostDecisionSummaryHtml({
@@ -59,6 +61,8 @@ describe("R0 concise cost decision presentation", () => {
     expect(html).toContain("Repairer A");
     expect(html).toContain("KINGA Quote Verification");
     expect(html).toContain("KINGA Optimised Quote");
+    expect(html).toContain("Potential savings");
+    expect(html).toContain("USD 180.00");
     expect(html).toContain("Repairability");
     expect(html).toContain("Repairable");
     expect(html).toContain("USD 2940.00");
@@ -80,6 +84,7 @@ describe("R0 concise cost decision presentation", () => {
     expect(presentation.optimisedQuoteAmount).toBe(2740);
     expect(presentation.optimisedQuoteState).toBe("human_review_required");
     expect(presentation.quoteIssue).toBe("Missing submitted price: Front bumper garnish.");
+    expect(presentation.potentialSavingsAmount).toBeNull();
   });
 
   it("names a concrete quote reconciliation issue without suppressing a complete L2 from submitted component evidence", () => {
@@ -100,7 +105,7 @@ describe("R0 concise cost decision presentation", () => {
     expect(presentation).toMatchObject({
       optimisedQuoteAmount: 2940,
       optimisedQuoteState: "complete",
-      optimisedQuoteDetail: "KINGA insurer cost recommendation. Quote reconciliation issue retained separately.",
+      optimisedQuoteDetail: "KINGA’s fair repair-cost recommendation. Quote verification issue retained separately.",
     });
   });
 

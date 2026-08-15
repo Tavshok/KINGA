@@ -46,13 +46,15 @@ describe("AUD-L2-002 client top-cost warning presentation", () => {
 
     expect(html).toContain("KINGA Optimised Quote");
     expect(html).toContain("USD 1000.00");
+    expect(html).toContain("Potential savings");
+    expect(html).toContain("USD 100.00");
     expect(html).toContain("REVIEW REQUIRED");
     expect(html).toContain("Defective Extraction");
     expect(html).toContain("Document and page provenance requires confirmation.");
     expect(html).toContain("One or more submitted line prices require extraction review.");
   });
 
-  it("keeps KINGA Optimised Quote visible as a review-required priced scope with a separate whole-quote anchor", () => {
+  it("keeps the client KINGA Optimised Quote concise when review is required", () => {
     const html = renderToStaticMarkup(createElement(ClientCostDecisionStrip, {
       costIntelligence: {
         compositeOptimisation: {
@@ -68,9 +70,11 @@ describe("AUD-L2-002 client top-cost warning presentation", () => {
       totalLossIndicated: false, repairToValueRatio: 25,
     }));
     expect(html).toContain("KINGA Optimised Quote");
-    expect(html).toContain("Review-required priced scope · USD 1480.00");
-    expect(html).toContain("not all-in");
-    expect(html).toContain("Eligible submitted whole-quote anchor (not component-optimised) · USD 1820.00");
+    expect(html).toContain("Human review required");
+    expect(html).toContain("KINGA needs further repair evidence before a complete recommendation.");
+    expect(html).not.toContain("Review-required priced scope");
+    expect(html).not.toContain("Eligible submitted whole-quote anchor");
+    expect(html).not.toContain("USD 1480.00");
     expect(html).toContain("Missing submitted price: Headlamp alignment.");
   });
 
@@ -89,8 +93,8 @@ describe("AUD-L2-002 client top-cost warning presentation", () => {
     }));
     expect(html).toContain("KINGA Optimised Quote");
     expect(html).toContain("Human review required");
-    expect(html).toContain("no supported submitted component amount");
-    expect(html).toContain("Eligible submitted whole-quote anchor (not component-optimised) · USD 1240.00");
+    expect(html).toContain("KINGA needs further repair evidence before a complete recommendation.");
+    expect(html).not.toContain("Eligible submitted whole-quote anchor");
   });
 
   it("keeps the full remaining-eligible quotation matrix transparent without suppressing KINGA Optimised Quote", () => {
@@ -170,7 +174,7 @@ describe("AUD-L2-002 client top-cost warning presentation", () => {
 
     expect(html).toContain("KINGA Optimised Quote");
     expect(html).toContain("Human review required");
-    expect(html).toContain("no supported submitted component amount is available");
+    expect(html).toContain("KINGA needs further repair evidence before a complete recommendation.");
     expect(html).toContain("Cancelled Quote");
     expect(html).toContain("Unsupported Scope");
     expect(html).not.toContain("USD 600.00</span>");

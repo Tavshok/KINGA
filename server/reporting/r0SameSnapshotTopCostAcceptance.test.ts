@@ -29,7 +29,8 @@ describe("Approved R0 same-snapshot top-cost contract acceptance", () => {
     expect(source).toContain("buildCostDecisionPresentationContract");
     expect(source).toContain("submittedQuotes.map");
     expect(source).toContain("costDecision.quoteVerificationDetail");
-    expect(source).toContain("costDecision.optimisedQuoteDetail");
+    expect(source).toContain("const optimisedDetail = isReviewRequired");
+    expect(source).toContain("const potentialSavings = costDecision.potentialSavingsAmount");
     expect(source).not.toContain("KINGA computed fair repair cost");
   });
 });

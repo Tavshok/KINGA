@@ -29,6 +29,8 @@ describe("Approved R0-H/R0-I cross-surface cost-strip acceptance", () => {
     expect(html).toContain("Repairer Beta");
     expect(html).toContain("KINGA Optimised Quote");
     expect(html).toContain("USD 1160.00");
+    expect(html).toContain("Potential savings");
+    expect(html).toContain("USD 80.00");
     expect(html).not.toContain("benchmark");
   });
 
@@ -54,8 +56,9 @@ describe("Approved R0-H/R0-I cross-surface cost-strip acceptance", () => {
     }
     const client = read("client/src/components/KingaClaimsReport.tsx");
     expect(client).toContain("submittedQuotes.map");
-    expect(client).toContain("optimisedQuoteState === \"human_review_required\"");
-    expect(client).toContain("Review-required priced scope ·");
+    expect(client).toContain("const isReviewRequired = costDecision.optimisedQuoteState === \"human_review_required\"");
+    expect(client).toContain("KINGA needs further repair evidence before a complete recommendation.");
+    expect(client).toContain("Potential savings");
   });
 
   it("guards CI and FR savings and settlement conclusions behind a complete KINGA Optimised Quote", () => {

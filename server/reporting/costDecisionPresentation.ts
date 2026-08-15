@@ -135,6 +135,9 @@ export function renderCostDecisionSummaryHtml(input: {
   const reviewAnchor = presentation.reviewAnchorLabel && presentation.reviewAnchorAmount !== null && presentation.reviewAnchorAmount !== undefined
     ? `<div style="margin-top:3px;font-size:7.5px;color:#8a5a00;line-height:1.35;">${input.escapeHtml(presentation.reviewAnchorLabel)} · ${input.formatAmount(presentation.reviewAnchorAmount)}</div>`
     : "";
+	const potentialSavings = presentation.potentialSavingsAmount !== null && presentation.potentialSavingsLabel
+	  ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 10px;background:#edf9f4;border-top:1px solid #d8e2df;"><div><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#14664f;">${input.escapeHtml(presentation.potentialSavingsLabel)}</div><div style="margin-top:2px;font-size:8px;color:#14664f;">Identified through KINGA quotation optimisation.</div></div><div style="font-size:15px;font-weight:800;color:#0d5849;">${input.formatAmount(presentation.potentialSavingsAmount)}</div></div>`
+	  : "";
 	const l2SelectionTrace = (input.costIntegrity.l2ComponentSelections ?? [])
 	  .filter((selection) => selection.selectionMethod || selection.highLineItemVariance)
 	  .map((selection) => {
@@ -163,6 +166,6 @@ export function renderCostDecisionSummaryHtml(input: {
     <div style="padding:10px;border-right:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">${presentation.optimisedQuoteLabel}</div><div style="margin-top:5px;font-size:16px;font-weight:800;color:#0d5849;">${optimisedAmount}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.optimisedQuoteDetail)}</div>${reviewAnchor}</div>
     <div style="padding:10px;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Quote Issues</div><div style="margin-top:5px;font-size:11px;font-weight:700;color:${issueColour};">${verificationGood ? "None" : "Review required"}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(presentation.quoteIssue)}</div></div>
     <div style="padding:10px;border-left:1px solid #d8e2df;"><div style="font-size:7.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#62726e;">Repairability</div><div style="margin-top:5px;font-size:11px;font-weight:700;color:#15352f;">${input.escapeHtml(repairability.label)}</div><div style="margin-top:3px;font-size:8px;color:#62726e;line-height:1.35;">${input.escapeHtml(repairability.detail)}</div></div>
-  </div>${l2SelectionEvidence}
+	</div>${potentialSavings}${l2SelectionEvidence}
 </div>`;
 }

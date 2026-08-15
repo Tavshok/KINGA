@@ -339,14 +339,14 @@ export function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency,
   const verificationColour = verification === "PASSED" ? "#14664f" : verification === "QUOTATION REQUIRED" ? "#526560" : "#8a5a00";
   const issue = costDecision.quoteIssue;
   const optimised = costDecision.optimisedQuoteAmount;
-  const optimisedDetail = costDecision.optimisedQuoteDetail;
-  const optimisedDisplay = optimised === null
-    ? costDecision.optimisedQuoteState === "human_review_required" ? "Human review required" : "Not published"
-    : costDecision.optimisedQuoteState === "evidence_qualified"
-      ? `Evidence-qualified comparison · ${fmtCurrency(optimised)}`
-      : costDecision.optimisedQuoteState === "human_review_required"
-        ? `Review-required priced scope · ${fmtCurrency(optimised)}`
-      : fmtCurrency(optimised);
+  const isReviewRequired = costDecision.optimisedQuoteState === "human_review_required";
+  const optimisedDetail = isReviewRequired
+    ? "KINGA needs further repair evidence before a complete recommendation."
+    : "KINGA’s fair repair-cost recommendation.";
+  const optimisedDisplay = isReviewRequired
+    ? "Human review required"
+    : optimised === null ? "Not available" : fmtCurrency(optimised);
+  const potentialSavings = costDecision.potentialSavingsAmount;
   let repairEvidence: any = repairIntelligence;
   if (typeof repairEvidence === "string") {
     try { repairEvidence = JSON.parse(repairEvidence); } catch { repairEvidence = null; }
@@ -384,10 +384,11 @@ export function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency,
           {qualifiedLedgerHistory.length > 0 && <p style={{ ...S.muted, fontSize: 9, margin: "5px 0 0", color: "#8a5a00" }}>Qualified quotation history — not used for active comparison: {qualifiedLedgerHistory.map((quote: any) => `${quote.panelBeater ?? "Unknown repairer"} (${quote.status ?? "history"})`).join(", ")}.</p>}
         </div>
         <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>KINGA Quote Verification</p><p style={{ fontSize: 13, fontWeight: 800, color: verificationColour, margin: "5px 0 3px" }}>{verification}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{costDecision.quoteVerificationDetail}</p></div>
-        <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>{costDecision.optimisedQuoteLabel}</p><p style={{ fontSize: costDecision.optimisedQuoteState === "complete" ? 18 : 12, fontWeight: 800, color: "#0d5849", margin: "4px 0 3px" }}>{optimisedDisplay}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{optimisedDetail}</p>{costDecision.reviewAnchorLabel && costDecision.reviewAnchorAmount !== null && costDecision.reviewAnchorAmount !== undefined && <p style={{ ...S.muted, color: "#8a5a00", fontSize: 9, margin: "4px 0 0" }}>{costDecision.reviewAnchorLabel} · {fmtCurrency(costDecision.reviewAnchorAmount)}</p>}</div>
+        <div style={{ padding: 10, borderRight: "1px solid #d8e2df" }}><p style={S.label}>{costDecision.optimisedQuoteLabel}</p><p style={{ fontSize: costDecision.optimisedQuoteState === "complete" ? 18 : 12, fontWeight: 800, color: "#0d5849", margin: "4px 0 3px" }}>{optimisedDisplay}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{optimisedDetail}</p></div>
         <div style={{ padding: 10 }}><p style={S.label}>Quote Issues</p><p style={{ fontSize: 11, fontWeight: 800, color: verification === "PASSED" ? "#14664f" : "#8a5a00", margin: "5px 0 3px" }}>{verification === "PASSED" ? "None" : "Review required"}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{issue}</p></div>
         <div style={{ padding: 10, borderLeft: "1px solid #d8e2df" }}><p style={S.label}>Repairability</p><p style={{ fontSize: 11, fontWeight: 800, color: "#15352f", margin: "5px 0 3px" }}>{repairability.label}</p><p style={{ ...S.muted, fontSize: 10, margin: 0 }}>{repairability.detail}</p></div>
       </div>
+      {potentialSavings !== null && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "8px 10px", borderTop: "1px solid #d8e2df", background: "#edf9f4" }}><div><p style={{ ...S.label, color: "#14664f", margin: 0 }}>Potential savings</p><p style={{ ...S.muted, color: "#14664f", fontSize: 10, margin: "2px 0 0" }}>Identified through KINGA quotation optimisation.</p></div><p style={{ fontSize: 17, fontWeight: 800, color: "#0d5849", margin: 0 }}>{fmtCurrency(potentialSavings)}</p></div>}
     </div>
   );
 }

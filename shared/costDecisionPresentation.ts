@@ -8,6 +8,8 @@ export type CostDecisionPresentation = {
   optimisedQuoteAmount: number | null;
   optimisedQuoteState: "complete" | "evidence_qualified" | "human_review_required" | "pending";
   optimisedQuoteDetail: string;
+  potentialSavingsAmount: number | null;
+  potentialSavingsLabel: "Potential savings" | null;
   reviewAnchorLabel?: string;
   reviewAnchorAmount?: number | null;
 };
@@ -83,6 +85,14 @@ function quoteIssue(evidence: CostDecisionEvidence): string {
   return issues.length > 0 ? Array.from(new Set(issues)).join(" ") : "No material quote issue identified.";
 }
 
+function potentialSavings(evidence: CostDecisionEvidence): number | null {
+  const l1 = evidence.l1SubmittedCostUsd ?? null;
+  const l2 = evidence.l2OptimisedCostUsd ?? null;
+  if (!evidence.l2IsComplete || l1 === null || l2 === null || l1 <= 0 || l2 <= 0) return null;
+  const saving = l1 - l2;
+  return saving > 0 ? saving : null;
+}
+
 /**
  * The approved cost-decision sequence shared by report renderers and the top-cost view.
  * It never introduces a benchmark, estimate, tax, labour, fee, paint, or settlement value.
@@ -90,6 +100,7 @@ function quoteIssue(evidence: CostDecisionEvidence): string {
  */
 export function buildCostDecisionPresentationContract(evidence: CostDecisionEvidence): CostDecisionPresentation {
   const quoteIssueDetail = quoteIssue(evidence);
+  const potentialSavingsAmount = potentialSavings(evidence);
   if (evidence.quoteReceiptStatus === "no_quotes") {
     return {
       quoteVerification: "QUOTATION REQUIRED",
@@ -99,6 +110,8 @@ export function buildCostDecisionPresentationContract(evidence: CostDecisionEvid
       optimisedQuoteAmount: null,
       optimisedQuoteState: "human_review_required",
       optimisedQuoteDetail: "Human review required — no supported submitted component amount is available. Obtain a repair quotation; KINGA will not invent a cost.",
+      potentialSavingsAmount: null,
+      potentialSavingsLabel: null,
     };
   }
   if (!evidence.l2IsComplete) {
@@ -115,8 +128,10 @@ export function buildCostDecisionPresentationContract(evidence: CostDecisionEvid
       optimisedQuoteDetail: hasPartialScope
         ? "Review-required priced submitted component scope — not all-in. KINGA identifies the unresolved evidence and recommends human review; no missing price is invented."
         : "Human review required — no supported submitted component amount is available for the unresolved scope. KINGA will not invent a cost.",
+      potentialSavingsAmount: null,
+      potentialSavingsLabel: null,
       reviewAnchorLabel: eligibleWholeQuoteAnchor !== null && eligibleWholeQuoteAnchor > 0
-        ? "Eligible submitted whole-quote anchor (not component-optimised)"
+        ? "Eligible submitted whole-quote anchor (not a complete KINGA recommendation)"
         : undefined,
       reviewAnchorAmount: eligibleWholeQuoteAnchor !== null && eligibleWholeQuoteAnchor > 0
         ? eligibleWholeQuoteAnchor
@@ -133,8 +148,10 @@ export function buildCostDecisionPresentationContract(evidence: CostDecisionEvid
       optimisedQuoteAmount: l2Published ? evidence.l2OptimisedCostUsd : evidence.l2EvidenceQualifiedComparisonUsd,
       optimisedQuoteState: l2Published ? "complete" : evidence.l2EvidenceQualifiedComparisonUsd === null ? "pending" : "evidence_qualified",
       optimisedQuoteDetail: l2Published
-        ? "KINGA insurer cost recommendation. Quote reconciliation issue retained separately."
+        ? "KINGA’s fair repair-cost recommendation. Quote verification issue retained separately."
         : "Available comparison retained pending the identified quote evidence.",
+      potentialSavingsAmount: l2Published ? potentialSavingsAmount : null,
+      potentialSavingsLabel: l2Published && potentialSavingsAmount !== null ? "Potential savings" : null,
     };
   }
   if ((evidence.quoteQualityIssues ?? []).length > 0) {
@@ -145,7 +162,9 @@ export function buildCostDecisionPresentationContract(evidence: CostDecisionEvid
       optimisedQuoteLabel: "KINGA Optimised Quote",
       optimisedQuoteAmount: evidence.l2OptimisedCostUsd,
       optimisedQuoteState: "complete",
-      optimisedQuoteDetail: "KINGA insurer cost recommendation. Quote-quality findings retained separately.",
+      optimisedQuoteDetail: "KINGA’s fair repair-cost recommendation. Quote-quality findings retained separately.",
+      potentialSavingsAmount,
+      potentialSavingsLabel: potentialSavingsAmount !== null ? "Potential savings" : null,
     };
   }
   return {
@@ -155,6 +174,8 @@ export function buildCostDecisionPresentationContract(evidence: CostDecisionEvid
     optimisedQuoteLabel: "KINGA Optimised Quote",
     optimisedQuoteAmount: evidence.l2OptimisedCostUsd,
     optimisedQuoteState: "complete",
-    optimisedQuoteDetail: "KINGA insurer cost recommendation.",
+    optimisedQuoteDetail: "KINGA’s fair repair-cost recommendation.",
+    potentialSavingsAmount,
+    potentialSavingsLabel: potentialSavingsAmount !== null ? "Potential savings" : null,
   };
 }
