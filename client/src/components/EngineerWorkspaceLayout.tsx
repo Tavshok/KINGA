@@ -53,10 +53,14 @@ const sections = [
       {
         label: "Projects",
         href: "/engineer/projects",
+        icon: FolderOpen,
+        description: "Inspection projects",
       },
       {
         label: "Asset Passport",
         href: "/engineer/asset-passport",
+        icon: FileText,
+        description: "Asset evidence history",
       },
       {
         label: "Intelligence",
@@ -237,7 +241,7 @@ export default function EngineerWorkspaceLayout({
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                 {section.items.map((item) => {
-                  const Icon = item.icon;
+                  const Icon = item.icon ?? FolderOpen;
                   const isActive = location === item.href;
                   return (
                     <Link key={item.href + item.label} href={item.href}>
