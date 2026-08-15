@@ -10,6 +10,12 @@ import {
   ingestionDocuments,} from "../../drizzle/schema";
 import * as schema from "../../drizzle/schema";
 import { getDb } from "../db-core";
+import {
+  buildVehicleBenchmarkStrata,
+  classifyBenchmarkYearBand,
+  type BenchmarkStratum,
+  type VehicleBenchmarkContext,
+} from "../pipeline-v2/vehicleBenchmarkHierarchy";
 
 export async function emitClaimEvent(params: {
   claimId: number;
@@ -413,6 +419,11 @@ export async function insertCostLearningRecord(
       claimId: typeof record.claim_id === "number" ? record.claim_id : parseInt(String(record.claim_id), 10),
       tenantId: tenantId ?? null,
       vehicleDescriptor: record.vehicle_descriptor.slice(0, 255),
+		vehicleMake: record.vehicle_make?.slice(0, 100) ?? null,
+		vehicleModel: record.vehicle_model?.slice(0, 100) ?? null,
+		vehicleYear: record.vehicle_year ?? null,
+		vehicleVariant: record.vehicle_variant?.slice(0, 100) ?? null,
+		vehicleBodyType: record.vehicle_body_type?.slice(0, 60) ?? null,
       collisionDirection: record.collision_direction.slice(0, 50),
       marketRegion: record.market_region.slice(0, 10),
       caseSignature: record.case_signature.slice(0, 100),
@@ -649,6 +660,115 @@ export interface ComponentBenchmark {
   p75Usd: number;
   sampleSize: number;
   vehicleMakeFiltered: boolean;
+  benchmarkStratum?: BenchmarkStratum;
+  vehicleModelFiltered?: boolean;
+  yearBandFiltered?: boolean;
+  marketCurrencyFiltered?: boolean;
+  evidenceQuality?: string | null;
+}
+
+const MIN_COMPARABLE_BENCHMARK_SAMPLES = 3;
+
+function caseInsensitiveMatch(column: any, value: string) {
+  return sql`LOWER(${column}) = LOWER(${value})`;
+}
+
+/**
+ * Retrieves validated historical component costs using the most specific vehicle
+ * context available, then relaxes only through the approved hierarchy. All
+ * strata and confidence metadata are internal evidence; client surfaces receive
+ * only the resulting KINGA Optimised Quote.
+ */
+export async function getVehicleSpecificComponentBenchmarks(
+  componentNames: string[],
+  context: VehicleBenchmarkContext
+): Promise<ComponentBenchmark[]> {
+  if (!componentNames.length) return [];
+  const db = await getDb();
+  if (!db) return [];
+
+  const results: ComponentBenchmark[] = [];
+  const yearBand = classifyBenchmarkYearBand(context.vehicleYear);
+
+  for (const component of componentNames) {
+    for (const stratum of buildVehicleBenchmarkStrata(context)) {
+      const conditions: any[] = [
+        eq(schema.componentRepairOutcomes.componentName, component),
+        sql`${schema.componentRepairOutcomes.evidenceQuality} <> 'review_required'`,
+      ];
+
+      if (context.preferredOutcome) {
+        conditions.push(eq(schema.componentRepairOutcomes.outcome, context.preferredOutcome));
+      }
+      if (stratum.requireMake && context.vehicleMake) {
+        conditions.push(caseInsensitiveMatch(schema.componentRepairOutcomes.vehicleMake, context.vehicleMake));
+      }
+      if (stratum.requireModel && context.vehicleModel) {
+        conditions.push(caseInsensitiveMatch(schema.componentRepairOutcomes.vehicleModel, context.vehicleModel));
+      }
+      if (stratum.requireYearBand && context.vehicleYear) {
+        const lowerYear = context.vehicleYear < 2000 ? 1900 : context.vehicleYear < 2010 ? 2000 : context.vehicleYear < 2020 ? 2010 : 2020;
+        const upperYear = lowerYear === 1900 ? 1999 : lowerYear + 9;
+        conditions.push(gte(schema.componentRepairOutcomes.vehicleYear, lowerYear));
+        conditions.push(lte(schema.componentRepairOutcomes.vehicleYear, upperYear));
+      }
+      if (stratum.requireVariant && context.vehicleVariant) {
+        conditions.push(caseInsensitiveMatch(schema.componentRepairOutcomes.vehicleVariant, context.vehicleVariant));
+      }
+      if (stratum.requireBodyType && context.bodyType) {
+        conditions.push(caseInsensitiveMatch(schema.componentRepairOutcomes.vehicleBodyType, context.bodyType));
+      }
+      if (stratum.requireMarketCurrency && context.marketRegion && context.currencyCode) {
+        conditions.push(caseInsensitiveMatch(schema.componentRepairOutcomes.marketRegion, context.marketRegion));
+        conditions.push(caseInsensitiveMatch(schema.componentRepairOutcomes.currencyCode, context.currencyCode));
+      }
+
+      const rows = await db
+        .select({
+          repairCostUsd: schema.componentRepairOutcomes.repairCostUsd,
+          replaceCostUsd: schema.componentRepairOutcomes.replaceCostUsd,
+          evidenceQuality: schema.componentRepairOutcomes.evidenceQuality,
+        })
+        .from(schema.componentRepairOutcomes)
+        .where(and(...conditions))
+        .limit(500);
+
+      const costs = rows
+        .map((row: any) => {
+          const value = context.preferredOutcome === "replace"
+            ? row.replaceCostUsd
+            : context.preferredOutcome === "repair"
+              ? row.repairCostUsd
+              : (row.repairCostUsd ?? row.replaceCostUsd);
+          return value == null ? null : Number(value);
+        })
+        .filter((value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value > 0)
+        .sort((a, b) => a - b);
+
+      const hasSufficientComparableEvidence = costs.length >= MIN_COMPARABLE_BENCHMARK_SAMPLES;
+      if (!hasSufficientComparableEvidence) continue;
+
+      const middle = Math.floor(costs.length / 2);
+      const median = costs.length % 2 === 0 ? (costs[middle - 1] + costs[middle]) / 2 : costs[middle];
+      results.push({
+        component,
+        outcome: context.preferredOutcome ?? "repair",
+        p25Usd: Math.round((costs[Math.floor(costs.length * 0.25)] ?? costs[0]) * 100) / 100,
+        medianUsd: Math.round(median * 100) / 100,
+        p75Usd: Math.round((costs[Math.floor(costs.length * 0.75)] ?? costs[costs.length - 1]) * 100) / 100,
+        sampleSize: costs.length,
+        vehicleMakeFiltered: stratum.requireMake,
+        vehicleModelFiltered: stratum.requireModel,
+        yearBandFiltered: stratum.requireYearBand && Boolean(yearBand),
+        marketCurrencyFiltered: stratum.requireMarketCurrency,
+        benchmarkStratum: stratum.level,
+        evidenceQuality: "validated_historical",
+      });
+      break;
+    }
+  }
+
+  return results;
 }
 
 export async function getComponentBenchmarks(
@@ -845,6 +965,103 @@ export async function getComponentBenchmarksFromTrainingData(
         p75Usd: Number(row.p75),
         sampleSize: row.n,
         vehicleMakeFiltered: makeFiltered && !!vehicleMake,
+      });
+      break;
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Selects seeded training benchmarks using the same vehicle-specific hierarchy
+ * as validated historical outcomes. This is an internal fallback only; no
+ * stratum, sample, or benchmark mechanics are sent to client-facing surfaces.
+ */
+export async function getVehicleSpecificTrainingBenchmarks(
+  componentNames: string[],
+  context: VehicleBenchmarkContext
+): Promise<ComponentBenchmark[]> {
+  if (!componentNames.length) return [];
+  const db = await getDb();
+  if (!db) return [];
+
+  const displayToDbId: Record<string, string> = {
+    "Driver Airbag": "driver_airbag",
+    "Passenger Airbag": "passenger_airbag",
+    "Headlight Assembly (Left)": "left_headlight",
+    "Headlight Assembly (Right)": "right_headlight",
+    "Front Fender (Left)": "left_fender",
+    "Front Fender (Right)": "right_fender",
+    "Front Door (Left)": "left_front_door",
+    "Rear Door (Left)": "left_rear_door",
+    "Front Bumper": "front_bumper",
+    "Rear Bumper": "rear_bumper",
+    "Bonnet (Hood)": "bonnet",
+    "Windscreen (Windshield)": "windscreen",
+    "Radiator Assembly": "radiator",
+    "Condenser": "condenser",
+    "Engine": "engine",
+    "Gearbox": "gearbox",
+  };
+  const yearBand = classifyBenchmarkYearBand(context.vehicleYear);
+  const results: ComponentBenchmark[] = [];
+
+  for (const component of componentNames) {
+    const componentId = displayToDbId[component] ?? component.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+    for (const stratum of buildVehicleBenchmarkStrata(context)) {
+      const conditions: any[] = [
+        eq(schema.componentBenchmarks.componentId, componentId),
+        sql`${schema.componentBenchmarks.evidenceQuality} <> 'review_required'`,
+      ];
+
+      if (stratum.level === "global_component") {
+        conditions.push(sql`${schema.componentBenchmarks.vehicleMake} IS NULL`);
+      } else {
+        if (stratum.requireMake && context.vehicleMake) {
+          conditions.push(caseInsensitiveMatch(schema.componentBenchmarks.vehicleMake, context.vehicleMake));
+        }
+        if (stratum.requireModel && context.vehicleModel) {
+          conditions.push(caseInsensitiveMatch(schema.componentBenchmarks.vehicleModel, context.vehicleModel));
+        }
+        if (stratum.requireYearBand && yearBand) {
+          conditions.push(eq(schema.componentBenchmarks.yearBand, yearBand));
+        }
+        if (stratum.requireVariant && context.vehicleVariant) {
+          conditions.push(caseInsensitiveMatch(schema.componentBenchmarks.vehicleVariant, context.vehicleVariant));
+        }
+        if (stratum.requireBodyType && context.bodyType) {
+          conditions.push(caseInsensitiveMatch(schema.componentBenchmarks.bodyType, context.bodyType));
+        }
+        if (stratum.requireMarketCurrency && context.marketRegion && context.currencyCode) {
+          conditions.push(caseInsensitiveMatch(schema.componentBenchmarks.marketRegion, context.marketRegion));
+          conditions.push(caseInsensitiveMatch(schema.componentBenchmarks.currencyCode, context.currencyCode));
+        }
+      }
+
+      const rows = await db
+        .select()
+        .from(schema.componentBenchmarks)
+        .where(and(...conditions))
+        .limit(100);
+      const selected = rows
+        .filter((row: any) => Number(row.n) >= MIN_COMPARABLE_BENCHMARK_SAMPLES)
+        .sort((a: any, b: any) => Number(b.n) - Number(a.n))[0];
+      if (!selected) continue;
+
+      results.push({
+        component,
+        outcome: context.preferredOutcome ?? "repair",
+        p25Usd: Number(selected.p25),
+        medianUsd: Number(selected.median),
+        p75Usd: Number(selected.p75),
+        sampleSize: Number(selected.n),
+        vehicleMakeFiltered: stratum.requireMake,
+        vehicleModelFiltered: stratum.requireModel,
+        yearBandFiltered: stratum.requireYearBand && Boolean(yearBand),
+        marketCurrencyFiltered: stratum.requireMarketCurrency,
+        benchmarkStratum: stratum.level,
+        evidenceQuality: selected.evidenceQuality,
       });
       break;
     }

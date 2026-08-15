@@ -1347,7 +1347,14 @@ export function buildCompositeQuote(
       dataGap: false,
       benchmarkModelSource: bm?.modelSource ?? null,
       benchmarkVehicleMakeFiltered: bm?.vehicleMakeFiltered ?? null,
+      benchmarkStratum: bm?.benchmarkStratum ?? null,
+      benchmarkFallbackLevel: bm?.benchmarkStratum
+        ? ['exact_vehicle', 'make_model_year_band', 'make_body_year_band', 'make_market_currency', 'global_component'].indexOf(bm.benchmarkStratum) + 1
+        : null,
       benchmarkSampleSize: bm?.sampleSize ?? null,
+      benchmarkSampleSufficiency: bm?.sampleSize != null
+        ? (bm.sampleSize >= 3 ? 'sufficient' : 'limited')
+        : null,
     } satisfies CompositeLineItem);
   }
 

@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { sanitiseField } from "@/lib/sanitise";
 import { currencySymbol } from "@/lib/currency";
+import { getKingaClaimsReportAudience } from "@/lib/reportAudience";
 import {
   Phase3DecisionBox,
   DataCompletenessDashboard,
@@ -41,6 +42,7 @@ import {
 } from "@/components/Phase3ReportComponents";
 import { ForensicAuditReport } from "@/components/ForensicAuditReport";
 import { KingaClaimsReport } from "@/components/KingaClaimsReport";
+import { ClaimDecisionReportStandardView } from "@/components/ClaimDecisionReportStandardView";
 import {
   ReportPageHeader,
   ReportSectionDivider,
@@ -1535,12 +1537,13 @@ export default function ClaimDecisionReport() {
             claimNumber={(claim as any)?.claimNumber}
           />
         </div>
-        <div data-report-view="standard" style={reportView !== 'standard' ? { display: 'none' } : undefined}>
-          <KingaClaimsReport
+        <div style={reportView !== 'standard' ? { display: 'none' } : undefined}>
+          <ClaimDecisionReportStandardView
             claim={claim}
             aiAssessment={aiAssessment}
             enforcement={enforcement}
             quotes={quotesWithItems}
+            audience={getKingaClaimsReportAudience(user?.role)}
           />
         </div>
         <div data-report-view="forensic" style={reportView !== 'forensic' ? { display: 'none' } : undefined}>

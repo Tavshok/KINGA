@@ -5206,8 +5206,13 @@ export const costLearningRecords = mysqlTable("cost_learning_records", {
   id: int().autoincrement().notNull(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   tenantId: varchar("tenant_id", { length: 255 }),
-  // Vehicle descriptor: "make model body_type" (lowercase, normalised)
-  vehicleDescriptor: varchar("vehicle_descriptor", { length: 255 }).notNull(),
+	// Vehicle descriptor: "make model body_type" (lowercase, normalised)
+	vehicleDescriptor: varchar("vehicle_descriptor", { length: 255 }).notNull(),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	vehicleYear: int("vehicle_year"),
+	vehicleVariant: varchar("vehicle_variant", { length: 100 }),
+	vehicleBodyType: varchar("vehicle_body_type", { length: 60 }),
   // Collision direction: frontal, rear, side_driver, etc.
   collisionDirection: varchar("collision_direction", { length: 50 }).notNull(),
   // Market region: ZW, ZA, US, etc.
@@ -5241,8 +5246,10 @@ export const costLearningRecords = mysqlTable("cost_learning_records", {
   index("idx_clr_claim_id").on(table.claimId),
   index("idx_clr_tenant_id").on(table.tenantId),
   index("idx_clr_case_signature").on(table.caseSignature),
-  index("idx_clr_vehicle_descriptor").on(table.vehicleDescriptor),
-  index("idx_clr_collision_direction").on(table.collisionDirection),
+	index("idx_clr_vehicle_descriptor").on(table.vehicleDescriptor),
+	index("idx_clr_vehicle_precision").on(table.vehicleMake, table.vehicleModel, table.vehicleYear),
+	index("idx_clr_market_currency").on(table.marketRegion, table.currency),
+	index("idx_clr_collision_direction").on(table.collisionDirection),
   index("idx_clr_recorded_at").on(table.recordedAt),
 ]);
 export type CostLearningRecordRow = typeof costLearningRecords.$inferSelect;
@@ -5401,11 +5408,16 @@ export const componentRepairOutcomes = mysqlTable("component_repair_outcomes", {
   componentName: varchar("component_name", { length: 120 }).notNull(),
   componentCategory: varchar("component_category", { length: 60 }),
   severityAtDecision: varchar("severity_at_decision", { length: 30 }),
-  vehicleMake: varchar("vehicle_make", { length: 80 }),
-  vehicleModel: varchar("vehicle_model", { length: 80 }),
-  vehicleYear: int("vehicle_year"),
-  vehicleAgeYears: int("vehicle_age_years"),
-  outcome: mysqlEnum("outcome", ["repair", "replace", "write_off"]).notNull(),
+	vehicleMake: varchar("vehicle_make", { length: 80 }),
+	vehicleModel: varchar("vehicle_model", { length: 80 }),
+	vehicleYear: int("vehicle_year"),
+	vehicleAgeYears: int("vehicle_age_years"),
+	vehicleVariant: varchar("vehicle_variant", { length: 100 }),
+	vehicleBodyType: varchar("vehicle_body_type", { length: 60 }),
+	marketRegion: varchar("market_region", { length: 20 }),
+	currencyCode: varchar("currency_code", { length: 10 }),
+	evidenceQuality: mysqlEnum("evidence_quality", ["verified", "accepted_quote", "assessor_validated", "review_required"]).default("accepted_quote").notNull(),
+	outcome: mysqlEnum("outcome", ["repair", "replace", "write_off"]).notNull(),
   aiSuggestion: mysqlEnum("ai_suggestion", ["repair", "replace", "uncertain"]),
   wasOverride: tinyint("was_override").default(0).notNull(),
   adjusterUserId: int("adjuster_user_id"),
@@ -5420,9 +5432,11 @@ export const componentRepairOutcomes = mysqlTable("component_repair_outcomes", {
   createdAt: varchar("created_at", { length: 50 }).notNull(),
 }, (table) => [
   index("idx_cro_claim_id").on(table.claimId),
-  index("idx_cro_component_severity").on(table.componentName, table.severityAtDecision),
-  index("idx_cro_make_model").on(table.vehicleMake, table.vehicleModel),
-  index("idx_cro_outcome").on(table.outcome),
+	index("idx_cro_component_severity").on(table.componentName, table.severityAtDecision),
+	index("idx_cro_make_model").on(table.vehicleMake, table.vehicleModel),
+	index("idx_cro_vehicle_precision").on(table.componentName, table.vehicleMake, table.vehicleModel, table.vehicleYear),
+	index("idx_cro_market_currency").on(table.marketRegion, table.currencyCode, table.evidenceQuality),
+	index("idx_cro_outcome").on(table.outcome),
 ]);
 export type ComponentRepairOutcomeRow = typeof componentRepairOutcomes.$inferSelect;
 export type InsertComponentRepairOutcome = typeof componentRepairOutcomes.$inferInsert;
@@ -5608,9 +5622,16 @@ export type InsertRecoveryCorrespondenceLog = typeof recoveryCorrespondenceLog.$
 // used when no make-specific benchmark exists.
 export const componentBenchmarks = mysqlTable("component_benchmarks", {
   id: int().autoincrement().notNull(),
-  componentId: varchar("component_id", { length: 100 }).notNull(),
-  vehicleMake: varchar("vehicle_make", { length: 100 }),  // NULL = global fallback
-  category: varchar({ length: 100 }),
+	componentId: varchar("component_id", { length: 100 }).notNull(),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),  // NULL = global fallback
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	yearBand: varchar("year_band", { length: 20 }),
+	vehicleVariant: varchar("vehicle_variant", { length: 100 }),
+	bodyType: varchar("body_type", { length: 60 }),
+	marketRegion: varchar("market_region", { length: 20 }),
+	currencyCode: varchar("currency_code", { length: 10 }),
+	evidenceQuality: mysqlEnum("evidence_quality", ["verified", "accepted_quote", "assessor_validated", "review_required"]).default("accepted_quote").notNull(),
+	category: varchar({ length: 100 }),
   n: int().notNull(),                    // number of training records
   p25: double().notNull(),               // 25th percentile cost (USD)
   median: double().notNull(),            // 50th percentile cost (USD)
@@ -5622,8 +5643,10 @@ export const componentBenchmarks = mysqlTable("component_benchmarks", {
   createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
-  index("idx_cb_component_make").on(table.componentId, table.vehicleMake),
-  index("idx_cb_component_id").on(table.componentId),
+	index("idx_cb_component_make").on(table.componentId, table.vehicleMake),
+	index("idx_cb_vehicle_precision").on(table.componentId, table.vehicleMake, table.vehicleModel, table.yearBand),
+	index("idx_cb_market_currency").on(table.marketRegion, table.currencyCode, table.evidenceQuality),
+	index("idx_cb_component_id").on(table.componentId),
 ]);
 export type ComponentBenchmarkRow = typeof componentBenchmarks.$inferSelect;
 export type InsertComponentBenchmark = typeof componentBenchmarks.$inferInsert;

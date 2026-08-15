@@ -80,6 +80,12 @@ export interface CostLearningInput {
   vehicleMake: string;
   /** Vehicle model */
   vehicleModel: string;
+	/** Vehicle model year, when verified from claim evidence */
+	vehicleYear?: number | null;
+	/** Vehicle trim or variant, when available */
+	vehicleVariant?: string | null;
+	/** Vehicle body type, retained separately from the grouping descriptor */
+	vehicleBodyType?: string | null;
   /** Damage components from Stage 6 */
   damageComponents: LearningInputComponent[];
   /**
@@ -139,6 +145,11 @@ export interface CostLearningRecord {
   recorded_at: string;
   /** Vehicle descriptor used for pattern grouping */
   vehicle_descriptor: string;
+	vehicle_make: string | null;
+	vehicle_model: string | null;
+	vehicle_year: number | null;
+	vehicle_variant: string | null;
+	vehicle_body_type: string | null;
   /** Collision direction */
   collision_direction: string;
   /** Market region */
@@ -572,6 +583,9 @@ export function extractCostLearningRecord(input: CostLearningInput): {
     vehicleType,
     vehicleMake,
     vehicleModel,
+		vehicleYear = null,
+		vehicleVariant = null,
+		vehicleBodyType = null,
     damageComponents,
     trueCostUsd: rawTrueCost,
     costBasis,
@@ -712,6 +726,11 @@ export function extractCostLearningRecord(input: CostLearningInput): {
     claim_id: claimId,
     recorded_at: new Date().toISOString(),
     vehicle_descriptor: vehicleDescriptor,
+		vehicle_make: vehicleMake?.trim() || null,
+		vehicle_model: vehicleModel?.trim() || null,
+		vehicle_year: vehicleYear && vehicleYear > 1900 && vehicleYear <= 2100 ? vehicleYear : null,
+		vehicle_variant: vehicleVariant?.trim() || null,
+		vehicle_body_type: vehicleBodyType?.trim() || vehicleType?.trim() || null,
     collision_direction: collisionDirection,
     market_region: marketRegion,
     high_cost_drivers: highCostDrivers,

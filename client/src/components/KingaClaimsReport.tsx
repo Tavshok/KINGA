@@ -110,6 +110,8 @@ interface KingaClaimsReportProps {
    * Array of { index: number; url: string } matching enrichedPhotosJson entry indices.
    */
   resolvedPhotosOverride?: Array<{ index: number; url: string; resolved: boolean }>;
+  /** Client reports expose concise outcomes; professional reports retain evidence detail. */
+  audience?: "client" | "professional";
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -304,7 +306,7 @@ function CostVerdictBadge({ verdict }: { verdict: string }) {
   );
 }
 
-export function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalLossIndicated, repairToValueRatio, repairIntelligence }: { costIntelligence: any; quotes: any[]; fmtCurrency: (amount: number | null | undefined) => string; totalLossIndicated: boolean; repairToValueRatio: number | null; repairIntelligence?: unknown }) {
+export function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency, totalLossIndicated, repairToValueRatio, repairIntelligence, audience = "professional" }: { costIntelligence: any; quotes: any[]; fmtCurrency: (amount: number | null | undefined) => string; totalLossIndicated: boolean; repairToValueRatio: number | null; repairIntelligence?: unknown; audience?: "client" | "professional" }) {
   const composite = costIntelligence?.compositeOptimisation ?? {};
   const ledger = Array.isArray(composite.canonicalQuoteLedger) ? composite.canonicalQuoteLedger : [];
   const activeLedger = ledger.filter((quote: any) => quote?.status === "active" || quote?.status === "supplementary");
@@ -367,6 +369,21 @@ export function ClientCostDecisionStrip({ costIntelligence, quotes, fmtCurrency,
     : repairToValueRatio === null
       ? { label: "Repairable with conditions", detail: "Repairability is subject to confirmation of the repair-to-value assessment." }
       : { label: "Repairable", detail: "Repair-versus-replace assessment supports repair." };
+
+  if (audience === "client") {
+    return (
+      <div style={{ margin: "0 0 14px", border: "1px solid #d8e2df", background: "#fff" }}>
+        <div style={{ display: "grid", gridTemplateColumns: potentialSavings !== null ? "1fr 1fr" : "1fr" }}>
+          <div style={{ padding: 12, borderRight: potentialSavings !== null ? "1px solid #d8e2df" : undefined }}>
+            <p style={S.label}>KINGA Optimised Quote</p>
+            <p style={{ fontSize: costDecision.optimisedQuoteState === "complete" ? 20 : 12, fontWeight: 800, color: "#0d5849", margin: "5px 0 3px" }}>{optimisedDisplay}</p>
+            {isReviewRequired && <p style={{ ...S.muted, fontSize: 10, margin: 0 }}>Human review required before a complete recommendation.</p>}
+          </div>
+          {potentialSavings !== null && <div style={{ padding: 12, background: "#edf9f4" }}><p style={{ ...S.label, color: "#14664f" }}>Potential savings</p><p style={{ fontSize: 20, fontWeight: 800, color: "#0d5849", margin: "5px 0 3px" }}>{fmtCurrency(potentialSavings)}</p></div>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ margin: "0 0 14px", border: "1px solid #d8e2df", background: "#fff" }}>
@@ -436,7 +453,7 @@ const DECISION_STYLES_KCR: Record<string, { label: string; bg: string; color: st
   external_received: { label: "Ext. Received", bg: "#ffffff", color: "#0f172a", border: "#334155" },
 };
 
-export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [], approvalHistory = [], workflowStages = [], claimId, pipelineRunId, isDraft = false, draftMissingFields = [], resolvedPhotosOverride }: KingaClaimsReportProps) {
+export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [], approvalHistory = [], workflowStages = [], claimId, pipelineRunId, isDraft = false, draftMissingFields = [], resolvedPhotosOverride, audience = "professional" }: KingaClaimsReportProps) {
   const e = enforcement as any;
   const phase2 = e?._phase2 as any;
   const ci = parseJson(aiAssessment?.costIntelligenceJson);
@@ -771,6 +788,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 return value == null || !Number.isFinite(Number(value)) ? null : Number(value);
               })()}
               repairIntelligence={aiAssessment?.repairIntelligence ?? aiAssessment?.repair_intelligence_json ?? aiAssessment?.repairIntelligenceJson ?? ci?.repairIntelligence ?? ci?.repair_intelligence_json}
+              audience={audience}
             />
 
             {primaryReason && (
@@ -981,7 +999,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
         </div>
 
         {/* ══ SECTION 5 — Quote Comparison & Cost Optimisation ══ */}
-        <div style={S.card}>
+        {audience === "professional" && <div style={S.card}>
           <SectionHeader
             num={5}
             title="Quotation & Cost Optimisation"
@@ -1080,7 +1098,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
 
             })()}
           </div>
-        </div>
+        </div>}
                 {/* ══ SECTION 6 — Fraud & Risk Assessment ══ */}
         <div style={S.card}>
           <SectionHeader num={6} title="Fraud & Risk Assessment" sectionKey="fraud_risk" claimId={claimId} pipelineRunId={pipelineRunId} />

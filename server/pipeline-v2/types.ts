@@ -1289,8 +1289,14 @@ export interface CompositeLineItem {
   benchmarkModelSource?: 'ml' | 'statistical' | 'db_legacy' | 'none' | null;
   /** True when the benchmark is filtered to this vehicle make (more accurate); false/null = global benchmark */
   benchmarkVehicleMakeFiltered?: boolean | null;
+  /** Internal-only vehicle-specific benchmark hierarchy stratum. */
+  benchmarkStratum?: 'exact_vehicle' | 'make_model_year_band' | 'make_body_year_band' | 'make_market_currency' | 'global_component' | null;
+  /** Internal hierarchy position: 1 = exact vehicle, 5 = global component fallback. */
+  benchmarkFallbackLevel?: number | null;
   /** Number of historical observations used to build the benchmark */
   benchmarkSampleSize?: number | null;
+  /** Internal comparable-evidence sufficiency based on the minimum validated sample policy. */
+  benchmarkSampleSufficiency?: 'sufficient' | 'limited' | null;
 }
 
 export interface QuotedNotDamagedFlag {

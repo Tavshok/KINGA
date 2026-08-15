@@ -990,6 +990,7 @@ export default function InsurerComparisonView() {
                 aiAssessment={aiAssessment}
                 enforcement={enforcement}
                 quotes={quotes}
+                audience="professional"
                 claimId={claimId}
                 pipelineRunId={aiAssessment?.id}
                 isDraft={isDraftReport}

@@ -1,23 +1,35 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getComponentBenchmarks = vi.fn();
 const getComponentBenchmarksFromTrainingData = vi.fn();
+const getVehicleSpecificComponentBenchmarks = vi.fn();
+const getVehicleSpecificTrainingBenchmarks = vi.fn();
 
 vi.mock("../db", () => ({
   insertCostLearningRecord: vi.fn(async () => undefined),
   getActiveCalibrationMultiplier: vi.fn(async () => null),
   getComponentBenchmarks,
   getComponentBenchmarksFromTrainingData,
+  getVehicleSpecificComponentBenchmarks,
+  getVehicleSpecificTrainingBenchmarks,
 }));
 
 const { runCostOptimisationStage } = await import("./stage-9-cost");
 
 describe("AUD-P1-008 no-write Stage 9 canonical evidence persistence", () => {
+  beforeEach(() => {
+    getVehicleSpecificComponentBenchmarks.mockReset();
+    getVehicleSpecificTrainingBenchmarks.mockReset();
+    getVehicleSpecificComponentBenchmarks.mockResolvedValue([]);
+    getVehicleSpecificTrainingBenchmarks.mockResolvedValue([]);
+  });
+
   it("retains active canonical quote state, source count, and L1 on the real Stage 9 execution path", async () => {
     getComponentBenchmarks.mockReset();
     getComponentBenchmarksFromTrainingData.mockReset();
     getComponentBenchmarks.mockRejectedValue(new Error("simulated benchmark-source failure"));
     getComponentBenchmarksFromTrainingData.mockResolvedValue([]);
+    getVehicleSpecificComponentBenchmarks.mockRejectedValue(new Error("simulated benchmark-source failure"));
     vi.useFakeTimers();
     const ctx = {
       log: vi.fn(),
@@ -160,6 +172,9 @@ describe("AUD-P1-008 no-write Stage 9 canonical evidence persistence", () => {
       { component: "mystery part", outcome: "repair", p25Usd: 1100, medianUsd: 1200, p75Usd: 1300, sampleSize: 12, vehicleMakeFiltered: false },
     ]);
     getComponentBenchmarksFromTrainingData.mockResolvedValue([]);
+    getVehicleSpecificComponentBenchmarks.mockResolvedValue([
+      { component: "mystery part", outcome: "repair", p25Usd: 1100, medianUsd: 1200, p75Usd: 1300, sampleSize: 12, vehicleMakeFiltered: false, benchmarkStratum: "global_component" },
+    ]);
     vi.useFakeTimers();
     const quote = (quoteId: string, amount: number, workflowStatus: string, extra: Record<string, unknown> = {}) => ({
       quote_id: quoteId, panel_beater: quoteId, total_cost: amount, currency: "USD", quote_type: "original",

@@ -179,4 +179,69 @@ describe("AUD-L2-002 client top-cost warning presentation", () => {
     expect(html).toContain("Unsupported Scope");
     expect(html).not.toContain("USD 600.00</span>");
   });
+
+  it("does not disclose internal benchmark mechanics to the client", () => {
+    const html = renderToStaticMarkup(createElement(ClientCostDecisionStrip, {
+      costIntelligence: {
+        compositeOptimisation: {
+          isComplete: true,
+          l2Status: "complete",
+          l2CompositeOptimisedCostUsd: 1000,
+          l1SubmittedCostUsd: 1200,
+          canonicalQuoteLedger: [{
+            quoteId: "q-eligible",
+            panelBeater: "Eligible Repairer",
+            totalCostUsd: 1200,
+            status: "active",
+            evidenceEligibility: "final_l2_eligible",
+          }],
+          compositeLineItems: [{
+            componentName: "Front bumper",
+            benchmarkModelSource: "statistical",
+            benchmarkStratum: "make_model_year_band",
+            benchmarkSampleSize: 8,
+            l2SelectionMethod: "BENCHMARK_WITHIN_30_PCT",
+          }],
+        },
+      },
+      quotes: [],
+      fmtCurrency: (amount: number | null | undefined) => `USD ${amount?.toFixed(2) ?? "—"}`,
+      totalLossIndicated: false,
+      repairToValueRatio: 25,
+    }));
+
+    expect(html).toContain("KINGA Optimised Quote");
+    expect(html).toContain("Potential savings");
+    for (const internalTerm of ["Benchmark", "statistical", "make model year band", "n=8", "selection method"]) {
+      expect(html.toLowerCase()).not.toContain(internalTerm.toLowerCase());
+    }
+  });
+
+  it("shows only KINGA Optimised Quote and Potential savings in explicit client audience mode", () => {
+    const html = renderToStaticMarkup(createElement(ClientCostDecisionStrip, {
+      costIntelligence: {
+        compositeOptimisation: {
+          isComplete: true,
+          l2Status: "complete",
+          l2CompositeOptimisedCostUsd: 1000,
+          l1SubmittedCostUsd: 1200,
+          canonicalQuoteLedger: [{ quoteId: "q-1", panelBeater: "Eligible Repairer", totalCostUsd: 1200, status: "active", evidenceEligibility: "final_l2_eligible" }],
+          evidenceGovernance: { findings: [{ code: "source_provenance_pending", title: "Provenance", summary: "Internal evidence detail." }] },
+        },
+      },
+      quotes: [],
+      fmtCurrency: (amount: number | null | undefined) => `USD ${amount?.toFixed(2) ?? "—"}`,
+      totalLossIndicated: false,
+      repairToValueRatio: 25,
+      audience: "client",
+    }));
+
+    expect(html).toContain("KINGA Optimised Quote");
+    expect(html).toContain("Potential savings");
+    expect(html).toContain("USD 1000.00");
+    expect(html).toContain("USD 200.00");
+    for (const hiddenTerm of ["Submitted Quotations", "Eligible Repairer", "KINGA Quote Verification", "Quote Issues", "Internal evidence detail", "Benchmark"]) {
+      expect(html).not.toContain(hiddenTerm);
+    }
+  });
 });

@@ -315,6 +315,9 @@ describe("extractCostLearningRecord", () => {
     vehicleType: "pickup",
     vehicleMake: "Isuzu",
     vehicleModel: "D-Max",
+    vehicleYear: 2022,
+    vehicleVariant: "LS 4x4",
+    vehicleBodyType: "pickup",
     damageComponents: [
       { name: "bonnet", severity: "moderate" },
       { name: "radiator support", severity: "severe" },
@@ -519,6 +522,15 @@ describe("extractCostLearningRecord", () => {
     expect(record!.vehicle_descriptor).toContain("pickup");
   });
 
+  it("preserves structured vehicle context for vehicle-specific benchmark learning", () => {
+    const { record } = extractCostLearningRecord(baseInput);
+    expect(record!.vehicle_make).toBe("Isuzu");
+    expect(record!.vehicle_model).toBe("D-Max");
+    expect(record!.vehicle_year).toBe(2022);
+    expect(record!.vehicle_variant).toBe("LS 4x4");
+    expect(record!.vehicle_body_type).toBe("pickup");
+  });
+
   it("sets market_region correctly", () => {
     const { record } = extractCostLearningRecord(baseInput);
     expect(record!.market_region).toBe("ZW");
@@ -676,6 +688,11 @@ describe("aggregateCostPatterns", () => {
     claim_id: claimId,
     recorded_at: new Date().toISOString(),
     vehicle_descriptor: `toyota hilux ${vehicleType}`,
+		vehicle_make: "Toyota",
+		vehicle_model: "Hilux",
+		vehicle_year: 2022,
+		vehicle_variant: null,
+		vehicle_body_type: vehicleType,
     collision_direction: collisionDir,
     market_region: "ZW",
     high_cost_drivers: drivers,

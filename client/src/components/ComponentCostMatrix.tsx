@@ -40,7 +40,13 @@ export interface MatrixRow {
   // Benchmark source metadata (from Stage 9 compositeLineItems)
   benchmarkModelSource?: string | null;       // 'statistical' | 'ml' | 'db_legacy' | null
   benchmarkVehicleMakeFiltered?: boolean | null; // true = vehicle-make-specific benchmark
+  /** Internal professional evidence only; never used on client top-cost surfaces. */
+  benchmarkStratum?: string | null;
+  /** Internal hierarchy position: 1 = exact vehicle, 5 = global component fallback. */
+  benchmarkFallbackLevel?: number | null;
   benchmarkSampleSize?: number | null;        // number of observations in benchmark
+  /** Internal comparable-evidence sufficiency; clients never receive this matrix. */
+  benchmarkSampleSufficiency?: 'sufficient' | 'limited' | null;
   benchmarkP50Usd?: number | null;            // P50 benchmark value for this component
   l2SelectionMethod?: string | null;
   benchmarkDeviationPct?: number | null;
@@ -82,6 +88,8 @@ export interface ComponentCostMatrixProps {
   fmtMoney: (v: number) => string;
   showCategory?: boolean;
   isCopyQuote?: boolean;
+  /** This detailed matrix is for authorised professional evidence views only. */
+  audience?: "client" | "professional";
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -112,7 +120,9 @@ export function ComponentCostMatrix({
   fmtMoney,
   showCategory = false,
   isCopyQuote = false,
+  audience = "professional",
 }: ComponentCostMatrixProps) {
+  const showInternalBenchmarkEvidence = audience === "professional";
 
   if (quotes.length === 0) {
     return (
@@ -327,11 +337,11 @@ export function ComponentCostMatrix({
                   {/* KINGA Comment cell */}
                   <td style={{ ...tdKingaComment, background: rowBg === "#fafafa" ? "#edf2f7" : KINGA_BG }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {row.kingaSource
+                      {showInternalBenchmarkEvidence && row.kingaSource
                         ? <span style={{ fontSize: 10, color: "#475569" }}>{truncateName(row.kingaSource, 3)}</span>
                         : <span style={{ color: "#cbd5e1" }}>—</span>}
                       {/* Benchmark source confidence indicator */}
-                      {row.benchmarkModelSource && (() => {
+                      {showInternalBenchmarkEvidence && row.benchmarkModelSource && (() => {
                         const src = row.benchmarkModelSource;
                         const isMl = src === 'ml';
                         const isStat = src === 'statistical';
@@ -347,7 +357,22 @@ export function ComponentCostMatrix({
                           </span>
                         );
                       })()}
-                      {row.l2SelectionMethod && (
+                      {showInternalBenchmarkEvidence && row.benchmarkStratum && (
+                        <span style={{ fontSize: 9, color: '#64748b', fontWeight: 600 }}>
+                          Internal comparison: {row.benchmarkStratum.replace(/_/g, ' ')}
+                        </span>
+                      )}
+                      {showInternalBenchmarkEvidence && row.benchmarkFallbackLevel != null && (
+                        <span style={{ fontSize: 9, color: '#64748b' }}>
+                          Internal fallback: level {row.benchmarkFallbackLevel} of 5
+                        </span>
+                      )}
+                      {showInternalBenchmarkEvidence && row.benchmarkSampleSize != null && (
+                        <span style={{ fontSize: 9, color: '#64748b' }}>
+                          Internal sample: n={row.benchmarkSampleSize} · {row.benchmarkSampleSufficiency ?? (row.benchmarkSampleSize >= 3 ? 'sufficient' : 'limited')} comparable evidence
+                        </span>
+                      )}
+                      {showInternalBenchmarkEvidence && row.l2SelectionMethod && (
                         <span style={{ fontSize: 9, color: row.l2SelectionMethod === 'BENCHMARK_WITHIN_30_PCT' ? '#0369a1' : '#475569' }}>
                           {row.l2SelectionMethod === 'BENCHMARK_WITHIN_30_PCT'
                             ? `Benchmark selected within 30%${row.benchmarkDeviationPct != null ? ` · ${row.benchmarkDeviationPct.toFixed(1)}% variance` : ''}`
@@ -638,7 +663,10 @@ export function buildRowsFromComposite(
       // Benchmark source metadata — propagated from Stage 9 compositeLineItems
       benchmarkModelSource: item.benchmarkModelSource ?? null,
       benchmarkVehicleMakeFiltered: item.benchmarkVehicleMakeFiltered ?? null,
+      benchmarkStratum: item.benchmarkStratum ?? null,
+      benchmarkFallbackLevel: item.benchmarkFallbackLevel ?? null,
       benchmarkSampleSize: item.benchmarkSampleSize ?? null,
+      benchmarkSampleSufficiency: item.benchmarkSampleSufficiency ?? null,
       benchmarkP50Usd: item.p50Usd ?? null,
       l2SelectionMethod: item.l2SelectionMethod ?? null,
       benchmarkDeviationPct: item.benchmarkDeviationPct ?? null,

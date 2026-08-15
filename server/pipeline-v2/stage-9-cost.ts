@@ -13,7 +13,7 @@ import { deriveEconomicContext } from "./economicContextEngine";
 import { computeIFE, type IFEReport } from "./inputFidelityEngine";
 import { buildDOECandidates, runDOE, type DOEResult } from "./decisionOptimisationEngine";
 import { extractCostLearningRecord } from "./costLearningRecorder";
-import { insertCostLearningRecord, getActiveCalibrationMultiplier, getComponentBenchmarks, getComponentBenchmarksFromTrainingData } from "../db";
+import { insertCostLearningRecord, getActiveCalibrationMultiplier, getVehicleSpecificComponentBenchmarks, getVehicleSpecificTrainingBenchmarks } from "../db";
 import { assessCost } from "./mlBenchmarkEngine";
 import { resolveComponent } from "../../shared/vehicleParts";
 import { sql as drizzleSql } from "drizzle-orm";
@@ -1531,9 +1531,21 @@ export async function runCostOptimisationStage(
         const perComponentBenchmarks: Record<string, any> = {};
         // Repairer submissions are canonical active entries; supplier submissions
         // remain reference-only inputs for per-component benchmark enrichment.
-        const allQuotes = activeQuotesForBenchmarking;
-        const vehicleMake = claimRecord.vehicle?.make ?? null;
-        const vehicleYear = claimRecord.vehicle?.year ?? null;
+		const allQuotes = activeQuotesForBenchmarking;
+		const vehicleMake = claimRecord.vehicle?.make ?? null;
+		const vehicleModel = claimRecord.vehicle?.model ?? null;
+		const vehicleYear = claimRecord.vehicle?.year ?? null;
+		const vehicleVariant = (claimRecord.vehicle as any)?.variant ?? null;
+		const vehicleBodyType = claimRecord.vehicle?.bodyType ?? null;
+		const benchmarkContext = {
+		  vehicleMake,
+		  vehicleModel,
+		  vehicleYear,
+		  vehicleVariant,
+		  bodyType: vehicleBodyType,
+		  marketRegion: region,
+		  currencyCode: quoteCurrencyCode,
+		};
         // Build a flat line_items map for quote flag computation
         const allLineItemsFlat = allQuotes.flatMap((q: any) =>
           (q.line_items ?? []).map((li: any) => ({
@@ -1657,13 +1669,13 @@ export async function runCostOptimisationStage(
           n => perComponentBenchmarks[n] === null
         );
         if (needsLegacyLookup.length > 0) {
-          let dbBenchmarks = await getComponentBenchmarks(needsLegacyLookup, vehicleMake);
+		  let dbBenchmarks = await getVehicleSpecificComponentBenchmarks(needsLegacyLookup, benchmarkContext);
           const dbCovered = new Set(dbBenchmarks.map(b => b.component));
           const stillUncovered = needsLegacyLookup.filter(n => !dbCovered.has(n));
           if (stillUncovered.length > 0) {
-            const trainingBenchmarks = await getComponentBenchmarksFromTrainingData(
-              stillUncovered, vehicleMake
-            );
+			const trainingBenchmarks = await getVehicleSpecificTrainingBenchmarks(
+			  stillUncovered, benchmarkContext
+			);
             dbBenchmarks = [...dbBenchmarks, ...trainingBenchmarks];
           }
           for (const b of dbBenchmarks) {
@@ -2188,6 +2200,9 @@ export async function runCostOptimisationStage(
         vehicleType: claimRecord.vehicle.bodyType,
         vehicleMake: claimRecord.vehicle.make,
         vehicleModel: claimRecord.vehicle.model,
+		vehicleYear: claimRecord.vehicle.year ?? null,
+		vehicleVariant: (claimRecord.vehicle as any)?.variant ?? null,
+		vehicleBodyType: claimRecord.vehicle.bodyType ?? null,
         damageComponents: damageAnalysis.damagedParts
           .filter(p => ["cosmetic","minor","moderate","severe","catastrophic"].includes(p.severity))
           .map(p => ({
