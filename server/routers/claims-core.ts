@@ -35,6 +35,7 @@ import {
   createAuditEntry,
   createNotification,
   checkAssignmentCap,
+  markClaimAssignmentNotification,
 } from "../db";
 import {
   getAiAssessmentByClaimId,
@@ -1877,6 +1878,7 @@ export const claimsRouter = router({
     .input(z.object({
       claimId: z.number(),
       assessorId: z.number(),
+      emailNotificationRequested: z.boolean().optional().default(false),
     }))
     .mutation(async ({ ctx, input }) => {
       // ctx.insurerTenantId guaranteed non-null by insurerDomainProcedure middleware
@@ -1892,7 +1894,12 @@ export const claimsRouter = router({
       await checkAssignmentCap(input.assessorId);
       // ──────────────────────────────────────────────────────────────────
 
-      await assignClaimToAssessor(input.claimId, input.assessorId);
+      const { assignmentId } = await assignClaimToAssessor(input.claimId, input.assessorId, {
+        tenantId,
+        assignedByUserId: ctx.user.id,
+        assignmentSource: "manual",
+        emailNotificationRequested: input.emailNotificationRequested,
+      });
       
       // Automatically progress workflow state using WorkflowEngine
       const { transition } = await import('../workflow-engine');
@@ -1914,21 +1921,25 @@ export const claimsRouter = router({
       const assessors = await getUsersByRole("assessor");
       const assessor = assessors.find(a => a.id === input.assessorId);
 
-      // Send email notification to assessor
-      if (claim && assessor) {
+      // Option A: email is optional delivery context; in-app assignment remains
+      // authoritative irrespective of email availability or delivery outcome.
+      if (input.emailNotificationRequested && claim && assessor) {
         const { notifyAssessorAssignment: notifyAssignment } = await import('../workflow-notifications');
         const { getUserById } = await import('../db');
         
         // Get claimant details
         const claimant = claim.claimantId != null ? await getUserById(claim.claimantId) : null;
         
-        await notifyAssignment({
+        const emailSent = await notifyAssignment({
           claimId: input.claimId,
           assessorId: input.assessorId,
           claimNumber: claim.claimNumber,
           claimantName: claimant?.name || 'Claimant',
           tenantId: tenantId || 'default',
         });
+        if (emailSent) {
+          await markClaimAssignmentNotification(assignmentId, { emailSent: true });
+        }
       }
 
       // Create in-app notification for assessor
@@ -1945,6 +1956,7 @@ export const claimsRouter = router({
           actionUrl: `/assessor/claims/${input.claimId}`,
           priority: "high",
         });
+        await markClaimAssignmentNotification(assignmentId, { inAppCreated: true });
       }
 
       // Create audit entry

@@ -842,9 +842,42 @@ export const claimEvents = mysqlTable("claim_events", {
 	emittedAt: timestamp("emitted_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 },
 (table) => [
-	index("idx_ce_claim_id").on(table.claimId),
-	index("idx_ce_event_type").on(table.eventType),
-	index("idx_ce_emitted_at").on(table.emittedAt),
+  index("idx_ce_claim_id").on(table.claimId),
+  index("idx_ce_event_type").on(table.eventType),
+  index("idx_ce_emitted_at").on(table.emittedAt),
+]);
+
+/**
+ * Authoritative in-app assignment history. Email metadata is delivery context
+ * only: an email notification can never create or alter an assignment.
+ */
+export const claimAssignments = mysqlTable("claim_assignments", {
+  id: int().autoincrement().notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  assignmentRole: mysqlEnum("assignment_role", ["assessor", "claims_assessor", "claims_manager"]).notNull(),
+  assignedToUserId: int("assigned_to_user_id").references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }).notNull(),
+  assignedByUserId: int("assigned_by_user_id").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }),
+  assignmentSource: mysqlEnum("assignment_source", ["manual", "workflow", "reassignment", "system", "legacy_import"]).default("manual").notNull(),
+  status: mysqlEnum("status", ["assigned", "accepted", "declined", "reassigned", "completed", "cancelled"]).default("assigned").notNull(),
+  parentAssignmentId: int("parent_assignment_id"),
+  inAppNotificationCreated: tinyint("in_app_notification_created").default(0).notNull(),
+  emailNotificationRequested: tinyint("email_notification_requested").default(0).notNull(),
+  emailNotificationSentAt: timestamp("email_notification_sent_at", { mode: "string" }),
+  emailNotificationReference: varchar("email_notification_reference", { length: 255 }),
+  decisionReason: text("decision_reason"),
+  assignedAt: timestamp("assigned_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  acceptedAt: timestamp("accepted_at", { mode: "string" }),
+  declinedAt: timestamp("declined_at", { mode: "string" }),
+  reassignedAt: timestamp("reassigned_at", { mode: "string" }),
+  completedAt: timestamp("completed_at", { mode: "string" }),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("idx_claim_assignments_claim_active").on(table.claimId, table.status),
+  index("idx_claim_assignments_assignee_active").on(table.assignedToUserId, table.status),
+  index("idx_claim_assignments_tenant_role").on(table.tenantId, table.assignmentRole, table.status),
+  index("idx_claim_assignments_parent").on(table.parentAssignmentId),
 ]);
 
 export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset", {

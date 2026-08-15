@@ -82,8 +82,8 @@ const ROLE_TRANSITION_PERMISSIONS: Record<string, InsurerRole[]> = {
   "intake_queue → under_assessment": ["claims_processor"],
   "created → assigned": ["claims_processor"],
   "created → under_assessment": ["claims_processor"],
-  "assigned → under_assessment": ["assessor_internal", "claims_processor"],
-  "under_assessment → internal_review": ["assessor_internal"],
+  "assigned → under_assessment": ["assessor", "assessor_internal", "claims_processor"],
+  "under_assessment → internal_review": ["assessor", "assessor_internal"],
   "internal_review → technical_approval": ["risk_manager", "executive"],
   "internal_review → under_assessment": ["risk_manager"], // Send back
   "technical_approval → financial_decision": ["claims_manager", "executive"],

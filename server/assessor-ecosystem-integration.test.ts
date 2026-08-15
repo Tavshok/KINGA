@@ -15,7 +15,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { appRouter } from "./routers";
 import { getDb } from "./db";
-import { users, assessors, assessorInsurerRelationships, assessorMarketplaceReviews, claims, auditTrail } from "../drizzle/schema";
+import { users, assessors, assessorInsurerRelationships, assessorMarketplaceReviews, claims, auditTrail, assessorEvaluations, aiAssessments, claimEvents } from "../drizzle/schema";
 import { eq, and, like } from "drizzle-orm";
 
 describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () => {
@@ -680,6 +680,66 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
         )).limit(1);
       expect(relationship).toBeDefined();
       expect(relationship.relationshipType).toBe("insurer_owned");
+    });
+  });
+
+  describe("7. Evaluator Submission Authority", () => {
+    const evaluationInput = {
+      estimatedRepairCost: 150000,
+      estimatedDuration: 3,
+      damageAssessment: "Verified collision damage requiring repair.",
+      fraudRiskLevel: "low" as const,
+    };
+
+    it("Test 7.1: assigned same-tenant assessor can submit under their authenticated identity", async () => {
+      const caller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId } } as any);
+      await expect(caller.assessorEvaluations.acceptAssignment({ claimId: testClaimId1 })).resolves.toEqual({ success: true });
+      await db.insert(aiAssessments).values({
+        claimId: testClaimId1,
+        estimatedCost: 150000,
+        confidenceScore: 85,
+        fraudRiskLevel: "low",
+        fraudScore: 10,
+        recommendation: "REVIEW",
+      });
+      await expect(caller.assessorEvaluations.submit({ claimId: testClaimId1, assessorId: marketplaceAssessorUserId, ...evaluationInput })).resolves.toEqual({ success: true });
+
+      const [evaluation] = await db.select().from(assessorEvaluations)
+        .where(eq(assessorEvaluations.claimId, testClaimId1)).limit(1);
+      expect(evaluation.assessorId).toBe(internalAssessorUserId);
+      expect(evaluation.tenantId).toBe(tenantId);
+    });
+
+    it("Test 7.2: foreign and same-tenant unassigned assessors are denied before evaluation creation", async () => {
+      const beforeForeign = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, testClaimId1));
+      const [beforeClaim1] = await db.select().from(claims).where(eq(claims.id, testClaimId1));
+      const [beforeClaim3] = await db.select().from(claims).where(eq(claims.id, testClaimId3));
+      const beforeAudit1 = await db.select().from(auditTrail).where(eq(auditTrail.claimId, testClaimId1));
+      const beforeAudit3 = await db.select().from(auditTrail).where(eq(auditTrail.claimId, testClaimId3));
+      const beforeEvents1 = await db.select().from(claimEvents).where(eq(claimEvents.claimId, testClaimId1));
+      const beforeEvents3 = await db.select().from(claimEvents).where(eq(claimEvents.claimId, testClaimId3));
+      const foreignCaller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId: `foreign-${tenantId}` } } as any);
+      await expect(foreignCaller.assessorEvaluations.submit({ claimId: testClaimId1, ...evaluationInput })).rejects.toThrow("Claim not found or access denied");
+
+      const assignedCaller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId } } as any);
+      await expect(assignedCaller.assessorEvaluations.submit({ claimId: testClaimId3, ...evaluationInput })).rejects.toThrow("Only the authenticated assessor assigned to this claim may submit an evaluation");
+
+      const afterForeign = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, testClaimId1));
+      const unassignedRows = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, testClaimId3));
+      const [afterClaim1] = await db.select().from(claims).where(eq(claims.id, testClaimId1));
+      const [afterClaim3] = await db.select().from(claims).where(eq(claims.id, testClaimId3));
+      const afterAudit1 = await db.select().from(auditTrail).where(eq(auditTrail.claimId, testClaimId1));
+      const afterAudit3 = await db.select().from(auditTrail).where(eq(auditTrail.claimId, testClaimId3));
+      const afterEvents1 = await db.select().from(claimEvents).where(eq(claimEvents.claimId, testClaimId1));
+      const afterEvents3 = await db.select().from(claimEvents).where(eq(claimEvents.claimId, testClaimId3));
+      expect(afterForeign).toHaveLength(beforeForeign.length);
+      expect(unassignedRows).toHaveLength(0);
+      expect({ status: afterClaim1.status, workflowState: afterClaim1.workflowState }).toEqual({ status: beforeClaim1.status, workflowState: beforeClaim1.workflowState });
+      expect({ status: afterClaim3.status, workflowState: afterClaim3.workflowState }).toEqual({ status: beforeClaim3.status, workflowState: beforeClaim3.workflowState });
+      expect(afterAudit1).toHaveLength(beforeAudit1.length);
+      expect(afterAudit3).toHaveLength(beforeAudit3.length);
+      expect(afterEvents1).toHaveLength(beforeEvents1.length);
+      expect(afterEvents3).toHaveLength(beforeEvents3.length);
     });
   });
 });

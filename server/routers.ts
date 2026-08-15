@@ -64,7 +64,9 @@ import {
   createVehicleMarketValuation,
   getVehicleMarketValuationByClaimId,
   getQuoteLineItemsByQuoteId,
-  getTenantRates
+  getTenantRates,
+  acceptClaimAssessorAssignment,
+  hasAcceptedClaimAssessorAssignment,
 } from "./db";
 import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
@@ -811,11 +813,48 @@ export const appRouter = router({
 
   // Assessor Evaluations
   assessorEvaluations: router({
+    acceptAssignment: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const actorTenantId = ctx.user.tenantId;
+        if (!actorTenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
+
+        const claim = await getClaimById(input.claimId, actorTenantId);
+        if (!claim || claim.tenantId !== actorTenantId || ctx.user.role !== "assessor" || claim.assignedAssessorId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
+        }
+
+        await acceptClaimAssessorAssignment({ claimId: input.claimId, tenantId: actorTenantId, assessorId: ctx.user.id });
+
+        const { transition } = await import("./workflow-engine");
+        await transition({
+          claimId: input.claimId,
+          fromState: (claim.workflowState || "assigned") as any,
+          toState: "under_assessment",
+          userId: ctx.user.id,
+          // Workflow audit uses the established insurer workflow vocabulary;
+          // authenticated assessor identity has already been verified above.
+          userRole: "assessor_internal" as any,
+          decisionData: { comments: "Assessor accepted assigned claim" },
+        });
+
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "assessor_assignment_accepted",
+          entityType: "claim_assignment",
+          changeDescription: "Authenticated assessor accepted the in-app assignment",
+        });
+
+        return { success: true };
+      }),
     // Submit evaluation
     submit: protectedProcedure
       .input(z.object({
         claimId: z.number(),
-        assessorId: z.number(),
+        // Retained as an optional compatibility input only. The authenticated,
+        // claim-assigned assessor is the sole authoritative evaluator identity.
+        assessorId: z.number().optional(),
         estimatedRepairCost: z.number(),
         laborCost: z.number().optional(),
         partsCost: z.number().optional(),
@@ -829,13 +868,33 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
         
-        // Fetch claim for tenantId
-        const claim = await getClaimById(input.claimId);
-        if (!claim) throw new Error("Claim not found");
+        const actorTenantId = ctx.user.tenantId;
+        if (!actorTenantId) {
+          throw new Error("Claim not found or access denied");
+        }
+
+        // Tenant-scoped lookup is the first claim access in this procedure. A
+        // foreign numeric identifier is therefore denied without exposing the
+        // underlying claim to the evaluator submission path.
+        const claim = await getClaimById(input.claimId, actorTenantId);
+        if (!claim || claim.tenantId !== actorTenantId) {
+          throw new Error("Claim not found or access denied");
+        }
+        if (ctx.user.role !== "assessor" || claim.assignedAssessorId !== ctx.user.id) {
+          throw new Error("Only the authenticated assessor assigned to this claim may submit an evaluation");
+        }
+        if (!await hasAcceptedClaimAssessorAssignment({
+          claimId: input.claimId,
+          tenantId: actorTenantId,
+          assessorId: ctx.user.id,
+        })) {
+          throw new Error("The authenticated assessor must accept the assignment before submitting an evaluation");
+        }
         
         await createAssessorEvaluation({
           claimId: input.claimId,
-          assessorId: input.assessorId,
+          assessorId: ctx.user.id,
+          tenantId: claim.tenantId,
           estimatedRepairCost: input.estimatedRepairCost,
           laborCost: input.laborCost,
           partsCost: input.partsCost,
@@ -850,22 +909,6 @@ export const appRouter = router({
         
         // Automatically progress status to quotes_pending (legacy field only)
         await updateClaimStatus(input.claimId, "quotes_pending", ctx.user.id, "assessor_internal", claim.tenantId || "default");
-        
-        // Progress workflow state to internal_review (assessor completed their work).
-        // Use the canonical workflow-engine transition() for full governance enforcement
-        // (audit trail, segregation of duties, role permission checks).
-        const { transition: engineTransition } = await import("./workflow-engine");
-        const { statusToWorkflowState } = await import("./workflow-migration");
-        const latestClaim = await getClaimById(input.claimId);
-        const fromWfState = (latestClaim as any)?.workflowState
-          || statusToWorkflowState((latestClaim as any)?.status);
-        await engineTransition({
-          claimId: input.claimId,
-          fromState: fromWfState,
-          toState: "internal_review",
-          userId: ctx.user.id,
-          userRole: "assessor_internal" as any,
-        });
 
         // Create audit entry
         await createAuditEntry({
@@ -885,7 +928,7 @@ export const appRouter = router({
           userRole: ctx.user.role,
           tenantId,
           eventPayload: { 
-            assessorId: input.assessorId,
+            assessorId: ctx.user.id,
             estimatedRepairCost: input.estimatedRepairCost,
             fraudRiskLevel: input.fraudRiskLevel,
           },

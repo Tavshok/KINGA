@@ -46,6 +46,7 @@ import {
   assessorInsurerRelationships,
   claimEvents,
   InsertClaimEvent,
+  claimAssignments,
   ingestionDocuments,
   decisionSnapshots,
   DecisionSnapshot,
@@ -587,7 +588,16 @@ export async function updateClaimStatus(
   });
 }
 
-export async function assignClaimToAssessor(claimId: number, assessorId: number) {
+export async function assignClaimToAssessor(
+  claimId: number,
+  assessorId: number,
+  context: {
+    tenantId: string;
+    assignedByUserId: number;
+    assignmentSource?: "manual" | "workflow" | "reassignment" | "system";
+    emailNotificationRequested?: boolean;
+  },
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
@@ -604,6 +614,93 @@ export async function assignClaimToAssessor(claimId: number, assessorId: number)
     status: "assessment_pending",
     updatedAt: new Date().toISOString() 
   }).where(eq(claims.id, claimId));
+
+  // Close the currently active assessor assignment before recording a new
+  // authoritative assignment. Email remains delivery metadata only.
+  await db.update(claimAssignments)
+    .set({ status: "reassigned", reassignedAt: new Date().toISOString() })
+    .where(and(
+      eq(claimAssignments.claimId, claimId),
+      eq(claimAssignments.assignmentRole, "assessor"),
+      inArray(claimAssignments.status, ["assigned", "accepted"]),
+    ));
+
+  const assignmentResult = await db.insert(claimAssignments).values({
+    claimId,
+    tenantId: context.tenantId,
+    assignmentRole: "assessor",
+    assignedToUserId: assessorId,
+    assignedByUserId: context.assignedByUserId,
+    assignmentSource: context.assignmentSource ?? "manual",
+    status: "assigned",
+    emailNotificationRequested: context.emailNotificationRequested ? 1 : 0,
+    decisionReason: "Authoritative in-app assessor assignment",
+  } as any);
+
+  return { assignmentId: Number((assignmentResult as any)[0]?.insertId ?? (assignmentResult as any).insertId) };
+}
+
+export async function markClaimAssignmentNotification(
+  assignmentId: number,
+  update: { inAppCreated?: boolean; emailSent?: boolean; emailReference?: string },
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(claimAssignments).set({
+    ...(update.inAppCreated ? { inAppNotificationCreated: 1 } : {}),
+    ...(update.emailSent ? {
+      emailNotificationSentAt: new Date().toISOString(),
+      emailNotificationReference: update.emailReference ?? "workflow-notifications.notifyAssessorAssignment",
+    } : {}),
+  } as any).where(eq(claimAssignments.id, assignmentId));
+}
+
+export async function acceptClaimAssessorAssignment(input: {
+  claimId: number;
+  tenantId: string;
+  assessorId: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [assignment] = await db.select().from(claimAssignments).where(and(
+    eq(claimAssignments.claimId, input.claimId),
+    eq(claimAssignments.tenantId, input.tenantId),
+    eq(claimAssignments.assignmentRole, "assessor"),
+    eq(claimAssignments.assignedToUserId, input.assessorId),
+    eq(claimAssignments.status, "assigned"),
+  )).orderBy(desc(claimAssignments.assignedAt)).limit(1);
+
+  if (!assignment) {
+    throw new Error("No pending authorised assessor assignment is available for acceptance");
+  }
+
+  await db.update(claimAssignments).set({
+    status: "accepted",
+    acceptedAt: new Date().toISOString(),
+  }).where(eq(claimAssignments.id, assignment.id));
+
+  return assignment.id;
+}
+
+export async function hasAcceptedClaimAssessorAssignment(input: {
+  claimId: number;
+  tenantId: string;
+  assessorId: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [assignment] = await db.select({ id: claimAssignments.id }).from(claimAssignments).where(and(
+    eq(claimAssignments.claimId, input.claimId),
+    eq(claimAssignments.tenantId, input.tenantId),
+    eq(claimAssignments.assignmentRole, "assessor"),
+    eq(claimAssignments.assignedToUserId, input.assessorId),
+    eq(claimAssignments.status, "accepted"),
+  )).orderBy(desc(claimAssignments.acceptedAt)).limit(1);
+
+  return Boolean(assignment);
 }
 
 export async function updateClaimPolicyVerification(claimId: number, verified: boolean) {
