@@ -23,12 +23,26 @@ import {
   LogOut,
   HardHat,
   FolderOpen,
+  FileText,
 } from "lucide-react";
+
+type EngineerNavItem = {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  description: string;
+  contextOnly?: boolean;
+};
+
+type EngineerNavSection = {
+  title: string;
+  items: EngineerNavItem[];
+};
 
 const KINGA_LOGO =
   "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png";
 
-const sections = [
+const sections: EngineerNavSection[] = [
   {
     title: "Overview",
     items: [
@@ -77,19 +91,22 @@ const sections = [
         label: "Evidence",
         href: "/engineer/inspections",
         icon: Camera,
-        description: "Photos & documents",
+        description: "Open an assigned inspection to review evidence",
+        contextOnly: true,
       },
       {
         label: "Measurements",
         href: "/engineer/inspections",
         icon: Ruler,
-        description: "Physical measurements",
+        description: "Available within an assigned inspection",
+        contextOnly: true,
       },
       {
         label: "Observations",
         href: "/engineer/inspections",
         icon: Eye,
-        description: "Findings & recommendations",
+        description: "Available within an assigned inspection",
+        contextOnly: true,
       },
     ],
   },
@@ -100,19 +117,22 @@ const sections = [
         label: "KINGA Analysis",
         href: "/engineer/inspections",
         icon: Brain,
-        description: "KINGA risk assessment",
+        description: "Available within an assigned inspection",
+        contextOnly: true,
       },
       {
         label: "Physics Check",
         href: "/engineer/inspections",
         icon: GitMerge,
-        description: "Measurement reconciliation",
+        description: "Available within an assigned inspection",
+        contextOnly: true,
       },
       {
         label: "Sign-off",
         href: "/engineer/inspections",
         icon: CheckSquare,
-        description: "Review & submit",
+        description: "Available within an assigned inspection",
+        contextOnly: true,
       },
     ],
   },
@@ -243,6 +263,22 @@ export default function EngineerWorkspaceLayout({
                 {section.items.map((item) => {
                   const Icon = item.icon ?? FolderOpen;
                   const isActive = location === item.href;
+                  if (item.contextOnly) {
+                    return (
+                      <div
+                        key={item.href + item.label}
+                        aria-disabled="true"
+                        title={item.description}
+                        style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px", borderRadius: "6px", opacity: 0.62, cursor: "not-allowed" }}
+                      >
+                        <Icon size={14} style={{ color: "rgba(255,255,255,0.55)", flexShrink: 0 }} />
+                        <div>
+                          <div style={{ fontSize: "12px", fontWeight: 400, color: "rgba(255,255,255,0.75)", lineHeight: 1.2 }}>{item.label}</div>
+                          <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", marginTop: "2px", lineHeight: 1 }}>{item.description}</div>
+                        </div>
+                      </div>
+                    );
+                  }
                   return (
                     <Link key={item.href + item.label} href={item.href}>
                       <div

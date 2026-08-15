@@ -63,8 +63,10 @@ describe("professional portal conformance — insurer navigation and admission",
   it("proves engineer entries carry safe icon metadata while recording repeated generic inspection destinations", () => {
     expect(engineerLayoutSource).toContain('label: "Projects",\n        href: "/engineer/projects",\n        icon: FolderOpen');
     expect(engineerLayoutSource).toContain('label: "Asset Passport",\n        href: "/engineer/asset-passport",\n        icon: FileText');
+    expect(engineerLayoutSource).toContain('  FileText,\n} from "lucide-react";');
     expect(engineerLayoutSource).toContain("const Icon = item.icon ?? FolderOpen;");
     expect(engineerLayoutSource).toContain("<Icon");
-    expect((engineerLayoutSource.match(/href: "\/engineer\/inspections"/g) ?? []).length).toBeGreaterThanOrEqual(6);
+    expect(engineerLayoutSource).toContain("if (item.contextOnly)");
+    expect((engineerLayoutSource.match(/contextOnly: true/g) ?? []).length).toBe(6);
   });
 });
