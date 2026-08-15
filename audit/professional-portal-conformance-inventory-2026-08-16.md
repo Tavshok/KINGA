@@ -41,3 +41,7 @@ These are route-contract observations only. Procedure authority and actual user-
 ## Navigation-Correction Evidence
 
 The current assessor and panel-beater sidebars confirm the recorded repeated-destination issue. Assessor Assessment Form and Documents both route to `/assessor`, while the actionable claim surface is selected only after navigating to `/assessor/claims/:id`. Panel-beater Quote Requests, Quote History, My Performance, and Documents all route to `/panel-beater/dashboard`, while direct authorised quoting occurs within `/panel-beater/claims/:id/quote`. The correction must make this in-context dependency explicit rather than imply separate destinations that do not exist.
+
+## Insurer Parameterised Route Follow-up
+
+The route scan identified several insurer sidebar destinations containing query strings or fragment identifiers, such as claims-manager queue filters and recovery/report status filters. Their base destinations are registered insurer routes; the scan classified the full parameterised strings as unregistered because it compares exact paths. These entries are therefore parameter-contract follow-ups, not missing-page destinations. A page-level tab or fragment behaviour check is required only if a specific user action fails.
