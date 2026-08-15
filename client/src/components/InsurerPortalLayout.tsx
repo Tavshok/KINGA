@@ -52,6 +52,7 @@ type NavItem = {
   icon: React.ElementType;
   description: string;
   badgeKey?: "recoveryOpen" | "recoveryDeadline";
+  unavailable?: boolean;
 };
 
 type NavSection = {
@@ -260,7 +261,7 @@ const navByRole: Record<string, NavSection[]> = {
       items: [
         { label: "Team Members", description: "Invite users and manage roles", href: "/insurer-portal/team-members", icon: Users },
         { label: "Assessor Network", description: "Manage approved assessors", href: "/insurer-portal/assessors", icon: UserCog },
-        { label: "Workflow Settings", description: "Automation rules and escalation policies", href: "/admin/workflows", icon: Settings },
+        { label: "Workflow Settings", description: "Managed by platform administration", href: "/insurer-portal/insurer-admin", icon: Settings, unavailable: true },
       ],
     },
     {
@@ -446,8 +447,28 @@ export default function InsurerPortalLayout({
                 {section.items.map((item) => {
                   const hrefBase = item.href.split("?")[0].split("#")[0];
                   const active =
-                    location === hrefBase ||
-                    (hrefBase.length > 1 && location.startsWith(hrefBase));
+                    !item.unavailable && (
+                      location === hrefBase ||
+                      (hrefBase.length > 1 && location.startsWith(hrefBase))
+                    );
+                  if (item.unavailable) {
+                    return (
+                      <div
+                        key={item.href}
+                        aria-disabled="true"
+                        title={item.description}
+                        style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", borderRadius: "8px", opacity: 0.62, cursor: "not-allowed" }}
+                      >
+                        <div className="flex-shrink-0 flex items-center justify-center rounded-md" style={{ width: 26, height: 26, background: "rgba(255,255,255,0.05)" }}>
+                          <item.icon style={{ width: 13, height: 13, color: "rgba(255,255,255,0.60)" }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12.5px] leading-none truncate" style={{ fontWeight: 500, color: "rgba(255,255,255,0.82)" }}>{item.label}</p>
+                          <p className="text-[10px] mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.45)" }}>{item.description}</p>
+                        </div>
+                      </div>
+                    );
+                  }
                   return (
                     <Link
                       key={item.href}

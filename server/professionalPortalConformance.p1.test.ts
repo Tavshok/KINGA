@@ -25,8 +25,10 @@ describe("professional portal conformance — insurer navigation and admission",
     expect(appSource).toMatch(/path="\/insurer-portal\/team-members"[\s\S]{0,220}RoleGuard allowedRoles=\{\["insurer_admin"\]\}/);
   });
 
-  it("records the insurer-admin sidebar target that leaves the insurer domain", () => {
-    expect(insurerLayoutSource).toContain('href: "/admin/workflows"');
+  it("proves insurer-admin Workflow Settings no longer leaves the insurer domain", () => {
+    expect(insurerLayoutSource).toContain('{ label: "Workflow Settings", description: "Managed by platform administration", href: "/insurer-portal/insurer-admin", icon: Settings, unavailable: true }');
+    expect(insurerLayoutSource).toContain('if (item.unavailable)');
+    expect(insurerLayoutSource).not.toContain('href: "/admin/workflows"');
     expect(appSource).toContain('path="/admin/workflows"');
   });
 
