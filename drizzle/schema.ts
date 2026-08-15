@@ -519,9 +519,12 @@ export const assessorEvaluations = mysqlTable("assessor_evaluations", {
 	estimatedDuration: int("estimated_duration"),
 	damageAssessment: text("damage_assessment"),
 	recommendations: text(),
-	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','moderate','high']),
-	tenantId: varchar("tenant_id", { length: 255 }),
-	disagreesWithAi: tinyint("disagrees_with_ai").default(0),
+		fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','moderate','high']),
+		tenantId: varchar("tenant_id", { length: 255 }),
+		sourceReportId: int("source_report_id").references(() => assessorReports.id, { onDelete: "set null", onUpdate: "cascade" }),
+		sourceReportVersion: int("source_report_version"),
+		acceptedReviewId: int("accepted_review_id").references(() => assessorReportReviews.id, { onDelete: "set null", onUpdate: "cascade" }),
+		disagreesWithAi: tinyint("disagrees_with_ai").default(0),
 	aiDisagreementReason: text("ai_disagreement_reason"),
 },
 (table) => [
@@ -878,6 +881,73 @@ export const claimAssignments = mysqlTable("claim_assignments", {
   index("idx_claim_assignments_assignee_active").on(table.assignedToUserId, table.status),
   index("idx_claim_assignments_tenant_role").on(table.tenantId, table.assignmentRole, table.status),
   index("idx_claim_assignments_parent").on(table.parentAssignmentId),
+]);
+
+export const assessorReports = mysqlTable("assessor_reports", {
+  id: int().autoincrement().notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  assessorUserId: int("assessor_user_id").references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }).notNull(),
+  assignmentId: int("assignment_id").references(() => claimAssignments.id, { onDelete: "restrict", onUpdate: "cascade" }).notNull(),
+  parentReportId: int("parent_report_id"),
+  versionNumber: int("version_number").default(1).notNull(),
+  creationMethod: mysqlEnum("creation_method", ["native_upload", "kinga_assisted"]).notNull(),
+  status: mysqlEnum("status", ["draft", "attested", "submitted", "under_review", "returned", "rejected", "accepted", "superseded"]).default("draft").notNull(),
+  title: varchar({ length: 255 }).notNull(),
+  sourceFileName: varchar("source_file_name", { length: 500 }),
+  sourceStorageKey: varchar("source_storage_key", { length: 500 }),
+  sourceFileUrl: text("source_file_url"),
+  sourceMimeType: varchar("source_mime_type", { length: 255 }),
+  sourceFileHash: varchar("source_file_hash", { length: 128 }),
+  reportPayload: json("report_payload"),
+  kingaExtractionJson: json("kinga_extraction_json"),
+  attestedByUserId: int("attested_by_user_id").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }),
+  attestedAt: timestamp("attested_at", { mode: "string" }),
+  submittedAt: timestamp("submitted_at", { mode: "string" }),
+  supersededAt: timestamp("superseded_at", { mode: "string" }),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("idx_assessor_reports_claim_state").on(table.claimId, table.status),
+  index("idx_assessor_reports_assessor_state").on(table.assessorUserId, table.status),
+  index("idx_assessor_reports_tenant_state").on(table.tenantId, table.status),
+  uniqueIndex("uq_assessor_reports_claim_version").on(table.claimId, table.versionNumber),
+]);
+
+export const assessorReportAttachments = mysqlTable("assessor_report_attachments", {
+  id: int().autoincrement().notNull(),
+  reportId: int("report_id").references(() => assessorReports.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  originalFileName: varchar("original_file_name", { length: 500 }).notNull(),
+  storageKey: varchar("storage_key", { length: 500 }).notNull(),
+  fileUrl: text("file_url").notNull(),
+  mimeType: varchar("mime_type", { length: 255 }),
+  sizeBytes: int("size_bytes"),
+  fileHash: varchar("file_hash", { length: 128 }),
+  attachmentRole: mysqlEnum("attachment_role", ["original_report", "supporting_evidence", "generated_export"]).default("supporting_evidence").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+}, (table) => [
+  index("idx_assessor_report_attachments_report").on(table.reportId),
+  index("idx_assessor_report_attachments_tenant").on(table.tenantId),
+]);
+
+export const assessorReportReviews = mysqlTable("assessor_report_reviews", {
+  id: int().autoincrement().notNull(),
+  reportId: int("report_id").references(() => assessorReports.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  reviewerUserId: int("reviewer_user_id").references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }).notNull(),
+  reviewerRole: mysqlEnum("reviewer_role", ["claims_assessor", "claims_manager"]).notNull(),
+  status: mysqlEnum("status", ["pending", "accepted", "returned", "rejected", "escalated"]).default("pending").notNull(),
+  routeReason: mysqlEnum("route_reason", ["assigned_claims_assessor", "claims_manager_fallback", "claims_manager_escalation"]).notNull(),
+  decisionReason: text("decision_reason"),
+  reviewedAt: timestamp("reviewed_at", { mode: "string" }),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("idx_assessor_report_reviews_reviewer_state").on(table.reviewerUserId, table.status),
+  index("idx_assessor_report_reviews_claim_state").on(table.claimId, table.status),
+  index("idx_assessor_report_reviews_tenant_state").on(table.tenantId, table.status),
 ]);
 
 export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset", {

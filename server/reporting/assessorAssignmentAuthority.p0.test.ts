@@ -13,18 +13,20 @@ function sourceSlice(source: string, start: string, end: string) {
 }
 
 describe("AUD-P0-002 assessor assignment authority — no-write contract", () => {
-  it("derives evaluation identity and tenant scope from the authenticated assigned assessor", () => {
+  it("derives report identity and tenant scope from the authenticated accepted assessor before authoritative evaluation projection", () => {
     const router = read("server/routers.ts");
-    const submit = sourceSlice(router, "// Submit evaluation", "// Get evaluation by claim");
+    const directSummary = sourceSlice(router, "// Legacy direct summary submission", "// Get evaluation by claim");
+    const createDraft = sourceSlice(router, "createDraft: protectedProcedure", "attest: protectedProcedure");
 
-    expect(submit).toContain("const actorTenantId = ctx.user.tenantId");
-    expect(submit).toContain("getClaimById(input.claimId, actorTenantId)");
-    expect(submit).toContain("claim.assignedAssessorId !== ctx.user.id");
-    expect(submit).toContain("assessorId: ctx.user.id");
-    expect(submit).toContain("tenantId: claim.tenantId");
-    expect(submit).not.toContain("assessorId: input.assessorId,");
-    expect(submit.indexOf("getClaimById(input.claimId, actorTenantId)")).toBeLessThan(
-      submit.indexOf("createAssessorEvaluation({"),
+    expect(directSummary).toContain("PRECONDITION_FAILED");
+    expect(createDraft).toContain("const tenantId = ctx.user.tenantId");
+    expect(createDraft).toContain("getClaimById(input.claimId, tenantId)");
+    expect(createDraft).toContain("claim.assignedAssessorId !== ctx.user.id");
+    expect(createDraft).toContain("getAcceptedClaimAssessorAssignment");
+    expect(createDraft).toContain("assessorUserId: ctx.user.id");
+    expect(createDraft).toContain("tenantId,");
+    expect(createDraft.indexOf("getClaimById(input.claimId, tenantId)")).toBeLessThan(
+      createDraft.indexOf("createAssessorReportDraft({"),
     );
   });
 

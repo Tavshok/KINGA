@@ -15,7 +15,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { appRouter } from "./routers";
 import { getDb } from "./db";
-import { users, assessors, assessorInsurerRelationships, assessorMarketplaceReviews, claims, auditTrail, assessorEvaluations, aiAssessments, claimEvents } from "../drizzle/schema";
+import { users, assessors, assessorInsurerRelationships, assessorMarketplaceReviews, claims, auditTrail, assessorEvaluations, assessorReports, aiAssessments, claimEvents } from "../drizzle/schema";
 import { eq, and, like } from "drizzle-orm";
 
 describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () => {
@@ -691,23 +691,31 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
       fraudRiskLevel: "low" as const,
     };
 
-    it("Test 7.1: assigned same-tenant assessor can submit under their authenticated identity", async () => {
+    it("Test 7.1: assigned same-tenant assessor submits an attested report that becomes an accepted evaluation", async () => {
       const caller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId } } as any);
       await expect(caller.assessorEvaluations.acceptAssignment({ claimId: testClaimId1 })).resolves.toEqual({ success: true });
-      await db.insert(aiAssessments).values({
+      const draft = await caller.assessorReports.createDraft({
         claimId: testClaimId1,
-        estimatedCost: 150000,
-        confidenceScore: 85,
-        fraudRiskLevel: "low",
-        fraudScore: 10,
-        recommendation: "REVIEW",
+        creationMethod: "kinga_assisted",
+        title: "Test assessor report",
+        reportPayload: evaluationInput,
       });
-      await expect(caller.assessorEvaluations.submit({ claimId: testClaimId1, assessorId: marketplaceAssessorUserId, ...evaluationInput })).resolves.toEqual({ success: true });
+      await expect(caller.assessorReports.attest({ reportId: draft.reportId })).resolves.toEqual({ success: true });
+      const reviewRoute = await caller.assessorReports.submitForReview({ reportId: draft.reportId });
+      expect(reviewRoute.reviewerRole).toBe("claims_manager");
+      const unrelatedReviewer = appRouter.createCaller(insurerAdminContext);
+      await expect(unrelatedReviewer.assessorReports.decideReview({ reviewId: reviewRoute.reviewId, decision: "accepted", decisionReason: "Unauthorised test" })).rejects.toThrow("No pending authorised assessor report review is available");
+      const [reviewerUser] = await db.select().from(users).where(eq(users.id, reviewRoute.reviewerUserId)).limit(1);
+      const reviewer = appRouter.createCaller({ user: { id: reviewerUser.id, openId: reviewerUser.openId, email: reviewerUser.email, name: reviewerUser.name, role: reviewerUser.role, tenantId: reviewerUser.tenantId } } as any);
+      await expect(reviewer.assessorReports.decideReview({ reviewId: reviewRoute.reviewId, decision: "accepted", decisionReason: "Report evidence is complete and accepted" })).resolves.toEqual({ success: true });
 
       const [evaluation] = await db.select().from(assessorEvaluations)
         .where(eq(assessorEvaluations.claimId, testClaimId1)).limit(1);
       expect(evaluation.assessorId).toBe(internalAssessorUserId);
       expect(evaluation.tenantId).toBe(tenantId);
+      expect(evaluation.sourceReportId).toBe(draft.reportId);
+      const [report] = await db.select().from(assessorReports).where(eq(assessorReports.id, draft.reportId)).limit(1);
+      expect(report.status).toBe("accepted");
     });
 
     it("Test 7.2: foreign and same-tenant unassigned assessors are denied before evaluation creation", async () => {
@@ -719,10 +727,10 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
       const beforeEvents1 = await db.select().from(claimEvents).where(eq(claimEvents.claimId, testClaimId1));
       const beforeEvents3 = await db.select().from(claimEvents).where(eq(claimEvents.claimId, testClaimId3));
       const foreignCaller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId: `foreign-${tenantId}` } } as any);
-      await expect(foreignCaller.assessorEvaluations.submit({ claimId: testClaimId1, ...evaluationInput })).rejects.toThrow("Claim not found or access denied");
+      await expect(foreignCaller.assessorReports.createDraft({ claimId: testClaimId1, creationMethod: "kinga_assisted", title: "Foreign report", reportPayload: evaluationInput })).rejects.toThrow("Claim not found or access denied");
 
       const assignedCaller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId } } as any);
-      await expect(assignedCaller.assessorEvaluations.submit({ claimId: testClaimId3, ...evaluationInput })).rejects.toThrow("Only the authenticated assessor assigned to this claim may submit an evaluation");
+      await expect(assignedCaller.assessorReports.createDraft({ claimId: testClaimId3, creationMethod: "kinga_assisted", title: "Unassigned report", reportPayload: evaluationInput })).rejects.toThrow("Claim not found or access denied");
 
       const afterForeign = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, testClaimId1));
       const unassignedRows = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, testClaimId3));
@@ -740,6 +748,33 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
       expect(afterAudit3).toHaveLength(beforeAudit3.length);
       expect(afterEvents1).toHaveLength(beforeEvents1.length);
       expect(afterEvents3).toHaveLength(beforeEvents3.length);
+    });
+
+    it("Test 7.3: native report requires original evidence before a draft exists", async () => {
+      const assessorCaller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId } } as any);
+      await expect(assessorCaller.assessorReports.createDraft({ claimId: testClaimId1, creationMethod: "native_upload", title: "Missing original", reportPayload: evaluationInput })).rejects.toThrow("requires its original uploaded file");
+    });
+
+    it("Test 7.4: a later accepted assessor report supersedes the prior accepted version and becomes the latest projection", async () => {
+      const assessorCaller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId } } as any);
+      const secondDraft = await assessorCaller.assessorReports.createDraft({
+        claimId: testClaimId1,
+        creationMethod: "kinga_assisted",
+        title: "Revised assessor report",
+        reportPayload: { ...evaluationInput, estimatedRepairCost: 160000 },
+      });
+      await assessorCaller.assessorReports.attest({ reportId: secondDraft.reportId });
+      const secondRoute = await assessorCaller.assessorReports.submitForReview({ reportId: secondDraft.reportId });
+      const [reviewerUser] = await db.select().from(users).where(eq(users.id, secondRoute.reviewerUserId)).limit(1);
+      const reviewer = appRouter.createCaller({ user: { id: reviewerUser.id, openId: reviewerUser.openId, email: reviewerUser.email, name: reviewerUser.name, role: reviewerUser.role, tenantId: reviewerUser.tenantId } } as any);
+      await reviewer.assessorReports.decideReview({ reviewId: secondRoute.reviewId, decision: "accepted", decisionReason: "Revised report accepted" });
+
+      const reports = await db.select().from(assessorReports).where(eq(assessorReports.claimId, testClaimId1));
+      expect(reports.find((report: any) => report.id === secondDraft.reportId)?.status).toBe("accepted");
+      expect(reports.filter((report: any) => report.status === "accepted")).toHaveLength(1);
+      expect(reports.some((report: any) => report.status === "superseded")).toBe(true);
+      const evaluations = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, testClaimId1));
+      expect(evaluations.at(-1)?.sourceReportId).toBe(secondDraft.reportId);
     });
   });
 });

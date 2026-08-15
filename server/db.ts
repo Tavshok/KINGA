@@ -1,5 +1,5 @@
 
-import { eq, and, or, desc, inArray, notInArray, sql, like } from "drizzle-orm";
+import { eq, and, or, desc, inArray, notInArray, sql, like, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import * as schema from "../drizzle/schema";
@@ -47,6 +47,9 @@ import {
   claimEvents,
   InsertClaimEvent,
   claimAssignments,
+  assessorReports,
+  assessorReportAttachments,
+  assessorReportReviews,
   ingestionDocuments,
   decisionSnapshots,
   DecisionSnapshot,
@@ -701,6 +704,207 @@ export async function hasAcceptedClaimAssessorAssignment(input: {
   )).orderBy(desc(claimAssignments.acceptedAt)).limit(1);
 
   return Boolean(assignment);
+}
+
+export async function getAcceptedClaimAssessorAssignment(input: {
+  claimId: number;
+  tenantId: string;
+  assessorId: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [assignment] = await db.select().from(claimAssignments).where(and(
+    eq(claimAssignments.claimId, input.claimId),
+    eq(claimAssignments.tenantId, input.tenantId),
+    eq(claimAssignments.assignmentRole, "assessor"),
+    eq(claimAssignments.assignedToUserId, input.assessorId),
+    eq(claimAssignments.status, "accepted"),
+  )).orderBy(desc(claimAssignments.acceptedAt)).limit(1);
+  return assignment || null;
+}
+
+export async function getAssessorReportReviewer(input: {
+  claimId: number;
+  tenantId: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [claimsAssessorAssignment] = await db.select().from(claimAssignments).where(and(
+    eq(claimAssignments.claimId, input.claimId),
+    eq(claimAssignments.tenantId, input.tenantId),
+    eq(claimAssignments.assignmentRole, "claims_assessor"),
+    inArray(claimAssignments.status, ["assigned", "accepted"]),
+  )).orderBy(desc(claimAssignments.assignedAt)).limit(1);
+  if (claimsAssessorAssignment) {
+    return {
+      reviewerUserId: claimsAssessorAssignment.assignedToUserId,
+      reviewerRole: "claims_assessor" as const,
+      routeReason: "assigned_claims_assessor" as const,
+    };
+  }
+
+  const [claimsManager] = await db.select().from(users).where(and(
+    eq(users.tenantId, input.tenantId),
+    inArray(users.role, ["claims_manager", "admin", "insurer"] as any),
+  )).orderBy(desc(users.id)).limit(1);
+  if (!claimsManager) throw new Error("No authorised claims assessor or claims manager reviewer is available");
+  return {
+    reviewerUserId: claimsManager.id,
+    reviewerRole: "claims_manager" as const,
+    routeReason: "claims_manager_fallback" as const,
+  };
+}
+
+export async function createAssessorReportDraft(input: {
+  claimId: number;
+  tenantId: string;
+  assessorUserId: number;
+  assignmentId: number;
+  parentReportId?: number;
+  versionNumber: number;
+  creationMethod: "native_upload" | "kinga_assisted";
+  title: string;
+  sourceFileName?: string;
+  sourceStorageKey?: string;
+  sourceFileUrl?: string;
+  sourceMimeType?: string;
+  sourceFileHash?: string;
+  reportPayload?: unknown;
+  kingaExtractionJson?: unknown;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(assessorReports).values(input as any);
+  return Number((result as any)[0]?.insertId);
+}
+
+export async function addAssessorReportAttachment(input: {
+  reportId: number;
+  tenantId: string;
+  originalFileName: string;
+  storageKey: string;
+  fileUrl: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  fileHash?: string;
+  attachmentRole: "original_report" | "supporting_evidence" | "generated_export";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(assessorReportAttachments).values(input as any);
+}
+
+export async function getAssessorReportById(reportId: number, tenantId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [report] = await db.select().from(assessorReports).where(and(
+    eq(assessorReports.id, reportId),
+    eq(assessorReports.tenantId, tenantId),
+  )).limit(1);
+  return report || null;
+}
+
+export async function getLatestAssessorReportVersion(claimId: number, tenantId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [report] = await db.select().from(assessorReports).where(and(
+    eq(assessorReports.claimId, claimId),
+    eq(assessorReports.tenantId, tenantId),
+  )).orderBy(desc(assessorReports.versionNumber)).limit(1);
+  return report || null;
+}
+
+export async function attestAssessorReport(reportId: number, tenantId: string, assessorUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.update(assessorReports).set({
+    status: "attested",
+    attestedByUserId: assessorUserId,
+    attestedAt: new Date().toISOString(),
+  }).where(and(
+    eq(assessorReports.id, reportId),
+    eq(assessorReports.tenantId, tenantId),
+    eq(assessorReports.assessorUserId, assessorUserId),
+    eq(assessorReports.status, "draft"),
+  ));
+  if ((result as any)[0]?.affectedRows !== 1) throw new Error("Report is not an attestable assessor draft");
+}
+
+export async function submitAssessorReportForReview(input: {
+  reportId: number;
+  tenantId: string;
+  reviewerUserId: number;
+  reviewerRole: "claims_assessor" | "claims_manager";
+  routeReason: "assigned_claims_assessor" | "claims_manager_fallback" | "claims_manager_escalation";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const report = await getAssessorReportById(input.reportId, input.tenantId);
+  if (!report || report.status !== "attested") throw new Error("Only an attested assessor report may be submitted for review");
+  await db.update(assessorReports).set({ status: "under_review", submittedAt: new Date().toISOString() }).where(eq(assessorReports.id, input.reportId));
+  const result = await db.insert(assessorReportReviews).values({
+    reportId: input.reportId,
+    claimId: report.claimId,
+    tenantId: input.tenantId,
+    reviewerUserId: input.reviewerUserId,
+    reviewerRole: input.reviewerRole,
+    routeReason: input.routeReason,
+  } as any);
+  return Number((result as any)[0]?.insertId);
+}
+
+export async function decideAssessorReportReview(input: {
+  reviewId: number;
+  tenantId: string;
+  reviewerUserId: number;
+  decision: "accepted" | "returned" | "rejected";
+  decisionReason: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [review] = await db.select().from(assessorReportReviews).where(and(
+    eq(assessorReportReviews.id, input.reviewId),
+    eq(assessorReportReviews.tenantId, input.tenantId),
+    eq(assessorReportReviews.reviewerUserId, input.reviewerUserId),
+    eq(assessorReportReviews.status, "pending"),
+  )).limit(1);
+  if (!review) throw new Error("No pending authorised assessor report review is available");
+  const now = new Date().toISOString();
+  await db.update(assessorReportReviews).set({ status: input.decision, decisionReason: input.decisionReason, reviewedAt: now }).where(eq(assessorReportReviews.id, input.reviewId));
+  if (input.decision === "accepted") {
+    await db.update(assessorReports).set({ status: "superseded", supersededAt: now }).where(and(
+      eq(assessorReports.claimId, review.claimId),
+      eq(assessorReports.tenantId, input.tenantId),
+      eq(assessorReports.status, "accepted"),
+      notInArray(assessorReports.id, [review.reportId]),
+    ));
+  }
+  await db.update(assessorReports).set({ status: input.decision }).where(eq(assessorReports.id, review.reportId));
+  return { review, reviewedAt: now };
+}
+
+export async function getAssessorReportReviewQueue(tenantId: string, reviewerUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.select({
+    review: assessorReportReviews,
+    report: assessorReports,
+  }).from(assessorReportReviews).innerJoin(assessorReports, eq(assessorReportReviews.reportId, assessorReports.id)).where(and(
+    eq(assessorReportReviews.tenantId, tenantId),
+    eq(assessorReportReviews.reviewerUserId, reviewerUserId),
+    eq(assessorReportReviews.status, "pending"),
+  )).orderBy(desc(assessorReportReviews.createdAt));
+}
+
+export async function getLatestAcceptedAssessorEvaluation(claimId: number, tenantId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [evaluation] = await db.select().from(assessorEvaluations).where(and(
+    eq(assessorEvaluations.claimId, claimId),
+    eq(assessorEvaluations.tenantId, tenantId),
+    isNotNull(assessorEvaluations.sourceReportId),
+  )).orderBy(desc(assessorEvaluations.id)).limit(1);
+  return evaluation || null;
 }
 
 export async function updateClaimPolicyVerification(claimId: number, verified: boolean) {

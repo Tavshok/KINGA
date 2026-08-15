@@ -67,6 +67,17 @@ import {
   getTenantRates,
   acceptClaimAssessorAssignment,
   hasAcceptedClaimAssessorAssignment,
+  getAcceptedClaimAssessorAssignment,
+  getAssessorReportReviewer,
+  createAssessorReportDraft,
+  addAssessorReportAttachment,
+  getAssessorReportById,
+  getLatestAssessorReportVersion,
+  attestAssessorReport,
+  submitAssessorReportForReview,
+  decideAssessorReportReview,
+  getAssessorReportReviewQueue,
+  getLatestAcceptedAssessorEvaluation,
 } from "./db";
 import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
@@ -848,7 +859,9 @@ export const appRouter = router({
 
         return { success: true };
       }),
-    // Submit evaluation
+    // Legacy direct summary submission is retired. An assessor report must be
+    // attested and accepted through assessorReports before it becomes an
+    // authoritative evaluator projection.
     submit: protectedProcedure
       .input(z.object({
         claimId: z.number(),
@@ -865,76 +878,8 @@ export const appRouter = router({
         disagreesWithAi: z.boolean().optional(),
         aiDisagreementReason: z.string().optional(),
       }))
-      .mutation(async ({ ctx, input }) => {
-        if (!ctx.user) throw new Error("Not authenticated");
-        
-        const actorTenantId = ctx.user.tenantId;
-        if (!actorTenantId) {
-          throw new Error("Claim not found or access denied");
-        }
-
-        // Tenant-scoped lookup is the first claim access in this procedure. A
-        // foreign numeric identifier is therefore denied without exposing the
-        // underlying claim to the evaluator submission path.
-        const claim = await getClaimById(input.claimId, actorTenantId);
-        if (!claim || claim.tenantId !== actorTenantId) {
-          throw new Error("Claim not found or access denied");
-        }
-        if (ctx.user.role !== "assessor" || claim.assignedAssessorId !== ctx.user.id) {
-          throw new Error("Only the authenticated assessor assigned to this claim may submit an evaluation");
-        }
-        if (!await hasAcceptedClaimAssessorAssignment({
-          claimId: input.claimId,
-          tenantId: actorTenantId,
-          assessorId: ctx.user.id,
-        })) {
-          throw new Error("The authenticated assessor must accept the assignment before submitting an evaluation");
-        }
-        
-        await createAssessorEvaluation({
-          claimId: input.claimId,
-          assessorId: ctx.user.id,
-          tenantId: claim.tenantId,
-          estimatedRepairCost: input.estimatedRepairCost,
-          laborCost: input.laborCost,
-          partsCost: input.partsCost,
-          estimatedDuration: input.estimatedDuration,
-          damageAssessment: input.damageAssessment,
-          recommendations: input.recommendations,
-          fraudRiskLevel: input.fraudRiskLevel,
-          disagreesWithAi: (input.disagreesWithAi ? 1 : 0),
-          aiDisagreementReason: input.aiDisagreementReason,
-          status: "submitted",
-        });
-        
-        // Automatically progress status to quotes_pending (legacy field only)
-        await updateClaimStatus(input.claimId, "quotes_pending", ctx.user.id, "assessor_internal", claim.tenantId || "default");
-
-        // Create audit entry
-        await createAuditEntry({
-          claimId: input.claimId,
-          userId: ctx.user.id,
-          action: "assessor_evaluation_submitted",
-          entityType: "assessor_evaluation",
-          changeDescription: `Assessor evaluation submitted: $${(input.estimatedRepairCost / 100).toFixed(2)}`,
-        });
-
-        // Emit event for analytics
-        const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
-        await emitClaimEvent({
-          claimId: input.claimId,
-          eventType: "evaluation_submitted",
-          userId: ctx.user.id,
-          userRole: ctx.user.role,
-          tenantId,
-          eventPayload: { 
-            assessorId: ctx.user.id,
-            estimatedRepairCost: input.estimatedRepairCost,
-            fraudRiskLevel: input.fraudRiskLevel,
-          },
-        });
-
-        return { success: true };
+      .mutation(async () => {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Submit an attested assessor report for review; direct evaluation summaries are not authoritative." });
       }),
 
     // Get evaluation by claim
@@ -942,9 +887,124 @@ export const appRouter = router({
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
-        return await getAssessorEvaluationByClaimId(input.claimId, tenantId);
+        const actorTenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+        const claim = await getClaimById(input.claimId, actorTenantId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+        return await getLatestAcceptedAssessorEvaluation(input.claimId, claim.tenantId);
       }),
+  }),
+
+  assessorReports: router({
+    createDraft: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        creationMethod: z.enum(["native_upload", "kinga_assisted"]),
+        title: z.string().min(1),
+        reportPayload: z.record(z.string(), z.unknown()).optional(),
+        kingaExtractionJson: z.record(z.string(), z.unknown()).optional(),
+        fileName: z.string().optional(),
+        fileBase64: z.string().optional(),
+        mimeType: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const tenantId = ctx.user.tenantId;
+        const claim = tenantId ? await getClaimById(input.claimId, tenantId) : null;
+        if (!tenantId || !claim || ctx.user.role !== "assessor" || claim.assignedAssessorId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
+        }
+        const assignment = await getAcceptedClaimAssessorAssignment({ claimId: input.claimId, tenantId, assessorId: ctx.user.id });
+        if (!assignment) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Accept the assessor assignment before creating a report" });
+        if (Boolean(input.fileName) !== Boolean(input.fileBase64)) throw new TRPCError({ code: "BAD_REQUEST", message: "Report file name and contents must be supplied together" });
+        if (input.creationMethod === "native_upload" && (!input.fileName || !input.fileBase64)) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A native assessor report requires its original uploaded file" });
+        }
+
+        let sourceStorageKey: string | undefined;
+        let sourceFileUrl: string | undefined;
+        let sourceFileHash: string | undefined;
+        if (input.fileBase64 && input.fileName) {
+          const buffer = Buffer.from(input.fileBase64, "base64");
+          sourceFileHash = await import("node:crypto").then(({ createHash }) => createHash("sha256").update(buffer).digest("hex"));
+          sourceStorageKey = `assessor-reports/${tenantId}/${input.claimId}/${nanoid()}-${input.fileName}`;
+          const stored = await storagePut(sourceStorageKey, buffer, input.mimeType || "application/octet-stream");
+          sourceFileUrl = stored.url;
+        }
+        const prior = await getLatestAssessorReportVersion(input.claimId, tenantId);
+        const reportId = await createAssessorReportDraft({
+          claimId: input.claimId,
+          tenantId,
+          assessorUserId: ctx.user.id,
+          assignmentId: assignment.id,
+          parentReportId: prior?.id,
+          versionNumber: (prior?.versionNumber || 0) + 1,
+          creationMethod: input.creationMethod,
+          title: input.title,
+          sourceFileName: input.fileName,
+          sourceStorageKey,
+          sourceFileUrl,
+          sourceMimeType: input.mimeType,
+          sourceFileHash,
+          reportPayload: input.reportPayload,
+          kingaExtractionJson: input.kingaExtractionJson,
+        });
+        if (sourceStorageKey && sourceFileUrl && input.fileName) {
+          await addAssessorReportAttachment({ reportId, tenantId, originalFileName: input.fileName, storageKey: sourceStorageKey, fileUrl: sourceFileUrl, mimeType: input.mimeType, fileHash: sourceFileHash, attachmentRole: "original_report" });
+        }
+        await createAuditEntry({ claimId: input.claimId, userId: ctx.user.id, action: "assessor_report_draft_created", entityType: "assessor_report", changeDescription: `Assessor ${input.creationMethod} report draft created` });
+        return { reportId };
+      }),
+    attest: protectedProcedure
+      .input(z.object({ reportId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const tenantId = ctx.user.tenantId;
+        const report = tenantId ? await getAssessorReportById(input.reportId, tenantId) : null;
+        if (!tenantId || !report || ctx.user.role !== "assessor" || report.assessorUserId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN", message: "Report not found or access denied" });
+        await attestAssessorReport(input.reportId, tenantId, ctx.user.id);
+        await createAuditEntry({ claimId: report.claimId, userId: ctx.user.id, action: "assessor_report_attested", entityType: "assessor_report", changeDescription: "Assessor attested the report as their professional conclusion" });
+        return { success: true };
+      }),
+    submitForReview: protectedProcedure
+      .input(z.object({ reportId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const tenantId = ctx.user.tenantId;
+        const report = tenantId ? await getAssessorReportById(input.reportId, tenantId) : null;
+        if (!tenantId || !report || ctx.user.role !== "assessor" || report.assessorUserId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN", message: "Report not found or access denied" });
+        const reviewer = await getAssessorReportReviewer({ claimId: report.claimId, tenantId });
+        const reviewId = await submitAssessorReportForReview({ reportId: input.reportId, tenantId, ...reviewer });
+        await createAuditEntry({ claimId: report.claimId, userId: ctx.user.id, action: "assessor_report_submitted_for_review", entityType: "assessor_report", changeDescription: `Routed to ${reviewer.reviewerRole}` });
+        return { reviewId, ...reviewer };
+      }),
+    decideReview: protectedProcedure
+      .input(z.object({ reviewId: z.number(), decision: z.enum(["accepted", "returned", "rejected"]), decisionReason: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        const tenantId = ctx.user.tenantId;
+        if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Review access denied" });
+        const result = await decideAssessorReportReview({ reviewId: input.reviewId, tenantId, reviewerUserId: ctx.user.id, decision: input.decision, decisionReason: input.decisionReason });
+        const report = await getAssessorReportById(result.review.reportId, tenantId);
+        if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Report not found" });
+        if (input.decision === "accepted") {
+          const payload = (report.reportPayload || {}) as Record<string, unknown>;
+          if (!Number(payload.estimatedRepairCost) || !Number(payload.estimatedDuration) || !String(payload.damageAssessment || "").trim()) {
+            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "An accepted assessor report requires repair cost, duration, and damage assessment" });
+          }
+          await createAssessorEvaluation({
+            claimId: report.claimId, assessorId: report.assessorUserId, tenantId,
+            estimatedRepairCost: Number(payload.estimatedRepairCost || 0), laborCost: payload.laborCost ? Number(payload.laborCost) : undefined,
+            partsCost: payload.partsCost ? Number(payload.partsCost) : undefined, estimatedDuration: Number(payload.estimatedDuration || 0),
+            damageAssessment: String(payload.damageAssessment || "Accepted assessor report"), recommendations: payload.recommendations ? String(payload.recommendations) : undefined,
+            fraudRiskLevel: (payload.fraudRiskLevel as any) || "low", status: "completed", sourceReportId: report.id, sourceReportVersion: report.versionNumber, acceptedReviewId: input.reviewId,
+          } as any);
+        }
+        await createAuditEntry({ claimId: report.claimId, userId: ctx.user.id, action: `assessor_report_review_${input.decision}`, entityType: "assessor_report_review", changeDescription: input.decisionReason });
+        return { success: true };
+      }),
+    myReviewQueue: protectedProcedure.query(async ({ ctx }) => {
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Review access denied" });
+      }
+      return getAssessorReportReviewQueue(tenantId, ctx.user.id);
+    }),
   }),
 
   // Quotes operations

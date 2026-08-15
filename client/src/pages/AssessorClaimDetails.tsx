@@ -45,6 +45,8 @@ export default function AssessorClaimDetails() {
     disagreesWithAi: false,
     aiDisagreementReason: "",
   });
+  const [reportMethod, setReportMethod] = useState<"native_upload" | "kinga_assisted">("kinga_assisted");
+  const [reportFile, setReportFile] = useState<File | null>(null);
 
   // Get claim details
   const { data: claim, isLoading } = trpc.claims.getById.useQuery({ id: claimId });
@@ -55,18 +57,12 @@ export default function AssessorClaimDetails() {
   // Get KINGA assessment for this claim
   const { data: aiAssessment, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery({ claimId });
 
-  // Submit evaluation mutation
-  const submitEvaluation = trpc.assessorEvaluations.submit.useMutation({
-    onSuccess: () => {
-      toast.success("Evaluation submitted successfully");
-      setLocation("/assessor/dashboard");
-    },
-    onError: (error) => {
-      toast.error(`Failed to submit evaluation: ${error.message}`);
-    },
-  });
+  const createReportDraft = trpc.assessorReports.createDraft.useMutation();
+  const attestReport = trpc.assessorReports.attest.useMutation();
+  const submitReportForReview = trpc.assessorReports.submitForReview.useMutation();
+  const isSubmittingReport = createReportDraft.isPending || attestReport.isPending || submitReportForReview.isPending;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const estimatedCost = parseFloat(evaluation.estimatedRepairCost);
@@ -74,20 +70,46 @@ export default function AssessorClaimDetails() {
       toast.error("Please enter a valid repair cost");
       return;
     }
-
-    submitEvaluation.mutate({
-      claimId,
-      assessorId: Number(user!.id),
-      estimatedRepairCost: Math.round(estimatedCost * 100), // Convert to cents
-      laborCost: evaluation.laborCost ? Math.round(parseFloat(evaluation.laborCost) * 100) : undefined,
-      partsCost: evaluation.partsCost ? Math.round(parseFloat(evaluation.partsCost) * 100) : undefined,
-      estimatedDuration: parseInt(evaluation.estimatedDuration) || 7,
-      damageAssessment: evaluation.damageAssessment,
-      recommendations: evaluation.recommendations || undefined,
-      fraudRiskLevel: evaluation.fraudRiskLevel,
-      disagreesWithAi: evaluation.disagreesWithAi,
-      aiDisagreementReason: evaluation.disagreesWithAi ? evaluation.aiDisagreementReason : undefined,
-    });
+    if (reportMethod === "native_upload" && !reportFile) {
+      toast.error("Select the assessor report file before submitting a native upload");
+      return;
+    }
+    try {
+      const fileBase64 = reportFile
+        ? await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+            reader.onerror = () => reject(new Error("Unable to read the selected report file"));
+            reader.readAsDataURL(reportFile);
+          })
+        : undefined;
+      const reportPayload = {
+        estimatedRepairCost: Math.round(estimatedCost * 100),
+        laborCost: evaluation.laborCost ? Math.round(parseFloat(evaluation.laborCost) * 100) : undefined,
+        partsCost: evaluation.partsCost ? Math.round(parseFloat(evaluation.partsCost) * 100) : undefined,
+        estimatedDuration: parseInt(evaluation.estimatedDuration) || 7,
+        damageAssessment: evaluation.damageAssessment,
+        recommendations: evaluation.recommendations || undefined,
+        fraudRiskLevel: evaluation.fraudRiskLevel,
+        disagreesWithAi: evaluation.disagreesWithAi,
+        aiDisagreementReason: evaluation.disagreesWithAi ? evaluation.aiDisagreementReason : undefined,
+      };
+      const draft = await createReportDraft.mutateAsync({
+        claimId,
+        creationMethod: reportMethod,
+        title: `${claim.claimNumber} assessor report`,
+        reportPayload,
+        fileName: reportFile?.name,
+        fileBase64,
+        mimeType: reportFile?.type,
+      });
+      await attestReport.mutateAsync({ reportId: draft.reportId });
+      const route = await submitReportForReview.mutateAsync({ reportId: draft.reportId });
+      toast.success(`Report submitted to ${route.reviewerRole.replace(/_/g, " ")} for review`);
+      setLocation("/assessor/dashboard");
+    } catch (error: any) {
+      toast.error(`Unable to submit assessor report: ${error.message}`);
+    }
   };
 
   if (isLoading) {
@@ -492,11 +514,26 @@ export default function AssessorClaimDetails() {
               <CardHeader>
                 <CardTitle>Your Assessment</CardTitle>
                 <CardDescription>
-                  {existingEvaluation ? "Update your evaluation" : "Submit your independent evaluation"}
+                  Create an assessor-owned report. It becomes an evaluation only after claims review accepts it.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2 rounded-lg border bg-muted/30 p-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reportMethod">Report preparation</Label>
+                      <select id="reportMethod" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={reportMethod} onChange={(event) => setReportMethod(event.target.value as "native_upload" | "kinga_assisted")}>
+                        <option value="kinga_assisted">KINGA-assisted assessor report</option>
+                        <option value="native_upload">Upload independently prepared report</option>
+                      </select>
+                      <p className="text-xs text-muted-foreground">KINGA assistance does not replace your professional authorship or confirmation.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reportFile">Original report file {reportMethod === "native_upload" ? "*" : "(optional)"}</Label>
+                      <Input id="reportFile" type="file" accept="application/pdf,.doc,.docx,image/*" onChange={(event) => setReportFile(event.target.files?.[0] || null)} />
+                      <p className="text-xs text-muted-foreground">The original file is retained with the submitted report version.</p>
+                    </div>
+                  </div>
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="space-y-2">
                       <Label htmlFor="estimatedRepairCost">Total Repair Cost ($) *</Label>
@@ -632,17 +669,17 @@ export default function AssessorClaimDetails() {
                     <Button
                       type="submit"
                       className="flex-1"
-                      disabled={submitEvaluation.isPending}
+                      disabled={isSubmittingReport}
                     >
-                      {submitEvaluation.isPending ? (
+                      {isSubmittingReport ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Submitting...
+                          Preparing report...
                         </>
                       ) : (
                         <>
                           <Save className="mr-2 h-4 w-4" />
-                          Submit Evaluation
+                          Attest & Submit Report
                         </>
                       )}
                     </Button>
