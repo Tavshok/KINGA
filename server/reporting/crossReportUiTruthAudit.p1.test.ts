@@ -18,7 +18,7 @@ vi.mock("@/lib/trpc", () => ({
   trpc: {
     claims: { getById: { useQuery: () => ({ data: { id: 101, claimNumber: "TRUTH-101", vehicleMake: "Toyota", vehicleModel: "Corolla", vehicleYear: 2022, status: "under_review" }, isLoading: false }) } },
     aiAssessments: { byClaim: { useQuery: () => ({ data: {
-      estimatedCost: 1100,
+      estimatedCost: 150000,
       confidenceScore: 90,
       fraudRiskScore: 5,
       fraudRiskLevel: "low",
@@ -32,7 +32,7 @@ vi.mock("@/lib/trpc", () => ({
         ],
       } }),
     }, isLoading: false }) } },
-    assessorEvaluations: { byClaim: { useQuery: () => ({ data: null, isLoading: false }) } },
+    assessorEvaluations: { byClaim: { useQuery: () => ({ data: { estimatedRepairCost: 100000 }, isLoading: false }) } },
     quotes: { byClaim: { useQuery: () => ({ data: [
       { id: 1, quotedAmount: 80000, status: "cancelled", repairerName: "Withdrawn Repairs" },
       { id: 2, quotedAmount: 120000, status: "submitted", repairerName: "Eligible Repairs" },
@@ -103,5 +103,13 @@ describe("AUD cross-report and UI truth audit — no-write", () => {
     expect(html).toContain("1 quotation retained as history and excluded from L1/L2 comparison.");
     expect(html).toContain("USD 800.00");
     expect(html).not.toContain("$80,000");
+  });
+
+  it("exposes the assessment-cent scaling and mixed-unit variance divergence for controlled audit classification", () => {
+    const html = renderToStaticMarkup(React.createElement(ClaimsManagerComparisonView));
+
+    expect(html).toContain("USD 150000.00");
+    expect(html).toContain("USD 1000.00");
+    expect(html).toContain("-99.3%");
   });
 });
