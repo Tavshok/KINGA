@@ -47,9 +47,12 @@ describe("professional portal conformance — insurer navigation and admission",
     expect(panelBeaterLayoutSource).toContain('{ label: "Documents", href: "/panel-beater/dashboard"');
   });
 
-  it("records the fleet manager action rendered outside the manager-only gate", () => {
+  it("proves fleet registration controls are restricted to managers while drivers receive an explanatory state", () => {
     expect(fleetSource).toContain('const isManager = ["fleet_manager", "fleet_admin", "admin", "platform_super_admin"]');
-    expect(fleetSource).toMatch(/p11-hero-actions[\s\S]{0,360}Register Vehicle/);
+    expect(fleetSource).toMatch(/p11-hero-actions[\s\S]{0,420}\{isManager \? \(/);
+    expect(fleetSource).toContain("Vehicle registration is managed by your fleet manager.");
+    expect(fleetSource).toContain("Ask your fleet manager to register a vehicle.");
+    expect(fleetSource).toContain("Vehicle and fleet setup is managed by your fleet manager.");
     expect(fleetSource).toContain("{isManager && <button className=\"p11-btn-gold\" onClick={() => setIsDriverDialogOpen(true)}>");
   });
 

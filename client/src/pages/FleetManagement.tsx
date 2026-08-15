@@ -289,10 +289,14 @@ export default function FleetManagement() {
             <div className="p11-hero-subtitle">Register, manage and track your vehicle fleet</div>
           </div>
           <div className="p11-hero-actions">
-            <button className="p11-btn-gold" onClick={() => setIsRegisterDialogOpen(true)}>
-              <Car style={{ width: 13, height: 13 }} />
-              Register Vehicle
-            </button>
+            {isManager ? (
+              <button className="p11-btn-gold" onClick={() => setIsRegisterDialogOpen(true)}>
+                <Car style={{ width: 13, height: 13 }} />
+                Register Vehicle
+              </button>
+            ) : (
+              <span className="text-xs text-muted-foreground">Vehicle registration is managed by your fleet manager.</span>
+            )}
           </div>
         </div>
         <div className="p11-kpi-grid">
@@ -446,10 +450,14 @@ export default function FleetManagement() {
                         <p className="text-muted-foreground mb-4">
                           Get started by registering your first vehicle or importing from a file
                         </p>
-                        <Button onClick={() => setIsRegisterDialogOpen(true)}>
-                          <Car className="mr-2 h-4 w-4" />
-                          Register Vehicle
-                        </Button>
+                        {isManager ? (
+                          <Button onClick={() => setIsRegisterDialogOpen(true)}>
+                            <Car className="mr-2 h-4 w-4" />
+                            Register Vehicle
+                          </Button>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Ask your fleet manager to register a vehicle.</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -809,14 +817,20 @@ export default function FleetManagement() {
               </div>
               <div className="p11-card-body">
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <button className="p11-btn-gold" style={{ width: "100%", justifyContent: "center" }} onClick={() => setIsRegisterDialogOpen(true)}>
-                    <Car style={{ width: 13, height: 13 }} />
-                    Register Vehicle
-                  </button>
-                  <button className="p11-btn-outline" style={{ width: "100%", justifyContent: "center" }} onClick={() => setIsCreateFleetDialogOpen(true)}>
-                    <Plus style={{ width: 13, height: 13 }} />
-                    Create Fleet
-                  </button>
+                  {isManager ? (
+                    <>
+                      <button className="p11-btn-gold" style={{ width: "100%", justifyContent: "center" }} onClick={() => setIsRegisterDialogOpen(true)}>
+                        <Car style={{ width: 13, height: 13 }} />
+                        Register Vehicle
+                      </button>
+                      <button className="p11-btn-outline" style={{ width: "100%", justifyContent: "center" }} onClick={() => setIsCreateFleetDialogOpen(true)}>
+                        <Plus style={{ width: 13, height: 13 }} />
+                        Create Fleet
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Vehicle and fleet setup is managed by your fleet manager.</p>
+                  )}
                   {isManager && <button className="p11-btn-outline" style={{ width: "100%", justifyContent: "center" }} onClick={() => setIsDriverDialogOpen(true)}><UserPlus style={{ width: 13, height: 13 }} /> Assign Driver</button>}
                 </div>
               </div>
