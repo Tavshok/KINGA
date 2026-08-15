@@ -54,6 +54,7 @@ import {
 import { ENV } from './_core/env';
 import { logger } from './logger';
 import * as dbPipeline from './db-pipeline.ts';
+import { getTenantRates } from './db/intelligence-db';
 import { resolveKingaWriteOffRecommendation } from '../shared/writeOffRecommendation';
 
 import type { MySql2Database } from 'drizzle-orm/mysql2';
