@@ -10,6 +10,7 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { buildClaimsManagerCostProjection } from "@/lib/claimsManagerCostProjection";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -180,10 +181,7 @@ export default function ClaimsManagerComparisonView() {
   const aiCost = aiAssessment?.estimatedCost ? aiAssessment.estimatedCost : null;
   const assessorCost = assessorEval?.estimatedRepairCost ? assessorEval.estimatedRepairCost / 100 : null;
 
-  // Find lowest and selected quotes
-  const lowestQuote = quotes && quotes.length > 0 
-    ? quotes.reduce((min: any, q: any) => (q.quotedAmount || 0) < (min.quotedAmount || 0) ? q : min, quotes[0])
-    : null;
+  const claimsManagerCost = buildClaimsManagerCostProjection(aiAssessment?.costIntelligenceJson, quotes);
   const selectedQuote = quotes?.find((q: any) => q.isSelected) || null;
 
   // Calculate variances
@@ -712,9 +710,9 @@ export default function ClaimsManagerComparisonView() {
                   <div className="space-y-4">
                     {quotes.map((quote: any, idx: number) => {
                       const quoteCost = (quote.quotedAmount || 0) / 100;
-                      const isLowest = lowestQuote && quote.id === lowestQuote.id;
+                      const isEligibleComparison = claimsManagerCost.eligibleQuoteIds.has(String(quote.id));
                       const isSelected = selectedQuote && quote.id === selectedQuote.id;
-                      const varianceVsAI = calculateVariance(quoteCost, aiCost);
+                      const varianceVsKinga = calculateVariance(quoteCost, claimsManagerCost.l2OptimisedCostUsd);
 
                       return (
                         <div
@@ -722,8 +720,8 @@ export default function ClaimsManagerComparisonView() {
                           className={`p-4 rounded-lg border-2 ${
                             isSelected 
                               ? "bg-purple-50 dark:bg-purple-950/30 border-purple-400" 
-                              : isLowest 
-                              ? "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-700" 
+                            : isEligibleComparison
+                              ? "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-700"
                               : "bg-slate-50 dark:bg-muted/50 border-slate-200 dark:border-border"
                           }`}
                         >
@@ -737,10 +735,15 @@ export default function ClaimsManagerComparisonView() {
                               )}
                             </div>
                             <div className="flex flex-col gap-1 items-end">
-                              {isLowest && !isRiskManager && (
+                              {isEligibleComparison && !isRiskManager && (
                                 <Badge className="bg-green-600 text-white">
                                   <Award className="h-3 w-3 mr-1" />
-                                  Lowest
+                                  Eligible comparison
+                                </Badge>
+                              )}
+                              {!isEligibleComparison && (
+                                <Badge variant="outline" className="text-xs">
+                                  Quote history
                                 </Badge>
                               )}
                               {isSelected && !isRiskManager && (
@@ -756,14 +759,14 @@ export default function ClaimsManagerComparisonView() {
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-slate-600 dark:text-muted-foreground">Quoted Amount</span>
                               <span className="text-2xl font-bold text-slate-900 dark:text-foreground">
-                                ${quoteCost.toLocaleString()}
+                                {fmt(quoteCost * 100)}
                               </span>
                             </div>
 
-                            {varianceVsAI !== null && !isRiskManager && (
+                            {varianceVsKinga !== null && !isRiskManager && (
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-600 dark:text-muted-foreground">vs KINGA Estimate</span>
-                                <VarianceBadge variance={varianceVsAI} />
+                                <span className="text-xs text-slate-600 dark:text-muted-foreground">vs KINGA Optimised Quote</span>
+                                <VarianceBadge variance={varianceVsKinga} />
                               </div>
                             )}
 
@@ -796,19 +799,40 @@ export default function ClaimsManagerComparisonView() {
                           <span className="text-sm text-slate-600 dark:text-muted-foreground">Total Quotes</span>
                           <span className="font-bold text-slate-900 dark:text-foreground">{quotes.length}</span>
                         </div>
-                        {lowestQuote && (
+                        {claimsManagerCost.l1SubmittedCostUsd !== null && (
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-slate-600 dark:text-muted-foreground">Lowest Quote</span>
+                            <span className="text-sm text-slate-600 dark:text-muted-foreground">Lowest eligible submitted quote (L1)</span>
                             <span className="font-bold text-green-600">
-                              ${(lowestQuote.quotedAmount || 0).toLocaleString()}
+                              {fmt(claimsManagerCost.l1SubmittedCostUsd * 100)}
                             </span>
                           </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-slate-600 dark:text-muted-foreground">KINGA Optimised Quote</span>
+                          <span className="font-bold text-blue-700 dark:text-blue-300">
+                            {claimsManagerCost.costDecision.optimisedQuoteState === "complete" && claimsManagerCost.l2OptimisedCostUsd !== null
+                              ? fmt(claimsManagerCost.l2OptimisedCostUsd * 100)
+                              : "Human review required"}
+                          </span>
+                        </div>
+                        {claimsManagerCost.costDecision.potentialSavingsAmount !== null && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-slate-600 dark:text-muted-foreground">Potential savings</span>
+                            <span className="font-bold text-green-600">
+                              {fmt(claimsManagerCost.costDecision.potentialSavingsAmount * 100)}
+                            </span>
+                          </div>
+                        )}
+                        {claimsManagerCost.historyQuotes.length > 0 && (
+                          <p className="text-xs text-slate-600 dark:text-muted-foreground pt-2 border-t border-purple-200 dark:border-purple-800">
+                            {claimsManagerCost.historyQuotes.length} quotation{claimsManagerCost.historyQuotes.length === 1 ? "" : "s"} retained as history and excluded from L1/L2 comparison.
+                          </p>
                         )}
                         {selectedQuote && (
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-slate-600 dark:text-muted-foreground">Selected Quote</span>
                             <span className="font-bold text-purple-600">
-                              ${(selectedQuote.quotedAmount || 0).toLocaleString()}
+                              {fmt((Number(selectedQuote.quotedAmount) || 0))}
                             </span>
                           </div>
                         )}

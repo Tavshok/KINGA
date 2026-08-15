@@ -17,7 +17,21 @@ vi.mock("wouter", () => ({
 vi.mock("@/lib/trpc", () => ({
   trpc: {
     claims: { getById: { useQuery: () => ({ data: { id: 101, claimNumber: "TRUTH-101", vehicleMake: "Toyota", vehicleModel: "Corolla", vehicleYear: 2022, status: "under_review" }, isLoading: false }) } },
-    aiAssessments: { byClaim: { useQuery: () => ({ data: { estimatedCost: 1100, confidenceScore: 90, fraudRiskScore: 5, fraudRiskLevel: "low" }, isLoading: false }) } },
+    aiAssessments: { byClaim: { useQuery: () => ({ data: {
+      estimatedCost: 1100,
+      confidenceScore: 90,
+      fraudRiskScore: 5,
+      fraudRiskLevel: "low",
+      costIntelligenceJson: JSON.stringify({ compositeOptimisation: {
+        isComplete: true,
+        l1LowestSubmittedCostUsd: 1200,
+        l2CompositeOptimisedCostUsd: 1100,
+        canonicalQuoteLedger: [
+          { quoteId: 1, status: "cancelled", evidenceEligibility: "comparison_only" },
+          { quoteId: 2, status: "active", evidenceEligibility: "final_l2_eligible" },
+        ],
+      } }),
+    }, isLoading: false }) } },
     assessorEvaluations: { byClaim: { useQuery: () => ({ data: null, isLoading: false }) } },
     quotes: { byClaim: { useQuery: () => ({ data: [
       { id: 1, quotedAmount: 80000, status: "cancelled", repairerName: "Withdrawn Repairs" },
@@ -26,7 +40,7 @@ vi.mock("@/lib/trpc", () => ({
   },
 }));
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { role: "claims_manager" } }) }));
-vi.mock("@/hooks/useTenantCurrency", () => ({ useTenantCurrency: () => ({ fmt: (value: number) => `USD ${value.toFixed(2)}` }) }));
+vi.mock("@/hooks/useTenantCurrency", () => ({ useTenantCurrency: () => ({ fmt: (cents: number) => `USD ${(cents / 100).toFixed(2)}` }) }));
 vi.mock("@/components/ui/card", () => ({ Card: ({ children }: any) => children, CardContent: ({ children }: any) => children, CardDescription: ({ children }: any) => children, CardHeader: ({ children }: any) => children, CardTitle: ({ children }: any) => children }));
 vi.mock("@/components/ui/badge", () => ({ Badge: ({ children }: any) => children }));
 vi.mock("@/components/ui/button", () => ({ Button: ({ children }: any) => children }));
@@ -65,24 +79,29 @@ describe("AUD cross-report and UI truth audit — no-write", () => {
     expect(client).toContain("costDecision.potentialSavingsAmount");
   });
 
-  it("records the Claims Manager comparison divergence from canonical L1/L2 authority", () => {
+  it("uses the canonical Claims Manager projection while preserving raw quotation rows only as qualified history", () => {
     const view = read("client/src/pages/ClaimsManagerComparisonView.tsx");
     const query = read("server/db/assessment-db.ts");
 
     expect(view).toContain("trpc.quotes.byClaim.useQuery({ claimId })");
-    expect(view).toContain("quotes.reduce");
-    expect(view).toContain("q.quotedAmount");
-    expect(view).not.toContain("canonicalQuoteLedger");
-    expect(view).not.toContain("l2CompositeOptimisedCostUsd");
+    expect(view).toContain("buildClaimsManagerCostProjection");
+    expect(view).toContain("claimsManagerCost.l1SubmittedCostUsd");
+    expect(view).toContain("claimsManagerCost.l2OptimisedCostUsd");
+    expect(view).toContain("fmt(quoteCost * 100)");
+    expect(view).not.toContain("quotes.reduce");
     expect(query).toContain("where(and(eq(panelBeaterQuotes.claimId, claimId), eq(claims.tenantId, tenantId)))");
-    expect(query).not.toContain("workflowStatus");
   });
 
-  it("renders the actual Claims Manager lowest-quote summary from an ineligible raw cent value", () => {
+  it("renders canonical L1/L2, qualified quote history, and cent-safe raw quotation formatting", () => {
     const html = renderToStaticMarkup(React.createElement(ClaimsManagerComparisonView));
 
-    expect(html).toContain("Lowest Quote");
-    expect(html).toContain("$80,000");
-    expect(html).not.toContain("KINGA Optimised Quote");
+    expect(html).toContain("Lowest eligible submitted quote (L1)");
+    expect(html).toContain("USD 1200.00");
+    expect(html).toContain("KINGA Optimised Quote");
+    expect(html).toContain("USD 1100.00");
+    expect(html).toContain("Quote history");
+    expect(html).toContain("1 quotation retained as history and excluded from L1/L2 comparison.");
+    expect(html).toContain("USD 800.00");
+    expect(html).not.toContain("$80,000");
   });
 });
