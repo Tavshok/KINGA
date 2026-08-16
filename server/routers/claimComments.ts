@@ -178,7 +178,8 @@ export const claimCommentsRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const user = ctx.user;
-      const tenantId = user.tenantId ?? "";
+      const tenantId = user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       const userRole = user.insurerRole ?? user.role ?? "user";
 
       // Validate at least one recipient
@@ -204,15 +205,14 @@ export const claimCommentsRouter = router({
       let claimantName: string | null = null;
       try {
         const [rows] = await conn.execute(
-          `SELECT claimNumber, claimantEmail, claimantPhone FROM claims WHERE id = ? LIMIT 1`,
-          [input.claimId]
+          `SELECT claimNumber, claimantEmail, claimantPhone FROM claims WHERE id = ? AND tenant_id = ? LIMIT 1`,
+          [input.claimId, tenantId]
         );
         const claim = (rows as any[])[0];
-        if (claim) {
-          claimNumber = claim.claimNumber ?? claimNumber;
-          claimantEmail = claim.claimantEmail ?? null;
-          claimantName = claim.claimantName ?? null;
-        }
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+        claimNumber = claim.claimNumber ?? claimNumber;
+        claimantEmail = claim.claimantEmail ?? null;
+        claimantName = claim.claimantName ?? null;
       } finally {
         conn.release();
       }
