@@ -29,12 +29,18 @@ import {
 } from "../driver-registry";
 import { getDb } from "../db";
 
+function requireDriverRegistryTenant(ctx: { user?: { tenantId?: string | null } }) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
 export const driverRegistryRouter = router({
   // ── Get single driver by ID ─────────────────────────────────────────────
   getById: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))
-    .query(async ({ input }) => {
-      const driver = await getDriverById(input.id);
+    .query(async ({ input, ctx }) => {
+      const driver = await getDriverById(input.id, requireDriverRegistryTenant(ctx));
       if (!driver) throw new TRPCError({ code: "NOT_FOUND", message: "Driver not found" });
       return {
         ...driver,
@@ -46,8 +52,8 @@ export const driverRegistryRouter = router({
   // ── Get driver by license number ────────────────────────────────────────
   getByLicense: protectedProcedure
     .input(z.object({ licenseNumber: z.string().min(1) }))
-    .query(async ({ input }) => {
-      const driver = await getDriverByLicense(input.licenseNumber);
+    .query(async ({ input, ctx }) => {
+      const driver = await getDriverByLicense(input.licenseNumber, requireDriverRegistryTenant(ctx));
       if (!driver) throw new TRPCError({ code: "NOT_FOUND", message: "Driver not found" });
       return {
         ...driver,
@@ -63,7 +69,7 @@ export const driverRegistryRouter = router({
       limit: z.number().int().min(1).max(100).default(20),
     }))
     .query(async ({ input, ctx }) => {
-      const results = await searchDrivers(input.query, ctx.user?.tenantId ?? undefined, input.limit);
+      const results = await searchDrivers(input.query, requireDriverRegistryTenant(ctx), input.limit);
       return results.map((d) => ({
         ...d,
         licenseExpired: isLicenseExpired(d.licenseExpiryDate),
@@ -74,17 +80,22 @@ export const driverRegistryRouter = router({
   // ── Get claim history for a driver ─────────────────────────────────────
   getClaimHistory: protectedProcedure
     .input(z.object({ driverId: z.number().int().positive() }))
-    .query(async ({ input }) => {
-      const history = await getDriverClaimHistory(input.driverId);
+    .query(async ({ input, ctx }) => {
+      const history = await getDriverClaimHistory(input.driverId, requireDriverRegistryTenant(ctx));
       return history;
     }),
 
   // ── Get all drivers linked to a specific claim ──────────────────────────
   getClaimDrivers: protectedProcedure
     .input(z.object({ claimId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return [];
+      const tenantId = requireDriverRegistryTenant(ctx);
+
+      const [claim] = await db.select({ id: claims.id }).from(claims)
+        .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId))).limit(1);
+      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
 
       // Join driver_claims with drivers to return full driver info + role
       const rows = await db
@@ -115,7 +126,7 @@ export const driverRegistryRouter = router({
         })
         .from(driverClaims)
         .innerJoin(drivers, eq(driverClaims.driverId, drivers.id))
-        .where(eq(driverClaims.claimId, input.claimId))
+        .where(and(eq(driverClaims.claimId, input.claimId), eq(driverClaims.tenantId, tenantId)))
         .orderBy(driverClaims.role);
 
       return rows.map((r) => ({
@@ -134,10 +145,10 @@ export const driverRegistryRouter = router({
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return [];
-      const tenantId = ctx.user?.tenantId ?? undefined;
+      const tenantId = requireDriverRegistryTenant(ctx);
 
       const conditions = [sql`driver_risk_score >= ${input.minRiskScore}`];
-      if (tenantId) conditions.push(eq(drivers.tenantId, tenantId));
+      conditions.push(eq(drivers.tenantId, tenantId));
 
       const results = await db
         .select()
@@ -158,9 +169,8 @@ export const driverRegistryRouter = router({
     .query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return null;
-      const tenantId = ctx.user?.tenantId ?? undefined;
-
-      const tenantFilter = tenantId ? eq(drivers.tenantId, tenantId) : sql`1=1`;
+      const tenantId = requireDriverRegistryTenant(ctx);
+      const tenantFilter = eq(drivers.tenantId, tenantId);
 
       const [totals] = await db
         .select({
@@ -184,7 +194,7 @@ export const driverRegistryRouter = router({
           thirdPartyLinks: sql<number>`SUM(CASE WHEN role = 'third_party_driver' THEN 1 ELSE 0 END)`,
         })
         .from(driverClaims)
-        .where(tenantId ? eq(driverClaims.tenantId, tenantId) : sql`1=1`);
+        .where(eq(driverClaims.tenantId, tenantId));
 
       return {
         totalDrivers: Number(totals?.totalDrivers ?? 0),
@@ -209,17 +219,18 @@ export const driverRegistryRouter = router({
       isSuspect: z.boolean(),
       notes: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const tenantId = requireDriverRegistryTenant(ctx);
 
-      const driver = await getDriverById(input.driverId);
+      const driver = await getDriverById(input.driverId, tenantId);
       if (!driver) throw new TRPCError({ code: "NOT_FOUND", message: "Driver not found" });
 
       await db
         .update(drivers)
         .set({ isStagedAccidentSuspect: input.isSuspect ? 1 : 0 })
-        .where(eq(drivers.id, input.driverId));
+        .where(and(eq(drivers.id, input.driverId), eq(drivers.tenantId, tenantId)));
 
       return { success: true };
     }),
@@ -239,12 +250,13 @@ export const driverRegistryRouter = router({
       nationalIdNumber: z.string().optional().nullable(),
       licenseCountry: z.string().max(5).optional().nullable(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const tenantId = requireDriverRegistryTenant(ctx);
 
       const { driverId, ...fields } = input;
-      const driver = await getDriverById(driverId);
+      const driver = await getDriverById(driverId, tenantId);
       if (!driver) throw new TRPCError({ code: "NOT_FOUND", message: "Driver not found" });
 
       const updateData: Record<string, unknown> = {};
@@ -264,7 +276,7 @@ export const driverRegistryRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "No fields to update" });
       }
 
-      await db.update(drivers).set(updateData as any).where(eq(drivers.id, driverId));
+      await db.update(drivers).set(updateData as any).where(and(eq(drivers.id, driverId), eq(drivers.tenantId, tenantId)));
       return { success: true };
     }),
 
@@ -277,9 +289,8 @@ export const driverRegistryRouter = router({
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return { drivers: [], total: 0 };
-      const tenantId = ctx.user?.tenantId ?? undefined;
-
-      const tenantFilter = tenantId ? eq(drivers.tenantId, tenantId) : sql`1=1`;
+      const tenantId = requireDriverRegistryTenant(ctx);
+      const tenantFilter = eq(drivers.tenantId, tenantId);
 
       const [rows, [countRow]] = await Promise.all([
         db.select().from(drivers).where(tenantFilter)

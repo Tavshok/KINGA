@@ -234,6 +234,8 @@ export async function matchOrCreateDriver(
 ): Promise<{ driverId: number; isNew: boolean } | null> {
   const db = await getDb();
   if (!db) return null;
+  const tenantId = input.tenantId;
+  if (!tenantId) return null;
 
   const normLicense = normaliseLicenseNumber(input.licenseNumber);
   const normName = normaliseDriverName(input.fullName);
@@ -244,7 +246,7 @@ export async function matchOrCreateDriver(
     const existing = await db
       .select({ id: drivers.id })
       .from(drivers)
-      .where(eq(drivers.licenseNumber, normLicense))
+      .where(and(eq(drivers.licenseNumber, normLicense), eq(drivers.tenantId, tenantId)))
       .limit(1);
 
     if (existing.length > 0) {
@@ -261,7 +263,7 @@ export async function matchOrCreateDriver(
           ...(input.licenseExpiryDate && { licenseExpiryDate: input.licenseExpiryDate }),
           ...(input.nationalIdNumber && { nationalIdNumber: input.nationalIdNumber }),
         })
-        .where(eq(drivers.id, existing[0].id));
+        .where(and(eq(drivers.id, existing[0].id), eq(drivers.tenantId, tenantId)));
       return { driverId: existing[0].id, isNew: false };
     }
   }
@@ -274,7 +276,8 @@ export async function matchOrCreateDriver(
       .where(
         and(
           eq(drivers.fullName, normName),
-          eq(drivers.dateOfBirth, input.dateOfBirth)
+          eq(drivers.dateOfBirth, input.dateOfBirth),
+          eq(drivers.tenantId, tenantId)
         )
       )
       .limit(1);
@@ -288,7 +291,7 @@ export async function matchOrCreateDriver(
           ...(input.phone && { phone: input.phone }),
           ...(input.email && { email: input.email }),
         })
-        .where(eq(drivers.id, existing[0].id));
+        .where(and(eq(drivers.id, existing[0].id), eq(drivers.tenantId, tenantId)));
       return { driverId: existing[0].id, isNew: false };
     }
   }
@@ -301,7 +304,8 @@ export async function matchOrCreateDriver(
       .where(
         and(
           eq(drivers.fullName, normName),
-          eq(drivers.email, input.email.toLowerCase().trim())
+          eq(drivers.email, input.email.toLowerCase().trim()),
+          eq(drivers.tenantId, tenantId)
         )
       )
       .limit(1);
@@ -314,7 +318,7 @@ export async function matchOrCreateDriver(
           ...(normLicense && { licenseNumber: normLicense }),
           ...(input.phone && { phone: input.phone }),
         })
-        .where(eq(drivers.id, existing[0].id));
+        .where(and(eq(drivers.id, existing[0].id), eq(drivers.tenantId, tenantId)));
       return { driverId: existing[0].id, isNew: false };
     }
   }
@@ -328,7 +332,8 @@ export async function matchOrCreateDriver(
       .where(
         and(
           eq(drivers.fullName, normName),
-          eq(drivers.phone, normPhone)
+          eq(drivers.phone, normPhone),
+          eq(drivers.tenantId, tenantId)
         )
       )
       .limit(1);
@@ -341,7 +346,7 @@ export async function matchOrCreateDriver(
           ...(normLicense && { licenseNumber: normLicense }),
           ...(input.email && { email: input.email }),
         })
-        .where(eq(drivers.id, existing[0].id));
+        .where(and(eq(drivers.id, existing[0].id), eq(drivers.tenantId, tenantId)));
       return { driverId: existing[0].id, isNew: false };
     }
   }
@@ -360,7 +365,7 @@ export async function matchOrCreateDriver(
     licenseCountry: input.licenseCountry ?? null,
     dataSource: input.dataSource ?? "unknown",
     ocrConfidenceScore: input.ocrConfidenceScore ?? null,
-    tenantId: input.tenantId ?? null,
+    tenantId,
     firstSeenAt: now,
     createdAt: now,
   };
@@ -377,7 +382,7 @@ export async function matchOrCreateDriver(
       const existing = await db
         .select({ id: drivers.id })
         .from(drivers)
-        .where(eq(drivers.licenseNumber, normLicense))
+        .where(and(eq(drivers.licenseNumber, normLicense), eq(drivers.tenantId, tenantId)))
         .limit(1);
       if (existing.length > 0) {
         return { driverId: existing[0].id, isNew: false };
@@ -409,6 +414,7 @@ export async function linkDriverToClaim(params: {
   if (!db) return;
 
   const { driverId, claimId, role, isAtFault = false, wasInjured = false, fraudRiskScore = 0, tenantId } = params;
+  if (!tenantId) return;
 
   // Insert driver_claims row (ignore duplicate)
   try {
@@ -418,7 +424,7 @@ export async function linkDriverToClaim(params: {
       role,
       isAtFault: isAtFault ? 1 : 0,
       wasInjured: wasInjured ? 1 : 0,
-      tenantId: tenantId ?? null,
+      tenantId,
       createdAt: new Date().toISOString().slice(0, 19).replace("T", " "),
     } as InsertDriverClaim);
   } catch (err: any) {
@@ -436,7 +442,7 @@ export async function linkDriverToClaim(params: {
       claimIdsJson: drivers.claimIdsJson,
     })
     .from(drivers)
-    .where(eq(drivers.id, driverId))
+    .where(and(eq(drivers.id, driverId), eq(drivers.tenantId, tenantId)))
     .limit(1);
 
   if (!driver.length) return;
@@ -470,7 +476,7 @@ export async function linkDriverToClaim(params: {
       claimIdsJson: JSON.stringify(claimIds),
       lastSeenAt: new Date().toISOString().slice(0, 19).replace("T", " "),
     })
-    .where(eq(drivers.id, driverId));
+    .where(and(eq(drivers.id, driverId), eq(drivers.tenantId, tenantId)));
 
   console.log(
     `[DriverRegistry] Linked driver=${driverId} to claim=${claimId} role=${role} totalClaims=${newTotal} riskScore=${newRiskScore}`
@@ -614,37 +620,37 @@ export async function upsertDriverFromClaim(
 
 // ─── Query helpers ────────────────────────────────────────────────────────────
 
-export async function getDriverById(id: number) {
+export async function getDriverById(id: number, tenantId: string) {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.select().from(drivers).where(eq(drivers.id, id)).limit(1);
+  const rows = await db.select().from(drivers).where(and(eq(drivers.id, id), eq(drivers.tenantId, tenantId))).limit(1);
   return rows[0] ?? null;
 }
 
-export async function getDriverByLicense(licenseNumber: string) {
+export async function getDriverByLicense(licenseNumber: string, tenantId: string) {
   const db = await getDb();
   if (!db) return null;
   const norm = normaliseLicenseNumber(licenseNumber);
   if (!norm) return null;
-  const rows = await db.select().from(drivers).where(eq(drivers.licenseNumber, norm)).limit(1);
+  const rows = await db.select().from(drivers).where(and(eq(drivers.licenseNumber, norm), eq(drivers.tenantId, tenantId))).limit(1);
   return rows[0] ?? null;
 }
 
-export async function getDriverClaimHistory(driverId: number) {
+export async function getDriverClaimHistory(driverId: number, tenantId: string) {
   const db = await getDb();
   if (!db) return [];
   return db
     .select()
     .from(driverClaims)
-    .where(eq(driverClaims.driverId, driverId))
+    .where(and(eq(driverClaims.driverId, driverId), eq(driverClaims.tenantId, tenantId)))
     .orderBy(desc(driverClaims.createdAt));
 }
 
-export async function listHighRiskDrivers(tenantId?: string, limit = 50) {
+export async function listHighRiskDrivers(tenantId: string, limit = 50) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [sql`driver_risk_score > 0`];
-  if (tenantId) conditions.push(eq(drivers.tenantId, tenantId));
+  conditions.push(eq(drivers.tenantId, tenantId));
   return db
     .select()
     .from(drivers)
@@ -653,7 +659,7 @@ export async function listHighRiskDrivers(tenantId?: string, limit = 50) {
     .limit(limit);
 }
 
-export async function searchDrivers(query: string, tenantId?: string, limit = 20) {
+export async function searchDrivers(query: string, tenantId: string, limit = 20) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [
@@ -664,7 +670,7 @@ export async function searchDrivers(query: string, tenantId?: string, limit = 20
       like(drivers.phone, `%${query}%`)
     )!,
   ];
-  if (tenantId) conditions.push(eq(drivers.tenantId, tenantId));
+  conditions.push(eq(drivers.tenantId, tenantId));
   return db
     .select()
     .from(drivers)
