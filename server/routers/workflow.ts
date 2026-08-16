@@ -24,7 +24,10 @@ export const workflowRouter = router({
       });
     }
     
-    const tenantId = ctx.user.tenantId || "default";
+    const tenantId = ctx.user.tenantId;
+    if (!tenantId) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+    }
     return await getWorkflowConfig(tenantId);
   }),
 
@@ -53,7 +56,10 @@ export const workflowRouter = router({
         });
       }
       
-      const tenantId = ctx.user.tenantId || "default";
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+      }
       
       await updateWorkflowConfig({
         tenantId,
