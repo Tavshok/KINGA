@@ -14,6 +14,7 @@ import { panelBeaters, aiAssessments, pipelineJobs, insuranceAuditLogs } from ".
 import { insurerTenants, insuranceCarriers, assessors, fleetAccounts, engineerProfiles, inspections, claims } from "../../drizzle/schema";
 import { sendInvitation, getInvitationByToken, acceptInvitation } from "../invitation-service";
 import { sql } from "drizzle-orm";
+import { isAdminRole } from "../../shared/role-permissions";
 
 // Super-admin middleware
 const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -632,8 +633,15 @@ export const adminRouter = router({
     .input(z.object({
       limit: z.number().min(1).max(200).default(50),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       try {
+        if (!(isAdminRole(ctx.user.role) || (ctx.user.role === "insurer" && ["risk_manager", "claims_manager", "executive", "insurer_admin"].includes(ctx.user.insurerRole ?? "")))) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Pipeline health requires an authorised administrative role." });
+        }
+        const tenantId = ctx.user.tenantId;
+        if (!tenantId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required for pipeline health." });
+        }
         const db = await getDb();
         if (!db) throw new Error('DB not available');
         const { aiAssessments } = await import('../../drizzle/schema');
@@ -656,6 +664,7 @@ export const adminRouter = router({
             forensicAnalysis: aiAssessments.forensicAnalysis,
           })
           .from(aiAssessments)
+          .where(eq(aiAssessments.tenantId, tenantId))
           .orderBy(desc(aiAssessments.createdAt))
           .limit(input.limit);
 
