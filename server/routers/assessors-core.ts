@@ -24,6 +24,7 @@ import {
   getClaimsByAssessor,
   getQuotesByClaimId
 } from "../db";
+import { users } from "../../drizzle/schema";
 export const assessorsRouter = router({
   list: protectedProcedure.query(async () => {
     return await getUsersByRole("assessor");
@@ -36,7 +37,14 @@ export const assessorsRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const [assessor] = await db.select({ id: users.id }).from(users)
+        .where(and(eq(users.id, input.assessorId), eq(users.tenantId, tenantId)))
+        .limit(1);
+      if (!assessor) throw new TRPCError({ code: "NOT_FOUND", message: "Assessor not found" });
       
       // Get all claims assigned to this assessor
       const assessments = await getClaimsByAssessor(input.assessorId, tenantId);
