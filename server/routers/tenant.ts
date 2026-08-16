@@ -33,6 +33,14 @@ import {
 } from "../services/tenant-config";
 import { getTenantRates, updateTenantRates } from "../db";
 
+function requireRequestedTenant(ctx: { user?: { tenantId?: string | null } }, requestedTenantId: string) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId || tenantId !== requestedTenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Tenant access denied" });
+  }
+  return tenantId;
+}
+
 /**
  * Tenant configuration router
  */
@@ -42,10 +50,11 @@ export const tenantRouter = router({
    */
   list: protectedProcedure
     .query(async ({ ctx }) => {
-      // For now, return all tenants. In production, filter by user permissions
       const db = await getDb();
       if (!db) return [];
-      const tenants = await db.select().from(insurerTenants);
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Tenant access denied" });
+      const tenants = await db.select().from(insurerTenants).where(eq(insurerTenants.id, tenantId));
       return tenants;
     }),
 
@@ -56,8 +65,8 @@ export const tenantRouter = router({
     .input(z.object({
       tenantId: z.string()
     }))
-    .query(async ({ input }) => {
-      const tenant = await getTenantConfig(input.tenantId);
+    .query(async ({ input, ctx }) => {
+      const tenant = await getTenantConfig(requireRequestedTenant(ctx, input.tenantId));
       
       if (!tenant) {
         throw new TRPCError({
@@ -163,8 +172,8 @@ export const tenantRouter = router({
     .input(z.object({
       tenantId: z.string()
     }))
-    .query(async ({ input }) => {
-      const roleConfig = await getTenantRoleConfig(input.tenantId);
+    .query(async ({ input, ctx }) => {
+      const roleConfig = await getTenantRoleConfig(requireRequestedTenant(ctx, input.tenantId));
       return roleConfig;
     }),
 
@@ -197,8 +206,8 @@ export const tenantRouter = router({
     .input(z.object({
       tenantId: z.string()
     }))
-    .query(async ({ input }) => {
-      const thresholds = await getTenantWorkflowThresholds(input.tenantId);
+    .query(async ({ input, ctx }) => {
+      const thresholds = await getTenantWorkflowThresholds(requireRequestedTenant(ctx, input.tenantId));
       return thresholds;
     }),
 
@@ -231,8 +240,8 @@ export const tenantRouter = router({
     .input(z.object({
       tenantId: z.string()
     }))
-    .query(async ({ input }) => {
-      const slaConfig = await getTenantSlaConfig(input.tenantId);
+    .query(async ({ input, ctx }) => {
+      const slaConfig = await getTenantSlaConfig(requireRequestedTenant(ctx, input.tenantId));
       return slaConfig;
     }),
 
