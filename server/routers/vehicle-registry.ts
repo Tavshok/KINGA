@@ -24,17 +24,23 @@ import {
 } from "../vehicle-registry";
 import { getDb } from "../db";
 import { vehicleRegistry } from "../../drizzle/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+
+function requireVehicleTenant(ctx: { user: { tenantId?: string | null } }) {
+  const tenantId = ctx.user.tenantId;
+  if (!tenantId) throw new Error("A tenant-scoped session is required for vehicle registry access");
+  return tenantId;
+}
 
 export const vehicleRegistryRouter = router({
   /** Get a vehicle registry record by its internal ID. */
   getById: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .query(async ({ input, ctx }) => {
+      const tenantId = requireVehicleTenant(ctx);
       const record = await getVehicleRegistryById(input.id);
       if (!record) return null;
-      // Tenant isolation
-      if (record.tenantId && record.tenantId !== ctx.user.tenantId) return null;
+      if (record.tenantId !== tenantId) return null;
       return record;
     }),
 
@@ -47,9 +53,10 @@ export const vehicleRegistryRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
+      const tenantId = requireVehicleTenant(ctx);
       const record = await findVehicleRegistry(input.vin, input.registration);
       if (!record) return null;
-      if (record.tenantId && record.tenantId !== ctx.user.tenantId) return null;
+      if (record.tenantId !== tenantId) return null;
       return record;
     }),
 
@@ -57,7 +64,7 @@ export const vehicleRegistryRouter = router({
   getClaimHistory: protectedProcedure
     .input(z.object({ vehicleRegistryId: z.number().int().positive() }))
     .query(async ({ input, ctx }) => {
-      return getVehicleClaimHistory(input.vehicleRegistryId, ctx.user.tenantId ?? undefined);
+      return getVehicleClaimHistory(input.vehicleRegistryId, requireVehicleTenant(ctx));
     }),
 
   /** Paginated list of all vehicles, sorted by risk score descending. */
@@ -69,7 +76,7 @@ export const vehicleRegistryRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
-      return listVehicleRegistry(ctx.user.tenantId ?? undefined, input.limit, input.offset);
+      return listVehicleRegistry(requireVehicleTenant(ctx), input.limit, input.offset);
     }),
 
   /** Vehicles with risk score above a threshold. */
@@ -80,7 +87,7 @@ export const vehicleRegistryRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
-      return listHighRiskVehicles(ctx.user.tenantId ?? undefined, input.minRiskScore);
+      return listHighRiskVehicles(requireVehicleTenant(ctx), input.minRiskScore);
     }),
 
   /** Dashboard aggregate stats. */
@@ -88,11 +95,8 @@ export const vehicleRegistryRouter = router({
     const db = await getDb();
     if (!db) return null;
 
-    const tenantId = ctx.user.tenantId;
-
-    const baseWhere = tenantId
-      ? sql`tenant_id = ${tenantId}`
-      : sql`1=1`;
+    const tenantId = requireVehicleTenant(ctx);
+    const baseWhere = sql`tenant_id = ${tenantId}`;
 
     const [totalRow] = await db.execute(
       sql`SELECT
@@ -135,10 +139,11 @@ export const vehicleRegistryRouter = router({
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
+      const tenantId = requireVehicleTenant(ctx);
 
       const record = await getVehicleRegistryById(input.id);
       if (!record) throw new Error("Vehicle not found");
-      if (record.tenantId && record.tenantId !== ctx.user.tenantId) {
+      if (record.tenantId !== tenantId) {
         throw new Error("Access denied");
       }
 
@@ -168,7 +173,7 @@ export const vehicleRegistryRouter = router({
           vehicleRiskScore: newRiskScore,
           updatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
         })
-        .where(eq(vehicleRegistry.id, input.id));
+        .where(and(eq(vehicleRegistry.id, input.id), eq(vehicleRegistry.tenantId, tenantId)));
 
       return { success: true, newRiskScore };
     }),
