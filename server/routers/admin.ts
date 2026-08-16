@@ -797,9 +797,11 @@ export const adminRouter = router({
    */
   getPendingRegistrations: protectedProcedure
     .query(async ({ ctx }) => {
-      if (ctx.user.role !== "admin" && ctx.user.role !== "platform_super_admin") {
+      if (!isAdminRole(ctx.user.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
       }
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
       const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
@@ -819,6 +821,7 @@ export const adminRouter = router({
         .where(and(
           eq(users.emailVerified, 0),
           eq(users.isActive, 1),
+          eq(users.tenantId, tenantId),
           gte(users.createdAt, ninetyDaysAgo)
         ))
         .orderBy(users.createdAt)
@@ -835,9 +838,11 @@ export const adminRouter = router({
   deactivateUser: protectedProcedure
     .input(z.object({ userId: z.number().int().positive() }))
     .mutation(async ({ input, ctx }) => {
-      if (ctx.user.role !== "admin" && ctx.user.role !== "platform_super_admin") {
+      if (!isAdminRole(ctx.user.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
       }
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       if (input.userId === ctx.user.id) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot deactivate your own account" });
       }
@@ -849,7 +854,7 @@ export const adminRouter = router({
           isActive: 0,
           deactivatedAt: now,
         })
-        .where(eq(users.id, input.userId));
+        .where(and(eq(users.id, input.userId), eq(users.tenantId, tenantId)));
       return { success: true, userId: input.userId };
     }),
 
@@ -863,9 +868,11 @@ export const adminRouter = router({
       insurerRole: z.enum(['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']).nullable().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      if (ctx.user.role !== "admin" && ctx.user.role !== "platform_super_admin") {
+      if (!isAdminRole(ctx.user.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
       }
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
       const updateData: Record<string, any> = {};
@@ -874,7 +881,7 @@ export const adminRouter = router({
       if (Object.keys(updateData).length === 0) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "No fields to update" });
       }
-      await db.update(users).set(updateData).where(eq(users.id, input.userId));
+      await db.update(users).set(updateData).where(and(eq(users.id, input.userId), eq(users.tenantId, tenantId)));
       return { success: true, userId: input.userId };
     }),
 
