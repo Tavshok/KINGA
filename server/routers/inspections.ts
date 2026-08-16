@@ -210,9 +210,11 @@ export const inspectionsRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const isAdmin = isAdminRole(ctx.user!.role);
+      const tenantId = ctx.user!.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       const offset = (input.page - 1) * input.pageSize;
 
-      const conditions: any[] = [eq(inspections.tenantId, ctx.user!.tenantId ?? "")];
+      const conditions: any[] = [eq(inspections.tenantId, tenantId)];
       if (!isAdmin) {
         conditions.push(
           sql`(${inspections.assignedEngineerId} = ${ctx.user!.id} OR ${inspections.createdBy} = ${ctx.user!.id})`
@@ -311,14 +313,16 @@ export const inspectionsRouter = router({
       if (!isAdmin) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only admins can manually assign engineers." });
       }
+      const tenantId = ctx.user!.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
 
-      await requireInspectionAccess(ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId);
+      await requireInspectionAccess(ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, tenantId);
       const [engineerProfile] = await ctx.db
         .select({ userId: engineerProfiles.userId })
         .from(engineerProfiles)
         .where(and(
           eq(engineerProfiles.userId, input.engineerUserId),
-          eq(engineerProfiles.tenantId, ctx.user!.tenantId ?? ""),
+          eq(engineerProfiles.tenantId, tenantId),
         ))
         .limit(1);
       if (!engineerProfile) {
@@ -339,7 +343,7 @@ export const inspectionsRouter = router({
         .set({ activeInspections: sql`${engineerProfiles.activeInspections} + 1` })
         .where(and(
           eq(engineerProfiles.userId, input.engineerUserId),
-          eq(engineerProfiles.tenantId, ctx.user!.tenantId ?? ""),
+          eq(engineerProfiles.tenantId, tenantId),
         ));
 
       return { success: true };
@@ -925,14 +929,16 @@ export const inspectionsRouter = router({
       claimId: z.number().int().positive().nullable(),
     }))
     .mutation(async ({ ctx, input }) => {
+      const tenantId = ctx.user!.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       await requireInspectionAccess(
-        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId,
+        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, tenantId,
       );
       if (input.claimId !== null) {
         const [claim] = await ctx.db
           .select({ id: claims.id })
           .from(claims)
-          .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, ctx.user!.tenantId ?? "")))
+          .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId)))
           .limit(1);
         if (!claim) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found." });
