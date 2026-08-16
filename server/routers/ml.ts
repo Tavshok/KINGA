@@ -42,6 +42,12 @@ export const mlRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      const [claim] = await db.select({ id: historicalClaims.id }).from(historicalClaims)
+        .where(and(eq(historicalClaims.id, input.claimId), eq(historicalClaims.tenantId, requireMlTenant(ctx))))
+        .limit(1);
+      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Historical claim not found" });
       const result = await calculateConfidenceScore(input.claimId);
       return result;
     }),
@@ -56,7 +62,7 @@ export const mlRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.user.tenantId || "default";
+      const tenantId = requireMlTenant(ctx);
       const result = await processClaimConfidenceScore(input.claimId, tenantId);
       return result;
     }),
@@ -112,7 +118,7 @@ export const mlRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      const tenantId = ctx.user.tenantId || "default";
+      const tenantId = requireMlTenant(ctx);
 
       let query = db
         .select({
@@ -210,7 +216,7 @@ export const mlRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-    const tenantId = ctx.user.tenantId || "default";
+    const tenantId = requireMlTenant(ctx);
 
     // Get counts by status
     const allItems = await db

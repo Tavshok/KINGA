@@ -1956,5 +1956,6 @@ which is for corporate fleet operators.
 - [ ] Residual P0 tenant-fallback audit: replace all `default` tenant fallbacks and tenantless administrative assessment reads in `ai-assessments-core.ts`, retaining explicit platform-super-admin paths only where separately authorised.
 - [x] Residual P0 approval tenant-fallback audit: replaced every approval-template and approval-record `default` tenant fallback with a required session tenant and retained tenant scope on reads and writes. Evidence: `audit/approval-tenant-fallback-authority-correction-2026-08-16.md`.
 - [ ] Residual P0 report/claim fallback audit: remove static tenant fallbacks from `claim-reports-core.ts`, `claims-core.ts`, and `quotes-core.ts` without weakening their existing claim object checks.
-- [ ] Residual P0 fleet/ML fallback audit: remove static tenant fallbacks from remaining fleet service writes and ML confidence/training reads, updates, and aggregates.
+- [ ] Residual P0 fleet fallback audit: remove static tenant fallbacks from remaining fleet service writes while retaining managed-fleet authority.
+- [x] Residual P0 ML fallback audit: removed static tenant fallbacks from ML confidence processing, review queues, and aggregates; direct scoring now resolves tenant-owned historical claims. Evidence: `audit/ml-tenant-fallback-authority-correction-2026-08-16.md`.
 - [ ] Residual P0 valuation fallback audit: remove the remaining administrative/default tenant path in `vehicle-valuation-core.ts` while preserving explicit audited platform access if required.
