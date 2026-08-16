@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { isAdminRole } from "../shared/role-permissions";
 
 // ---------------------------------------------------------------------------
 // Minimal mock of the db helpers used by the procedures
@@ -104,7 +105,7 @@ describe("Panel beater procedure logic", () => {
 describe("getMenuItems role-aware sidebar logic", () => {
   // Inline the logic (mirrors DashboardLayout.tsx) so we can unit-test it
   function getMenuItems(role: string | undefined, insurerRole: string | null | undefined) {
-    if (role === "admin" || role === "platform_super_admin") {
+    if (isAdminRole(role)) {
       return ["Admin Dashboard", "Tenant Management", "Tier Management"];
     }
     if (role === "insurer") {

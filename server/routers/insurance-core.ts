@@ -141,7 +141,7 @@ export const insuranceCoreRouter = router({
       const { getQuoteById } = await import('../insurance/insurance-db');
       const quote = await getQuoteById(input.quoteId);
       if (!quote) return null;
-      const isAdmin = ctx.user.role === "admin" || ctx.user.role === "platform_super_admin";
+      const isAdmin = isAdminRole(ctx.user.role);
       if (!isAdmin && quote.customerId !== ctx.user.id) {
         throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this quotation." });
       }

@@ -18,6 +18,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TRPCError } from "@trpc/server";
 import { REPORT_ACCESS } from "./reporting/reportDefinitions";
 import type { TrpcContext } from "./_core/context";
+import { isAdminRole } from "../shared/role-permissions";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -200,7 +201,7 @@ describe("Tenant isolation logic", () => {
     ctxTenantId: string | undefined,
     role: string
   ): string | null {
-    if (role === "admin") return inputTenantId ?? ctxTenantId ?? null;
+    if (isAdminRole(role)) return inputTenantId ?? ctxTenantId ?? null;
     // Non-admin: always use their own tenantId, ignore input override
     return ctxTenantId ?? null;
   }

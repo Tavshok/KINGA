@@ -28,6 +28,7 @@ import { TRPCError } from "@trpc/server";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { router } from "../_core/trpc";
 import { engineerDomainProcedure } from "../_core/domain-middleware";
+import { isAdminRole } from "@shared/role-permissions";
 import {
   inspections,
   physicalMeasurements,
@@ -93,7 +94,7 @@ async function requireInspectionAccess(
     throw new TRPCError({ code: "NOT_FOUND", message: "Inspection not found." });
   }
 
-  const isAdmin = userRole === "admin" || userRole === "platform_super_admin";
+  const isAdmin = isAdminRole(userRole);
   if (!isAdmin && inspection.assignedEngineerId !== userId && inspection.createdBy !== userId) {
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -202,7 +203,7 @@ export const inspectionsRouter = router({
       pageSize: z.number().int().min(1).max(100).default(20),
     }))
     .query(async ({ input, ctx }) => {
-      const isAdmin = ctx.user!.role === "admin" || ctx.user!.role === "platform_super_admin";
+      const isAdmin = isAdminRole(ctx.user!.role);
       const offset = (input.page - 1) * input.pageSize;
 
       const conditions: any[] = [];
@@ -300,7 +301,7 @@ export const inspectionsRouter = router({
       engineerUserId: z.number().int().positive(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const isAdmin = ctx.user!.role === "admin" || ctx.user!.role === "platform_super_admin";
+      const isAdmin = isAdminRole(ctx.user!.role);
       if (!isAdmin) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only admins can manually assign engineers." });
       }
@@ -880,7 +881,7 @@ export const inspectionsRouter = router({
         .where(eq(inspections.id, input.inspectionId))
         .limit(1);
       if (!insp) throw new TRPCError({ code: 'NOT_FOUND', message: 'Inspection not found' });
-      const isAdmin = ctx.user!.role === 'admin' || ctx.user!.role === 'platform_super_admin';
+      const isAdmin = isAdminRole(ctx.user!.role);
       if (!isAdmin && insp.createdBy !== ctx.user!.id) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not own this inspection' });
       }

@@ -9,6 +9,7 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { sql } from "drizzle-orm";
 import { auditP0CrossTenantAccess, resolveP0TenantScope, validateP0TenantScope, type P0ScopeContext, type P0TenantScope } from "../security/p0TenantBoundary";
+import { isAdminRole } from "@shared/role-permissions";
 
 const tenantInput = z.object({ tenantId: z.string().optional() });
 const boundedLimit = z.number().int().min(1).max(200).default(50);
@@ -19,7 +20,7 @@ const intelligenceInsurerRoles = new Set([
 export function assertIntelligenceRole(ctx: P0ScopeContext & { user: { insurerRole?: string | null } }): void {
   const role = ctx.user.role;
   const insurerRole = ctx.user.insurerRole ?? null;
-  if (role === "platform_super_admin" || role === "admin") return;
+  if (isAdminRole(role)) return;
   if (role === "insurer" && insurerRole && intelligenceInsurerRoles.has(insurerRole)) return;
   throw new TRPCError({ code: "FORBIDDEN", message: "Authorised intelligence role required." });
 }

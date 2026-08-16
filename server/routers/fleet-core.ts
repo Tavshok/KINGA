@@ -15,6 +15,7 @@ import {
   auditTrail, notifications
 } from "../../drizzle/schema";
 import { nanoid } from "nanoid";
+import { isAdminRole } from "@shared/role-permissions";
 
 export const fleetCoreRouter = router({
   // Create a new fleet
@@ -74,8 +75,8 @@ export const fleetCoreRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
-      const managerRoles = ["fleet_manager", "fleet_admin", "admin", "platform_super_admin"];
-      if (!managerRoles.includes(ctx.user.role)) {
+      const isFleetManager = ["fleet_manager", "fleet_admin"].includes(ctx.user.role) || isAdminRole(ctx.user.role);
+      if (!isFleetManager) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only a fleet manager or administrator can assign a driver." });
       }
 
@@ -86,7 +87,7 @@ export const fleetCoreRouter = router({
         .limit(1);
       if (!fleet) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet not found." });
 
-      const isPlatformAdmin = ctx.user.role === "admin" || ctx.user.role === "platform_super_admin";
+      const isPlatformAdmin = isAdminRole(ctx.user.role);
       const managesFleet = fleet.ownerId === ctx.user.id || (ctx.user.tenantId && fleet.tenantId === ctx.user.tenantId);
       if (!isPlatformAdmin && !managesFleet) {
         throw new TRPCError({ code: "FORBIDDEN", message: "You can only assign drivers to a fleet you manage." });
@@ -219,12 +220,12 @@ export const fleetCoreRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
-      const managerRoles = ["fleet_manager", "fleet_admin", "admin", "platform_super_admin"];
-      if (!managerRoles.includes(ctx.user.role)) {
+      const isFleetManager = ["fleet_manager", "fleet_admin"].includes(ctx.user.role) || isAdminRole(ctx.user.role);
+      if (!isFleetManager) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Fleet management intelligence is available to authorised managers only." });
       }
 
-      const isPlatformAdmin = ctx.user.role === "admin" || ctx.user.role === "platform_super_admin";
+      const isPlatformAdmin = isAdminRole(ctx.user.role);
       const fleetScope = isPlatformAdmin
         ? await db.select({ id: fleets.id, tenantId: fleets.tenantId, fleetName: fleets.fleetName }).from(fleets)
         : await db.select({ id: fleets.id, tenantId: fleets.tenantId, fleetName: fleets.fleetName }).from(fleets)
