@@ -18,6 +18,20 @@ import {
 import { nanoid } from "nanoid";
 import { storagePut } from "../storage";
 import { isAdminRole } from "../../shared/role-permissions";
+
+function requireActorTenant(tenantId: string | null | undefined): string {
+  if (!tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required." });
+  }
+  return tenantId;
+}
+
+function requireQuoteTenant(quote: { tenantId: string | null }, actorTenantId: string): void {
+  if (quote.tenantId !== actorTenantId) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Quote not found" });
+  }
+}
+
 export const insuranceCoreRouter = router({
   // Get vehicle valuation estimate
   getVehicleValuation: publicProcedure
@@ -141,8 +155,9 @@ export const insuranceCoreRouter = router({
       const { getQuoteById } = await import('../insurance/insurance-db');
       const quote = await getQuoteById(input.quoteId);
       if (!quote) return null;
-      const isAdmin = isAdminRole(ctx.user.role);
-      if (!isAdmin && quote.customerId !== ctx.user.id) {
+      const actorTenantId = requireActorTenant(ctx.user.tenantId);
+      requireQuoteTenant(quote, actorTenantId);
+      if (!isAdminRole(ctx.user.role) && quote.customerId !== ctx.user.id) {
         throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this quotation." });
       }
       return quote;
@@ -209,12 +224,11 @@ export const insuranceCoreRouter = router({
       if (ctx.user.role !== 'insurer' && !isAdminRole(ctx.user.role)) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only insurers can verify payments' });
       }
-      const paymentScope = isAdminRole(ctx.user.role)
-        ? eq(insuranceQuotes.status, 'payment_submitted')
-        : and(
-            eq(insuranceQuotes.status, 'payment_submitted'),
-            eq(insuranceQuotes.tenantId, ctx.user.tenantId ?? '__unassigned__'),
-          );
+      const actorTenantId = requireActorTenant(ctx.user.tenantId);
+      const paymentScope = and(
+        eq(insuranceQuotes.status, 'payment_submitted'),
+        eq(insuranceQuotes.tenantId, actorTenantId),
+      );
       const pendingQuotes = await db.select()
         .from(insuranceQuotes)
         .where(paymentScope)
@@ -351,7 +365,11 @@ export const insuranceCoreRouter = router({
       
       const policy = policies[0];
       
-      // Verify ownership
+      const actorTenantId = requireActorTenant(ctx.user.tenantId);
+      if (policy.tenantId !== actorTenantId) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Policy not found' });
+      }
+      // Verify ownership after tenant scope is established.
       if (!isAdminRole(ctx.user.role) && policy.customerId !== ctx.user.id) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this policy' });
       }
