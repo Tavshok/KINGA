@@ -6,7 +6,6 @@ import { ingestionBatches, ingestionDocuments, extractedDocumentData, claims } f
 import { storagePut } from "../storage";
 import { eq, and, desc, isNull } from "drizzle-orm";
 import crypto from "crypto";
-import { isAdminRole } from "@shared/role-permissions";
 
 /**
  * Generate a unique claim number for document-ingested claims.
@@ -17,6 +16,17 @@ function generateClaimNumber(): string {
   const datePart = date.toISOString().slice(0, 10).replace(/-/g, "");
   const randomPart = crypto.randomBytes(4).toString("hex").toUpperCase();
   return `DOC-${datePart}-${randomPart}`;
+}
+
+function requireSessionTenant(ctx: { user: { tenantId?: string | null } }) {
+  const tenantId = ctx.user.tenantId;
+  if (!tenantId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "User must be associated with a tenant. Please contact your administrator to assign you to a tenant.",
+    });
+  }
+  return tenantId;
 }
 
 /**
@@ -57,20 +67,7 @@ export const documentIngestionRouter = router({
         });
 
         const { batch_name, ingestion_source, documents } = input;
-        let tenantId = ctx.user.tenantId;
-
-        // Auto-assign default tenant for admin users during testing
-        if (!tenantId && isAdminRole(ctx.user.role)) {
-          tenantId = "test-ops-001";
-        }
-
-        if (!tenantId) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message:
-              "User must be associated with a tenant. Please contact your administrator to assign you to a tenant.",
-          });
-        }
+        const tenantId = requireSessionTenant(ctx);
 
         // Generate batch UUID (used for S3 path only)
         const batchUuid = crypto.randomUUID();
@@ -221,7 +218,7 @@ export const documentIngestionRouter = router({
                 await tx
                   .update(ingestionDocuments)
                   .set({ historicalClaimId: claimDbId })
-                  .where(eq(ingestionDocuments.id, docDbId));
+                  .where(and(eq(ingestionDocuments.id, docDbId), eq(ingestionDocuments.tenantId, tenantId)));
 
                 console.log("[Document Upload] [TX] COMMIT — document and claim created atomically.");
 
@@ -291,7 +288,7 @@ export const documentIngestionRouter = router({
             status: failedCount === documents.length ? "failed" : "completed",
             completedAt: new Date().toISOString(),
           })
-          .where(eq(ingestionBatches.id, batchDbId));
+          .where(and(eq(ingestionBatches.id, batchDbId), eq(ingestionBatches.tenantId, tenantId)));
 
         console.log(
           `[Document Upload] Batch complete. Uploaded: ${successCount}` +
@@ -338,12 +335,7 @@ export const documentIngestionRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
-      let tenantId = ctx.user.tenantId;
-      if (!tenantId && isAdminRole(ctx.user.role)) tenantId = "test-ops-001";
-
-      if (!tenantId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "User must be associated with a tenant" });
-      }
+      const tenantId = requireSessionTenant(ctx);
 
       const dbInstance = await getDb();
       if (!dbInstance)
@@ -370,12 +362,7 @@ export const documentIngestionRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
-      let tenantId = ctx.user.tenantId;
-      if (!tenantId && isAdminRole(ctx.user.role)) tenantId = "test-ops-001";
-
-      if (!tenantId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "User must be associated with a tenant" });
-      }
+      const tenantId = requireSessionTenant(ctx);
 
       const dbInstance = await getDb();
       if (!dbInstance)
@@ -405,12 +392,7 @@ export const documentIngestionRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
-      let tenantId = ctx.user.tenantId;
-      if (!tenantId && isAdminRole(ctx.user.role)) tenantId = "test-ops-001";
-
-      if (!tenantId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "User must be associated with a tenant" });
-      }
+      const tenantId = requireSessionTenant(ctx);
 
       const dbInstance = await getDb();
       if (!dbInstance)
@@ -466,12 +448,7 @@ export const documentIngestionRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      let tenantId = ctx.user.tenantId;
-      if (!tenantId && isAdminRole(ctx.user.role)) tenantId = "test-ops-001";
-
-      if (!tenantId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "User must be associated with a tenant" });
-      }
+      const tenantId = requireSessionTenant(ctx);
 
       const dbInstance = await getDb();
       if (!dbInstance)
@@ -501,7 +478,7 @@ export const documentIngestionRouter = router({
           classificationConfidence: confidence.toString(),
           classificationMethod: input.classification_method,
         })
-        .where(eq(ingestionDocuments.id, input.document_id));
+        .where(and(eq(ingestionDocuments.id, input.document_id), eq(ingestionDocuments.tenantId, tenantId)));
 
       return {
         document_id: input.document_id,
@@ -521,12 +498,7 @@ export const documentIngestionRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      let tenantId = ctx.user.tenantId;
-      if (!tenantId && isAdminRole(ctx.user.role)) tenantId = "test-ops-001";
-
-      if (!tenantId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "User must be associated with a tenant" });
-      }
+      const tenantId = requireSessionTenant(ctx);
 
       const dbInstance = await getDb();
       if (!dbInstance)
@@ -553,7 +525,7 @@ export const documentIngestionRouter = router({
           validatedByUserId: ctx.user.id,
           validatedAt: new Date().toISOString(),
         })
-        .where(eq(ingestionDocuments.id, input.document_id));
+        .where(and(eq(ingestionDocuments.id, input.document_id), eq(ingestionDocuments.tenantId, tenantId)));
 
       return {
         document_id: input.document_id,
