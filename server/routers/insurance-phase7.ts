@@ -471,10 +471,15 @@ export const insurancePhase7Router = router({
     }))
     .mutation(async ({ input, ctx }) => {
       assertRestrictedAgencyAssistedCapability(ctx.user, "insurance_quote_acceptance");
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
       const [request] = await db.select().from(quotationRequests)
-        .where(eq(quotationRequests.id, input.quotationRequestId))
+        .where(and(
+          eq(quotationRequests.id, input.quotationRequestId),
+          eq(quotationRequests.tenantId, tenantId),
+        ))
         .limit(1);
       if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Quotation request not found" });
       // Only the client who submitted the request (matched by email) may accept it
@@ -491,7 +496,10 @@ export const insurancePhase7Router = router({
       }
       await db.update(quotationRequests)
         .set({ status: "accepted" } as any)
-        .where(eq(quotationRequests.id, input.quotationRequestId));
+        .where(and(
+          eq(quotationRequests.id, input.quotationRequestId),
+          eq(quotationRequests.tenantId, tenantId),
+        ));
       // Notify the assigned agent
       if (request.assignedAgentId) {
         try {
