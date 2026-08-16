@@ -24,9 +24,23 @@ const replayProcedure = protectedProcedure.use(async ({ ctx, next }) => {
   if (!ctx.user.insurerRole || !allowedRoles.includes(ctx.user.insurerRole)) {
     throw new Error(`Forbidden: Requires one of the following roles: ${allowedRoles.join(", ")}`);
   }
+  if (!ctx.user.tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  }
   
   return next({ ctx });
 });
+
+async function requireTenantHistoricalClaim(historicalClaimId: number, tenantId: string) {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+  const [claim] = await db
+    .select({ id: historicalClaims.id })
+    .from(historicalClaims)
+    .where(and(eq(historicalClaims.id, historicalClaimId), eq(historicalClaims.tenantId, tenantId)))
+    .limit(1);
+  if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Historical claim not found" });
+}
 
 export const claimReplayRouter = router({
   /**
@@ -37,8 +51,10 @@ export const claimReplayRouter = router({
       historicalClaimId: z.number().int().positive(),
     }))
     .mutation(async ({ input, ctx }) => {
+      await requireTenantHistoricalClaim(input.historicalClaimId, ctx.user.tenantId!);
       const result = await replayHistoricalClaim(
         input.historicalClaimId,
+        ctx.user.tenantId!,
         ctx.user.id
       );
       
@@ -194,7 +210,8 @@ export const claimReplayRouter = router({
       
       for (const historicalClaimId of input.historicalClaimIds) {
         try {
-          const result = await replayHistoricalClaim(historicalClaimId, ctx.user.id);
+          await requireTenantHistoricalClaim(historicalClaimId, ctx.user.tenantId!);
+          const result = await replayHistoricalClaim(historicalClaimId, ctx.user.tenantId!, ctx.user.id);
           results.push({
             historicalClaimId,
             success: true,

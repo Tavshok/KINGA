@@ -283,6 +283,7 @@ export function calculateComparisonMetrics(
  */
 export async function storeReplayResults(
   historicalClaimId: number,
+  tenantId: string,
   claim: any,
   aiAssessment: ReplayAiAssessmentResult,
   routingResult: ReplayRoutingDecisionResult,
@@ -296,7 +297,10 @@ export async function storeReplayResults(
   const existingReplays = await db
     .select()
     .from(historicalReplayResults)
-    .where(eq(historicalReplayResults.historicalClaimId, historicalClaimId))
+    .where(and(
+      eq(historicalReplayResults.historicalClaimId, historicalClaimId),
+      eq(historicalReplayResults.tenantId, tenantId)
+    ))
     .orderBy(desc(historicalReplayResults.replayVersion))
     .limit(1);
   
@@ -349,7 +353,10 @@ export async function storeReplayResults(
       lastReplayedAt: new Date().toISOString(),
       replayCount: (claim.replayCount || 0) + 1,
     })
-    .where(eq(historicalClaims.id, historicalClaimId));
+    .where(and(
+      eq(historicalClaims.id, historicalClaimId),
+      eq(historicalClaims.tenantId, tenantId)
+    ));
   
   return result.insertId;
 }
@@ -359,6 +366,7 @@ export async function storeReplayResults(
  */
 export async function replayHistoricalClaim(
   historicalClaimId: number,
+  tenantId: string,
   replayedByUserId: number
 ): Promise<{
   replayResultId: number;
@@ -373,7 +381,10 @@ export async function replayHistoricalClaim(
   const [claim] = await db
     .select()
     .from(historicalClaims)
-    .where(eq(historicalClaims.id, historicalClaimId))
+    .where(and(
+      eq(historicalClaims.id, historicalClaimId),
+      eq(historicalClaims.tenantId, tenantId)
+    ))
     .limit(1);
   
   if (!claim) {
@@ -397,6 +408,7 @@ export async function replayHistoricalClaim(
   // Step 4: Store results
   const replayResultId = await storeReplayResults(
     historicalClaimId,
+    tenantId,
     claim,
     aiAssessment,
     routingResult,
