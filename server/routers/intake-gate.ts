@@ -410,17 +410,21 @@ export const intakeGateRouter = router({
         message: "Only Claims Managers and Executives can view auto-assignment stats",
       });
     }
+    const tenantId = ctx.user.tenantId;
+    if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
 
     // Query auto-assignments in last 24 hours
-    // Note: audit_trail has no tenantId column — filter by action only
+    // audit_trail inherits tenant scope through its parent claim.
     const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     const result = await db
       .select({ count: sql<number>`count(*)` })
       .from(auditTrail)
+      .innerJoin(claims, eq(auditTrail.claimId, claims.id))
       .where(
         and(
           eq(auditTrail.action, "INTAKE_AUTO_ASSIGN"),
+          eq(claims.tenantId, tenantId),
           sql`${auditTrail.createdAt} >= ${last24Hours}`
         )
       );
