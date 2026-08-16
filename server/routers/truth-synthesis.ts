@@ -122,7 +122,13 @@ const getAssessorVarianceAnalytics = protectedProcedure
       limit: z.number().default(100),
     })
   )
-  .query(async ({ input }) => {
+  .query(async ({ input, ctx }) => {
+    // assessor_deviation_metrics has no tenant key. It cannot be safely
+    // presented as tenant intelligence until a governed attribution migration
+    // exists, so restrict the aggregate to explicit platform observability.
+    if (ctx.user.role !== "platform_super_admin") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Platform observability access is required" });
+    }
     const db = await getDb();
     if (!db) throw new Error("Database not available");
 
