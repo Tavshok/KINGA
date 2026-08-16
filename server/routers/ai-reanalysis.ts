@@ -13,6 +13,13 @@ import { claims, aiAssessments, auditTrail } from "../../drizzle/schema";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 import { getRolePermissions, getAccessibleQueues } from "../../shared/role-permissions";
 
+function requireReanalysisTenant(tenantId: string | null | undefined): string {
+  if (!tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  }
+  return tenantId;
+}
+
 /**
  * AI Re-Analysis Router
  */
@@ -39,7 +46,7 @@ export const aiReanalysisRouter = router({
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const userId = ctx.user.id;
       const userRole = ctx.user.insurerRole;
-      const tenantId = ctx.user.tenantId;
+      const tenantId = requireReanalysisTenant(ctx.user.tenantId);
       // 1. Validate user has insurer role
       if (!userRole) {
         throw new TRPCError({
@@ -55,7 +62,7 @@ export const aiReanalysisRouter = router({
         .where(
           and(
             eq(claims.id, input.claimId),
-            tenantId ? eq(claims.tenantId, tenantId) : undefined
+            eq(claims.tenantId, tenantId)
           )
         )
         .limit(1);
@@ -86,6 +93,7 @@ export const aiReanalysisRouter = router({
         .where(
           and(
             eq(aiAssessments.claimId, input.claimId),
+            eq(aiAssessments.tenantId, tenantId),
             eq(aiAssessments.isReanalysis, 1),
             sql`${aiAssessments.createdAt} >= ${oneDayAgo}`
           )
@@ -106,6 +114,7 @@ export const aiReanalysisRouter = router({
         .where(
           and(
             eq(aiAssessments.claimId, input.claimId),
+            eq(aiAssessments.tenantId, tenantId),
             eq(aiAssessments.isReanalysis, 1),
             sql`${aiAssessments.createdAt} >= ${fiveMinutesAgo}`
           )
@@ -123,7 +132,10 @@ export const aiReanalysisRouter = router({
       const [originalAssessment] = await db
         .select()
         .from(aiAssessments)
-        .where(eq(aiAssessments.claimId, input.claimId))
+        .where(and(
+          eq(aiAssessments.claimId, input.claimId),
+          eq(aiAssessments.tenantId, tenantId),
+        ))
         .orderBy(desc(aiAssessments.createdAt))
         .limit(1);
 
@@ -131,7 +143,10 @@ export const aiReanalysisRouter = router({
       const [maxVersion] = await db
         .select({ maxVersion: sql<number>`MAX(${aiAssessments.versionNumber})` })
         .from(aiAssessments)
-        .where(eq(aiAssessments.claimId, input.claimId));
+        .where(and(
+          eq(aiAssessments.claimId, input.claimId),
+          eq(aiAssessments.tenantId, tenantId),
+        ));
 
       const nextVersion = (maxVersion?.maxVersion || 0) + 1;
 
@@ -170,7 +185,10 @@ export const aiReanalysisRouter = router({
             aiAssessmentCompleted: 0,
             aiAssessmentStartedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
             aiAssessmentCompletedAt: null,
-          }).where(eq(claims.id, input.claimId));
+          }).where(and(
+            eq(claims.id, input.claimId),
+            eq(claims.tenantId, tenantId),
+          ));
         }
       } catch (preflightErr) {
         console.warn(`[AI Re-analysis] Pre-flight status reset failed for claim ${input.claimId} (non-fatal):`, preflightErr);
@@ -188,7 +206,10 @@ export const aiReanalysisRouter = router({
             const [newAssessment] = await dbInner
               .select()
               .from(aiAssessments)
-              .where(eq(aiAssessments.claimId, input.claimId))
+              .where(and(
+                eq(aiAssessments.claimId, input.claimId),
+                eq(aiAssessments.tenantId, tenantId),
+              ))
               .orderBy(desc(aiAssessments.createdAt))
               .limit(1);
             if (newAssessment) {
@@ -199,7 +220,10 @@ export const aiReanalysisRouter = router({
                 previousAssessmentId,
                 reanalysisReason: input.reason || null,
                 versionNumber: nextVersion,
-              }).where(eq(aiAssessments.id, newAssessment.id));
+              }).where(and(
+                eq(aiAssessments.id, newAssessment.id),
+                eq(aiAssessments.tenantId, tenantId),
+              ));
             }
           }
         } catch (pipelineErr: any) {
@@ -226,14 +250,14 @@ export const aiReanalysisRouter = router({
         .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-      const tenantId = ctx.user.tenantId;
+      const tenantId = requireReanalysisTenant(ctx.user.tenantId);
       const [claim] = await db
         .select()
         .from(claims)
         .where(
           and(
             eq(claims.id, input.claimId),
-            tenantId ? eq(claims.tenantId, tenantId) : undefined
+            eq(claims.tenantId, tenantId)
           )
         )
         .limit(1);
@@ -248,7 +272,10 @@ export const aiReanalysisRouter = router({
       const assessments = await db
         .select()
         .from(aiAssessments)
-        .where(eq(aiAssessments.claimId, input.claimId))
+        .where(and(
+          eq(aiAssessments.claimId, input.claimId),
+          eq(aiAssessments.tenantId, tenantId),
+        ))
         .orderBy(aiAssessments.versionNumber);
 
       return {
@@ -281,17 +308,23 @@ export const aiReanalysisRouter = router({
         .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-      const tenantId = ctx.user.tenantId;
+      const tenantId = requireReanalysisTenant(ctx.user.tenantId);
       const [assessment1] = await db
         .select()
         .from(aiAssessments)
-        .where(eq(aiAssessments.id, input.assessmentId1))
+        .where(and(
+          eq(aiAssessments.id, input.assessmentId1),
+          eq(aiAssessments.tenantId, tenantId),
+        ))
         .limit(1);
 
       const [assessment2] = await db
         .select()
         .from(aiAssessments)
-        .where(eq(aiAssessments.id, input.assessmentId2))
+        .where(and(
+          eq(aiAssessments.id, input.assessmentId2),
+          eq(aiAssessments.tenantId, tenantId),
+        ))
         .limit(1);
 
       if (!assessment1 || !assessment2) {
@@ -305,13 +338,6 @@ export const aiReanalysisRouter = router({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Assessments must belong to the same claim",
-        });
-      }
-
-      if (tenantId && (assessment1.tenantId !== tenantId || assessment2.tenantId !== tenantId)) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Access denied to one or both assessments",
         });
       }
 
@@ -362,7 +388,7 @@ export const aiReanalysisRouter = router({
         .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-      const tenantId = ctx.user.tenantId;
+      const tenantId = requireReanalysisTenant(ctx.user.tenantId);
       const userRole = ctx.user.insurerRole;
       if (userRole !== "executive" && userRole !== "insurer_admin") {
         throw new TRPCError({
@@ -383,7 +409,7 @@ export const aiReanalysisRouter = router({
           and(
             eq(aiAssessments.isReanalysis, 1),
             sql`${aiAssessments.createdAt} >= ${daysAgo}`,
-            tenantId ? eq(aiAssessments.tenantId, tenantId) : undefined
+            eq(aiAssessments.tenantId, tenantId)
           )
         )
         .groupBy(sql`${aiAssessments.triggeredRole}`);
@@ -395,7 +421,7 @@ export const aiReanalysisRouter = router({
           and(
             eq(aiAssessments.isReanalysis, 1),
             sql`${aiAssessments.createdAt} >= ${daysAgo}`,
-            tenantId ? eq(aiAssessments.tenantId, tenantId) : undefined
+            eq(aiAssessments.tenantId, tenantId)
           )
         );
 
