@@ -60,16 +60,30 @@ export const insuranceCoreRouter = router({
       email: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const { createQuote, createVehicle, getVehicleByRegistration, getAllActiveCarriers, getProductsByCarrier } = await import('../insurance/insurance-db');
+      const {
+        createQuote,
+        createVehicle,
+        getVehicleByRegistration,
+        getVehicleByRegistrationForOwnerTenant,
+        getAllActiveCarriers,
+        getProductsByCarrier,
+      } = await import('../insurance/insurance-db');
       const { calculateVehicleRiskScore } = await import('../insurance/valuation-engine');
       
       const customerId = ctx.user.id;
-      const tenantId = ctx.user.tenantId ?? null;
+      const tenantId = requireActorTenant(ctx.user.tenantId);
       
-      // Step 1: Check if vehicle exists, if not create it
-      let vehicle = await getVehicleByRegistration(input.registrationNumber);
+      // Step 1: Reuse only the caller's own tenant-scoped vehicle record.
+      let vehicle = await getVehicleByRegistrationForOwnerTenant(input.registrationNumber, customerId, tenantId);
       
       if (!vehicle) {
+        const existingRegistration = await getVehicleByRegistration(input.registrationNumber);
+        if (existingRegistration) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "This vehicle registration is already linked to another authorised record.",
+          });
+        }
         // Calculate risk score for new vehicle
         const riskScore = await calculateVehicleRiskScore(input.make, input.model, input.year);
         

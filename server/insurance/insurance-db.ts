@@ -99,6 +99,24 @@ export async function getVehicleByRegistration(registrationNumber: string): Prom
   return result[0];
 }
 
+export async function getVehicleByRegistrationForOwnerTenant(
+  registrationNumber: string,
+  ownerId: number,
+  tenantId: string,
+): Promise<FleetVehicle | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Database connection failed");
+  const result = await db
+    .select()
+    .from(fleetVehicles)
+    .where(and(
+      eq(fleetVehicles.registrationNumber, registrationNumber),
+      eq(fleetVehicles.ownerId, ownerId),
+      eq(fleetVehicles.tenantId, tenantId),
+    ));
+  return result[0];
+}
+
 export async function getVehicleById(vehicleId: number): Promise<FleetVehicle | undefined> {
   const db = await getDb();
   if (!db) throw new Error("Database connection failed");
