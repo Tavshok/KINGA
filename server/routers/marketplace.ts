@@ -595,7 +595,10 @@ export const marketplaceRouter = router({
    */
   getApprovedPanelBeaters: protectedProcedure
     .input(getApprovedPanelBeatersInput)
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (!ctx.user.tenantId || ctx.user.tenantId !== input.insurerTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Insurer tenant scope mismatch" });
+      }
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
@@ -644,7 +647,10 @@ export const marketplaceRouter = router({
       insurerTenantId: z.string().min(1),
       countryId: z.string().optional(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (!ctx.user.tenantId || ctx.user.tenantId !== input.insurerTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Insurer tenant scope mismatch" });
+      }
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
