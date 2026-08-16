@@ -178,7 +178,7 @@ export const quotesRouter = router({
       
       if (allQuotes.length >= 3) {
         // All quotes received, progress to comparison stage (legacy field only)
-        await updateClaimStatus(input.claimId, "comparison", ctx.user.id, "panel_beater", claim?.tenantId || "default");
+        await updateClaimStatus(input.claimId, "comparison", ctx.user.id, "panel_beater", tenantId);
 
         // ── AI Cost Optimisation ─────────────────────────────────────────────
         // Trigger asynchronously so quote submission returns immediately.
@@ -344,7 +344,7 @@ export const quotesRouter = router({
           claimNumber: claim.claimNumber,
           quotedAmount: input.quotedAmount,
           estimatedDays: input.estimatedDuration || 0,
-          tenantId: tenantId || 'default',
+          tenantId,
         });
       }
 
