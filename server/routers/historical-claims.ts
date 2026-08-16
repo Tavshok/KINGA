@@ -360,7 +360,10 @@ export const historicalClaimsRouter = router({
               dataSource: input.dataSource,
               capturedByUserId: ctx.user.id,
             })
-            .where(eq(finalApprovalRecords.historicalClaimId, input.historicalClaimId));
+            .where(and(
+              eq(finalApprovalRecords.historicalClaimId, input.historicalClaimId),
+              eq(finalApprovalRecords.tenantId, tenantId),
+            ));
         } else {
           throw error;
         }
@@ -376,7 +379,10 @@ export const historicalClaimsRouter = router({
             : "rejected",
           pipelineStatus: "ground_truth_captured",
         })
-        .where(eq(historicalClaims.id, input.historicalClaimId));
+        .where(and(
+          eq(historicalClaims.id, input.historicalClaimId),
+          eq(historicalClaims.tenantId, tenantId),
+        ));
 
       // Generate variance datasets
       await generateVarianceDatasets(
@@ -394,7 +400,10 @@ export const historicalClaimsRouter = router({
       // Update pipeline status
       await db.update(historicalClaims)
         .set({ pipelineStatus: "variance_calculated" })
-        .where(eq(historicalClaims.id, input.historicalClaimId));
+        .where(and(
+          eq(historicalClaims.id, input.historicalClaimId),
+          eq(historicalClaims.tenantId, tenantId),
+        ));
 
       // Update AI prediction accuracy
       const predictions = await db
@@ -402,6 +411,7 @@ export const historicalClaimsRouter = router({
         .from(aiPredictionLogs)
         .where(and(
           eq(aiPredictionLogs.historicalClaimId, input.historicalClaimId),
+          eq(aiPredictionLogs.tenantId, tenantId),
           eq(aiPredictionLogs.predictionType, "cost_estimate")
         ));
 
@@ -420,7 +430,10 @@ export const historicalClaimsRouter = router({
               variancePercent: variancePercent.toFixed(2),
               isAccurate: isAccurate ? 1 : 0,
             })
-            .where(eq(aiPredictionLogs.id, pred.id));
+            .where(and(
+              eq(aiPredictionLogs.id, pred.id),
+              eq(aiPredictionLogs.tenantId, tenantId),
+            ));
         }
       }
 

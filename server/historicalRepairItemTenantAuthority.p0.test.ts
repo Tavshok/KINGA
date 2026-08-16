@@ -15,4 +15,11 @@ describe("historical repair-item tenant authority", () => {
     expect(block).toContain("eq(extractedRepairItems.historicalClaimId, authorisedItem.historicalClaimId)");
     expect(block).toContain("AND tenant_id = ${tenantId}");
   });
+
+  it("retains tenant scope on duplicate ground-truth records, parent updates, and prediction accuracy writes", () => {
+    const block = source.slice(source.indexOf("captureGroundTruth: protectedProcedure"), source.indexOf("updateRepairItem: protectedProcedure"));
+    expect(block).toContain("eq(finalApprovalRecords.tenantId, tenantId)");
+    expect(block).toContain("eq(historicalClaims.tenantId, tenantId)");
+    expect(block).toContain("eq(aiPredictionLogs.tenantId, tenantId)");
+  });
 });
