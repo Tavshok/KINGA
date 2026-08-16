@@ -502,9 +502,13 @@ export const fleetCoreRouter = router({
     .input(z.object({
       id: z.number(),
     }))
-    .query(async ({ input }) => {
-      const { getFleetVehicleById } = await import('../fleet/fleet-db');
-      return getFleetVehicleById(input.id);
+    .query(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const [vehicle] = await db.select().from(fleetVehicles).where(eq(fleetVehicles.id, input.id)).limit(1);
+      if (!vehicle) throw new TRPCError({ code: "NOT_FOUND", message: "Vehicle not found" });
+      await requireFleetReadAccess(db, ctx.user, vehicle.fleetId);
+      return vehicle;
     }),
 
   // Update vehicle
@@ -779,9 +783,10 @@ export const fleetCoreRouter = router({
   /** Get all drivers for a specific fleet */
   getFleetDrivers: protectedProcedure
     .input(z.object({ fleetId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const fleet = await requireFleetReadAccess(db, ctx.user, input.fleetId);
       const { users } = await import('../../drizzle/schema');
       const drivers = await db
         .select({
@@ -800,7 +805,10 @@ export const fleetCoreRouter = router({
         })
         .from(fleetDrivers)
         .leftJoin(users, eq(fleetDrivers.userId, users.id))
-        .where(eq(fleetDrivers.fleetId, input.fleetId));
+        .where(and(
+          eq(fleetDrivers.fleetId, input.fleetId),
+          eq(fleetDrivers.tenantId, fleet.tenantId ?? ctx.user.tenantId ?? ""),
+        ));
       return drivers;
     }),
 

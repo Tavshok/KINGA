@@ -1948,3 +1948,4 @@ which is for corporate fleet operators.
 - [x] AUD-P0 panel-beater evidence authority: quote documents and repair photos now resolve session-tenant-owned claims before upload, audit, or claim updates. Evidence: `audit/panel-beater-evidence-tenant-authority-correction-2026-08-16.md`.
 - [x] AUD-P0 generated reports authority: executive, financial, and audit reports require the session tenant and reject supplied tenant mismatches before queries. Evidence: `audit/generated-reports-tenant-authority-correction-2026-08-16.md`.
 - [x] AUD-P0 global-search fleet authority: non-platform search requires a session tenant and fleet claim search contains no tenantless fallback. Evidence: `audit/global-search-fleet-tenant-authority-correction-2026-08-16.md`.
+- [x] AUD-P0 fleet lookup authority: direct vehicle and fleet-driver lookup now require authorised fleet access and retain tenant scope. Evidence: `audit/fleet-lookups-tenant-authority-correction-2026-08-16.md`.
