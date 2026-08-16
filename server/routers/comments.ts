@@ -299,11 +299,24 @@ export const commentsRouter = router({
       if (ctx.user.role !== "insurer") {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only insurer members can resolve annotations" });
       }
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
+      }
 
       const [comment] = await db
-        .select()
+        .select({
+          id: claimComments.id,
+          claimId: claimComments.claimId,
+          userId: claimComments.userId,
+          userRole: claimComments.userRole,
+          deletedAt: claimComments.deletedAt,
+        })
         .from(claimComments)
-        .where(eq(claimComments.id, input.commentId));
+        .innerJoin(claims, eq(claimComments.claimId, claims.id))
+        .where(and(
+          eq(claimComments.id, input.commentId),
+          eq(claims.tenantId, ctx.user.tenantId),
+        ));
 
       if (!comment) throw new TRPCError({ code: "NOT_FOUND", message: "Annotation not found" });
       if (comment.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Annotation has been deleted" });
@@ -328,7 +341,10 @@ export const commentsRouter = router({
           resolvedByUserId: ctx.user.id,
           resolvedAt: new Date().toISOString(),
         })
-        .where(eq(claimComments.id, input.commentId));
+        .where(and(
+          eq(claimComments.id, input.commentId),
+          eq(claimComments.claimId, comment.claimId),
+        ));
 
       await db.insert(workflowAuditTrail).values({
         claimId: comment.claimId,
