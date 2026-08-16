@@ -12,6 +12,7 @@ import { reportSnapshots, pdfReports, reportAccessAudit,
   users,} from '../drizzle/schema';
 import { hasPermission } from './rbac';
 import type { users } from '../drizzle/schema';
+import { isAdminRole } from '@shared/role-permissions';
 
 type User = typeof users.$inferSelect;
 
@@ -23,11 +24,6 @@ export async function canAccessReport(
   snapshotId: string
 ): Promise<{ allowed: boolean; reason?: string }> {
   const db = await getDb();
-  
-  // Admin users can access all reports
-  if (user.role === 'admin') {
-    return { allowed: true };
-  }
   
   // Get snapshot to check tenant
   const [snapshot] = await db!
@@ -73,8 +69,9 @@ export async function canGenerateReport(
   claimId: string,
   reportType: 'insurer' | 'assessor' | 'regulatory'
 ): Promise<{ allowed: boolean; reason?: string }> {
-  // Admin users can generate all reports
-  if (user.role === 'admin') {
+  // Administrative roles may generate reports, but object access remains
+  // tenant-bound at the report/claim resolver.
+  if (isAdminRole(user.role)) {
     return { allowed: true };
   }
   
@@ -153,7 +150,7 @@ export async function auditReportAccess(
     accessedAt: new Date(),
     ipAddress: metadata?.ipAddress || null,
     userAgent: metadata?.userAgent || null,
-    tenantId: user.tenantId || 'default',
+    tenantId: user.tenantId ?? (() => { throw new Error('A tenant-scoped session is required'); })(),
   });
 }
 
@@ -174,9 +171,10 @@ export async function getReportAccessHistory(
   userAgent: string | null;
 }>> {
   // Only admin and users with viewAllClaims permission can view access history
-  if (user.role !== 'admin' && !hasPermission(user, 'viewAllClaims')) {
+  if (!isAdminRole(user.role) && !hasPermission(user, 'viewAllClaims')) {
     return [];
   }
+  if (!user.tenantId || user.tenantId !== tenantId) return [];
   
   const db = await getDb();
   
@@ -200,11 +198,6 @@ export async function validateTenantIsolation(
   user: User,
   snapshotId: string
 ): Promise<{ valid: boolean; reason?: string }> {
-  // Admin users bypass tenant isolation
-  if (user.role === 'admin') {
-    return { valid: true };
-  }
-  
   const db = await getDb();
   
   const [snapshot] = await db!
