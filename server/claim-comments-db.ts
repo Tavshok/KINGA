@@ -85,7 +85,8 @@ export async function getClaimComments(
   claimId: number,
   userId: number,
   userRole: string,
-  userEmail: string
+  userEmail: string,
+  tenantId: string,
 ): Promise<ClaimCommentRecord[]> {
   const conn = await pool.getConnection();
   try {
@@ -96,6 +97,8 @@ export async function getClaimComments(
        LEFT JOIN users u ON u.id = cc.author_user_id
        LEFT JOIN claims c ON c.id = cc.claimId
        WHERE cc.claimId = ?
+         AND cc.tenant_id = ?
+         AND c.tenantId = ?
          AND cc.parent_comment_id IS NULL
          AND cc.deletedAt IS NULL
          AND (
@@ -105,7 +108,7 @@ export async function getClaimComments(
            OR JSON_CONTAINS(cc.to_emails, JSON_QUOTE(?))
          )
        ORDER BY cc.createdAt ASC`,
-      [claimId, userId, userRole, userId, userEmail]
+      [claimId, tenantId, tenantId, userId, userRole, userId, userEmail]
     );
 
     const comments = (rows as any[]).map(parseComment);
@@ -116,9 +119,9 @@ export async function getClaimComments(
         `SELECT cc.*, u.name as authorName
          FROM claim_comments cc
          LEFT JOIN users u ON u.id = cc.author_user_id
-         WHERE cc.parent_comment_id = ? AND cc.deletedAt IS NULL
+         WHERE cc.parent_comment_id = ? AND cc.tenant_id = ? AND cc.deletedAt IS NULL
          ORDER BY cc.createdAt ASC`,
-        [comment.id]
+        [comment.id, tenantId]
       );
       comment.replies = (replyRows as any[]).map(parseComment);
     }

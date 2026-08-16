@@ -265,9 +265,11 @@ export const claimCommentsRouter = router({
     .input(z.object({ claimId: z.number().int().positive() }))
     .query(async ({ input, ctx }) => {
       const user = ctx.user;
+      const tenantId = user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       const userRole = user.insurerRole ?? user.role ?? "user";
       const userEmail = user.email ?? "";
-      return getClaimComments(input.claimId, user.id, userRole, userEmail);
+      return getClaimComments(input.claimId, user.id, userRole, userEmail, tenantId);
     }),
 
   /**
@@ -281,7 +283,8 @@ export const claimCommentsRouter = router({
       const user = ctx.user;
       const userRole = user.insurerRole ?? user.role ?? "user";
       const userEmail = user.email ?? "";
-      const tenantId = user.tenantId ?? "";
+      const tenantId = user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       return getMyNotifications(user.id, userRole, userEmail, tenantId, input.filter);
     }),
 
@@ -293,7 +296,8 @@ export const claimCommentsRouter = router({
       const user = ctx.user;
       const userRole = user.insurerRole ?? user.role ?? "user";
       const userEmail = user.email ?? "";
-      const tenantId = user.tenantId ?? "";
+      const tenantId = user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       const count = await getUnreadCommentCount(user.id, userRole, userEmail, tenantId);
       return { count };
     }),
@@ -316,7 +320,8 @@ export const claimCommentsRouter = router({
       const user = ctx.user;
       const userRole = user.insurerRole ?? user.role ?? "user";
       const userEmail = user.email ?? "";
-      const tenantId = user.tenantId ?? "";
+      const tenantId = user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       await markAllNotificationsRead(user.id, userRole, userEmail, tenantId);
       return { ok: true };
     }),
