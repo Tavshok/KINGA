@@ -19,7 +19,7 @@
  * Governance: ADR-001, ADR-012, P-01, P-03, P-14
  */
 
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, protectedProcedure as baseProtectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc, count, sql } from "drizzle-orm";
@@ -47,6 +47,19 @@ interface AssetTimelineEvent {
   sourceId: number;
   metadata: Record<string, unknown>;
 }
+
+function requireAssetPassportTenant(ctx: { user?: { tenantId?: string | null } }) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
+// Asset Passport exposes cross-domain intelligence. No procedure may evaluate
+// a legacy tenant predicate unless an authenticated session tenant is present.
+const protectedProcedure = baseProtectedProcedure.use(async ({ ctx, next }) => {
+  requireAssetPassportTenant(ctx);
+  return next({ ctx });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Router
