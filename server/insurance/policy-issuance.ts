@@ -7,7 +7,7 @@
 
 import { getDb } from '../db';
 import { insurancePolicies, insuranceQuotes } from '../../drizzle/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 /**
  * Generate a unique policy number
@@ -130,15 +130,18 @@ export async function getPolicyByNumber(policyNumber: string) {
 }
 
 /**
- * Get all policies for a customer
+ * Get all policies for a customer within the caller's tenant.
  */
-export async function getPoliciesByCustomer(customerId: number) {
+export async function getPoliciesByCustomer(customerId: number, tenantId: string) {
   const db = await getDb();
   if (!db) throw new Error('Database connection failed');
   
   return await db.select()
     .from(insurancePolicies)
-    .where(eq(insurancePolicies.customerId, customerId));
+    .where(and(
+      eq(insurancePolicies.customerId, customerId),
+      eq(insurancePolicies.tenantId, tenantId),
+    ));
 }
 
 /**

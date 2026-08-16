@@ -339,7 +339,8 @@ export const insuranceCoreRouter = router({
   getMyPolicies: protectedProcedure
     .query(async ({ ctx }) => {
       const { getPoliciesByCustomer } = await import('../insurance/policy-issuance');
-      return await getPoliciesByCustomer(ctx.user.id);
+      const actorTenantId = requireActorTenant(ctx.user.tenantId);
+      return await getPoliciesByCustomer(ctx.user.id, actorTenantId);
     }),
 
   // Get customer's quotes
