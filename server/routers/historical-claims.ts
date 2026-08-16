@@ -450,8 +450,21 @@ export const historicalClaimsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const [authorisedItem] = await db
+        .select({ id: extractedRepairItems.id, historicalClaimId: extractedRepairItems.historicalClaimId })
+        .from(extractedRepairItems)
+        .innerJoin(historicalClaims, eq(extractedRepairItems.historicalClaimId, historicalClaims.id))
+        .where(and(
+          eq(extractedRepairItems.id, input.itemId),
+          eq(historicalClaims.tenantId, tenantId),
+        ))
+        .limit(1);
+      if (!authorisedItem) throw new TRPCError({ code: "NOT_FOUND", message: "Repair item not found" });
 
       const updateData: Record<string, any> = { manuallyVerified: 1 };
       if (input.description !== undefined) updateData.description = input.description;
@@ -466,15 +479,15 @@ export const historicalClaimsRouter = router({
 
       await db.update(extractedRepairItems)
         .set(updateData)
-        .where(eq(extractedRepairItems.id, input.itemId));
+        .where(and(
+          eq(extractedRepairItems.id, input.itemId),
+          eq(extractedRepairItems.historicalClaimId, authorisedItem.historicalClaimId),
+        ));
 
       // Increment manual corrections counter on the claim
-      const [item] = await db.select().from(extractedRepairItems).where(eq(extractedRepairItems.id, input.itemId));
-      if (item) {
-        await db.execute(
-          sql`UPDATE historical_claims SET manual_corrections = manual_corrections + 1 WHERE id = ${item.historicalClaimId}`
-        );
-      }
+      await db.execute(
+        sql`UPDATE historical_claims SET manual_corrections = manual_corrections + 1 WHERE id = ${authorisedItem.historicalClaimId} AND tenant_id = ${tenantId}`
+      );
 
       return { success: true };
     }),
