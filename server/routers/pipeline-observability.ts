@@ -15,15 +15,22 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
 import { pipelineRuns, pipelineJobs } from "../../drizzle/schema";
-import { desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { isAdminRole } from "../../shared/role-permissions";
 
-const ADMIN_ROLES = new Set(["claims_manager", "executive", "admin", "super_admin"]);
+const INSURER_OBSERVABILITY_ROLES = new Set(["claims_manager", "executive", "insurer_admin"]);
 
 function assertAdmin(user: { insurerRole?: string | null; role?: string | null }) {
-  const role = user.insurerRole ?? user.role ?? "";
-  if (!ADMIN_ROLES.has(role)) {
+  if (!isAdminRole(user.role) && !INSURER_OBSERVABILITY_ROLES.has(user.insurerRole ?? "")) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Pipeline observability requires admin access" });
   }
+}
+
+function requireTenantId(user: { tenantId?: string | null }) {
+  if (!user.tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  }
+  return user.tenantId;
 }
 
 export const pipelineObservabilityRouter = router({
@@ -35,12 +42,14 @@ export const pipelineObservabilityRouter = router({
     .input(z.object({ limit: z.number().int().min(1).max(200).default(50) }))
     .query(async ({ ctx, input }) => {
       assertAdmin(ctx.user);
+      const tenantId = requireTenantId(ctx.user);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
       const runs = await db
         .select()
         .from(pipelineRuns)
+        .where(eq(pipelineRuns.tenantId, tenantId))
         .orderBy(desc(pipelineRuns.startedAt))
         .limit(input.limit);
 
@@ -54,19 +63,22 @@ export const pipelineObservabilityRouter = router({
     .input(z.object({ runId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       assertAdmin(ctx.user);
+      const tenantId = requireTenantId(ctx.user);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
       const [run] = await db
         .select()
         .from(pipelineRuns)
-        .where(eq(pipelineRuns.runId, input.runId))
+        .where(and(eq(pipelineRuns.runId, input.runId), eq(pipelineRuns.tenantId, tenantId)))
         .limit(1);
+
+      if (!run) return { run: null, jobs: [] };
 
       const jobs = await db
         .select()
         .from(pipelineJobs)
-        .where(eq(pipelineJobs.runId, input.runId))
+        .where(and(eq(pipelineJobs.runId, input.runId), eq(pipelineJobs.tenantId, tenantId)))
         .orderBy(pipelineJobs.stageIndex);
 
       return { run: run ?? null, jobs };
@@ -80,6 +92,7 @@ export const pipelineObservabilityRouter = router({
     .input(z.object({ days: z.number().int().min(1).max(90).default(7) }))
     .query(async ({ ctx, input }) => {
       assertAdmin(ctx.user);
+      const tenantId = requireTenantId(ctx.user);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
@@ -100,7 +113,7 @@ export const pipelineObservabilityRouter = router({
           p95DurationMs: sql<number>`MAX(${pipelineJobs.durationMs})`,
         })
         .from(pipelineJobs)
-        .where(gte(pipelineJobs.startedAt, since))
+        .where(and(gte(pipelineJobs.startedAt, since), eq(pipelineJobs.tenantId, tenantId)))
         .groupBy(pipelineJobs.stageId, pipelineJobs.stageLabel)
         .orderBy(pipelineJobs.stageId);
 
@@ -114,13 +127,14 @@ export const pipelineObservabilityRouter = router({
     .input(z.object({ claimId: z.number().int().positive() }))
     .query(async ({ ctx, input }) => {
       assertAdmin(ctx.user);
+      const tenantId = requireTenantId(ctx.user);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
       const runs = await db
         .select()
         .from(pipelineRuns)
-        .where(eq(pipelineRuns.claimId, input.claimId))
+        .where(and(eq(pipelineRuns.claimId, input.claimId), eq(pipelineRuns.tenantId, tenantId)))
         .orderBy(desc(pipelineRuns.startedAt))
         .limit(20);
 
@@ -134,6 +148,7 @@ export const pipelineObservabilityRouter = router({
     .input(z.object({ days: z.number().int().min(1).max(90).default(7) }))
     .query(async ({ ctx, input }) => {
       assertAdmin(ctx.user);
+      const tenantId = requireTenantId(ctx.user);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
@@ -153,7 +168,7 @@ export const pipelineObservabilityRouter = router({
           totalLlmTokens: sql<number>`SUM(${pipelineRuns.totalLlmTokens})`,
         })
         .from(pipelineRuns)
-        .where(gte(pipelineRuns.startedAt, since));
+        .where(and(gte(pipelineRuns.startedAt, since), eq(pipelineRuns.tenantId, tenantId)));
 
       return summary ?? {
         totalRuns: 0, completedRuns: 0, failedRuns: 0, partialRuns: 0,
