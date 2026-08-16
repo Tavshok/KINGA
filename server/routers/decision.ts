@@ -48,7 +48,7 @@ import {
 } from "../pipeline-v2/escalationReasoningEngine";
 import { getDb } from "../db";
 import { aiAssessments, claims } from "../../drizzle/schema";
-import { desc, isNotNull, eq } from "drizzle-orm";
+import { and, desc, isNotNull, eq } from "drizzle-orm";
 
 // ─── Input Schemas ────────────────────────────────────────────────────────────
 
@@ -150,7 +150,7 @@ export const decisionRouter = router({
         limit: z.number().min(1).max(500).default(100),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) {
         return {
@@ -159,6 +159,9 @@ export const decisionRouter = router({
           total_evaluated: 0,
         };
       }
+
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
 
       // Fetch recent AI assessments with their claims
       const rows = await drizzle
@@ -175,7 +178,11 @@ export const decisionRouter = router({
         })
         .from(aiAssessments)
         .leftJoin(claims, eq(aiAssessments.claimId, claims.id))
-        .where(isNotNull(aiAssessments.fraudRiskLevel))
+        .where(and(
+          isNotNull(aiAssessments.fraudRiskLevel),
+          eq(aiAssessments.tenantId, tenantId),
+          eq(claims.tenantId, tenantId),
+        ))
         .orderBy(desc(aiAssessments.createdAt))
         .limit(input.limit);
 
@@ -289,9 +296,12 @@ export const decisionRouter = router({
    */
   getContradictionStats: protectedProcedure
     .input(z.object({ limit: z.number().min(1).max(200).default(100) }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) return null;
+
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
 
       const rows = await drizzle
         .select({
@@ -312,7 +322,11 @@ export const decisionRouter = router({
         })
         .from(aiAssessments)
         .leftJoin(claims, eq(aiAssessments.claimId, claims.id))
-        .where(isNotNull(aiAssessments.fraudRiskLevel))
+        .where(and(
+          isNotNull(aiAssessments.fraudRiskLevel),
+          eq(aiAssessments.tenantId, tenantId),
+          eq(claims.tenantId, tenantId),
+        ))
         .orderBy(desc(aiAssessments.createdAt))
         .limit(input.limit);
 
@@ -455,9 +469,12 @@ export const decisionRouter = router({
    */
   getDecisionTrace: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) return null;
+
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
 
       const rows = await drizzle
         .select({
@@ -483,7 +500,11 @@ export const decisionRouter = router({
         })
         .from(aiAssessments)
         .leftJoin(claims, eq(aiAssessments.claimId, claims.id))
-        .where(eq(aiAssessments.claimId, input.claimId))
+        .where(and(
+          eq(aiAssessments.claimId, input.claimId),
+          eq(aiAssessments.tenantId, tenantId),
+          eq(claims.tenantId, tenantId),
+        ))
         .orderBy(desc(aiAssessments.createdAt))
         .limit(1);
 
@@ -571,9 +592,12 @@ export const decisionRouter = router({
    */
   getReadinessSummary: protectedProcedure
     .input(z.object({ limit: z.number().min(1).max(200).default(100) }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) return null;
+
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
 
       const rows = await drizzle
         .select({
@@ -588,6 +612,7 @@ export const decisionRouter = router({
         })
         .from(aiAssessments)
         .leftJoin(claims, eq(claims.id, aiAssessments.claimId))
+        .where(and(eq(aiAssessments.tenantId, tenantId), eq(claims.tenantId, tenantId)))
         .orderBy(desc(aiAssessments.id))
         .limit(input.limit);
 
@@ -679,9 +704,12 @@ export const decisionRouter = router({
   // ─── getClaimExplanation ───────────────────────────────────────────────────
   getClaimExplanation: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
 
       const rows = await drizzle
         .select({
@@ -699,7 +727,11 @@ export const decisionRouter = router({
         })
         .from(aiAssessments)
         .innerJoin(claims, eq(claims.id, aiAssessments.claimId))
-        .where(eq(aiAssessments.claimId, input.claimId))
+        .where(and(
+          eq(aiAssessments.claimId, input.claimId),
+          eq(aiAssessments.tenantId, tenantId),
+          eq(claims.tenantId, tenantId),
+        ))
         .orderBy(desc(aiAssessments.createdAt))
         .limit(1);
 
@@ -785,9 +817,11 @@ export const decisionRouter = router({
   // ── routeClaimById ─────────────────────────────────────────────────────────
   routeClaimById: protectedProcedure
     .input(z.object({ claimId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       const rows = await drizzle
         .select({
           confidenceScore: aiAssessments.confidenceScore,
@@ -801,7 +835,11 @@ export const decisionRouter = router({
         })
         .from(aiAssessments)
         .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
-        .where(eq(aiAssessments.claimId, input.claimId))
+        .where(and(
+          eq(aiAssessments.claimId, input.claimId),
+          eq(aiAssessments.tenantId, tenantId),
+          eq(claims.tenantId, tenantId),
+        ))
         .orderBy(desc(aiAssessments.createdAt))
         .limit(1);
       if (rows.length === 0) throw new TRPCError({ code: "NOT_FOUND", message: "No assessment found for this claim" });
@@ -832,10 +870,12 @@ export const decisionRouter = router({
   // ── getEscalationSummary ───────────────────────────────────────────────────
   getEscalationSummary: protectedProcedure
     .input(z.object({ limit: z.number().int().min(1).max(500).default(100) }).optional())
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
       const limit = input?.limit ?? 100;
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       const rows = await drizzle
         .select({
           confidenceScore: aiAssessments.confidenceScore,
@@ -848,6 +888,7 @@ export const decisionRouter = router({
         })
         .from(aiAssessments)
         .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
+        .where(and(eq(aiAssessments.tenantId, tenantId), eq(claims.tenantId, tenantId)))
         .orderBy(desc(aiAssessments.createdAt))
         .limit(limit);
 
