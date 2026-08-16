@@ -1369,6 +1369,18 @@ export const fleetAccountsRouter = router({
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
       const tenantId = ctx.user.tenantId;
       if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'No tenant' });
+      const { fleetVehicles } = await import('../../drizzle/schema');
+      const [vehicle] = await db
+        .select({ id: fleetVehicles.id })
+        .from(fleetVehicles)
+        .innerJoin(fleetAccounts, eq(fleetVehicles.fleetId, fleetAccounts.id))
+        .where(and(
+          eq(fleetVehicles.id, input.vehicleId),
+          eq(fleetVehicles.tenantId, tenantId),
+          eq(fleetAccounts.ownerUserId, ctx.user.id),
+        ))
+        .limit(1);
+      if (!vehicle) throw new TRPCError({ code: 'NOT_FOUND', message: 'Fleet vehicle not found' });
       const totalCost = (input.laborCost ?? 0) + (input.partsCost ?? 0);
       const result = await db.insert(maintenanceRecords).values({
         vehicleId: input.vehicleId,
