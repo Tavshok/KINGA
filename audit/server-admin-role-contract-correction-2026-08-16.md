@@ -21,7 +21,7 @@ Direct administrative equality comparisons were replaced with `isAdminRole()` in
 
 ## Verification
 
-The deterministic role-contract regression proved that `admin` and `platform_super_admin` both pass the shared helper and that audited production routes contain no direct administrative equality comparisons. The final server-wide scan found exactly one direct comparison: the shared helper definition itself.
+The deterministic role-contract regression proved that `admin` and `platform_super_admin` both pass the shared helper and that audited production routes contain no direct `admin` equality comparisons. The final server-wide scan found no prohibited direct `admin` equality outside the shared helper definition. Exact `platform_super_admin` checks remain intentionally in platform-only guards because those boundaries must reject the ordinary `admin` role and therefore cannot use `isAdminRole()`.
 
 The focused suite passed **38/38**. The bundled server and Vite production builds passed; Vite emitted only the existing large-chunk advisory. No users, tenants, claims, policies, quotations, payments, inspections, vehicles, or financial records changed.
 
