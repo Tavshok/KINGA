@@ -25,7 +25,14 @@ export const panelBeatersRouter = router({
       fileData: z.string(), // base64
       mimeType: z.string(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const [claim] = await db.select({ id: claims.id }).from(claims)
+        .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId))).limit(1);
+      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
       const { storagePut } = await import('../storage.ts');
       
       // Convert base64 to buffer
@@ -150,6 +157,13 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: 'FORBIDDEN', message: 'A tenant-scoped session is required' });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+      const [claim] = await db.select({ id: claims.id }).from(claims)
+        .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId))).limit(1);
+      if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
       const { storagePut } = await import('../storage.ts');
       const uploadedUrls: string[] = [];
       for (const photo of input.photos) {
@@ -160,10 +174,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         uploadedUrls.push(url);
       }
       // Persist photo URLs to the claim record as JSON
-      const _rpDb = await getDb();
-      if (_rpDb) {
-        const [existingClaim] = await _rpDb.select({ repairPhotos: (claims as any).repairPhotos })
-          .from(claims).where(eq(claims.id, input.claimId)).limit(1);
+      {
+        const [existingClaim] = await db.select({ repairPhotos: (claims as any).repairPhotos })
+          .from(claims).where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId))).limit(1);
         const existingPhotos: string[] = [];
         try {
           if ((existingClaim as any)?.repairPhotos) {
@@ -171,9 +184,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           }
         } catch { /* ignore */ }
         const allPhotos = [...existingPhotos, ...uploadedUrls];
-        await _rpDb.update(claims).set({
+        await db.update(claims).set({
           updatedAt: new Date().toISOString(),
-        } as any).where(eq(claims.id, input.claimId));
+        } as any).where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId)));
         await createAuditEntry({
           claimId: input.claimId,
           userId: ctx.user.id,
