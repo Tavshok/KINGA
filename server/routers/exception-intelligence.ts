@@ -16,7 +16,6 @@ import { getDb } from "../db";
 import { aiAssessments, claims } from "../../drizzle/schema";
 import { eq, and, desc, sql, gte, lte, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { isAdminRole } from "@shared/role-permissions";
 
 // ─── Exception category definitions ──────────────────────────────────────────
 
@@ -120,6 +119,12 @@ function isInException(assessment: any): boolean {
   return false;
 }
 
+function requireExceptionIntelligenceTenant(ctx: { user?: { tenantId?: string | null } }) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export const exceptionIntelligenceRouter = router({
@@ -128,7 +133,6 @@ export const exceptionIntelligenceRouter = router({
    */
   getExceptionQueue: protectedProcedure
     .input(z.object({
-      tenantId: z.string().optional(),
       category: z.enum(["GATED_LOW_FCDI", "GATED_LOW_INPUT", "ALL_DISQUALIFIED", "MANUAL_REVIEW_REQUIRED", "GATED_NO_QUOTES", "FRAUD_ESCALATION", "UNKNOWN", "ALL"]).default("ALL"),
       limit: z.number().min(1).max(100).default(50),
       offset: z.number().min(0).default(0),
@@ -137,13 +141,14 @@ export const exceptionIntelligenceRouter = router({
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-
-      const effectiveTenantId = isAdminRole(ctx.user.role) ? input.tenantId : (ctx.user.tenantId ?? undefined);
+      const tenantId = requireExceptionIntelligenceTenant(ctx);
 
       // Fetch recent assessments
-      const whereConditions = effectiveTenantId
-        ? and(eq(aiAssessments.tenantId, effectiveTenantId), isNotNull(aiAssessments.recommendation))
-        : isNotNull(aiAssessments.recommendation);
+      const whereConditions = and(
+        eq(aiAssessments.tenantId, tenantId),
+        eq(claims.tenantId, tenantId),
+        isNotNull(aiAssessments.recommendation),
+      );
 
       const rows = await db
         .select({
@@ -198,20 +203,20 @@ export const exceptionIntelligenceRouter = router({
    */
   getExceptionAggregates: protectedProcedure
     .input(z.object({
-      tenantId: z.string().optional(),
       daysBack: z.number().min(1).max(365).default(30),
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-
-      const effectiveTenantId = isAdminRole(ctx.user.role) ? input.tenantId : (ctx.user.tenantId ?? undefined);
+      const tenantId = requireExceptionIntelligenceTenant(ctx);
       const since = new Date(Date.now() - input.daysBack * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
 
-      const whereConditions = effectiveTenantId
-        ? and(eq(aiAssessments.tenantId, effectiveTenantId), gte(aiAssessments.createdAt, since))
-        : gte(aiAssessments.createdAt, since);
+      const whereConditions = and(
+        eq(aiAssessments.tenantId, tenantId),
+        eq(claims.tenantId, tenantId),
+        gte(aiAssessments.createdAt, since),
+      );
 
       const rows = await db
         .select({
@@ -303,15 +308,13 @@ export const exceptionIntelligenceRouter = router({
    */
   getSystemDriftReport: protectedProcedure
     .input(z.object({
-      tenantId: z.string().optional(),
       windowDays: z.number().min(7).max(180).default(30),
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-
-      const effectiveTenantId = isAdminRole(ctx.user.role) ? input.tenantId : (ctx.user.tenantId ?? undefined);
+      const tenantId = requireExceptionIntelligenceTenant(ctx);
 
       // Current window
       const nowMs = Date.now();
@@ -323,7 +326,7 @@ export const exceptionIntelligenceRouter = router({
       const buildWhere = (since: string, until?: string) => {
         const conditions = [gte(aiAssessments.createdAt, since)];
         if (until) conditions.push(lte(aiAssessments.createdAt, until));
-        if (effectiveTenantId) conditions.push(eq(aiAssessments.tenantId, effectiveTenantId));
+        conditions.push(eq(aiAssessments.tenantId, tenantId));
         return and(...conditions);
       };
 
@@ -483,20 +486,20 @@ export const exceptionIntelligenceRouter = router({
    */
   getActionableRecommendations: protectedProcedure
     .input(z.object({
-      tenantId: z.string().optional(),
       daysBack: z.number().min(1).max(365).default(60),
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-
-      const effectiveTenantId = isAdminRole(ctx.user.role) ? input.tenantId : (ctx.user.tenantId ?? undefined);
+      const tenantId = requireExceptionIntelligenceTenant(ctx);
       const since = new Date(Date.now() - input.daysBack * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
 
-      const whereConditions = effectiveTenantId
-        ? and(eq(aiAssessments.tenantId, effectiveTenantId), gte(aiAssessments.createdAt, since), isNotNull(aiAssessments.ifeResultJson))
-        : and(gte(aiAssessments.createdAt, since), isNotNull(aiAssessments.ifeResultJson));
+      const whereConditions = and(
+        eq(aiAssessments.tenantId, tenantId),
+        gte(aiAssessments.createdAt, since),
+        isNotNull(aiAssessments.ifeResultJson),
+      );
 
       const rows = await db
         .select({
