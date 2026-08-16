@@ -10,6 +10,31 @@ import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { getClaimById, createAuditEntry } from "../db";
+import { claims } from "../../drizzle/schema";
+import { and, eq } from "drizzle-orm";
+import { isAdminRole } from "@shared/role-permissions";
+
+async function requireReportTenantClaim(claimId: string, tenantId: string | null | undefined) {
+  if (!tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  }
+  const numericClaimId = Number(claimId);
+  if (!Number.isInteger(numericClaimId) || numericClaimId <= 0) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+  }
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+  const [claim] = await db
+    .select({ id: claims.id })
+    .from(claims)
+    .where(and(eq(claims.id, numericClaimId), eq(claims.tenantId, tenantId)))
+    .limit(1);
+  if (!claim) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+  }
+  return claim;
+}
+
 export const claimReportsRouter = router({
   /**
    * Validate Report Data
@@ -28,9 +53,11 @@ export const claimReportsRouter = router({
     .query(async ({ input, ctx }) => {
       // Check permissions
       const { hasPermission } = await import('../rbac');
-      if (ctx.user.role !== 'admin' && !hasPermission(ctx.user, 'viewAllClaims')) {
+      if (!isAdminRole(ctx.user.role) && !hasPermission(ctx.user, 'viewAllClaims')) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Insufficient permissions' });
       }
+
+      await requireReportTenantClaim(input.claimId, ctx.user.tenantId);
 
       const { aggregateClaimIntelligence } = await import('../report-intelligence-aggregator');
       const { getValidationReport } = await import('../report-validation-service');
@@ -62,9 +89,11 @@ export const claimReportsRouter = router({
     .mutation(async ({ input, ctx }) => {
       // Check permissions
       const { hasPermission } = await import('../rbac');
-      if (ctx.user.role !== 'admin' && !hasPermission(ctx.user, 'viewAllClaims')) {
+      if (!isAdminRole(ctx.user.role) && !hasPermission(ctx.user, 'viewAllClaims')) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Insufficient permissions' });
       }
+
+      await requireReportTenantClaim(input.claimId, ctx.user.tenantId);
 
       const { aggregateClaimIntelligence } = await import('../report-intelligence-aggregator');
       const { generateReportNarrative } = await import('../report-narrative-generator');
