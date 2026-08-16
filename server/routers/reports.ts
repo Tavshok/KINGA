@@ -39,6 +39,14 @@ function formatDate(date: Date | string | null): string {
   return d.toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+function requireReportTenant(sessionTenantId: string | null | undefined, requestedTenantId?: string): string {
+  if (!sessionTenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  if (requestedTenantId && requestedTenantId !== sessionTenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Requested tenant does not match the authenticated tenant" });
+  }
+  return sessionTenantId;
+}
+
 /**
  * Generate PDF buffer from structured data
  */
@@ -135,7 +143,7 @@ export const reportsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
 
-      const tenantId = input.tenantId || ctx.user.tenantId!;
+      const tenantId = requireReportTenant(ctx.user.tenantId, input.tenantId);
 
       console.log('[Reports] Generating Executive Report...');
 
@@ -237,7 +245,7 @@ export const reportsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
 
-      const tenantId = input.tenantId || ctx.user.tenantId!;
+      const tenantId = requireReportTenant(ctx.user.tenantId, input.tenantId);
 
       console.log('[Reports] Generating Financial Summary...');
 
@@ -346,7 +354,7 @@ export const reportsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
 
-      const tenantId = input.tenantId || ctx.user.tenantId!;
+      const tenantId = requireReportTenant(ctx.user.tenantId, input.tenantId);
 
       console.log('[Reports] Generating Audit Trail Report...');
 
