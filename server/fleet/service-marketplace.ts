@@ -57,11 +57,11 @@ export async function createServiceRequest(data: {
 /**
  * Get service requests for a vehicle or fleet
  */
-export async function getServiceRequests(vehicleId?: number, fleetId?: number) {
+export async function getServiceRequests(tenantId: string, vehicleId?: number, fleetId?: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  let conditions = [];
+  const conditions = [eq(serviceRequests.tenantId, tenantId)];
   if (vehicleId) {
     conditions.push(eq(serviceRequests.vehicleId, vehicleId));
   }
@@ -69,6 +69,7 @@ export async function getServiceRequests(vehicleId?: number, fleetId?: number) {
   const requests = await db
     .select()
     .from(serviceRequests)
+    .innerJoin(fleetVehicles, eq(serviceRequests.vehicleId, fleetVehicles.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(serviceRequests.createdAt));
 
@@ -105,14 +106,15 @@ export async function submitServiceQuote(data: {
 /**
  * Get quotes for a service request
  */
-export async function getServiceQuotes(serviceRequestId: number): Promise<ServiceQuote[]> {
+export async function getServiceQuotes(tenantId: string, serviceRequestId: number): Promise<ServiceQuote[]> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
   const quotes = await db
     .select()
     .from(serviceQuotes)
-    .where(eq(serviceQuotes.requestId, serviceRequestId))
+    .innerJoin(serviceRequests, eq(serviceQuotes.requestId, serviceRequests.id))
+    .where(and(eq(serviceQuotes.requestId, serviceRequestId), eq(serviceRequests.tenantId, tenantId), eq(serviceQuotes.tenantId, tenantId)))
     .orderBy(desc(serviceQuotes.submittedAt));
 
   return quotes;
@@ -121,29 +123,25 @@ export async function getServiceQuotes(serviceRequestId: number): Promise<Servic
 /**
  * Accept a service quote
  */
-export async function acceptServiceQuote(quoteId: number) {
+export async function acceptServiceQuote(tenantId: string, quoteId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Update quote status
-  await db
-    .update(serviceQuotes)
-    .set({ status: "accepted" })
-    .where(eq(serviceQuotes.id, quoteId));
-
-  // Get the quote to update service request
   const quote = await db
     .select()
     .from(serviceQuotes)
-    .where(eq(serviceQuotes.id, quoteId))
+    .innerJoin(serviceRequests, eq(serviceQuotes.requestId, serviceRequests.id))
+    .where(and(eq(serviceQuotes.id, quoteId), eq(serviceQuotes.tenantId, tenantId), eq(serviceRequests.tenantId, tenantId)))
     .limit(1);
 
   if (quote.length > 0) {
+    await db.update(serviceQuotes).set({ status: "accepted" }).where(and(eq(serviceQuotes.id, quoteId), eq(serviceQuotes.tenantId, tenantId)));
+    const accepted = quote[0].service_quotes;
     // Update service request status
     await db
       .update(serviceRequests)
       .set({ status: "in_progress" })
-      .where(eq(serviceRequests.id, quote[0].requestId));
+      .where(and(eq(serviceRequests.id, accepted.requestId), eq(serviceRequests.tenantId, tenantId)));
 
     // Reject other quotes for this request
     await db
@@ -151,8 +149,7 @@ export async function acceptServiceQuote(quoteId: number) {
       .set({ status: "rejected" })
       .where(
         and(
-          eq(serviceQuotes.requestId, quote[0].requestId),
-          eq(serviceQuotes.status, "pending")
+          eq(serviceQuotes.requestId, accepted.requestId), eq(serviceQuotes.tenantId, tenantId), eq(serviceQuotes.status, "pending")
         )
       );
   }
@@ -248,7 +245,7 @@ export async function updateProviderRating(providerId: number, rating: number) {
 /**
  * Complete a service request
  */
-export async function completeServiceRequest(serviceRequestId: number, rating: number) {
+export async function completeServiceRequest(tenantId: string, serviceRequestId: number, rating: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
@@ -256,7 +253,7 @@ export async function completeServiceRequest(serviceRequestId: number, rating: n
   await db
     .update(serviceRequests)
     .set({ status: "completed" })
-    .where(eq(serviceRequests.id, serviceRequestId));
+    .where(and(eq(serviceRequests.id, serviceRequestId), eq(serviceRequests.tenantId, tenantId)));
 
   // Find accepted quote and update provider rating
   const acceptedQuote = await db
@@ -264,7 +261,7 @@ export async function completeServiceRequest(serviceRequestId: number, rating: n
     .from(serviceQuotes)
     .where(
       and(
-        eq(serviceQuotes.requestId, serviceRequestId),
+          eq(serviceQuotes.requestId, serviceRequestId), eq(serviceQuotes.tenantId, tenantId),
         eq(serviceQuotes.status, "accepted")
       )
     )

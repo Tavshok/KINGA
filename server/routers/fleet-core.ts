@@ -19,6 +19,13 @@ import { isAdminRole } from "@shared/role-permissions";
 
 type FleetActor = { id: number; role: string; tenantId?: string | null };
 
+function requireFleetTenant(actor: FleetActor): string {
+  if (!actor.tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required." });
+  }
+  return actor.tenantId;
+}
+
 function isFleetManagerActor(actor: FleetActor): boolean {
   return ["fleet_manager", "fleet_admin"].includes(actor.role) || isAdminRole(actor.role);
 }
@@ -49,6 +56,15 @@ async function requireFleetReadAccess(db: any, actor: FleetActor, fleetId: numbe
   const [fleet] = await db.select().from(fleets).where(eq(fleets.id, fleetId)).limit(1);
   if (!fleet) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet not found or access denied." });
   return fleet;
+}
+
+async function requireManagedVehicle(db: any, actor: FleetActor, vehicleId: number) {
+  const tenantId = requireFleetTenant(actor);
+  const [vehicle] = await db.select().from(fleetVehicles)
+    .where(and(eq(fleetVehicles.id, vehicleId), eq(fleetVehicles.tenantId, tenantId))).limit(1);
+  if (!vehicle?.fleetId) throw new TRPCError({ code: "NOT_FOUND", message: "Vehicle not found or access denied." });
+  await requireManagedFleet(db, actor, vehicle.fleetId);
+  return vehicle;
 }
 
 export const fleetCoreRouter = router({
@@ -587,6 +603,9 @@ export const fleetCoreRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { createMaintenanceSchedule } = await import('../fleet/maintenance-intelligence');
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      await requireManagedVehicle(db, ctx.user, input.vehicleId);
       
       return createMaintenanceSchedule({
         vehicleId: input.vehicleId,
@@ -597,7 +616,7 @@ export const fleetCoreRouter = router({
         lastServiceMileage: input.lastServiceMileage,
         nextDueDate: input.nextDueDate ? new Date(input.nextDueDate) : undefined,
         nextDueMileage: input.nextDueMileage,
-        tenantId: ctx.user.tenantId || 'default',
+        tenantId: requireFleetTenant(ctx.user),
       });
     }),
 
@@ -615,6 +634,9 @@ export const fleetCoreRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { recordMaintenanceService } = await import('../fleet/maintenance-intelligence');
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      await requireManagedVehicle(db, ctx.user, input.vehicleId);
       
       return recordMaintenanceService({
         vehicleId: input.vehicleId,
@@ -625,7 +647,7 @@ export const fleetCoreRouter = router({
         cost: Math.round(input.cost * 100), // Convert to cents
         description: input.description || null,
         nextServiceDue: input.nextServiceDue ? new Date(input.nextServiceDue) : null,
-        tenantId: ctx.user.tenantId || 'default',
+        tenantId: requireFleetTenant(ctx.user),
       });
     }),
 
@@ -674,6 +696,9 @@ export const fleetCoreRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { createServiceRequest } = await import('../fleet/service-marketplace');
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      await requireManagedVehicle(db, ctx.user, input.vehicleId);
       
       return createServiceRequest({
         vehicleId: input.vehicleId,
@@ -683,7 +708,7 @@ export const fleetCoreRouter = router({
         description: input.description,
         preferredDate: input.preferredDate ? new Date(input.preferredDate) : undefined,
         budget: input.budget ? Math.round(input.budget * 100) : undefined,
-        tenantId: ctx.user.tenantId || 'default',
+        tenantId: requireFleetTenant(ctx.user),
       });
     }),
 
@@ -693,9 +718,9 @@ export const fleetCoreRouter = router({
       vehicleId: z.number().optional(),
       fleetId: z.number().optional(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { getServiceRequests } = await import('../fleet/service-marketplace');
-      return getServiceRequests(input.vehicleId, input.fleetId);
+      return getServiceRequests(requireFleetTenant(ctx.user), input.vehicleId, input.fleetId);
     }),
 
   // Submit service quote
@@ -716,7 +741,7 @@ export const fleetCoreRouter = router({
         providerName: input.providerName,
         quotedAmount: Math.round(input.quotedPrice * 100),
         estimatedDuration: input.estimatedDuration,
-        tenantId: ctx.user.tenantId || 'default',
+        tenantId: requireFleetTenant(ctx.user),
       });
     }),
 
@@ -725,9 +750,9 @@ export const fleetCoreRouter = router({
     .input(z.object({
       serviceRequestId: z.number(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { getServiceQuotes } = await import('../fleet/service-marketplace');
-      return getServiceQuotes(input.serviceRequestId);
+      return getServiceQuotes(requireFleetTenant(ctx.user), input.serviceRequestId);
     }),
 
   // Accept service quote
@@ -735,9 +760,9 @@ export const fleetCoreRouter = router({
     .input(z.object({
       quoteId: z.number(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const { acceptServiceQuote } = await import('../fleet/service-marketplace');
-      return acceptServiceQuote(input.quoteId);
+      return acceptServiceQuote(requireFleetTenant(ctx.user), input.quoteId);
     }),
 
   // Register service provider
@@ -758,7 +783,7 @@ export const fleetCoreRouter = router({
         contactPhone: input.contactPhone,
         address: input.address,
         serviceTypes: input.serviceTypes,
-        tenantId: ctx.user.tenantId || 'default',
+        tenantId: requireFleetTenant(ctx.user),
       });
     }),
 
@@ -775,9 +800,9 @@ export const fleetCoreRouter = router({
       serviceRequestId: z.number(),
       rating: z.number().min(1).max(5),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const { completeServiceRequest } = await import('../fleet/service-marketplace');
-      return completeServiceRequest(input.serviceRequestId, input.rating);
+      return completeServiceRequest(requireFleetTenant(ctx.user), input.serviceRequestId, input.rating);
     }),
 
   /** Get all drivers for a specific fleet */
