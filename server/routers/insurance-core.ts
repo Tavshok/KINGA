@@ -184,6 +184,8 @@ export const insuranceCoreRouter = router({
       if (!quote) {
         throw new Error('Quote not found');
       }
+      const actorTenantId = requireActorTenant(ctx.user.tenantId);
+      requireQuoteTenant(quote, actorTenantId);
       if (!isAdminRole(ctx.user.role) && quote.customerId !== ctx.user.id) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this quotation.' });
       }
@@ -208,7 +210,10 @@ export const insuranceCoreRouter = router({
           paymentProofS3Url: s3Url,
           paymentAmount: quote.premiumAmount, // Store the premium amount for verification
         })
-        .where(eq(insuranceQuotes.id, input.quoteId));
+        .where(and(
+          eq(insuranceQuotes.id, input.quoteId),
+          eq(insuranceQuotes.tenantId, actorTenantId),
+        ));
       
       return { success: true, message: 'Payment proof submitted successfully' };
     }),
@@ -249,11 +254,12 @@ export const insuranceCoreRouter = router({
       if (ctx.user.role !== 'insurer' && !isAdminRole(ctx.user.role)) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only insurers can verify payments' });
       }
-      const quote = (await db.select().from(insuranceQuotes).where(eq(insuranceQuotes.id, input.quoteId)))[0];
+      const actorTenantId = requireActorTenant(ctx.user.tenantId);
+      const quote = (await db.select().from(insuranceQuotes).where(and(
+        eq(insuranceQuotes.id, input.quoteId),
+        eq(insuranceQuotes.tenantId, actorTenantId),
+      )))[0];
       if (!quote) throw new TRPCError({ code: 'NOT_FOUND', message: 'Quote not found' });
-      if (!isAdminRole(ctx.user.role) && quote.tenantId !== ctx.user.tenantId) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'This quote belongs to another insurer tenant.' });
-      }
       
       // Update quote status to payment_verified
       await db.update(insuranceQuotes)
@@ -262,7 +268,10 @@ export const insuranceCoreRouter = router({
           paymentVerifiedAt: new Date().toISOString(),
           paymentVerifiedBy: ctx.user.id,
         })
-        .where(eq(insuranceQuotes.id, input.quoteId));
+        .where(and(
+          eq(insuranceQuotes.id, input.quoteId),
+          eq(insuranceQuotes.tenantId, actorTenantId),
+        ));
       
       // Trigger policy issuance workflow
       const { issuePolicyFromQuote } = await import('../insurance/policy-issuance');
@@ -289,11 +298,12 @@ export const insuranceCoreRouter = router({
       if (ctx.user.role !== 'insurer' && !isAdminRole(ctx.user.role)) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only insurers can reject payments' });
       }
-      const quote = (await db.select().from(insuranceQuotes).where(eq(insuranceQuotes.id, input.quoteId)))[0];
+      const actorTenantId = requireActorTenant(ctx.user.tenantId);
+      const quote = (await db.select().from(insuranceQuotes).where(and(
+        eq(insuranceQuotes.id, input.quoteId),
+        eq(insuranceQuotes.tenantId, actorTenantId),
+      )))[0];
       if (!quote) throw new TRPCError({ code: 'NOT_FOUND', message: 'Quote not found' });
-      if (!isAdminRole(ctx.user.role) && quote.tenantId !== ctx.user.tenantId) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'This quote belongs to another insurer tenant.' });
-      }
       
       // Update quote status to rejected with reason
       await db.update(insuranceQuotes)
@@ -301,7 +311,10 @@ export const insuranceCoreRouter = router({
           status: 'rejected',
           paymentRejectionReason: input.reason,
         })
-        .where(eq(insuranceQuotes.id, input.quoteId));
+        .where(and(
+          eq(insuranceQuotes.id, input.quoteId),
+          eq(insuranceQuotes.tenantId, actorTenantId),
+        ));
       
       // TODO: Notify customer of rejection
       

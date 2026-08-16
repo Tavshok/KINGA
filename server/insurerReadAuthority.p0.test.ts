@@ -44,4 +44,26 @@ describe("insurer quote and policy read authority", () => {
     expect(insuranceCoreSource).toContain("if (policy.tenantId !== actorTenantId)");
     expect(insuranceCoreSource).not.toContain("const paymentScope = isAdminRole(ctx.user.role)");
   });
+
+  it("establishes tenant scope before every supported payment-mode side effect", () => {
+    const submitPaymentProof = insuranceCoreSource.slice(
+      insuranceCoreSource.indexOf("submitPaymentProof:"),
+      insuranceCoreSource.indexOf("// Get pending payments for verification"),
+    );
+    const verifyPayment = insuranceCoreSource.slice(
+      insuranceCoreSource.indexOf("verifyPayment:"),
+      insuranceCoreSource.indexOf("// Reject payment"),
+    );
+    const rejectPayment = insuranceCoreSource.slice(
+      insuranceCoreSource.indexOf("rejectPayment:"),
+      insuranceCoreSource.indexOf("// Get customer's policies"),
+    );
+
+    expect(submitPaymentProof.indexOf("requireQuoteTenant(quote, actorTenantId)")).toBeLessThan(submitPaymentProof.indexOf("storagePut(s3Key"));
+    expect(submitPaymentProof).toContain("eq(insuranceQuotes.tenantId, actorTenantId)");
+    expect(verifyPayment.indexOf("eq(insuranceQuotes.tenantId, actorTenantId)")).toBeLessThan(verifyPayment.indexOf("issuePolicyFromQuote"));
+    expect(verifyPayment).toContain(".where(and(");
+    expect(rejectPayment).toContain(".where(and(");
+    expect(rejectPayment).toContain("eq(insuranceQuotes.tenantId, actorTenantId)");
+  });
 });
