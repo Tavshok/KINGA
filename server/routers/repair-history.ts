@@ -28,6 +28,13 @@ import {
   updateRepairCompletion,
   updateRepairerAggregates,
 } from "../repair-history";
+import { TRPCError } from "@trpc/server";
+
+function requireRepairHistoryTenant(ctx: { user?: { tenantId?: string | null } }) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
 
 export const repairHistoryRouter = router({
   /**
@@ -35,8 +42,8 @@ export const repairHistoryRouter = router({
    */
   getByClaim: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
-      return getRepairHistoryByClaim(input.claimId);
+    .query(async ({ input, ctx }) => {
+      return getRepairHistoryByClaim(input.claimId, requireRepairHistoryTenant(ctx));
     }),
 
   /**
@@ -47,8 +54,8 @@ export const repairHistoryRouter = router({
       repairerId: z.number(),
       limit: z.number().min(1).max(200).default(50),
     }))
-    .query(async ({ input }) => {
-      return getRepairHistoryByRepairer(input.repairerId, input.limit);
+    .query(async ({ input, ctx }) => {
+      return getRepairHistoryByRepairer(input.repairerId, requireRepairHistoryTenant(ctx), input.limit);
     }),
 
   /**
@@ -59,8 +66,8 @@ export const repairHistoryRouter = router({
       vehicleId: z.number(),
       limit: z.number().min(1).max(200).default(50),
     }))
-    .query(async ({ input }) => {
-      return getRepairHistoryByVehicle(input.vehicleId, input.limit);
+    .query(async ({ input, ctx }) => {
+      return getRepairHistoryByVehicle(input.vehicleId, requireRepairHistoryTenant(ctx), input.limit);
     }),
 
   /**
@@ -70,9 +77,10 @@ export const repairHistoryRouter = router({
    */
   getRepairerStats: protectedProcedure
     .input(z.object({ repairerId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return null;
+      const tenantId = requireRepairHistoryTenant(ctx);
 
       const [repairer] = await db
         .select()
@@ -83,7 +91,7 @@ export const repairHistoryRouter = router({
       if (!repairer) return null;
 
       // Recent 10 repairs for sparkline data
-      const recentRepairs = await getRepairHistoryByRepairer(input.repairerId, 10);
+      const recentRepairs = await getRepairHistoryByRepairer(input.repairerId, tenantId, 10);
 
       // Monthly breakdown (last 12 months)
       const monthlyBreakdown = await db
@@ -98,6 +106,7 @@ export const repairHistoryRouter = router({
         .where(
           and(
             eq(repairHistory.repairerId, input.repairerId),
+            eq(repairHistory.tenantId, tenantId),
             sql`created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)`
           )
         )
@@ -154,16 +163,12 @@ export const repairHistoryRouter = router({
   getFraudFlagged: protectedProcedure
     .input(z.object({
       limit: z.number().min(1).max(100).default(50),
-      tenantId: z.string().optional(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return [];
 
-      const conditions = [sql`is_fraud_flagged = 1`];
-      if (input.tenantId) {
-        conditions.push(eq(repairHistory.tenantId, input.tenantId));
-      }
+      const conditions = [sql`is_fraud_flagged = 1`, eq(repairHistory.tenantId, requireRepairHistoryTenant(ctx))];
 
       return db
         .select()
@@ -179,16 +184,12 @@ export const repairHistoryRouter = router({
   getRepeatDamage: protectedProcedure
     .input(z.object({
       limit: z.number().min(1).max(100).default(50),
-      tenantId: z.string().optional(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return [];
 
-      const conditions = [sql`repeat_damage_within_12_months = 1`];
-      if (input.tenantId) {
-        conditions.push(eq(repairHistory.tenantId, input.tenantId));
-      }
+      const conditions = [sql`repeat_damage_within_12_months = 1`, eq(repairHistory.tenantId, requireRepairHistoryTenant(ctx))];
 
       return db
         .select()
@@ -207,10 +208,12 @@ export const repairHistoryRouter = router({
       repairHistoryId: z.number(),
       repairDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      const tenantId = requireRepairHistoryTenant(ctx);
       await updateRepairCompletion({
         repairHistoryId: input.repairHistoryId,
         repairDate: input.repairDate,
+        tenantId,
       });
 
       // Re-fetch to get the repairerId for aggregate update
@@ -219,7 +222,7 @@ export const repairHistoryRouter = router({
         const [record] = await db
           .select({ repairerId: repairHistory.repairerId })
           .from(repairHistory)
-          .where(eq(repairHistory.id, input.repairHistoryId))
+          .where(and(eq(repairHistory.id, input.repairHistoryId), eq(repairHistory.tenantId, tenantId)))
           .limit(1);
         if (record) {
           await updateRepairerAggregates(record.repairerId);
@@ -233,14 +236,12 @@ export const repairHistoryRouter = router({
    * Global repair intelligence stats for the executive dashboard.
    */
   getStats: protectedProcedure
-    .input(z.object({ tenantId: z.string().optional() }))
-    .query(async ({ input }) => {
+    .input(z.object({}))
+    .query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return null;
 
-      const conditions = input.tenantId
-        ? [eq(repairHistory.tenantId, input.tenantId)]
-        : [];
+      const conditions = [eq(repairHistory.tenantId, requireRepairHistoryTenant(ctx))];
 
       const [stats] = await db
         .select({
@@ -256,7 +257,7 @@ export const repairHistoryRouter = router({
           uniqueVehicles: sql<number>`COUNT(DISTINCT vehicle_id)`,
         })
         .from(repairHistory)
-        .where(conditions.length > 0 ? and(...conditions) : undefined);
+        .where(and(...conditions));
 
       // Tier distribution
       const tierDist = await db

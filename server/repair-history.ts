@@ -388,6 +388,7 @@ export async function insertRepairHistory(
 export async function updateRepairCompletion(params: {
   repairHistoryId: number;
   repairDate: string;
+  tenantId: string;
 }): Promise<void> {
   const db = await getDb();
   if (!db) return;
@@ -395,7 +396,7 @@ export async function updateRepairCompletion(params: {
   const [record] = await db
     .select()
     .from(repairHistory)
-    .where(eq(repairHistory.id, params.repairHistoryId))
+    .where(and(eq(repairHistory.id, params.repairHistoryId), eq(repairHistory.tenantId, params.tenantId)))
     .limit(1);
 
   if (!record) return;
@@ -425,7 +426,7 @@ export async function updateRepairCompletion(params: {
       repairDurationDays,
       repairQualityScore: updatedQualityScore,
     })
-    .where(eq(repairHistory.id, params.repairHistoryId));
+    .where(and(eq(repairHistory.id, params.repairHistoryId), eq(repairHistory.tenantId, params.tenantId)));
 
   console.log(
     `[RepairHistory] Completion backfill #${params.repairHistoryId}: duration=${repairDurationDays}d quality=${updatedQualityScore}`
@@ -527,18 +528,19 @@ export async function updateRepairerAggregates(repairerId: number): Promise<void
 
 // ─── Query helpers ────────────────────────────────────────────────────────────
 
-export async function getRepairHistoryByClaim(claimId: number) {
+export async function getRepairHistoryByClaim(claimId: number, tenantId: string) {
   const db = await getDb();
   if (!db) return [];
   return db
     .select()
     .from(repairHistory)
-    .where(eq(repairHistory.claimId, claimId))
+    .where(and(eq(repairHistory.claimId, claimId), eq(repairHistory.tenantId, tenantId)))
     .orderBy(desc(repairHistory.createdAt));
 }
 
 export async function getRepairHistoryByRepairer(
   repairerId: number,
+  tenantId: string,
   limit = 50
 ) {
   const db = await getDb();
@@ -546,13 +548,14 @@ export async function getRepairHistoryByRepairer(
   return db
     .select()
     .from(repairHistory)
-    .where(eq(repairHistory.repairerId, repairerId))
+    .where(and(eq(repairHistory.repairerId, repairerId), eq(repairHistory.tenantId, tenantId)))
     .orderBy(desc(repairHistory.createdAt))
     .limit(limit);
 }
 
 export async function getRepairHistoryByVehicle(
   vehicleId: number,
+  tenantId: string,
   limit = 50
 ) {
   const db = await getDb();
@@ -560,7 +563,7 @@ export async function getRepairHistoryByVehicle(
   return db
     .select()
     .from(repairHistory)
-    .where(eq(repairHistory.vehicleId, vehicleId))
+    .where(and(eq(repairHistory.vehicleId, vehicleId), eq(repairHistory.tenantId, tenantId)))
     .orderBy(desc(repairHistory.createdAt))
     .limit(limit);
 }
