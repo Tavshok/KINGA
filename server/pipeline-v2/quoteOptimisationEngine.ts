@@ -24,15 +24,15 @@
  *     justification:       string
  *   }
  *
- * DESIGN RULES:
- *   1. Do NOT default to the lowest quote blindly
- *   2. Structural completeness > price
- *   3. Missing structural components = coverage penalty
- *   4. Quotes >30% above median are flagged as outliers
- *   5. Quotes missing structural components are penalised, not excluded outright
- *   6. The optimised cost is a weighted average, not a simple mean
- *   7. Weights are derived from: component coverage × structural completeness × confidence
- *   8. All exclusions and penalties are recorded in the audit trail
+ * CURRENT L2 RULES:
+ *   1. L1 is the lowest whole eligible active submitted quote total.
+ *   2. For each traceable submitted component, Qmin is compared with benchmark P50.
+ *   3. Within 30%, select P50; outside 30%, select the lower of Qmin and P50.
+ *   4. A P50 never invents a component: no submitted component evidence means a data gap.
+ *   5. Submitted-price spread above 20% creates a like-for-like scope remark.
+ *   6. Required unpriced or safety-critical scope produces a review-qualified state,
+ *      not a fabricated payable cost.
+ *   7. All selected and excluded evidence remains traceable in the result.
  *
  * PROFESSIONAL LANGUAGE RULES:
  *   - No AI/model terminology in justification text
@@ -1225,8 +1225,10 @@ export function buildCompositeQuote(
 
   // ── 3. Per-component L2 selection ──────────────────────────────────────────
   //
-  // Formula: L2_component = lowest submitted active-quote price for that component.
-  // Benchmark values remain comparison metadata and never alter L2 selection.
+  // Formula: let Qmin be the lowest traceable active submitted price for the component.
+  // If P50 exists and abs(Qmin-P50)/P50 <= 30%, select P50. Otherwise select
+  // min(Qmin, P50). Without P50, retain Qmin. This never creates a component
+  // without submitted evidence.
 
   const compositeLineItems: CompositeLineItem[] = [];
   let compositeOptimisedCostUsd = 0;

@@ -4,11 +4,12 @@
  * Unit tests for the per-component cross-quote L2 formula in buildCompositeQuote.
  *
  * CONFIRMED FORMULA (product owner, August 2026):
- *   For each component:
- *     lowestSubmitted_c = min price across all quotes for this component
- *     L2_c = lowestSubmitted_c
- *     Benchmark P25/P50/P75 remain comparative metadata only.
- *   L2_total = sum of L2_c
+ *   For each submitted-evidence component:
+ *     Qmin_c = min eligible submitted component price across all quotes
+ *     if abs(Qmin_c - P50_c) / P50_c <= 30%, L2_c = P50_c
+ *     otherwise L2_c = min(Qmin_c, P50_c)
+ *     where no P50 exists, L2_c = Qmin_c
+ *   L2_total = sum of L2_c. A benchmark never creates an unquoted component.
  *
  * NOTE: Component names are normalised through resolveToCanonical() inside the
  * engine. Tests must use the canonical names for benchmark keys and assertions.
