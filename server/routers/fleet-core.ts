@@ -34,10 +34,9 @@ async function requireManagedFleet(db: any, actor: FleetActor, fleetId: number) 
   if (!isFleetManagerActor(actor)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Fleet manager access is required." });
   }
-  const scope = actor.tenantId
-    ? or(eq(fleets.ownerId, actor.id), eq(fleets.tenantId, actor.tenantId))
-    : eq(fleets.ownerId, actor.id);
-  const [fleet] = await db.select().from(fleets).where(and(eq(fleets.id, fleetId), scope)).limit(1);
+  const tenantId = requireFleetTenant(actor);
+  const [fleet] = await db.select().from(fleets)
+    .where(and(eq(fleets.id, fleetId), eq(fleets.tenantId, tenantId))).limit(1);
   if (!fleet) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet not found or access denied." });
   return fleet;
 }
@@ -50,10 +49,10 @@ async function requireFleetReadAccess(db: any, actor: FleetActor, fleetId: numbe
   const [assignment] = await db
     .select({ fleetId: fleetDrivers.fleetId })
     .from(fleetDrivers)
-    .where(and(eq(fleetDrivers.fleetId, fleetId), eq(fleetDrivers.userId, actor.id), eq(fleetDrivers.employmentStatus, "active")))
+    .where(and(eq(fleetDrivers.fleetId, fleetId), eq(fleetDrivers.userId, actor.id), eq(fleetDrivers.employmentStatus, "active"), eq(fleetDrivers.tenantId, requireFleetTenant(actor))))
     .limit(1);
   if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet not found or access denied." });
-  const [fleet] = await db.select().from(fleets).where(eq(fleets.id, fleetId)).limit(1);
+  const [fleet] = await db.select().from(fleets).where(and(eq(fleets.id, fleetId), eq(fleets.tenantId, requireFleetTenant(actor)))).limit(1);
   if (!fleet) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet not found or access denied." });
   return fleet;
 }
@@ -98,7 +97,8 @@ export const fleetCoreRouter = router({
   getMyFleets: protectedProcedure
     .query(async ({ ctx }) => {
       const { getFleetsByOwner } = await import('../fleet/fleet-db');
-      return getFleetsByOwner(ctx.user.id);
+      const tenantId = requireFleetTenant(ctx.user);
+      return (await getFleetsByOwner(ctx.user.id)).filter((fleet: { tenantId?: string | null }) => fleet.tenantId === tenantId);
     }),
 
   // Get fleet by ID
@@ -812,6 +812,7 @@ export const fleetCoreRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
       const fleet = await requireFleetReadAccess(db, ctx.user, input.fleetId);
+      const tenantId = requireFleetTenant(ctx.user);
       const { users } = await import('../../drizzle/schema');
       const drivers = await db
         .select({
@@ -832,7 +833,7 @@ export const fleetCoreRouter = router({
         .leftJoin(users, eq(fleetDrivers.userId, users.id))
         .where(and(
           eq(fleetDrivers.fleetId, input.fleetId),
-          eq(fleetDrivers.tenantId, fleet.tenantId ?? ctx.user.tenantId ?? ""),
+          eq(fleetDrivers.tenantId, tenantId),
         ));
       return drivers;
     }),
@@ -843,10 +844,11 @@ export const fleetCoreRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
       const { users, fleets } = await import('../../drizzle/schema');
+      const tenantId = requireFleetTenant(ctx.user);
       const myFleets = await db
         .select({ id: fleets.id, fleetName: fleets.fleetName })
         .from(fleets)
-        .where(eq(fleets.ownerId, ctx.user.id));
+        .where(and(eq(fleets.ownerId, ctx.user.id), eq(fleets.tenantId, tenantId)));
       if (!myFleets.length) return [];
       const fleetIds = myFleets.map((f: any) => f.id);
       const allDrivers = await db
@@ -867,7 +869,8 @@ export const fleetCoreRouter = router({
         })
         .from(fleetDrivers)
         .leftJoin(users, eq(fleetDrivers.userId, users.id))
-        .leftJoin(fleets, eq(fleetDrivers.fleetId, fleets.id));
+        .leftJoin(fleets, eq(fleetDrivers.fleetId, fleets.id))
+        .where(eq(fleetDrivers.tenantId, tenantId));
       return allDrivers.filter((d: any) => fleetIds.includes(d.fleetId));
     }),
 
