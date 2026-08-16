@@ -41,7 +41,7 @@ describe("insurer quote and policy read authority", () => {
 
   it("keeps pending-payment and policy-PDF evidence paths tenant-bound", () => {
     expect(insuranceCoreSource).toContain("eq(insuranceQuotes.tenantId, actorTenantId)");
-    expect(insuranceCoreSource).toContain("if (policy.tenantId !== actorTenantId)");
+    expect(insuranceCoreSource).toContain("eq(insurancePolicies.tenantId, actorTenantId)");
     expect(insuranceCoreSource).not.toContain("const paymentScope = isAdminRole(ctx.user.role)");
   });
 
@@ -65,5 +65,19 @@ describe("insurer quote and policy read authority", () => {
     expect(verifyPayment).toContain(".where(and(");
     expect(rejectPayment).toContain(".where(and(");
     expect(rejectPayment).toContain("eq(insuranceQuotes.tenantId, actorTenantId)");
+  });
+
+  it("keeps quote-history and policy-PDF vehicle enrichment within the authorised tenant", () => {
+    const quoteHistory = insuranceCoreSource.slice(
+      insuranceCoreSource.indexOf("getMyQuotes:"),
+      insuranceCoreSource.indexOf("// Download policy PDF"),
+    );
+    const policyPdf = insuranceCoreSource.slice(insuranceCoreSource.indexOf("downloadPolicyPDF:"));
+
+    expect(quoteHistory).toContain("eq(insuranceQuotes.tenantId, actorTenantId)");
+    expect(quoteHistory).toContain("eq(fleetVehicles.tenantId, actorTenantId)");
+    expect(quoteHistory).toContain('"Vehicle details unavailable"');
+    expect(policyPdf).toContain("eq(insurancePolicies.tenantId, actorTenantId)");
+    expect(policyPdf).toContain("eq(fleetVehicles.tenantId, actorTenantId)");
   });
 });

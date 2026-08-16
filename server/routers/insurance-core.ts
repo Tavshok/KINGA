@@ -347,15 +347,22 @@ export const insuranceCoreRouter = router({
     .query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error('Database connection failed');
+      const actorTenantId = requireActorTenant(ctx.user.tenantId);
 
       const quotes = await db.select()
         .from(insuranceQuotes)
-        .where(eq(insuranceQuotes.customerId, ctx.user.id))
+        .where(and(
+          eq(insuranceQuotes.customerId, ctx.user.id),
+          eq(insuranceQuotes.tenantId, actorTenantId),
+        ))
         .limit(100); // M-01: cap per-user quote history
 
       const vehicleIds = [...new Set(quotes.map((quote) => quote.vehicleId))];
       const vehicles = vehicleIds.length
-        ? await db.select().from(fleetVehicles).where(inArray(fleetVehicles.id, vehicleIds))
+        ? await db.select().from(fleetVehicles).where(and(
+            inArray(fleetVehicles.id, vehicleIds),
+            eq(fleetVehicles.tenantId, actorTenantId),
+          ))
         : [];
       const vehicleById = new Map(vehicles.map((vehicle) => [vehicle.id, vehicle]));
 
@@ -363,7 +370,7 @@ export const insuranceCoreRouter = router({
         const vehicle = vehicleById.get(quote.vehicleId);
         return {
           ...quote,
-          vehicleRegistration: vehicle?.registrationNumber ?? `Vehicle #${quote.vehicleId}`,
+          vehicleRegistration: vehicle?.registrationNumber ?? "Vehicle details unavailable",
           vehicleMake: vehicle?.make ?? null,
           vehicleModel: vehicle?.model ?? null,
           insuranceType: "motor",
@@ -382,9 +389,13 @@ export const insuranceCoreRouter = router({
       if (!db) throw new Error('Database connection failed');
       
       // Get policy details
+      const actorTenantId = requireActorTenant(ctx.user.tenantId);
       const policies = await db.select()
         .from(insurancePolicies)
-        .where(eq(insurancePolicies.id, input.policyId));
+        .where(and(
+          eq(insurancePolicies.id, input.policyId),
+          eq(insurancePolicies.tenantId, actorTenantId),
+        ));
       
       if (!policies || policies.length === 0) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Policy not found' });
@@ -392,10 +403,6 @@ export const insuranceCoreRouter = router({
       
       const policy = policies[0];
       
-      const actorTenantId = requireActorTenant(ctx.user.tenantId);
-      if (policy.tenantId !== actorTenantId) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Policy not found' });
-      }
       // Verify ownership after tenant scope is established.
       if (!isAdminRole(ctx.user.role) && policy.customerId !== ctx.user.id) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this policy' });
@@ -404,7 +411,10 @@ export const insuranceCoreRouter = router({
       // Get vehicle details
       const vehicles = await db.select()
         .from(fleetVehicles)
-        .where(eq(fleetVehicles.id, policy.vehicleId));
+        .where(and(
+          eq(fleetVehicles.id, policy.vehicleId),
+          eq(fleetVehicles.tenantId, actorTenantId),
+        ));
       
       if (!vehicles || vehicles.length === 0) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Vehicle not found' });
