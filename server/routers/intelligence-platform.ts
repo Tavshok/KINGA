@@ -44,6 +44,12 @@ import {
   predictiveRiskScores,
 } from "../../drizzle/schema";
 
+function requireIntelligenceTenant(ctx: { user?: { tenantId?: string | null } }) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. CROSS-MODULE INTELLIGENCE ROUTER
 // Surfaces signals that propagate across Claims, Fleet, Engineering, and Driver
@@ -1034,9 +1040,9 @@ export const portfolioIntelligenceRouter = router({
   getFleetExposureSummary: protectedProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return null;
+    const tenantId = requireIntelligenceTenant(ctx);
     try {
-      const tenantFilter = ctx.user.tenantId ? `AND (f.tenant_id = '${ctx.user.tenantId}' OR f.tenant_id IS NULL)` : '';
-      const [row] = await db.execute(sql.raw(`
+      const [row] = await db.execute(sql`
         SELECT
           COUNT(DISTINCT fv.id) AS totalVehicles,
           COUNT(DISTINCT f.id) AS totalFleets,
@@ -1044,10 +1050,10 @@ export const portfolioIntelligenceRouter = router({
           COALESCE(SUM(frs.total_claims_cost_cents), 0) AS totalClaimCostCents,
           COALESCE(AVG(frs.overall_risk_score), 0) AS avgFleetRiskScore
         FROM fleets f
-        LEFT JOIN fleet_vehicles fv ON fv.fleet_id = f.id
-        LEFT JOIN fleet_risk_scores frs ON frs.fleet_id = f.id
-        WHERE 1=1 ${tenantFilter}
-      `));
+        LEFT JOIN fleet_vehicles fv ON fv.fleet_id = f.id AND fv.tenant_id = ${tenantId}
+        LEFT JOIN fleet_risk_scores frs ON frs.fleet_id = f.id AND frs.tenant_id = ${tenantId}
+        WHERE f.tenant_id = ${tenantId}
+      `);
       const data = (Array.isArray(row) ? row[0] : row) as any;
       return {
         totalVehicles: Number(data?.totalVehicles ?? 0),
@@ -1066,9 +1072,9 @@ export const portfolioIntelligenceRouter = router({
   getEngineeringRiskSummary: protectedProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return null;
+    const tenantId = requireIntelligenceTenant(ctx);
     try {
-      const tenantFilter = ctx.user.tenantId ? `AND (i.tenant_id = '${ctx.user.tenantId}' OR i.tenant_id IS NULL)` : '';
-      const [row] = await db.execute(sql.raw(`
+      const [row] = await db.execute(sql`
         SELECT
           COUNT(*) AS totalInspections,
           SUM(CASE WHEN i.status = 'completed' THEN 1 ELSE 0 END) AS completedInspections,
@@ -1076,8 +1082,8 @@ export const portfolioIntelligenceRouter = router({
           SUM(CASE WHEN i.structural_risk_level IN ('high','critical') THEN 1 ELSE 0 END) AS highStructuralRiskCount,
           COUNT(DISTINCT i.engineer_id) AS activeEngineers
         FROM inspections i
-        WHERE 1=1 ${tenantFilter}
-      `));
+        WHERE i.tenant_id = ${tenantId}
+      `);
       const data = (Array.isArray(row) ? row[0] : row) as any;
       return {
         totalInspections: Number(data?.totalInspections ?? 0),
@@ -1203,6 +1209,11 @@ export const timelineIntelligenceRouter = router({
     .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = requireIntelligenceTenant(ctx);
+
+      const [claim] = await db.select({ id: claims.id }).from(claims)
+        .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId))).limit(1);
+      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
 
       const events: Array<{
         eventType: string;
@@ -1224,7 +1235,11 @@ export const timelineIntelligenceRouter = router({
           comments: workflowAuditTrail.comments,
         })
         .from(workflowAuditTrail)
-        .where(eq(workflowAuditTrail.claimId, input.claimId))
+        .innerJoin(claims, eq(claims.id, workflowAuditTrail.claimId))
+        .where(and(
+          eq(workflowAuditTrail.claimId, input.claimId),
+          eq(claims.tenantId, tenantId),
+        ))
         .orderBy(desc(workflowAuditTrail.createdAt))
         .limit(input.limit);
 
@@ -1249,7 +1264,11 @@ export const timelineIntelligenceRouter = router({
           alertDescription: fraudAlerts.alertDescription,
         })
         .from(fraudAlerts)
-        .where(eq(fraudAlerts.claimId, input.claimId))
+        .innerJoin(claims, eq(claims.id, fraudAlerts.claimId))
+        .where(and(
+          eq(fraudAlerts.claimId, input.claimId),
+          eq(claims.tenantId, tenantId),
+        ))
         .orderBy(desc(fraudAlerts.createdAt))
         .limit(20);
 
