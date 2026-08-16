@@ -1561,11 +1561,12 @@ If any value is not found, use null or 0. Line items category must be one of: pa
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
-        if (!['assessor', 'insurer', 'admin'].includes(ctx.user.role)) {
+        if (!['assessor', 'insurer'].includes(ctx.user.role) && !isAdminRole(ctx.user.role)) {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Only assessors, insurers, and admins may override incident type' });
         }
 
-        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+        const tenantId = ctx.user.tenantId;
+        if (!tenantId) throw new TRPCError({ code: 'FORBIDDEN', message: 'A tenant-scoped session is required' });
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
 
@@ -1623,7 +1624,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           incidentTypeOverriddenBy: ctx.user.id,
           incidentTypeOverriddenAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
           incidentTypeRevalidationJson: JSON.stringify(revalidation),
-        } as any).where(eq(claims.id, input.claimId));
+        } as any).where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId)));
 
         // ── 4. Audit trail ────────────────────────────────────────────────
         await createAuditEntry({
@@ -1657,7 +1658,8 @@ If any value is not found, use null or 0. Line items category must be one of: pa
     getOverrideStatus: protectedProcedure
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
-        const tenantId = ctx.user?.role === 'admin' ? undefined : (ctx.user?.tenantId || 'default');
+        const tenantId = ctx.user?.tenantId;
+        if (!tenantId) throw new TRPCError({ code: 'FORBIDDEN', message: 'A tenant-scoped session is required' });
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) return null;
         return {
