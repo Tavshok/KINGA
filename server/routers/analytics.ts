@@ -546,6 +546,9 @@ export const analyticsRouter = router({
         }
 
         const tenantId = resolveAnalyticsTenant(ctx);
+        const panelBeaterTenantFilter = tenantId
+          ? eq(panelBeaters.tenantId, tenantId)
+          : undefined;
 
         const beaterStats = await db
           .select({
@@ -558,6 +561,7 @@ export const analyticsRouter = router({
           .from(panelBeaters)
           .leftJoin(panelBeaterQuotes, eq(panelBeaters.id, panelBeaterQuotes.panelBeaterId))
           .leftJoin(claims, eq(panelBeaterQuotes.claimId, claims.id))
+          .where(panelBeaterTenantFilter)
           .groupBy(sql`${panelBeaters.id}`, sql`${panelBeaters.businessName}`)
           .orderBy(desc(sql`COUNT(${panelBeaterQuotes.id})`))
           .limit(50); // M-01: cap panel beater list
