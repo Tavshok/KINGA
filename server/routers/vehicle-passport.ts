@@ -121,6 +121,8 @@ export const vehiclePassportRouter = router({
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
 
       // Verify vehicle exists and belongs to tenant
       const [vehicle] = await db
@@ -134,15 +136,12 @@ export const vehiclePassportRouter = router({
       }
 
       // Tenant isolation with an explicit insurer-invitation evidence exception.
-      if (!await canAccessVehiclePassport(db, vehicle, input.vehicleRegistryId, ctx.user.tenantId)) {
+      if (!await canAccessVehiclePassport(db, vehicle, input.vehicleRegistryId, tenantId)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
       }
 
       // Aggregate all intelligence from canonical tables
-      const intelligence = await aggregateVehiclePassport(
-        input.vehicleRegistryId,
-        ctx.user.tenantId ?? undefined
-      );
+      const intelligence = await aggregateVehiclePassport(input.vehicleRegistryId, tenantId);
 
       if (!intelligence) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Vehicle intelligence unavailable" });
@@ -152,9 +151,9 @@ export const vehiclePassportRouter = router({
       const renewalRisk = await computeVehicleRenewalRisk(
         input.vehicleRegistryId,
         vehicle.registrationNumber ?? "",
-        ctx.user.tenantId ?? undefined
+        tenantId
       );
-      const preLossConditionSnapshots = await getAuthorisedPreLossConditionSnapshots(db, input.vehicleRegistryId, ctx.user.tenantId);
+      const preLossConditionSnapshots = await getAuthorisedPreLossConditionSnapshots(db, input.vehicleRegistryId, tenantId);
 
       return {
         vehicle,
@@ -180,6 +179,8 @@ export const vehiclePassportRouter = router({
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
 
       const regNum = input.registrationNumber.toUpperCase().replace(/\s+/g, "");
 
@@ -193,21 +194,18 @@ export const vehiclePassportRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Vehicle not found in registry" });
       }
 
-      if (!await canAccessVehiclePassport(db, vehicle, vehicle.id, ctx.user.tenantId)) {
+      if (!await canAccessVehiclePassport(db, vehicle, vehicle.id, tenantId)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
       }
 
-      const intelligence = await aggregateVehiclePassport(
-        vehicle.id,
-        ctx.user.tenantId ?? undefined
-      );
+      const intelligence = await aggregateVehiclePassport(vehicle.id, tenantId);
 
       const renewalRisk = await computeVehicleRenewalRisk(
         vehicle.id,
         regNum,
-        ctx.user.tenantId ?? undefined
+        tenantId
       );
-      const preLossConditionSnapshots = await getAuthorisedPreLossConditionSnapshots(db, vehicle.id, ctx.user.tenantId);
+      const preLossConditionSnapshots = await getAuthorisedPreLossConditionSnapshots(db, vehicle.id, tenantId);
 
       return {
         vehicle,
