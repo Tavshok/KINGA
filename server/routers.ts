@@ -104,6 +104,7 @@ import { approvalRouter } from "./routers/approval";
 import { truthSynthesisRouter } from "./routers/truth-synthesis";
 import { marketQuotesRouter } from "./routers/market-quotes";
 import { agencyRouter } from "./routers/agency";
+import { clientValuationRouter } from "./routers/client-valuation";
 import { agencyBrokerRouter } from "./routers/agency-broker";
 import { agencyInsuranceServiceRouter } from "./routers/agency-insurance-service";
 import { fleetAccountsRouter } from "./routers/fleet-accounts";
@@ -381,6 +382,7 @@ export const appRouter = router({
   intakeGate: intakeGateRouter,
   marketQuotes: marketQuotesRouter,
   agency: agencyRouter,
+  clientValuation: clientValuationRouter,
   agencyBroker: agencyBrokerRouter,
   inspections: inspectionsRouter,
   fleetAccounts: fleetAccountsRouter,

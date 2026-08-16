@@ -1,7 +1,7 @@
 /**
  * BulkValuation.tsx — Phase 4A
  * Bulk vehicle valuation via CSV upload or single vehicle form.
- * Route: /agency/valuation
+ * Route: /client/valuation/bulk
  */
 import { trpc } from "@/lib/trpc";
 import { useState, useRef } from "react";
@@ -69,12 +69,12 @@ export default function BulkValuation() {
   const [singleForm, setSingleForm] = useState({ make: "", model: "", year: new Date().getFullYear(), registrationNumber: "", condition: "good" as "excellent"|"good"|"fair"|"poor", mileage: "" });
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const bulkValuate = trpc.agency.bulkValuate.useMutation({
+  const bulkValuate = trpc.clientValuation.bulkMarketValuation.useMutation({
     onSuccess: (data) => { setResults(data as any[]); toast.success(`${(data as any[]).length} vehicles valuated`); },
     onError: (e) => toast.error(e.message),
   });
 
-  const { data: singleResult, refetch: runSingle, isFetching: singleLoading } = trpc.agency.getValuation.useQuery(
+  const { data: singleResult, refetch: runSingle, isFetching: singleLoading } = trpc.clientValuation.getMarketValuation.useQuery(
     { make: singleForm.make, model: singleForm.model, year: singleForm.year, registrationNumber: singleForm.registrationNumber || undefined, condition: singleForm.condition, mileage: singleForm.mileage ? Number(singleForm.mileage) : undefined },
     { enabled: false }
   );

@@ -44,6 +44,7 @@ const MARKETPLACE_ROLES = [
   "platform_super_admin",
 ] as const;
 const PORTAL_ROLES = ["claimant", "admin"] as const;
+const CUSTOMER_ROLES = ["claimant", "user", "fleet_admin", "fleet_manager", "fleet_driver", "admin", "platform_super_admin"] as const;
 // Engineer: field engineers + admin + platform_super_admin (Epic 3)
 export const ENGINEER_ROLES = ["engineer", "admin", "platform_super_admin"] as const;
 
@@ -150,6 +151,18 @@ const requirePortal = t.middleware(({ ctx, next }) => {
 
 export const portalDomainProcedure = t.procedure.use(requirePortal);
 
+// ─── /client → client and fleet customer roles ──────────────────────────────
+
+const requireCustomer = t.middleware(({ ctx, next }) => {
+  if (!ctx.user) unauthorized();
+  if (!CUSTOMER_ROLES.includes(ctx.user.role as typeof CUSTOMER_ROLES[number])) {
+    forbidden(`Access denied. /client requires a customer role. Current role: ${ctx.user.role}`);
+  }
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
+
+export const customerDomainProcedure = t.procedure.use(requireCustomer);
+
 // ─── /engineering → engineer roles only (Epic 3) ────────────────────────────
 
 const requireEngineer = t.middleware(({ ctx, next }) => {
@@ -171,6 +184,7 @@ export const DOMAIN_ROLE_MAP = {
   fleet: [...FLEET_ROLES],
   marketplace: [...MARKETPLACE_ROLES],
   portal: [...PORTAL_ROLES],
+  customer: [...CUSTOMER_ROLES],
   engineering: [...ENGINEER_ROLES],
 } as const;
 
