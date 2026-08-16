@@ -17,6 +17,40 @@ import {
 import { nanoid } from "nanoid";
 import { isAdminRole } from "@shared/role-permissions";
 
+type FleetActor = { id: number; role: string; tenantId?: string | null };
+
+function isFleetManagerActor(actor: FleetActor): boolean {
+  return ["fleet_manager", "fleet_admin"].includes(actor.role) || isAdminRole(actor.role);
+}
+
+async function requireManagedFleet(db: any, actor: FleetActor, fleetId: number) {
+  if (!isFleetManagerActor(actor)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Fleet manager access is required." });
+  }
+  const scope = actor.tenantId
+    ? or(eq(fleets.ownerId, actor.id), eq(fleets.tenantId, actor.tenantId))
+    : eq(fleets.ownerId, actor.id);
+  const [fleet] = await db.select().from(fleets).where(and(eq(fleets.id, fleetId), scope)).limit(1);
+  if (!fleet) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet not found or access denied." });
+  return fleet;
+}
+
+async function requireFleetReadAccess(db: any, actor: FleetActor, fleetId: number) {
+  if (isFleetManagerActor(actor)) return requireManagedFleet(db, actor, fleetId);
+  if (actor.role !== "fleet_driver") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Authorised fleet access is required." });
+  }
+  const [assignment] = await db
+    .select({ fleetId: fleetDrivers.fleetId })
+    .from(fleetDrivers)
+    .where(and(eq(fleetDrivers.fleetId, fleetId), eq(fleetDrivers.userId, actor.id), eq(fleetDrivers.employmentStatus, "active")))
+    .limit(1);
+  if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet not found or access denied." });
+  const [fleet] = await db.select().from(fleets).where(eq(fleets.id, fleetId)).limit(1);
+  if (!fleet) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet not found or access denied." });
+  return fleet;
+}
+
 export const fleetCoreRouter = router({
   // Create a new fleet
   createFleet: protectedProcedure
@@ -26,6 +60,9 @@ export const fleetCoreRouter = router({
       businessType: z.enum(["logistics", "mining", "agriculture", "public_transport", "corporate", "rental"]),
     }))
     .mutation(async ({ input, ctx }) => {
+      if (!isFleetManagerActor(ctx.user)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only a fleet manager or administrator can create a fleet." });
+      }
       const { createFleet } = await import('../fleet/fleet-db');
       
       const fleet = await createFleet({
@@ -51,9 +88,10 @@ export const fleetCoreRouter = router({
     .input(z.object({
       id: z.number(),
     }))
-    .query(async ({ input }) => {
-      const { getFleetById } = await import('../fleet/fleet-db');
-      return getFleetById(input.id);
+    .query(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      return requireFleetReadAccess(db, ctx.user, input.id);
     }),
 
   // Register a single vehicle
@@ -75,23 +113,7 @@ export const fleetCoreRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
-      const isFleetManager = ["fleet_manager", "fleet_admin"].includes(ctx.user.role) || isAdminRole(ctx.user.role);
-      if (!isFleetManager) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only a fleet manager or administrator can assign a driver." });
-      }
-
-      const [fleet] = await db
-        .select({ id: fleets.id, ownerId: fleets.ownerId, tenantId: fleets.tenantId, fleetName: fleets.fleetName })
-        .from(fleets)
-        .where(eq(fleets.id, input.fleetId))
-        .limit(1);
-      if (!fleet) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet not found." });
-
-      const isPlatformAdmin = isAdminRole(ctx.user.role);
-      const managesFleet = fleet.ownerId === ctx.user.id || (ctx.user.tenantId && fleet.tenantId === ctx.user.tenantId);
-      if (!isPlatformAdmin && !managesFleet) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "You can only assign drivers to a fleet you manage." });
-      }
+      const fleet = await requireManagedFleet(db, ctx.user, input.fleetId);
 
       const [driverUser] = input.userId
         ? await db.select({ id: users.id, email: users.email, role: users.role, tenantId: users.tenantId }).from(users).where(eq(users.id, input.userId)).limit(1)
@@ -100,7 +122,7 @@ export const fleetCoreRouter = router({
       if (driverUser.role !== "fleet_driver") {
         throw new TRPCError({ code: "BAD_REQUEST", message: "The selected account must have the Fleet Driver role before it can be assigned." });
       }
-      if (!isPlatformAdmin && fleet.tenantId && driverUser.tenantId && fleet.tenantId !== driverUser.tenantId) {
+      if (fleet.tenantId && driverUser.tenantId && fleet.tenantId !== driverUser.tenantId) {
         throw new TRPCError({ code: "FORBIDDEN", message: "The driver account belongs to a different tenant." });
       }
 
@@ -161,6 +183,12 @@ export const fleetCoreRouter = router({
       replacementValue: z.number().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
+      if (!isFleetManagerActor(ctx.user)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only a fleet manager or administrator can register a vehicle." });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      if (input.fleetId) await requireManagedFleet(db, ctx.user, input.fleetId);
       const { createFleetVehicle } = await import('../fleet/fleet-db');
       
       const vehicle = await createFleetVehicle({
@@ -186,9 +214,11 @@ export const fleetCoreRouter = router({
     .input(z.object({
       fleetId: z.number(),
     }))
-    .query(async ({ input }) => {
-      const { getFleetVehiclesByFleetId } = await import('../fleet/fleet-db');
-      return getFleetVehiclesByFleetId(input.fleetId);
+    .query(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      await requireFleetReadAccess(db, ctx.user, input.fleetId);
+      return db.select().from(fleetVehicles).where(eq(fleetVehicles.fleetId, input.fleetId));
     }),
 
   // Get all vehicles owned by current user
@@ -220,18 +250,14 @@ export const fleetCoreRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
-      const isFleetManager = ["fleet_manager", "fleet_admin"].includes(ctx.user.role) || isAdminRole(ctx.user.role);
-      if (!isFleetManager) {
+      if (!isFleetManagerActor(ctx.user)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Fleet management intelligence is available to authorised managers only." });
       }
 
-      const isPlatformAdmin = isAdminRole(ctx.user.role);
-      const fleetScope = isPlatformAdmin
-        ? await db.select({ id: fleets.id, tenantId: fleets.tenantId, fleetName: fleets.fleetName }).from(fleets)
-        : await db.select({ id: fleets.id, tenantId: fleets.tenantId, fleetName: fleets.fleetName }).from(fleets)
-          .where(ctx.user.tenantId
-            ? or(eq(fleets.ownerId, ctx.user.id), eq(fleets.tenantId, ctx.user.tenantId))
-            : eq(fleets.ownerId, ctx.user.id));
+      const fleetScope = await db.select({ id: fleets.id, tenantId: fleets.tenantId, fleetName: fleets.fleetName }).from(fleets)
+        .where(ctx.user.tenantId
+          ? or(eq(fleets.ownerId, ctx.user.id), eq(fleets.tenantId, ctx.user.tenantId))
+          : eq(fleets.ownerId, ctx.user.id));
 
       const fleetIds = fleetScope.map((fleet) => fleet.id);
       if (fleetIds.length === 0) {
@@ -271,7 +297,7 @@ export const fleetCoreRouter = router({
         gte(claims.createdAt, startDate.toISOString()),
         lte(claims.createdAt, endDate.toISOString()),
       ];
-      if (!isPlatformAdmin && tenantIds.length > 0) claimConditions.push(inArray(claims.tenantId, tenantIds));
+      if (tenantIds.length > 0) claimConditions.push(inArray(claims.tenantId, tenantIds));
       const matchedClaims = await db.select({
 	        id: claims.id,
 	        claimantId: claims.claimantId,
