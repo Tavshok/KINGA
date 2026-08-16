@@ -24,6 +24,7 @@ import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
 import { like, or, and, eq, desc, sql } from "drizzle-orm";
+import { isAdminRole } from "../../shared/role-permissions";
 import {
   claims,
   vehicleRegistry,
@@ -661,9 +662,21 @@ export const globalSearchRouter = router({
       const db = await getDb();
       if (!db) return [];
       const user = ctx.user!;
-      if (!["admin", "platform_super_admin", "insurer"].includes(user.role)) {
+      if (!(isAdminRole(user.role) || user.role === "insurer")) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Analytics requires admin or insurer role" });
       }
+      const isPlatformSuperAdmin = user.role === "platform_super_admin";
+      const sessionTenantId = user.tenantId;
+      if (!isPlatformSuperAdmin && !sessionTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required for analytics." });
+      }
+      if (!isPlatformSuperAdmin && input.tenantId && input.tenantId !== sessionTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Cross-tenant analytics access is not permitted." });
+      }
+      if (isPlatformSuperAdmin && !input.tenantId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Platform analytics requires an explicit tenant selection." });
+      }
+      const analyticsTenantId = isPlatformSuperAdmin ? input.tenantId! : sessionTenantId!;
       try {
         const rows = await db
           .select({
@@ -672,11 +685,7 @@ export const globalSearchRouter = router({
             avgResults: sql<number>`AVG(result_count)`.as("avg_results"),
           })
           .from(globalSearchAnalytics)
-          .where(
-            input.tenantId
-              ? eq(globalSearchAnalytics.tenantId, input.tenantId)
-              : sql`1=1`
-          )
+          .where(eq(globalSearchAnalytics.tenantId, analyticsTenantId))
           .groupBy(globalSearchAnalytics.query)
           .orderBy(desc(sql`count`))
           .limit(20);
