@@ -203,14 +203,23 @@ export const integrityRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
 
-      // Determine effective tenant ID using typed session context — no raw SQL interpolation
-      const effectiveTenantId: string | null =
-        input.tenantId ?? (ctx.user.role === 'admin' ? null : (ctx.user.tenantId ?? null));
+      // Platform observability must name the tenant being inspected. All other
+      // callers are bound to their session tenant and cannot override it.
+      const sessionTenantId = ctx.user.tenantId;
+      const effectiveTenantId = ctx.user.role === "platform_super_admin"
+        ? input.tenantId
+        : sessionTenantId;
+      if (!effectiveTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session or explicit platform tenant selection is required." });
+      }
+      if (ctx.user.role !== "platform_super_admin" && input.tenantId && input.tenantId !== sessionTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Tenant selection must match the authenticated session." });
+      }
 
       // Build parameterised Drizzle query — eliminates SQL injection risk
       const whereConditions = [
         gte(aiAssessmentsTable.createdAt, since.toISOString()),
-        ...(effectiveTenantId ? [eq(aiAssessmentsTable.tenantId, effectiveTenantId)] : []),
+        eq(aiAssessmentsTable.tenantId, effectiveTenantId),
       ];
 
       const assessments = await db
