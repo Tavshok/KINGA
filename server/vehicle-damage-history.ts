@@ -478,13 +478,15 @@ export async function backfillRepairer(params: {
  */
 export async function getDamageHistoryByVehicle(
   vehicleId: number,
-  tenantId?: string
+  tenantId: string
 ): Promise<typeof vehicleDamageHistory.$inferSelect[]> {
   const db = await getDb();
   if (!db) return [];
 
-  const conditions = [eq(vehicleDamageHistory.vehicleId, vehicleId)];
-  if (tenantId) conditions.push(eq(vehicleDamageHistory.tenantId, tenantId));
+  const conditions = [
+    eq(vehicleDamageHistory.vehicleId, vehicleId),
+    eq(vehicleDamageHistory.tenantId, tenantId),
+  ];
 
   return db
     .select()
@@ -497,7 +499,8 @@ export async function getDamageHistoryByVehicle(
  * Get damage history record(s) for a specific claim.
  */
 export async function getDamageHistoryByClaim(
-  claimId: number
+  claimId: number,
+  tenantId: string
 ): Promise<typeof vehicleDamageHistory.$inferSelect[]> {
   const db = await getDb();
   if (!db) return [];
@@ -505,7 +508,7 @@ export async function getDamageHistoryByClaim(
   return db
     .select()
     .from(vehicleDamageHistory)
-    .where(eq(vehicleDamageHistory.claimId, claimId))
+    .where(and(eq(vehicleDamageHistory.claimId, claimId), eq(vehicleDamageHistory.tenantId, tenantId)))
     .orderBy(desc(vehicleDamageHistory.createdAt));
 }
 
@@ -515,14 +518,16 @@ export async function getDamageHistoryByClaim(
  */
 export async function getDamageHistoryByZone(
   zone: DamageZone,
-  tenantId?: string,
+  tenantId: string,
   limit = 50
 ): Promise<typeof vehicleDamageHistory.$inferSelect[]> {
   const db = await getDb();
   if (!db) return [];
 
-  const conditions = [eq(vehicleDamageHistory.damageZone, zone)];
-  if (tenantId) conditions.push(eq(vehicleDamageHistory.tenantId, tenantId));
+  const conditions = [
+    eq(vehicleDamageHistory.damageZone, zone),
+    eq(vehicleDamageHistory.tenantId, tenantId),
+  ];
 
   return db
     .select()
@@ -536,14 +541,16 @@ export async function getDamageHistoryByZone(
  * Get all repeat-zone records (fraud signal) for a tenant.
  */
 export async function getRepeatZoneRecords(
-  tenantId?: string,
+  tenantId: string,
   limit = 100
 ): Promise<typeof vehicleDamageHistory.$inferSelect[]> {
   const db = await getDb();
   if (!db) return [];
 
-  const conditions = [eq(vehicleDamageHistory.isRepeatZone, 1)];
-  if (tenantId) conditions.push(eq(vehicleDamageHistory.tenantId, tenantId));
+  const conditions = [
+    eq(vehicleDamageHistory.isRepeatZone, 1),
+    eq(vehicleDamageHistory.tenantId, tenantId),
+  ];
 
   return db
     .select()

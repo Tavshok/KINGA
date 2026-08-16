@@ -18,21 +18,35 @@ import {
   getRepeatZoneRecords,
 } from "../vehicle-damage-history";
 import { getDb } from "../db";
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import { claims } from "../../drizzle/schema";
+import { TRPCError } from "@trpc/server";
+
+function requireVehicleDamageHistoryTenant(ctx: { user?: { tenantId?: string | null } }) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
 
 export const vehicleDamageHistoryRouter = router({
   /** Full damage history for a vehicle, ordered by most recent first. */
   getByVehicle: protectedProcedure
     .input(z.object({ vehicleId: z.number().int().positive() }))
     .query(async ({ input, ctx }) => {
-      return getDamageHistoryByVehicle(input.vehicleId, ctx.user.tenantId ?? undefined);
+      return getDamageHistoryByVehicle(input.vehicleId, requireVehicleDamageHistoryTenant(ctx));
     }),
 
   /** Damage history record(s) for a specific claim. */
   getByClaim: protectedProcedure
     .input(z.object({ claimId: z.number().int().positive() }))
-    .query(async ({ input }) => {
-      return getDamageHistoryByClaim(input.claimId);
+    .query(async ({ input, ctx }) => {
+      const tenantId = requireVehicleDamageHistoryTenant(ctx);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      const [claim] = await db.select({ id: claims.id }).from(claims)
+        .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId))).limit(1);
+      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      return getDamageHistoryByClaim(input.claimId, tenantId);
     }),
 
   /** Cross-vehicle analysis: all records for a given damage zone. */
@@ -44,14 +58,14 @@ export const vehicleDamageHistoryRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
-      return getDamageHistoryByZone(input.zone, ctx.user.tenantId ?? undefined, input.limit);
+      return getDamageHistoryByZone(input.zone, requireVehicleDamageHistoryTenant(ctx), input.limit);
     }),
 
   /** All repeat-zone records — primary fraud signal feed. */
   getRepeatZones: protectedProcedure
     .input(z.object({ limit: z.number().int().min(1).max(200).default(100) }).optional())
     .query(async ({ input, ctx }) => {
-      return getRepeatZoneRecords(ctx.user.tenantId ?? undefined, input?.limit ?? 100);
+      return getRepeatZoneRecords(requireVehicleDamageHistoryTenant(ctx), input?.limit ?? 100);
     }),
 
   /** Aggregate stats for the damage history dashboard widget. */
@@ -59,8 +73,8 @@ export const vehicleDamageHistoryRouter = router({
     const db = await getDb();
     if (!db) return null;
 
-    const tenantId = ctx.user.tenantId;
-    const baseWhere = tenantId ? sql`tenant_id = ${tenantId}` : sql`1=1`;
+    const tenantId = requireVehicleDamageHistoryTenant(ctx);
+    const baseWhere = sql`tenant_id = ${tenantId}`;
 
     const [row] = await db.execute(
       sql`SELECT
