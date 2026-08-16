@@ -35,12 +35,36 @@ import { sanitiseReportNarrative, buildBlockError } from "../services/externalRe
 import { logger } from "../logger";
 import { isAdminRole } from "@shared/role-permissions";
 
+async function requireGovernedTenantClaim(claimId: string, tenantId: string | null | undefined) {
+  if (!tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  }
+  const numericClaimId = Number(claimId);
+  if (!Number.isInteger(numericClaimId) || numericClaimId <= 0) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+  }
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+  const [claim] = await db
+    .select({ id: claims.id, tenantId: claims.tenantId })
+    .from(claims)
+    .where(and(eq(claims.id, numericClaimId), eq(claims.tenantId, tenantId)))
+    .limit(1);
+  if (!claim) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+  }
+  return { claim, tenantId };
+}
+
 export const aiAssessmentsRouter = router({
   byClaim: protectedProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+      }
       const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
       if (!assessment) return null;
 
@@ -358,13 +382,17 @@ export const aiAssessmentsRouter = router({
       return await getHistoricalBenchmarks(tenantId, input.vehicleMake, input.vehicleModel, input.damageContext);
     }),
   all: protectedProcedure
-    .query(async () => {
-      // Fetch all AI assessments (for batch export)
+    .query(async ({ ctx }) => {
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+      }
+      // Fetch this tenant's AI assessments for batch export.
       const { getDb } = await import("../db");
       const { aiAssessments } = await import("../../drizzle/schema");
       const db = await getDb();
       if (!db) throw new Error("Database not available");
-      return await db.select().from(aiAssessments);
+      return await db.select().from(aiAssessments).where(eq(aiAssessments.tenantId, tenantId));
     }),
   // Intelligence Enforcement Layer — applies all enforcement rules to a claim's assessment
   getEnforcement: protectedProcedure
@@ -1028,7 +1056,7 @@ export const aiAssessmentsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const { saveDecisionSnapshot } = await import('../db');
       const { getOrCreateLifecycle } = await import('../decision-lifecycle');
-      const tenantId = String(ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown');
+      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       const result = await saveDecisionSnapshot({
         ...input,
         tenantId,
@@ -1049,8 +1077,9 @@ export const aiAssessmentsRouter = router({
   // Get the latest spec-compliant snapshot JSON for a claim (verbatim snake_case, no nulls)
   getLatestSnapshot: protectedProcedure
     .input(z.object({ claimId: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { getLatestSnapshotJson } = await import('../db');
+      await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       const snapshot = await getLatestSnapshotJson(input.claimId);
       return snapshot ?? null;
     }),
@@ -1073,7 +1102,7 @@ export const aiAssessmentsRouter = router({
       const { getLatestSnapshotJson } = await import('../db');
       const { replayDecision } = await import('../decision-replay');
       const { getOrCreateLifecycle, isReplayAllowed, saveReplayLog } = await import('../decision-lifecycle');
-      const tenantId = String(ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown');
+      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
 
       // Fetch the original immutable snapshot
       const originalSnapshot = await getLatestSnapshotJson(input.claimId);
@@ -1123,7 +1152,7 @@ export const aiAssessmentsRouter = router({
     .input(z.object({ claimId: z.string() }))
     .query(async ({ input, ctx }) => {
       const { getOrCreateLifecycle } = await import('../decision-lifecycle');
-      const tenantId = String(ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown');
+      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       return getOrCreateLifecycle(input.claimId, tenantId);
     }),
 
@@ -1136,7 +1165,7 @@ export const aiAssessmentsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const { transitionLifecycle } = await import('../decision-lifecycle');
       const { enforceGovernance } = await import('../decision-governance');
-      const tenantId = String(ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown');
+      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
 
       // Rule 1 + Rule 5: validate reason and write audit entry
       const governance = await enforceGovernance({
@@ -1184,7 +1213,7 @@ export const aiAssessmentsRouter = router({
       const { transitionLifecycle, markAuthoritativeSnapshot } = await import('../decision-lifecycle');
       const { getDecisionSnapshots } = await import('../db');
       const { enforceGovernance } = await import('../decision-governance');
-      const tenantId = String(ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown');
+      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
 
       // Rule 1 + Rule 2 + Rule 5: validate, detect override, write audit
       const governance = await enforceGovernance({
@@ -1250,7 +1279,7 @@ export const aiAssessmentsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const { transitionLifecycle } = await import('../decision-lifecycle');
       const { enforceGovernance } = await import('../decision-governance');
-      const tenantId = String(ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown');
+      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
 
       // Rule 1 + Rule 3 + Rule 5: validate reason, verify lock conditions, write audit
       const governance = await enforceGovernance({
