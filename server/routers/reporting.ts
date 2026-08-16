@@ -368,14 +368,18 @@ export const reportingRouter = router({
     .input(z.object({
       claimId: z.number(),
       reason:  z.string().min(10, "Please provide a reason of at least 10 characters."),
+      tenantId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.adminRegeneratePipeline");
+      await validateP0TenantScope(scope);
+      await assertClaimInTenant(input.claimId, scope.tenantId);
       const conn = await getConn();
       try {
         // 1. Check claim exists and is in a regeneratable state
         const [claims] = await conn.execute(
-          `SELECT id, psm_status, claim_reference, document_processing_status FROM claims WHERE id=? LIMIT 1`,
-          [input.claimId]
+          `SELECT id, psm_status, claim_reference, document_processing_status FROM claims WHERE id=? AND tenant_id=? LIMIT 1`,
+          [input.claimId, scope.tenantId]
         ) as [Record<string, unknown>[], unknown];
 
         const claim = claims[0];
@@ -413,8 +417,8 @@ export const reportingRouter = router({
              ai_assessment_started_at=NULL,
              ai_assessment_completed_at=NULL,
              updated_at=?
-           WHERE id=?`,
-          [now, input.claimId]
+           WHERE id=? AND tenant_id=?`,
+          [now, input.claimId, scope.tenantId]
         );
 
         // 4. Write audit log entry
@@ -422,14 +426,17 @@ export const reportingRouter = router({
           `INSERT INTO report_audit_log
              (action, job_id, tenant_id, performed_by_user_id, performed_by_user_name,
               parameters, created_at)
-           VALUES ('admin_pipeline_regen', NULL, NULL, ?, ?, ?, ?)`,
+           VALUES ('admin_pipeline_regen', NULL, ?, ?, ?, ?, ?)`,
           [
+            scope.tenantId,
             ctx.user.id,
             ctx.user.name ?? ctx.user.email ?? "Admin",
             JSON.stringify({ claimId: input.claimId, reason: input.reason, previousState: currentState }),
             now,
           ]
         );
+
+        await auditP0CrossTenantAccess(ctx, scope, "report_pipeline_regenerate", String(input.claimId), { reason: input.reason });
 
         return {
           ok: true,
@@ -443,18 +450,22 @@ export const reportingRouter = router({
 
   // ── Admin: get regeneration history ──────────────────────────────────────
   adminGetRegenerationHistory: adminProcedure
-    .input(z.object({ claimId: z.number().optional(), limit: z.number().default(50) }))
-    .query(async ({ input }) => {
+    .input(z.object({ claimId: z.number().optional(), limit: z.number().default(50), tenantId: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const scope = resolveP0TenantScope(ctx, input.tenantId, "reporting.adminGetRegenerationHistory");
+      await validateP0TenantScope(scope);
+      if (input.claimId) await assertClaimInTenant(input.claimId, scope.tenantId);
       const conn = await getConn();
       try {
         const [rows] = await conn.execute(
           `SELECT r.*, c.claim_reference
            FROM admin_pipeline_regenerations r
-           LEFT JOIN claims c ON c.id = r.claim_id
-           ${input.claimId ? "WHERE r.claim_id=?" : ""}
+           INNER JOIN claims c ON c.id = r.claim_id
+           WHERE c.tenant_id=? ${input.claimId ? "AND r.claim_id=?" : ""}
            ORDER BY r.created_at DESC LIMIT ?`,
-          input.claimId ? [input.claimId, input.limit] : [input.limit]
+          input.claimId ? [scope.tenantId, input.claimId, input.limit] : [scope.tenantId, input.limit]
         );
+        await auditP0CrossTenantAccess(ctx, scope, "report_pipeline_regeneration_history", input.claimId ? String(input.claimId) : scope.tenantId);
         return rows as Record<string, unknown>[];
       } finally {
         await conn.end();
