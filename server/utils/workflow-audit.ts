@@ -7,7 +7,7 @@
 
 import { getDb } from "../db";
 import { workflowAuditTrail, claims } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export type WorkflowState =
   | "created"
@@ -32,6 +32,7 @@ export type UserRole =
 
 export interface WorkflowTransitionInput {
   claimId: number;
+  tenantId: string;
   userId: number;
   userRole: UserRole;
   previousState: WorkflowState | null;
@@ -56,6 +57,10 @@ function nowStr(): string {
 export async function logWorkflowTransition(input: WorkflowTransitionInput) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
+
+  const [claim] = await db.select({ id: claims.id }).from(claims)
+    .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, input.tenantId))).limit(1);
+  if (!claim) throw new Error(`Claim ${input.claimId} not found in tenant`);
 
   const result = await db.insert(workflowAuditTrail).values({
     claimId: input.claimId,
@@ -88,7 +93,7 @@ export async function updateClaimStateWithAudit(input: WorkflowTransitionInput) 
     const [currentClaim] = await tx
       .select()
       .from(claims)
-      .where(eq(claims.id, input.claimId))
+      .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, input.tenantId)))
       .limit(1);
 
     if (!currentClaim) {
@@ -102,13 +107,13 @@ export async function updateClaimStateWithAudit(input: WorkflowTransitionInput) 
         workflowState: input.newState,
         updatedAt: nowStr(),
       })
-      .where(eq(claims.id, input.claimId));
+      .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, input.tenantId)));
 
     // Re-fetch updated claim
     const [updatedClaim] = await tx
       .select()
       .from(claims)
-      .where(eq(claims.id, input.claimId))
+      .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, input.tenantId)))
       .limit(1);
 
     // Log transition
@@ -138,13 +143,14 @@ export async function updateClaimStateWithAudit(input: WorkflowTransitionInput) 
 /**
  * Get workflow transition history for a claim.
  */
-export async function getClaimWorkflowHistory(claimId: number) {
+export async function getClaimWorkflowHistory(claimId: number, tenantId: string) {
   const db = await getDb();
   if (!db) return [];
 
   return await db
     .select()
     .from(workflowAuditTrail)
-    .where(eq(workflowAuditTrail.claimId, claimId))
+    .innerJoin(claims, eq(claims.id, workflowAuditTrail.claimId))
+    .where(and(eq(workflowAuditTrail.claimId, claimId), eq(claims.tenantId, tenantId)))
     .orderBy(workflowAuditTrail.createdAt);
 }

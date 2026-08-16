@@ -7,6 +7,13 @@ import {
   type WorkflowState,
   type UserRole,
 } from "../utils/workflow-audit";
+import { TRPCError } from "@trpc/server";
+
+function requireWorkflowAuditTenant(ctx: { user?: { tenantId?: string | null } }) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
 
 const workflowStateSchema = z.enum([
   "created",
@@ -54,8 +61,10 @@ export const workflowAuditRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const tenantId = requireWorkflowAuditTenant(ctx);
       const auditRecord = await logWorkflowTransition({
         claimId: input.claimId,
+        tenantId,
         userId: ctx.user.id,
         userRole: (ctx.user.insurerRole || "claims_processor") as UserRole,
         previousState: input.previousState,
@@ -96,8 +105,10 @@ export const workflowAuditRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const tenantId = requireWorkflowAuditTenant(ctx);
       const result = await updateClaimStateWithAudit({
         claimId: input.claimId,
+        tenantId,
         userId: ctx.user.id,
         userRole: (ctx.user.insurerRole || "claims_processor") as UserRole,
         previousState: null, // Will be fetched from current claim state
@@ -130,8 +141,8 @@ export const workflowAuditRouter = router({
         claimId: z.number(),
       })
     )
-    .query(async ({ input }) => {
-      const history = await getClaimWorkflowHistory(input.claimId);
+    .query(async ({ ctx, input }) => {
+      const history = await getClaimWorkflowHistory(input.claimId, requireWorkflowAuditTenant(ctx));
 
       return {
         success: true,
