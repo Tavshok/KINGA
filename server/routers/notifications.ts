@@ -46,6 +46,12 @@ const restrictedCommunicationProcedure = protectedProcedure.use(({ ctx, next }) 
   return next();
 });
 
+function requireNotificationTenant(ctx: { user?: { tenantId?: string | null } }) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export const notificationsRouter = router({
@@ -220,6 +226,7 @@ export const notificationsRouter = router({
   getPreferences: restrictedCommunicationProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+    const tenantId = requireNotificationTenant(ctx);
 
     const rows = await db
       .select()
@@ -227,7 +234,7 @@ export const notificationsRouter = router({
       .where(
         and(
           eq(notificationPreferences.userId, ctx.user.id),
-          eq(notificationPreferences.tenantId, ctx.user.tenantId ?? "")
+          eq(notificationPreferences.tenantId, tenantId)
         )
       );
 
@@ -261,12 +268,13 @@ export const notificationsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = requireNotificationTenant(ctx);
 
       await db
         .insert(notificationPreferences)
         .values({
           userId: ctx.user.id,
-          tenantId: ctx.user.tenantId ?? "",
+          tenantId,
           module: input.module,
           inAppEnabled: input.inAppEnabled ? 1 : 0,
           emailEnabled: input.emailEnabled ? 1 : 0,
