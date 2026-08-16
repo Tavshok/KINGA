@@ -71,6 +71,14 @@ async function requireTenantScopedClaim(
   return { claim, tenantId };
 }
 
+function requireSessionTenant(ctx: { user: { tenantId?: string | null } }) {
+  const tenantId = ctx.user.tenantId;
+  if (!tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
+  }
+  return tenantId;
+}
+
 export const claimsRouter = router({
   /**
    * Extract Claim Form Data from Document
@@ -515,7 +523,7 @@ export const claimsRouter = router({
   // Get claims by claimant
   myClaims: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user) throw new Error("Not authenticated");
-    const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+    const tenantId = requireSessionTenant(ctx);
     return await getClaimsByClaimant(ctx.user.id, tenantId);
   }),
 
@@ -525,7 +533,7 @@ export const claimsRouter = router({
     .input(z.object({ query: z.string().min(1).max(100) }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = requireSessionTenant(ctx);
       const isClaimant = ctx.user.role === "claimant" || ctx.user.role === "user";
       return await searchClaimsByIdentifier({
         query: input.query,
@@ -537,7 +545,7 @@ export const claimsRouter = router({
   // Get claims assigned to assessor
   myAssignments: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user) throw new Error("Not authenticated");
-    const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+    const tenantId = requireSessionTenant(ctx);
     return await getClaimsByAssessor(ctx.user.id, tenantId);
   }),
 
@@ -546,7 +554,7 @@ export const claimsRouter = router({
     .input(z.object({ assessorId: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = requireSessionTenant(ctx);
       return await getClaimsByAssessor(input.assessorId, tenantId);
     }),
 
@@ -1822,8 +1830,7 @@ export const claimsRouter = router({
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
-      const claim = await getClaimById(input.id, tenantId);
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.id);
       if (claim && isExternalAssessor(ctx.user) && claim.assignedAssessorId !== ctx.user.id) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
       }
@@ -2073,12 +2080,9 @@ export const claimsRouter = router({
       if (!ctx.user) throw new Error("Not authenticated");
       
       // Get current claim status to handle multi-step transitions
-      const tenantIdForStatus = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
-      const currentClaim = await getClaimById(input.claimId, tenantIdForStatus);
-      if (!currentClaim) throw new Error("Claim not found");
+      const { claim: currentClaim, tenantId: claimTenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       
       // Progress through required intermediate states to reach assessment_in_progress
-      const claimTenantId = currentClaim.tenantId || "default";
       const currentStatus = currentClaim.status;
       if (currentStatus === "intake_pending" || currentStatus === "document_validating" || (currentStatus as string) === "document_failed") {
         // Document-ingestion claims: intake_pending/document_validating/document_failed → assessment_in_progress
@@ -2114,7 +2118,7 @@ export const claimsRouter = router({
       const asyncUserEmail = ctx.user.email || "";
       const asyncUserName = ctx.user.name || "Insurer";
       const asyncUserRole = ctx.user.role;
-      const asyncTenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+      const asyncTenantId = claimTenantId;
       // Detect re-run: if aiAssessmentCompleted=1 this is a re-analysis, not a first run.
       const isRerun = currentClaim.aiAssessmentCompleted === 1;
 
@@ -2134,7 +2138,7 @@ export const claimsRouter = router({
             aiAssessmentStartedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
             aiAssessmentCompletedAt: null,
             updatedAt: new Date().toISOString(),
-          }).where(eq(claims.id, input.claimId));
+          }).where(and(eq(claims.id, input.claimId), eq(claims.tenantId, claimTenantId)));
         }
       } catch (preflightErr) {
         console.warn(`[AI] Pre-flight status update failed for claim ${input.claimId} (non-fatal):`, preflightErr);
@@ -2227,7 +2231,7 @@ export const claimsRouter = router({
                 workflowState: "intake_queue",
                 aiAssessmentTriggered: 0,
                 updatedAt: new Date().toISOString(),
-              }).where(eq(claims.id, input.claimId));
+              }).where(and(eq(claims.id, input.claimId), eq(claims.tenantId, claimTenantId)));
               console.log(`[AI] Claim ${input.claimId} marked as failed. Error: ${errMsg.slice(0, 200)}`);
             }
             // Store error details in audit trail for debugging
@@ -2270,9 +2274,7 @@ export const claimsRouter = router({
       if (!allowedRoles.includes(ctx.user.role || "")) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient permissions" });
       }
-      const tenantId = isAdminRole(ctx.user.role) || ctx.user.role === "platform_super_admin" ? undefined : (ctx.user.tenantId || "default");
-      const claim = await getClaimById(input.claimId, tenantId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      const { tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
 
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -2283,7 +2285,7 @@ export const claimsRouter = router({
         documentProcessingStatus: "failed",
         aiAssessmentTriggered: 0,
         updatedAt: new Date().toISOString(),
-      }).where(eq(claims.id, input.claimId));
+      }).where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId)));
 
       await createAuditEntry({
         claimId: input.claimId,
@@ -2317,9 +2319,7 @@ export const claimsRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const tenantId = isAdminRole(ctx.user.role) || ctx.user.role === "platform_super_admin" ? undefined : (ctx.user.tenantId || "default");
-      const claim = await getClaimById(input.claimId, tenantId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      const { claim } = await requireTenantScopedClaim(ctx, input.claimId);
 
       // Resolve PDF URL and damage photos (same logic as triggerAiAssessment)
       let pdfUrl: string | null = null;
@@ -2382,9 +2382,7 @@ export const claimsRouter = router({
       if (!ctx.user) throw new Error("Not authenticated");
       
       // Get claim and quote details
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
-      const claim = await getClaimById(input.claimId, tenantId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       
       // Do NOT apply tenant filtering for quotes — claimId already uniquely identifies the claim.
       const quotes = await getQuotesByClaimId(input.claimId);
@@ -2496,7 +2494,7 @@ export const claimsRouter = router({
         claimantId: claim.claimantId ?? 0,
         approvedAmount,
         selectedPanelBeater: panelBeater?.businessName || 'Selected Panel Beater',
-        tenantId: tenantId || 'default',
+        tenantId,
       });
       
       // Backfill repairer info into vehicle_damage_history (non-blocking)
@@ -2552,7 +2550,7 @@ export const claimsRouter = router({
         claimNumber: claim.claimNumber,
         claimantName: 'Claimant', // TODO: Get from user table
         approvedAmount,
-        tenantId: tenantId || 'default',
+        tenantId,
       });
       // Phase 8: Plain-language in-app notification to claimant on approval
       if (claim.claimantId) {
@@ -2610,9 +2608,7 @@ export const claimsRouter = router({
       if (!allowedRoles.includes(userRole)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers can send back claims." });
       }
-      const tenantId = (ctx.user as any).tenantId || "default";
-      const claim = await getClaimById(input.claimId, tenantId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      const { claim } = await requireTenantScopedClaim(ctx, input.claimId);
 
       const { transition } = await import("../workflow-engine");
       const { statusToWorkflowState } = await import("../workflow-migration");
@@ -2683,9 +2679,7 @@ export const claimsRouter = router({
       if (!allowedRoles.includes(userRole)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers can close claims for processing." });
       }
-      const tenantId = (ctx.user as any).tenantId || "default";
-      const claim = await getClaimById(input.claimId, tenantId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       const { transition } = await import("../workflow-engine");
       const { statusToWorkflowState } = await import("../workflow-migration");
       const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
@@ -2711,7 +2705,7 @@ export const claimsRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const updateData: any = { updatedAt: new Date() };
       if (input.finalApprovedAmount) updateData.totalClaimAmount = input.finalApprovedAmount;
-      await db.update(claims).set(updateData).where(eq(claims.id, input.claimId));
+      await db.update(claims).set(updateData).where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId)));
       await createAuditEntry({
         claimId: input.claimId,
         userId: ctx.user.id,
@@ -2754,9 +2748,7 @@ export const claimsRouter = router({
       if (!allowedRoles.includes(userRole)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers can escalate claims." });
       }
-      const tenantId = (ctx.user as any).tenantId || "default";
-      const claim = await getClaimById(input.claimId, tenantId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      const { claim } = await requireTenantScopedClaim(ctx, input.claimId);
       const { transition } = await import("../workflow-engine");
       const { statusToWorkflowState } = await import("../workflow-migration");
       const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
@@ -2816,9 +2808,7 @@ export const claimsRouter = router({
       if (!allowedRoles.includes(userRole)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers can reopen claims." });
       }
-      const tenantId = (ctx.user as any).tenantId || "default";
-      const claim = await getClaimById(input.claimId, tenantId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      const { claim } = await requireTenantScopedClaim(ctx, input.claimId);
       const { transition } = await import("../workflow-engine");
       const { statusToWorkflowState } = await import("../workflow-migration");
       const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
@@ -2873,7 +2863,7 @@ export const claimsRouter = router({
       if (!ctx.user) throw new Error("Not authenticated");
       
       // Verify user has financial approval authority (Claims Manager, Executive, or Admin)
-      if (ctx.user.role !== "admin" && ctx.user.insurerRole !== "claims_manager" && ctx.user.insurerRole !== "executive") {
+      if (!isAdminRole(ctx.user.role) && ctx.user.insurerRole !== "claims_manager" && ctx.user.insurerRole !== "executive") {
         throw new TRPCError({ 
           code: "FORBIDDEN", 
           message: "Financial approval requires Claims Manager or Executive role" 
@@ -2881,9 +2871,7 @@ export const claimsRouter = router({
       }
       
       // Get claim
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
-      const claim = await getClaimById(input.claimId, tenantId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       
       // Verify technical approval exists
       if (!claim.technicallyApprovedBy || !claim.technicallyApprovedAt) {
@@ -2901,7 +2889,7 @@ export const claimsRouter = router({
         financiallyApprovedBy: ctx.user.id,
         financiallyApprovedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      }).where(eq(claims.id, input.claimId));
+      }).where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId)));
       
       // Create audit entry
       await createAuditEntry({
@@ -2936,9 +2924,7 @@ export const claimsRouter = router({
     .input(z.object({ claimId: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || ctx.user.tenantId || "default");
-      const claim = await getClaimById(input.claimId, tenantId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
 
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
@@ -2966,7 +2952,7 @@ export const claimsRouter = router({
 
       // Fetch insurer relationship flags (preferred + slaSigned) for these profiles
       // Use the insurer tenant from context if available, otherwise skip flags
-      const insurerTenantId = ctx.user.tenantId || ctx.user.tenantId;
+      const insurerTenantId = tenantId;
       let relationshipMap: Record<string, { preferred: boolean; slaSigned: boolean }> = {};
 
       if (insurerTenantId) {
@@ -3053,10 +3039,8 @@ export const claimsRouter = router({
       if (!allowedRoles.includes(ctx.user.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers and processors can update claim currency" });
       }
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || ctx.user.tenantId || "default");
       // Verify claim exists and belongs to tenant
-      const claim = await getClaimById(input.claimId, tenantId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
 
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
@@ -3067,19 +3051,19 @@ export const claimsRouter = router({
       await db
         .update(claims)
         .set({ currencyCode: input.currencyCode })
-        .where(eq(claims.id, input.claimId));
+        .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId)));
 
       // 2. Propagate to all AI assessments for this claim
       await db
         .update(aiAssessmentsTable)
         .set({ currencyCode: input.currencyCode })
-        .where(eq(aiAssessmentsTable.claimId, input.claimId));
+        .where(and(eq(aiAssessmentsTable.claimId, input.claimId), eq(aiAssessmentsTable.tenantId, tenantId)));
 
       // 3. Propagate to all panel beater quotes for this claim
       await db
         .update(panelBeaterQuotesTable)
         .set({ currencyCode: input.currencyCode })
-        .where(eq(panelBeaterQuotesTable.claimId, input.claimId));
+        .where(and(eq(panelBeaterQuotesTable.claimId, input.claimId), eq(panelBeaterQuotesTable.tenantId, tenantId)));
 
       // 4. Audit trail
       await createAuditEntry({
