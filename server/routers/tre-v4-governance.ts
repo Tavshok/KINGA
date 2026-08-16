@@ -6,8 +6,9 @@
 
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
-import { aiAssessments } from "../../drizzle/schema";
+import { aiAssessments, claims } from "../../drizzle/schema";
 import { eq, desc, gte, and, isNotNull } from "drizzle-orm";
 
 // TRE v4.0 modules
@@ -32,13 +33,24 @@ import type { ClaimTruthObject } from "../pipeline-v2/truthReconciliationEngine"
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function getCTOForAssessment(assessmentId: number): Promise<ClaimTruthObject | null> {
+function requireTreV4Tenant(ctx: { user?: { tenantId?: string | null } }): string {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
+async function getCTOForAssessment(assessmentId: number, tenantId: string): Promise<ClaimTruthObject | null> {
   const db = await getDb();
   if (!db) return null;
   const rows = await db
     .select({ claimTruthObjectJson: aiAssessments.claimTruthObjectJson })
     .from(aiAssessments)
-    .where(eq(aiAssessments.id, assessmentId))
+    .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
+    .where(and(
+      eq(aiAssessments.id, assessmentId),
+      eq(aiAssessments.tenantId, tenantId),
+      eq(claims.tenantId, tenantId),
+    ))
     .limit(1);
   if (!rows[0]?.claimTruthObjectJson) return null;
   try {
@@ -46,6 +58,31 @@ async function getCTOForAssessment(assessmentId: number): Promise<ClaimTruthObje
   } catch {
     return null;
   }
+}
+
+async function requireTenantAssessment(assessmentId: number, tenantId: string): Promise<{ assessmentId: number; claimId: number }> {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+  const [assessment] = await db
+    .select({ assessmentId: aiAssessments.id, claimId: aiAssessments.claimId })
+    .from(aiAssessments)
+    .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
+    .where(and(
+      eq(aiAssessments.id, assessmentId),
+      eq(aiAssessments.tenantId, tenantId),
+      eq(claims.tenantId, tenantId),
+    ))
+    .limit(1);
+  if (!assessment) throw new TRPCError({ code: "NOT_FOUND", message: "Assessment not found" });
+  return assessment;
+}
+
+async function requireTenantClaim(claimId: number, tenantId: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+  const [claim] = await db.select({ id: claims.id }).from(claims)
+    .where(and(eq(claims.id, claimId), eq(claims.tenantId, tenantId))).limit(1);
+  if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,7 +118,10 @@ export const treV4GovernanceRouter = router({
 
   getClaimEvents: protectedProcedure
     .input(z.object({ claimId: z.string() }))
-    .query(({ input }) => {
+    .query(async ({ input, ctx }) => {
+      const claimId = Number(input.claimId);
+      if (!Number.isSafeInteger(claimId)) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid claim ID" });
+      await requireTenantClaim(claimId, requireTreV4Tenant(ctx));
       return trustEventBus.getClaimEvents(input.claimId);
     }),
 
@@ -92,7 +132,8 @@ export const treV4GovernanceRouter = router({
       assessmentId: z.number(),
       description: z.string(),
     }))
-    .mutation(({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      await requireTenantAssessment(input.assessmentId, requireTreV4Tenant(ctx));
       const event = conflictDetectedEvent(
         String(input.assessmentId),
         input.description,
@@ -104,7 +145,8 @@ export const treV4GovernanceRouter = router({
 
   analyzeMultiEventImpact: protectedProcedure
     .input(z.object({ assessmentId: z.number() }))
-    .query(({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await requireTenantAssessment(input.assessmentId, requireTreV4Tenant(ctx));
       const events = trustEventBus.getClaimEvents(String(input.assessmentId));
       return analyseMultiEventImpact(events);
     }),
@@ -130,7 +172,8 @@ export const treV4GovernanceRouter = router({
       affectedSections: z.array(z.string()).default([]),
       priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).default("HIGH"),
     }))
-    .mutation(({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      await requireTenantAssessment(input.assessmentId, requireTreV4Tenant(ctx));
       const task = createConflictResolutionTask(
         String(input.assessmentId),
         input.conflictDescription,
@@ -183,7 +226,8 @@ export const treV4GovernanceRouter = router({
 
   getClaimReviews: protectedProcedure
     .input(z.object({ assessmentId: z.number() }))
-    .query(({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await requireTenantAssessment(input.assessmentId, requireTreV4Tenant(ctx));
       return humanTrustApprovalEngine.getClaimRequests(String(input.assessmentId));
     }),
 
@@ -253,7 +297,8 @@ export const treV4GovernanceRouter = router({
 
   getClaimSLAs: protectedProcedure
     .input(z.object({ assessmentId: z.number() }))
-    .query(({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await requireTenantAssessment(input.assessmentId, requireTreV4Tenant(ctx));
       return trustSLAManager.getClaimSLAs(String(input.assessmentId));
     }),
 
@@ -275,7 +320,8 @@ export const treV4GovernanceRouter = router({
       ]),
       tier: z.enum(["STANDARD", "PRIORITY", "CRITICAL", "REGULATORY"]).default("STANDARD"),
     }))
-    .mutation(({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      await requireTenantAssessment(input.assessmentId, requireTreV4Tenant(ctx));
       return trustSLAManager.start(
         String(input.assessmentId),
         input.operationType as SLAOperationType,
@@ -306,8 +352,8 @@ export const treV4GovernanceRouter = router({
         description: z.string(),
       })),
     }))
-    .mutation(async ({ input }) => {
-      const cto = await getCTOForAssessment(input.assessmentId);
+    .mutation(async ({ input, ctx }) => {
+      const cto = await getCTOForAssessment(input.assessmentId, requireTreV4Tenant(ctx));
       if (!cto) throw new Error("CTO not found for assessment");
       const scenario = trustSimulationEngine.defineScenario(
         input.scenarioName,
@@ -319,8 +365,8 @@ export const treV4GovernanceRouter = router({
 
   runStandardSimulations: protectedProcedure
     .input(z.object({ assessmentId: z.number() }))
-    .mutation(async ({ input }) => {
-      const cto = await getCTOForAssessment(input.assessmentId);
+    .mutation(async ({ input, ctx }) => {
+      const cto = await getCTOForAssessment(input.assessmentId, requireTreV4Tenant(ctx));
       if (!cto) throw new Error("CTO not found for assessment");
       const scenarios = trustSimulationEngine.getStandardScenarios();
       return trustSimulationEngine.runBatch(String(input.assessmentId), cto, scenarios);
@@ -333,9 +379,10 @@ export const treV4GovernanceRouter = router({
       fromDate: z.string().optional(),
       limit: z.number().min(1).max(500).default(100),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
+      const tenantId = requireTreV4Tenant(ctx);
 
       // createdAt is stored as string (mode: 'string') in the schema
       const cutoffStr = input.fromDate
@@ -352,6 +399,7 @@ export const treV4GovernanceRouter = router({
         .where(
           and(
             isNotNull(aiAssessments.claimTruthObjectJson),
+            eq(aiAssessments.tenantId, tenantId),
             gte(aiAssessments.createdAt, cutoffStr)
           )
         )
@@ -429,8 +477,8 @@ export const treV4GovernanceRouter = router({
 
   getTrustAPIv2: protectedProcedure
     .input(z.object({ assessmentId: z.number() }))
-    .query(async ({ input }) => {
-      const cto = await getCTOForAssessment(input.assessmentId);
+    .query(async ({ input, ctx }) => {
+      const cto = await getCTOForAssessment(input.assessmentId, requireTreV4Tenant(ctx));
       if (!cto) throw new Error("CTO not found for assessment");
 
       const claimId = String(input.assessmentId);
