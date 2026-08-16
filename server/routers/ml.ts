@@ -21,6 +21,12 @@ import {
 } from "../../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 
+function requireMlTenant(ctx: { user?: { tenantId?: string | null } }): string {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
 export const mlRouter = router({
   // ============================================================================
   // CONFIDENCE SCORING
@@ -67,11 +73,16 @@ export const mlRouter = router({
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      const tenantId = requireMlTenant(ctx);
 
       const scores = await db
         .select()
         .from(trainingDataScores)
-        .where(eq(trainingDataScores.historicalClaimId, input.claimId))
+        .innerJoin(historicalClaims, eq(trainingDataScores.historicalClaimId, historicalClaims.id))
+        .where(and(
+          eq(trainingDataScores.historicalClaimId, input.claimId),
+          eq(historicalClaims.tenantId, tenantId),
+        ))
         .limit(1);
 
       if (scores.length === 0) {
@@ -150,7 +161,10 @@ export const mlRouter = router({
           reviewNotes: input.reviewNotes,
           includeInTrainingDataset: 1,
         })
-        .where(eq(claimReviewQueue.historicalClaimId, input.claimId));
+        .where(and(
+          eq(claimReviewQueue.historicalClaimId, input.claimId),
+          eq(claimReviewQueue.tenantId, requireMlTenant(ctx)),
+        ));
 
       return { success: true };
     }),
@@ -181,7 +195,10 @@ export const mlRouter = router({
           reviewNotes: `${input.rejectionReason}\n\n${input.reviewNotes}`,
           includeInTrainingDataset: 0,
         })
-        .where(eq(claimReviewQueue.historicalClaimId, input.claimId));
+        .where(and(
+          eq(claimReviewQueue.historicalClaimId, input.claimId),
+          eq(claimReviewQueue.tenantId, requireMlTenant(ctx)),
+        ));
 
       return { success: true };
     }),
