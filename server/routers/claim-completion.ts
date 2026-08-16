@@ -10,12 +10,30 @@ import { getDb } from "../db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { claims } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getClaimById } from "../db";
 import { createAuditEntry } from "../db";
 import { FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "../../shared/const";
+import { isAdminRole } from "@shared/role-permissions";
 
 const db = getDb();
+
+async function requireCompletionTenantClaim(claimId: number, tenantId: string | null | undefined) {
+  if (!tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  }
+  const connection = await getDb();
+  if (!connection) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+  const [claim] = await connection
+    .select()
+    .from(claims)
+    .where(and(eq(claims.id, claimId), eq(claims.tenantId, tenantId)))
+    .limit(1);
+  if (!claim) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+  }
+  return claim;
+}
 
 export const claimCompletionRouter = router({
   /**
@@ -31,9 +49,7 @@ export const claimCompletionRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
       
-      // Get claim
-      const claim = await getClaimById(input.claimId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      const claim = await requireCompletionTenantClaim(input.claimId, ctx.user.tenantId);
       
       // Verify claim is in repair_in_progress status
       if (claim.status !== "repair_in_progress") {
@@ -86,7 +102,7 @@ export const claimCompletionRouter = router({
         closedBy: ctx.user.id,
         closedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      }).where(eq(claims.id, input.claimId));
+      }).where(and(eq(claims.id, input.claimId), eq(claims.tenantId, ctx.user.tenantId!)));
       
       // Create audit entry
       await createAuditEntry({
@@ -226,16 +242,14 @@ export const claimCompletionRouter = router({
       if (!ctx.user) throw new Error("Not authenticated");
       
       // Verify user has authority to reopen claims (Claims Manager, Executive, or Admin)
-      if (ctx.user.role !== "admin" && ctx.user.insurerRole !== "claims_manager" && ctx.user.insurerRole !== "executive") {
+      if (!isAdminRole(ctx.user.role) && ctx.user.insurerRole !== "claims_manager" && ctx.user.insurerRole !== "executive") {
         throw new TRPCError({ 
           code: "FORBIDDEN", 
           message: "Reopening claims requires Claims Manager or Executive role" 
         });
       }
       
-      // Get claim
-      const claim = await getClaimById(input.claimId);
-      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+      const claim = await requireCompletionTenantClaim(input.claimId, ctx.user.tenantId);
       
       // Verify claim is completed
       if (claim.status !== "completed") {
@@ -273,7 +287,7 @@ export const claimCompletionRouter = router({
         closedBy: null,
         closedAt: null,
         updatedAt: new Date().toISOString(),
-      }).where(eq(claims.id, input.claimId));
+      }).where(and(eq(claims.id, input.claimId), eq(claims.tenantId, ctx.user.tenantId!)));
       
       // Create audit entry
       await createAuditEntry({
