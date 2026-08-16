@@ -410,7 +410,12 @@ export const platformMarketplaceRouter = router({
       targetUserId: z.number().int().positive(),
       reason: z.string().min(1).max(500),
     }))
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async () => {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'User impersonation is temporarily unavailable while KINGA completes explicit-tenant, auditable session controls.',
+      });
+      /*
       // Fetch target user
       const [target] = await ctx.db
         .select()
@@ -455,6 +460,7 @@ export const platformMarketplaceRouter = router({
         },
         reason: input.reason,
       };
+      */
     }),
 
   /**

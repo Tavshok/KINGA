@@ -96,6 +96,20 @@ export default function PlatformImpersonate() {
   const { toast } = useToast();
   const utils = trpc.useUtils();
 
+  return (
+    <div className="min-h-screen bg-gray-950 text-gray-100 p-6">
+      <div className="max-w-3xl mx-auto border border-amber-800/60 bg-amber-950/20 p-8">
+        <div className="flex items-center gap-3 mb-4">
+          <Shield className="w-6 h-6 text-amber-400" />
+          <h1 className="text-xl font-semibold text-white">User Impersonation Unavailable</h1>
+        </div>
+        <p className="text-sm leading-6 text-amber-100/80">
+          KINGA has temporarily suspended cross-tenant user-session switching while explicit tenant selection, target eligibility, durable reason auditing, and session revocation controls are completed. Platform-super-admin portal shell testing remains available without impersonating a tenant user.
+        </p>
+      </div>
+    </div>
+  );
+
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [selected, setSelected] = useState<{
