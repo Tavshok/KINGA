@@ -22,6 +22,37 @@ import {
 } from "../../drizzle/schema";
 import { nanoid } from "nanoid";
 import { isAdminRole } from "@shared/role-permissions";
+
+function requireVehicleValuationTenant(ctx: { user?: { tenantId?: string | null } }) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
+async function requireVehicleValuationClaim(claimId: number, tenantId: string) {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+  const [claim] = await db.select({ id: claims.id }).from(claims)
+    .where(and(eq(claims.id, claimId), eq(claims.tenantId, tenantId))).limit(1);
+  if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+  return db;
+}
+
+async function requireVehicleValuationAssessment(
+  assessmentId: number,
+  tenantId: string,
+  claimId?: number,
+) {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+  const conditions = [eq(aiAssessmentsTable.id, assessmentId), eq(aiAssessmentsTable.tenantId, tenantId)];
+  if (claimId !== undefined) conditions.push(eq(aiAssessmentsTable.claimId, claimId));
+  const [assessment] = await db.select({ id: aiAssessmentsTable.id }).from(aiAssessmentsTable)
+    .where(and(...conditions)).limit(1);
+  if (!assessment) throw new TRPCError({ code: "NOT_FOUND", message: "Assessment not found" });
+  return db;
+}
+
 export const vehicleValuationCoreRouter = router({
   // Trigger vehicle valuation
   trigger: protectedProcedure
@@ -37,7 +68,7 @@ export const vehicleValuationCoreRouter = router({
       }
 
       // Get claim details
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = requireVehicleValuationTenant(ctx);
       const claim = await getClaimById(input.claimId, tenantId);
       if (!claim) throw new Error("Claim not found");
 
@@ -154,7 +185,8 @@ export const vehicleValuationCoreRouter = router({
 
       // Sync vehicle market value to claims table for repair ratio calculation
       const _vDb = await getDb();
-      if (_vDb) await _vDb.update(claims).set({ vehicleMarketValue: valuation.finalAdjustedValue }).where(eq(claims.id, input.claimId));
+      if (_vDb) await _vDb.update(claims).set({ vehicleMarketValue: valuation.finalAdjustedValue })
+        .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId)));
 
       // Return valuation enriched with mileage estimation and year assumption metadata
       return {
@@ -175,7 +207,8 @@ export const vehicleValuationCoreRouter = router({
   // Get valuation by claim ID
   byClaim: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireVehicleValuationClaim(input.claimId, requireVehicleValuationTenant(ctx));
       const valuation = await getVehicleMarketValuationByClaimId(input.claimId);
       if (!valuation) return null;
 
@@ -458,6 +491,9 @@ export const vehicleValuationCoreRouter = router({
       if (!['assessor', 'insurer', 'admin'].includes(ctx.user.role)) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only assessors, insurers, and admins may annotate mismatches' });
       }
+      const tenantId = requireVehicleValuationTenant(ctx);
+      await requireVehicleValuationClaim(input.claimId, tenantId);
+      await requireVehicleValuationAssessment(input.assessmentId, tenantId, input.claimId);
       const { recordAnnotation } = await import('../services/mismatchAnnotation');
       const result = await recordAnnotation({
         claimId: input.claimId,
@@ -479,6 +515,7 @@ export const vehicleValuationCoreRouter = router({
     .input(z.object({ claimId: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      await requireVehicleValuationClaim(input.claimId, requireVehicleValuationTenant(ctx));
       const { getClaimAnnotationStats, getClaimAnnotations } = await import('../services/mismatchAnnotation');
       const [stats, annotations] = await Promise.all([
         getClaimAnnotationStats(input.claimId),
@@ -530,7 +567,8 @@ export const vehicleValuationCoreRouter = router({
    */
   getNarrativeVersionHistory: protectedProcedure
     .input(z.object({ assessmentId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireVehicleValuationAssessment(input.assessmentId, requireVehicleValuationTenant(ctx));
       const { getNarrativeVersionHistory } = await import('../services/mismatchNarrative');
       return getNarrativeVersionHistory(input.assessmentId);
     }),
