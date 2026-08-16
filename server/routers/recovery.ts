@@ -612,7 +612,19 @@ export const recoveryRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
-      const tenantId = (ctx.user as any).tenantId ?? ctx.user.id.toString();
+      const tenantId = (ctx.user as any).tenantId;
+      const allowedRoles = ['recovery_officer','claims_manager','executive','insurer_admin'];
+      if (!tenantId || !allowedRoles.includes((ctx.user as any).insurerRole)) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Recovery module access denied' });
+      }
+      const [recoveryCase] = await db
+        .select({ id: recoveryCases.id })
+        .from(recoveryCases)
+        .where(and(eq(recoveryCases.id, input.caseId), eq(recoveryCases.tenantId, tenantId)))
+        .limit(1);
+      if (!recoveryCase) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Recovery case not found' });
+      }
       const now = new Date().toISOString().replace("T", " ").substring(0, 19);
       await db.insert(recoveryCorrespondenceLog).values({
         recoveryCaseId: input.caseId,
@@ -771,4 +783,3 @@ export const recoveryRouter = router({
       };
     }),
 });
-
