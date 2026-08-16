@@ -17,7 +17,7 @@
 
 import { router, protectedProcedure, executiveOnlyProcedure, requireTenantScope } from "../_core/trpc";
 import { notifyOwner } from "../_core/notification";
-import { ANALYTICS_ALLOWED_ROLES } from "../../shared/role-permissions";
+import { ANALYTICS_ALLOWED_ROLES, isAdminRole } from "../../shared/role-permissions";
 import { getDb } from "../db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -49,7 +49,7 @@ const analyticsRoleProcedure = protectedProcedure.use(async ({ ctx, next }) => {
   }
 
   // Allow platform admin + all roles listed in ANALYTICS_ALLOWED_ROLES (shared/role-permissions.ts)
-  const isAdmin = ctx.user.role === 'admin';
+  const isAdmin = isAdminRole(ctx.user.role);
   const hasInsurerRole = ctx.user.insurerRole != null && ANALYTICS_ALLOWED_ROLES.includes(ctx.user.insurerRole as any);
 
   if (!isAdmin && !hasInsurerRole) {
@@ -71,14 +71,9 @@ const analyticsRoleProcedure = protectedProcedure.use(async ({ ctx, next }) => {
  * Optimized Analytics Router
  */
 
-// resolveAnalyticsTenant: alias to the shared requireTenantScope helper (Ticket 2.3 — Batch 2)
-// For analytics, admin and platform_super_admin get cross-tenant view (null return).
-// All other roles must have a non-null tenantId or receive FORBIDDEN.
-function resolveAnalyticsTenant(ctx: { user: { id?: number; tenantId?: string | null; role: string }; req?: any }): string | null {
-  const crossTenantRoles = ['admin', 'platform_super_admin'];
-  if (crossTenantRoles.includes(ctx.user.role)) {
-    return null;
-  }
+// Analytics evidence is always tenant-bound. Platform testing must use an
+// explicitly selected tenant session rather than an implicit global fallback.
+function resolveAnalyticsTenant(ctx: { user: { id?: number; tenantId?: string | null; role: string }; req?: any }): string {
   return requireTenantScope(ctx as any, undefined, 'analytics');
 }
 
@@ -180,7 +175,7 @@ export const analyticsRouter = router({
         }
 
         const tenantId = resolveAnalyticsTenant(ctx);
-        const tenantFilter = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+        const tenantFilter = sql`c.tenant_id = ${tenantId}`;
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -205,7 +200,7 @@ export const analyticsRouter = router({
             SUM(CASE WHEN ai.estimated_cost > 1000000 THEN 1 ELSE 0 END) as high_value_claims
           FROM claims c
           LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
-          WHERE ${sql.raw(tenantFilter)}
+          WHERE ${tenantFilter}
         `);
 
         const _claimsRows = (claimsMetricsResult as any)[0];
@@ -229,21 +224,15 @@ export const analyticsRouter = router({
         // Note: workflow_audit_trail has no tenant_id column — tenant scope via claims subquery.
         // role_assignment_audit has tenant_id directly.
         // claim_involvement_tracking scopes via claims.tenant_id join.
-        const watTenantFilter = tenantId
-          ? `claim_id IN (SELECT id FROM claims WHERE tenant_id = '${tenantId}') AND`
-          : '';
-        const directTenantFilter = tenantId
-          ? `tenant_id = '${tenantId}' AND`
-          : '';
-        const citTenantFilter = tenantId
-          ? `c.tenant_id = '${tenantId}' AND`
-          : '';
+        const watTenantFilter = sql`claim_id IN (SELECT id FROM claims WHERE tenant_id = ${tenantId})`;
+        const directTenantFilter = sql`tenant_id = ${tenantId}`;
+        const citTenantFilter = sql`c.tenant_id = ${tenantId}`;
         
         const governanceMetricsResult = await db.execute(sql`
           SELECT 
             (SELECT COUNT(*) 
              FROM workflow_audit_trail 
-             WHERE ${sql.raw(watTenantFilter)} executive_override = 1 
+             WHERE ${watTenantFilter} AND executive_override = 1 
                AND created_at >= ${thirtyDaysAgo.toISOString()}
             ) as total_overrides,
             (SELECT COUNT(DISTINCT subq.user_id)
@@ -251,7 +240,7 @@ export const analyticsRouter = router({
                SELECT cit.user_id, cit.claim_id
                FROM claim_involvement_tracking cit
                INNER JOIN claims c ON cit.claim_id = c.id
-               WHERE ${sql.raw(citTenantFilter)} 
+               WHERE ${citTenantFilter} AND
                  cit.created_at >= ${thirtyDaysAgo.toISOString()}
              GROUP BY cit.user_id, cit.claim_id
              HAVING COUNT(DISTINCT cit.workflow_stage) > 1
@@ -259,7 +248,7 @@ export const analyticsRouter = router({
             ) as segregation_violations,
             (SELECT COUNT(*) 
              FROM role_assignment_audit 
-             WHERE ${sql.raw(directTenantFilter)} timestamp >= ${thirtyDaysAgo.toISOString()}
+             WHERE ${directTenantFilter} AND timestamp >= ${thirtyDaysAgo.toISOString()}
             ) as role_changes
         `);
 
@@ -337,7 +326,7 @@ export const analyticsRouter = router({
         }
 
         const tenantId = resolveAnalyticsTenant(ctx);
-        const tenantFilter = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+        const tenantFilter = `c.tenant_id = '${tenantId.replace(/'/g, "''")}'`;
 
         // SINGLE UNION QUERY for all alert types
         const alertsResult = await db.execute(sql`
@@ -475,11 +464,7 @@ export const analyticsRouter = router({
         }
 
         const tenantId = resolveAnalyticsTenant(ctx);
-        const tenantFilter = tenantId ? eq(users.tenantId, tenantId) : undefined;
-
-        const whereClause = tenantFilter 
-          ? and(tenantFilter, eq(users.role, "assessor"))
-          : eq(users.role, "assessor");
+        const whereClause = and(eq(users.tenantId, tenantId), eq(users.role, "assessor"));
 
         const assessors = await db
           .select({
@@ -546,9 +531,7 @@ export const analyticsRouter = router({
         }
 
         const tenantId = resolveAnalyticsTenant(ctx);
-        const panelBeaterTenantFilter = tenantId
-          ? eq(panelBeaters.tenantId, tenantId)
-          : undefined;
+        const panelBeaterTenantFilter = eq(panelBeaters.tenantId, tenantId);
 
         const beaterStats = await db
           .select({
@@ -636,10 +619,7 @@ export const analyticsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const tenantId = resolveAnalyticsTenant(ctx);
-      const tenantFilter = tenantId ? eq(claims.tenantId, tenantId) : undefined;
-      const whereClause = tenantFilter
-        ? and(tenantFilter, sql`${claims.approvedAmount} IS NOT NULL`, sql`${aiAssessments.estimatedCost} IS NOT NULL`, sql`${claims.createdAt} >= DATE_SUB(NOW(), INTERVAL 6 MONTH)`)
-        : and(sql`${claims.approvedAmount} IS NOT NULL`, sql`${aiAssessments.estimatedCost} IS NOT NULL`, sql`${claims.createdAt} >= DATE_SUB(NOW(), INTERVAL 6 MONTH)`);
+      const whereClause = and(eq(claims.tenantId, tenantId), sql`${claims.approvedAmount} IS NOT NULL`, sql`${aiAssessments.estimatedCost} IS NOT NULL`, sql`${claims.createdAt} >= DATE_SUB(NOW(), INTERVAL 6 MONTH)`);
       const trends = await db
         .select({
           month: sql<string>`DATE_FORMAT(${claims.createdAt}, '%Y-%m')`,
@@ -702,24 +682,18 @@ export const analyticsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const tenantId = resolveAnalyticsTenant(ctx);
-      const tenantFilter = tenantId ? eq(claims.tenantId, tenantId) : undefined;
-      const payoutsFilter = tenantFilter
-        ? and(tenantFilter, sql`${claims.approvedAmount} IS NOT NULL`)
-        : sql`${claims.approvedAmount} IS NOT NULL`;
+      const tenantFilter = eq(claims.tenantId, tenantId);
+      const payoutsFilter = and(tenantFilter, sql`${claims.approvedAmount} IS NOT NULL`);
       const [payoutsResult] = await db.select({ total: sql<number>`SUM(${claims.approvedAmount})` }).from(claims).where(payoutsFilter);
       const totalPayouts = Math.round(safeNumber(payoutsResult?.total, 0) / 100);
-      const reservesFilter = tenantFilter
-        ? and(tenantFilter, sql`${claims.status} NOT IN ('completed','rejected')`, sql`${aiAssessments.estimatedCost} IS NOT NULL`)
-        : and(sql`${claims.status} NOT IN ('completed','rejected')`, sql`${aiAssessments.estimatedCost} IS NOT NULL`);
+      const reservesFilter = and(tenantFilter, sql`${claims.status} NOT IN ('completed','rejected')`, sql`${aiAssessments.estimatedCost} IS NOT NULL`);
       const [reservesResult] = await db
         .select({ total: sql<number>`SUM(${aiAssessments.estimatedCost})` })
         .from(claims)
         .leftJoin(aiAssessments, eq(claims.id, aiAssessments.claimId))
         .where(reservesFilter);
       const totalReserves = Math.round(safeNumber(reservesResult?.total, 0) / 100);
-      const fraudFilter = tenantFilter
-        ? and(tenantFilter, eq(claims.status, 'rejected'), eq(aiAssessments.fraudRiskLevel, 'high'))
-        : and(eq(claims.status, 'rejected'), eq(aiAssessments.fraudRiskLevel, 'high'));
+      const fraudFilter = and(tenantFilter, eq(claims.status, 'rejected'), eq(aiAssessments.fraudRiskLevel, 'high'));
       const [fraudResult] = await db
         .select({ total: sql<number>`SUM(${aiAssessments.estimatedCost})` })
         .from(claims)
@@ -727,9 +701,7 @@ export const analyticsRouter = router({
         .where(fraudFilter);
       const fraudPrevented = Math.round(safeNumber(fraudResult?.total, 0) / 100);
       // Net Exposure = outstanding reserves minus what has already been recovered (not payouts + reserves)
-      const recoveryFilter = tenantFilter
-        ? and(tenantFilter, sql`${recoveryCases.recoveredAmount} IS NOT NULL`)
-        : sql`${recoveryCases.recoveredAmount} IS NOT NULL`;
+      const recoveryFilter = and(tenantFilter, sql`${recoveryCases.recoveredAmount} IS NOT NULL`);
       const [recoveryResult] = await db
         .select({ total: sql<number>`SUM(${recoveryCases.recoveredAmount})` })
         .from(recoveryCases)
@@ -737,9 +709,7 @@ export const analyticsRouter = router({
       const totalRecovered = Math.round(safeNumber(recoveryResult?.total, 0) / 100);
       const netExposure = Math.max(0, totalReserves - totalRecovered);
       // Leakage = sum of (approved - estimated) where approved > estimated
-      const leakageFilter = tenantFilter
-        ? and(tenantFilter, sql`${claims.approvedAmount} IS NOT NULL`, sql`${aiAssessments.estimatedCost} IS NOT NULL`, sql`${claims.approvedAmount} > ${aiAssessments.estimatedCost}`)
-        : and(sql`${claims.approvedAmount} IS NOT NULL`, sql`${aiAssessments.estimatedCost} IS NOT NULL`, sql`${claims.approvedAmount} > ${aiAssessments.estimatedCost}`);
+      const leakageFilter = and(tenantFilter, sql`${claims.approvedAmount} IS NOT NULL`, sql`${aiAssessments.estimatedCost} IS NOT NULL`, sql`${claims.approvedAmount} > ${aiAssessments.estimatedCost}`);
       const [leakageResult] = await db
         .select({ total: sql<number>`SUM(${claims.approvedAmount} - ${aiAssessments.estimatedCost})` })
         .from(claims)
@@ -765,23 +735,21 @@ export const analyticsRouter = router({
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
 
         // Role gate
-        if (ctx.user.insurerRole !== 'risk_manager' && ctx.user.role !== 'admin') {
+        if (ctx.user.insurerRole !== 'risk_manager' && !isAdminRole(ctx.user.role)) {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Risk Manager role required' });
         }
 
         const tenantId = resolveAnalyticsTenant(ctx);
 
         // Tier gate — query tenants table
-        if (tenantId) {
-          const tenantRows = await db.select({ tier: tenants.tier }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
-          const tier = tenantRows[0]?.tier;
-          if (tier !== 'tier-enterprise') {
-            throw new TRPCError({ code: 'FORBIDDEN', message: 'TIER_UPGRADE_REQUIRED' });
-          }
+        const tenantRows = await db.select({ tier: tenants.tier }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+        const tier = tenantRows[0]?.tier;
+        if (tier !== 'tier-enterprise') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'TIER_UPGRADE_REQUIRED' });
         }
 
-        const tenantFilter = tenantId ? `tenant_id = '${tenantId}'` : '1=1';
-        const tenantFilterRC = tenantId ? `rc.tenant_id = '${tenantId}'` : '1=1';
+        const tenantFilter = sql`tenant_id = ${tenantId}`;
+        const tenantFilterRC = sql`rc.tenant_id = ${tenantId}`;
         const months = input.months;
 
         // KPI 1: Claims frequency by incident type
@@ -790,7 +758,7 @@ export const analyticsRouter = router({
             DATE_FORMAT(created_at, '%Y-%m') as month,
             COUNT(*) as claim_count
           FROM claims
-          WHERE ${sql.raw(tenantFilter)}
+          WHERE ${tenantFilter}
             AND created_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
             AND incident_type IS NOT NULL
           GROUP BY incident_type, month
@@ -809,7 +777,7 @@ export const analyticsRouter = router({
             AVG(COALESCE(final_approved_amount, approved_amount)) as avg_cost,
             COUNT(*) as claim_count
           FROM claims
-          WHERE ${sql.raw(tenantFilter)}
+          WHERE ${tenantFilter}
             AND vehicle_year IS NOT NULL
             AND COALESCE(final_approved_amount, approved_amount) IS NOT NULL
             AND created_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
@@ -821,7 +789,7 @@ export const analyticsRouter = router({
         const fraudRateResult = await db.execute(sql`
           SELECT incident_type, fraud_risk_level, COUNT(*) as cnt
           FROM claims
-          WHERE ${sql.raw(tenantFilter)}
+          WHERE ${tenantFilter}
             AND incident_type IS NOT NULL
             AND fraud_risk_level IS NOT NULL
             AND created_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
@@ -838,7 +806,7 @@ export const analyticsRouter = router({
             SUM(rc.recovered_amount) as total_recovered,
             COUNT(*) as case_count
           FROM recovery_cases rc
-          WHERE ${sql.raw(tenantFilterRC)}
+          WHERE ${tenantFilterRC}
             AND rc.created_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
           GROUP BY month
           ORDER BY month ASC
@@ -851,7 +819,7 @@ export const analyticsRouter = router({
             SUM(CASE WHEN is_repeat_offender = 1 THEN 1 ELSE 0 END) as repeat_count,
             COUNT(*) as total_count
           FROM recovery_cases rc
-          WHERE ${sql.raw(tenantFilterRC)}
+          WHERE ${tenantFilterRC}
             AND rc.created_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
         `);
         const repeatRows = Array.isArray((repeatOffenderResult as any)[0]) ? (repeatOffenderResult as any)[0] : [];
@@ -864,7 +832,7 @@ export const analyticsRouter = router({
             AVG(TIMESTAMPDIFF(DAY, created_at, closed_at)) as avg_days,
             COUNT(*) as closed_count
           FROM claims
-          WHERE ${sql.raw(tenantFilter)}
+          WHERE ${tenantFilter}
             AND closed_at IS NOT NULL
             AND closed_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
           GROUP BY month
@@ -999,7 +967,7 @@ export const analyticsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const tenantId = resolveAnalyticsTenant(ctx);
-      const tenantFilter = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+      const tenantFilter = sql`c.tenant_id = ${tenantId}`;
 
       const now = new Date();
       // Current month: 1st of this month → now
@@ -1038,7 +1006,7 @@ export const analyticsRouter = router({
           SUM(CASE WHEN c.created_at >= ${priorStartStr} AND c.created_at <= ${priorEndStr} AND c.workflow_state = 'auto_approved' THEN 1 ELSE 0 END) AS prior_fasttrack
         FROM claims c
         LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
-        WHERE ${sql.raw(tenantFilter)}
+        WHERE ${tenantFilter}
           AND c.created_at >= ${priorStartStr}
       `);
 
@@ -1093,36 +1061,38 @@ export const analyticsRouter = router({
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
         const tenantId = resolveAnalyticsTenant(ctx);
-        const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+        const tf = sql`c.tenant_id = ${tenantId}`;
+        const workflowTf = sql`wat.tenant_id = ${tenantId}`;
+        const recoveryTf = sql`rc.tenant_id = ${tenantId}`;
         const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         const result = await db.execute(sql`
           SELECT
             (SELECT COUNT(*) FROM claims c LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
-             WHERE ${sql.raw(tf)} AND ai.fraud_risk_level = 'high' AND c.status NOT IN ('completed','rejected')
+             WHERE ${tf} AND ai.fraud_risk_level = 'high' AND c.status NOT IN ('completed','rejected')
             ) as open_fraud_count,
             (SELECT COALESCE(SUM(ai.estimated_cost),0) FROM claims c LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
-             WHERE ${sql.raw(tf)} AND ai.fraud_risk_level = 'high' AND c.status NOT IN ('completed','rejected')
+             WHERE ${tf} AND ai.fraud_risk_level = 'high' AND c.status NOT IN ('completed','rejected')
             ) as fraud_exposure_cents,
             (SELECT COUNT(*) FROM claims c
-             WHERE ${sql.raw(tf)} AND c.status NOT IN ('completed','rejected','cancelled')
+             WHERE ${tf} AND c.status NOT IN ('completed','rejected','cancelled')
                AND c.created_at < ${sevenDaysAgo.toISOString()}
             ) as stale_claims_count,
             (SELECT COUNT(*) FROM claims c
-             WHERE ${sql.raw(tf)} AND c.workflow_state = 'disputed'
+             WHERE ${tf} AND c.workflow_state = 'disputed'
             ) as disputed_count,
             (SELECT COUNT(*) FROM workflow_audit_trail wat
-             WHERE ${sql.raw(tenantId ? `wat.tenant_id = '${tenantId}'` : '1=1')}
+             WHERE ${workflowTf}
                AND wat.executive_override = 1
                AND wat.created_at >= ${thirtyDaysAgo.toISOString()}
             ) as override_count,
             (SELECT COUNT(*) FROM recovery_cases rc
-             WHERE ${sql.raw(tenantId ? `rc.tenant_id = '${tenantId}'` : '1=1')}
+             WHERE ${recoveryTf}
                AND rc.status = 'open'
             ) as open_recovery_count,
             (SELECT COALESCE(SUM(rc.recovery_amount),0) FROM recovery_cases rc
-             WHERE ${sql.raw(tenantId ? `rc.tenant_id = '${tenantId}'` : '1=1')}
+             WHERE ${recoveryTf}
                AND rc.status = 'open'
             ) as recovery_opportunity_cents
         `);
@@ -1214,7 +1184,7 @@ export const analyticsRouter = router({
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
         const tenantId = resolveAnalyticsTenant(ctx);
-        const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+        const tf = sql`c.tenant_id = ${tenantId}`;
 
         const result = await db.execute(sql`
           SELECT
@@ -1228,7 +1198,7 @@ export const analyticsRouter = router({
             SUM(CASE WHEN DATEDIFF(NOW(), c.created_at) > 30 THEN COALESCE(ai.estimated_cost,0) ELSE 0 END) as value_over_30
           FROM claims c
           LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
-          WHERE ${sql.raw(tf)} AND c.status NOT IN ('completed','rejected','cancelled')
+          WHERE ${tf} AND c.status NOT IN ('completed','rejected','cancelled')
         `);
 
         const _rows = (result as any)[0];
@@ -1262,7 +1232,7 @@ export const analyticsRouter = router({
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
         const tenantId = resolveAnalyticsTenant(ctx);
-        const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+        const tf = sql`c.tenant_id = ${tenantId}`;
 
         const now = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -1280,7 +1250,7 @@ export const analyticsRouter = router({
             COUNT(DISTINCT c.id) as total_active
           FROM claims c
           LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
-          WHERE ${sql.raw(tf)}
+          WHERE ${tf}
         `);
 
         const _rows = (result as any)[0];
@@ -1324,7 +1294,7 @@ export const analyticsRouter = router({
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
         const tenantId = resolveAnalyticsTenant(ctx);
-        const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+        const tf = sql`c.tenant_id = ${tenantId}`;
         const monthsBack = input.months;
 
         const result = await db.execute(sql`
@@ -1341,7 +1311,7 @@ export const analyticsRouter = router({
             END) as avg_settlement_ratio
           FROM claims c
           LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
-          WHERE ${sql.raw(tf)}
+          WHERE ${tf}
             AND c.status = 'completed'
             AND c.closed_at IS NOT NULL
             AND c.closed_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(monthsBack))} MONTH)
@@ -1378,7 +1348,7 @@ export const analyticsRouter = router({
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
         const tenantId = resolveAnalyticsTenant(ctx);
-        const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+        const tf = sql`c.tenant_id = ${tenantId}`;
 
         const result = await db.execute(sql`
           SELECT
@@ -1390,7 +1360,7 @@ export const analyticsRouter = router({
             SUM(CASE WHEN ai.fraud_risk_level = 'high' AND c.status = 'rejected' AND ai.estimated_cost IS NOT NULL THEN COALESCE(ai.estimated_cost,0) ELSE 0 END) as prevented_loss_cents
           FROM claims c
           LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
-          WHERE ${sql.raw(tf)}
+          WHERE ${tf}
         `);
 
         const _rows = (result as any)[0];
