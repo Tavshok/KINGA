@@ -377,7 +377,8 @@ export const aiAssessmentsRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = ctx.user.tenantId || "default";
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       const { getHistoricalBenchmarks } = await import("../continuous-learning");
       return await getHistoricalBenchmarks(tenantId, input.vehicleMake, input.vehicleModel, input.damageContext);
     }),
@@ -401,7 +402,7 @@ export const aiAssessmentsRouter = router({
       if (!ctx.user) throw new Error("Not authenticated");
       const { applyIntelligenceEnforcement } = await import("../intelligence-enforcement");
       const { getAiAssessmentByClaimId, getQuotesByClaimId } = await import("../db");
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+      const { tenantId } = await requireGovernedTenantClaim(String(input.claimId), ctx.user.tenantId);
       const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
       if (!assessment) return null;
       const quotes = await getQuotesByClaimId(input.claimId, tenantId);
@@ -420,7 +421,7 @@ export const aiAssessmentsRouter = router({
           // Get the claimantId from the claims table for this claim
           const [claimRow] = await db.select({ claimantId: claimsTable.claimantId, kingaRef: claimsTable.kingaRef })
             .from(claimsTable)
-            .where(eq(claimsTable.id, input.claimId))
+            .where(and(eq(claimsTable.id, input.claimId), eq(claimsTable.tenantId, tenantId)))
             .limit(1);
           if (claimRow?.claimantId) {
             const [histRow] = await db.select({ totalClaims: claimantHistory.totalClaims })
@@ -1595,7 +1596,7 @@ export const aiAssessmentsRouter = router({
       const { aiAssessments: aiAssessmentsTable } = await import("../../drizzle/schema");
       const { eq } = await import("drizzle-orm");
       const { claims: claimsTable } = await import("../../drizzle/schema");
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+      const { tenantId } = await requireGovernedTenantClaim(String(input.claimId), ctx.user.tenantId);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
@@ -1606,7 +1607,7 @@ export const aiAssessmentsRouter = router({
       // Fetch claim details for the notification
       const [claimRow] = await db.select({ claimNumber: claimsTable.claimNumber, vehicleMake: claimsTable.vehicleMake, vehicleModel: claimsTable.vehicleModel })
         .from(claimsTable)
-        .where(eq(claimsTable.id, input.claimId))
+        .where(and(eq(claimsTable.id, input.claimId), eq(claimsTable.tenantId, tenantId)))
         .limit(1);
 
       // Update sharedWithRolesJson — append the new role if not already present
@@ -1619,11 +1620,11 @@ export const aiAssessmentsRouter = router({
         currentRoles.push(input.targetRole);
         await db.update(aiAssessmentsTable)
           .set({ sharedWithRolesJson: JSON.stringify(currentRoles) } as any)
-          .where(eq(aiAssessmentsTable.id, assessment.id));
+          .where(and(eq(aiAssessmentsTable.id, assessment.id), eq(aiAssessmentsTable.tenantId, tenantId)));
       }
 
       // Notify all users with the target role
-      const targetUsers = await _getByRoles([input.targetRole]);
+      const targetUsers = (await _getByRoles([input.targetRole])).filter((user) => user.tenantId === tenantId);
       const actorName = (ctx.user as any).name ?? "A colleague";
       const claimRef = claimRow?.claimNumber ?? `Claim #${input.claimId}`;
       const vehicleLabel = [claimRow?.vehicleMake, claimRow?.vehicleModel].filter(Boolean).join(" ") || "";
@@ -1657,7 +1658,7 @@ export const aiAssessmentsRouter = router({
     .query(async ({ input, ctx }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const { getAiAssessmentByClaimId } = await import("../db");
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+      const { tenantId } = await requireGovernedTenantClaim(String(input.claimId), ctx.user.tenantId);
       const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
       if (!assessment) return { sharedWithRoles: [] as string[] };
       let roles: string[] = [];
@@ -1672,7 +1673,8 @@ export const aiAssessmentsRouter = router({
     if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
     const insurerRole = (ctx.user as any).insurerRole as string | null;
     if (!insurerRole) return { claims: [] as any[] };
-    const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+    const tenantId = ctx.user.tenantId;
+    if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
     const { getDb: _getDb } = await import("../db");
     const db2 = await _getDb();
     if (!db2) return { claims: [] as any[] };
@@ -1696,14 +1698,10 @@ export const aiAssessmentsRouter = router({
       })
       .from(aiAssessmentsTable2)
       .innerJoin(claimsTable2, eq2(aiAssessmentsTable2.claimId, claimsTable2.id))
-      .where(
-        tenantId
-          ? and2(
-              isNotNull2((aiAssessmentsTable2 as any).sharedWithRolesJson),
-              eq2(claimsTable2.tenantId, tenantId)
-            )
-          : isNotNull2((aiAssessmentsTable2 as any).sharedWithRolesJson)
-      )
+      .where(and2(
+        isNotNull2((aiAssessmentsTable2 as any).sharedWithRolesJson),
+        eq2(claimsTable2.tenantId, tenantId)
+      ))
       .orderBy(aiAssessmentsTable2.createdAt);
     const filtered2 = rows2.filter((row: any) => {
       try {
@@ -1748,7 +1746,7 @@ export const aiAssessmentsRouter = router({
       const { getDb: _getDb2, getAiAssessmentByClaimId: _getAssessment } = await import("../db");
       const { aiAssessments: _aiAssessmentsTable } = await import("../../drizzle/schema");
       const { eq: _eq } = await import("drizzle-orm");
-      const _tenantId = isAdminRole(ctx.user.role) ? undefined : ((ctx.user as any).tenantId || "default");
+      const { tenantId: _tenantId } = await requireGovernedTenantClaim(String(input.claimId), ctx.user.tenantId);
       const _db = await _getDb2();
       if (!_db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
