@@ -125,7 +125,10 @@ export async function activatePolicy(
       effectiveFrom: now.toISOString(),
       effectiveUntil: null,
     })
-    .where(eq(automationPolicies.id, policyId));
+    .where(and(
+      eq(automationPolicies.id, policyId),
+      eq(automationPolicies.tenantId, tenantId),
+    ));
 
   // Log policy activation
   await db.insert(auditTrail).values({
@@ -189,6 +192,18 @@ export async function updatePolicy(
   updatedPolicyData: Partial<PolicyProfileTemplate>,
   updatedByUserId: number
 ): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error('Database unavailable');
+  const [policy] = await db.select({ id: automationPolicies.id })
+    .from(automationPolicies)
+    .where(and(
+      eq(automationPolicies.id, policyId),
+      eq(automationPolicies.tenantId, tenantId),
+    ))
+    .limit(1);
+  if (!policy) {
+    throw new Error(`Policy ${policyId} not found for tenant ${tenantId}`);
+  }
   // Use existing policy versioning system
   const newPolicyVersionId = await createPolicyVersion(
     tenantId,
@@ -244,7 +259,10 @@ export async function deletePolicy(
       isActive: 0,
       effectiveUntil: new Date().toISOString(),
     })
-    .where(eq(automationPolicies.id, policyId));
+    .where(and(
+      eq(automationPolicies.id, policyId),
+      eq(automationPolicies.tenantId, tenantId),
+    ));
 
   // Log policy deletion
   await db.insert(auditTrail).values({

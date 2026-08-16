@@ -56,6 +56,20 @@ const policyManagementProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 
+function requirePolicyTenant(
+  user: { tenantId?: string | null },
+  requestedTenantId?: string,
+) {
+  const tenantId = user.tenantId;
+  if (!tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
+  }
+  if (requestedTenantId && requestedTenantId !== tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Tenant scope mismatch" });
+  }
+  return tenantId;
+}
+
 export const policyManagementRouter = router({
   /**
    * Get all policy profile templates
@@ -105,14 +119,7 @@ export const policyManagementRouter = router({
       }).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
-
-      if (!tenantId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Tenant ID is required",
-        });
-      }
+      const tenantId = requirePolicyTenant(ctx.user, input.tenantId);
 
       const profile = getPolicyProfileTemplate(input.profileType as PolicyProfileType);
 
@@ -138,14 +145,7 @@ export const policyManagementRouter = router({
       tenantId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
-
-      if (!tenantId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Tenant ID is required",
-        });
-      }
+      const tenantId = requirePolicyTenant(ctx.user, input.tenantId);
 
       await activatePolicy(input.policyId, tenantId, ctx.user.id);
 
@@ -163,14 +163,7 @@ export const policyManagementRouter = router({
       tenantId: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
-
-      if (!tenantId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Tenant ID is required",
-        });
-      }
+      const tenantId = requirePolicyTenant(ctx.user, input.tenantId);
 
       const activePolicy = await getActivePolicy(tenantId);
 
@@ -185,14 +178,7 @@ export const policyManagementRouter = router({
       tenantId: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
-
-      if (!tenantId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Tenant ID is required",
-        });
-      }
+      const tenantId = requirePolicyTenant(ctx.user, input.tenantId);
 
       const policies = await getAllPolicies(tenantId);
 
@@ -225,14 +211,7 @@ export const policyManagementRouter = router({
       }),
     }))
     .mutation(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
-
-      if (!tenantId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Tenant ID is required",
-        });
-      }
+      const tenantId = requirePolicyTenant(ctx.user, input.tenantId);
 
       const newPolicyVersionId = await updatePolicy(
         input.policyId,
@@ -257,14 +236,7 @@ export const policyManagementRouter = router({
       tenantId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
-
-      if (!tenantId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Tenant ID is required",
-        });
-      }
+      const tenantId = requirePolicyTenant(ctx.user, input.tenantId);
 
       await deletePolicy(input.policyId, tenantId, ctx.user.id);
 
@@ -295,14 +267,7 @@ export const policyManagementRouter = router({
       daysToAnalyze: z.number().optional().default(30),
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
-
-      if (!tenantId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Tenant ID is required",
-        });
-      }
+      const tenantId = requirePolicyTenant(ctx.user, input.tenantId);
 
       const simulationResults = await simulateRoutingDistribution(
         tenantId,
@@ -322,14 +287,7 @@ export const policyManagementRouter = router({
       tenantId: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
-
-      if (!tenantId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Tenant ID is required",
-        });
-      }
+      const tenantId = requirePolicyTenant(ctx.user, input.tenantId);
 
       const impactMetrics = await getPolicyImpactMetrics(input.policyId, tenantId);
 
@@ -346,14 +304,7 @@ export const policyManagementRouter = router({
       tenantId: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
-
-      if (!tenantId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Tenant ID is required",
-        });
-      }
+      const tenantId = requirePolicyTenant(ctx.user, input.tenantId);
 
       const comparisonResults = await comparePolicyPerformance(
         input.policy1Id,
@@ -372,14 +323,7 @@ export const policyManagementRouter = router({
       tenantId: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
-
-      if (!tenantId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Tenant ID is required",
-        });
-      }
+      const tenantId = requirePolicyTenant(ctx.user, input.tenantId);
 
       const allMetrics = await getAllPolicyImpactMetrics(tenantId);
 
