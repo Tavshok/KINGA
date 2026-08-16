@@ -6,6 +6,7 @@
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
 import { z } from "zod";
 import {
@@ -17,6 +18,12 @@ import {
 import { eq, and, sql, desc } from "drizzle-orm";
 import { synthesizeGroundTruth, saveSynthesisResult } from "../ml/truth-synthesis";
 
+function requireTruthTenant(ctx: { user?: { tenantId?: string | null } }): string {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
 /**
  * Synthesize ground truth for a historical claim
  */
@@ -26,7 +33,7 @@ const synthesizeTruth = protectedProcedure
       claimId: z.number(),
     })
   )
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input, ctx }) => {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
 
@@ -34,7 +41,10 @@ const synthesizeTruth = protectedProcedure
     const claim = await db
       .select()
       .from(historicalClaims)
-      .where(eq(historicalClaims.id, input.claimId))
+      .where(and(
+        eq(historicalClaims.id, input.claimId),
+        eq(historicalClaims.tenantId, requireTruthTenant(ctx)),
+      ))
       .limit(1);
 
     if (claim.length === 0) {
@@ -69,7 +79,7 @@ const getHighDeviationClaims = protectedProcedure
       limit: z.number().default(50),
     })
   )
-  .query(async ({ input }) => {
+  .query(async ({ input, ctx }) => {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
 
@@ -92,7 +102,10 @@ const getHighDeviationClaims = protectedProcedure
         historicalClaims,
         eq(multiReferenceTruth.historicalClaimId, historicalClaims.id)
       )
-      .where(sql`ABS(${multiReferenceTruth.assessorDeviation}) >= ${input.minDeviation}`)
+      .where(and(
+        eq(historicalClaims.tenantId, requireTruthTenant(ctx)),
+        sql`ABS(${multiReferenceTruth.assessorDeviation}) >= ${input.minDeviation}`,
+      ))
       .orderBy(desc(sql`ABS(${multiReferenceTruth.assessorDeviation})`))
       .limit(input.limit);
 
@@ -145,18 +158,20 @@ const approveForTraining = protectedProcedure
   .mutation(async ({ input, ctx }) => {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
+    const tenantId = requireTruthTenant(ctx);
 
     // Get claim and synthesis data
     const [claim, synthesis] = await Promise.all([
       db
         .select()
         .from(historicalClaims)
-        .where(eq(historicalClaims.id, input.claimId))
+        .where(and(eq(historicalClaims.id, input.claimId), eq(historicalClaims.tenantId, tenantId)))
         .limit(1),
       db
         .select()
         .from(multiReferenceTruth)
-        .where(eq(multiReferenceTruth.historicalClaimId, input.claimId))
+        .innerJoin(historicalClaims, eq(multiReferenceTruth.historicalClaimId, historicalClaims.id))
+        .where(and(eq(multiReferenceTruth.historicalClaimId, input.claimId), eq(historicalClaims.tenantId, tenantId)))
         .limit(1),
     ]);
 
@@ -176,7 +191,7 @@ const approveForTraining = protectedProcedure
     const existing = await db
       .select()
       .from(trainingDataset)
-      .where(eq(trainingDataset.historicalClaimId, input.claimId))
+      .where(and(eq(trainingDataset.historicalClaimId, input.claimId), eq(trainingDataset.tenantId, tenantId)))
       .limit(1);
 
     if (existing.length > 0) {
@@ -188,11 +203,12 @@ const approveForTraining = protectedProcedure
           negotiatedAdjustment: input.useAssessorValue ? 0 : 1,
           deviationReason: input.deviationReason || "none",
         })
-        .where(eq(trainingDataset.id, existing[0].id));
+        .where(and(eq(trainingDataset.id, existing[0].id), eq(trainingDataset.tenantId, tenantId)));
     } else {
       // Insert new
       await db.insert(trainingDataset).values({
         historicalClaimId: input.claimId,
+        tenantId,
         datasetVersion: "v1.0",
         includedBy: ctx.user.id,
         trainingWeight: input.trainingWeight.toString(),
