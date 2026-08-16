@@ -618,7 +618,9 @@ export const quotesRouter = router({
   runAudit: protectedProcedure
     .input(z.object({ quoteId: z.number(), claimId: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      if (!ctx.user) throw new Error("Not authenticated");
+      if (!ctx.user || !isAssignedAssessorActor(ctx.user) || !ctx.user.tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only the assigned assessor can audit a repair quote." });
+      }
       const { invokeLLM } = await import("../_core/llm");
       const { getDb, getQuoteLineItemsByQuoteId, getAiAssessmentByClaimId } = await import("../db");
       const { panelBeaterQuotes, quoteLineItems: qliTable } = await import("../../drizzle/schema");
@@ -626,12 +628,19 @@ export const quotesRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
+      const [quote] = await db.select().from(panelBeaterQuotes).where(eq(panelBeaterQuotes.id, input.quoteId)).limit(1);
+      if (!quote || quote.claimId !== input.claimId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Quote not found" });
+      }
+      const claim = await getClaimById(input.claimId, ctx.user.tenantId);
+      if (!claim || claim.assignedAssessorId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Quote not found" });
+      }
+
       // Load line items and KINGA assessment
       const lineItems = await getQuoteLineItemsByQuoteId(input.quoteId);
       if (lineItems.length === 0) return { success: false, reason: "No line items found" };
-      // R-GH-16: scope to caller's tenant so cross-tenant reads are blocked
-      const _tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || undefined);
-      const assessment = await getAiAssessmentByClaimId(input.claimId, _tenantId);
+      const assessment = await getAiAssessmentByClaimId(input.claimId, ctx.user.tenantId);
       const damageZones: string[] = [];
       const detectedComponents: string[] = [];
       if (assessment) {

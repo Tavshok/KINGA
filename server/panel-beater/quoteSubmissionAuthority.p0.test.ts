@@ -133,4 +133,9 @@ describe("AUD-P0 panel-beater quote submission authority", () => {
     await expect(unassignedAssessor.quotes.adjustByAssessor({ quoteId: quoteAId, adjustedAmount: 110000 })).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(assignedAssessor.quotes.adjustByAssessor({ quoteId: quoteAId, adjustedAmount: 110000, modificationReason: "Fixture review" })).resolves.toMatchObject({ success: true });
   });
+
+  it("denies an unassigned assessor before quote-audit evidence access or write", async () => {
+    const unassignedAssessor = appRouter.createCaller(contextFor(unassignedAssessorId, tenantA, "assessor"));
+    await expect(unassignedAssessor.quotes.runAudit({ quoteId: quoteAId, claimId: claimAId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
 });
