@@ -30,6 +30,7 @@ import {
   type EventType,
 } from "../pipeline-v2/claimsNotificationGenerator";
 import { notifyOwner } from "../_core/notification";
+import { isAdminRole } from "@shared/role-permissions";
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -67,6 +68,25 @@ function parseStagesFromJson(json: string): WorkflowStage[] {
   } catch {
     return [];
   }
+}
+
+async function requireApprovalTenantClaim(
+  drizzle: Awaited<ReturnType<typeof getDb>>,
+  claimId: number,
+  tenantId: string,
+) {
+  if (!drizzle || !tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  }
+  const [claim] = await drizzle
+    .select({ id: claims.id })
+    .from(claims)
+    .where(and(eq(claims.id, claimId), eq(claims.tenantId, tenantId)))
+    .limit(1);
+  if (!claim) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+  }
+  return claim;
 }
 
 /**
@@ -430,9 +450,11 @@ export const approvalRouter = router({
       const userInsurerId = (ctx.user as { insurerRole?: string }).insurerRole ?? "";
       const userRole = (ctx.user as { role?: string }).role ?? "user";
 
+      await requireApprovalTenantClaim(drizzle, input.claim_id, tenantId);
+
       // Validate that the actor has the right role for this stage
       // Admin can act on any stage; otherwise must match role_key
-      if (userRole !== "admin" && userInsurerId !== input.role_key) {
+      if (!isAdminRole(userRole) && userInsurerId !== input.role_key) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: `This stage requires role '${input.role_key}'. Your role is '${userInsurerId || "unassigned"}'.`,
@@ -511,7 +533,7 @@ export const approvalRouter = router({
           claimantId: claims.claimantId,
         })
         .from(claims)
-        .where(eq(claims.id, input.claim_id))
+        .where(and(eq(claims.id, input.claim_id), eq(claims.tenantId, tenantId)))
         .limit(1);
 
       const claimRow = claimRows[0] ?? null;
@@ -583,9 +605,11 @@ export const approvalRouter = router({
               .filter((s) => s.required)
               .find((s) => s.stage_order === input.stage_order + 1);
             if (nextStage) {
-              // Map role_key to insurer sub-role string for getUsersByInsurerRoles
               const nextRoleKey = nextStage.role_key;
-              const nextRoleUsers = await getUsersByInsurerRoles([nextRoleKey]);
+              const nextRoleUsers = await drizzle
+                .select({ id: users.id })
+                .from(users)
+                .where(and(eq(users.tenantId, tenantId), eq(users.insurerRole, nextRoleKey)));
               for (const nextUser of nextRoleUsers) {
                 if (nextUser.id) {
                   await createNotification({
