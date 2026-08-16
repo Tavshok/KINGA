@@ -35,6 +35,12 @@ async function requireReportTenantClaim(claimId: string, tenantId: string | null
   return claim;
 }
 
+function requireReportTenant(ctx: { user?: { tenantId?: string | null } }): string {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
 export const claimReportsRouter = router({
   /**
    * Validate Report Data
@@ -166,6 +172,7 @@ export const claimReportsRouter = router({
       const { canGenerateReport } = await import('../report-governance-service');
       const { createReportSnapshot } = await import('../report-snapshot-service');
       const { aggregateClaimIntelligence } = await import('../report-intelligence-aggregator');
+      const tenantId = requireReportTenant(ctx);
 
       // Check permissions
       const permissionCheck = await canGenerateReport(ctx.user, input.claimId, input.reportType);
@@ -184,7 +191,7 @@ export const claimReportsRouter = router({
         intelligence,
         reportType: input.reportType,
         generatedBy: ctx.user.id as any, // TODO: Fix type mismatch between string user IDs and number DB schema
-        tenantId: ctx.user.tenantId || 'default',
+        tenantId,
       });
 
       return snapshot;
@@ -213,6 +220,7 @@ export const claimReportsRouter = router({
       const { generateReportNarrative } = await import('../report-narrative-generator');
       const { generateReportVisualizations } = await import('../report-visualization-generator');
       const { generateReportPDF } = await import('../report-pdf-generator');
+      const tenantId = requireReportTenant(ctx);
 
       // Check permissions
       const accessCheck = await canAccessReport(ctx.user, input.snapshotId);
@@ -260,7 +268,7 @@ export const claimReportsRouter = router({
       const pdfReport = await storePdfReport({
         snapshotId: input.snapshotId,
         pdfBuffer,
-        tenantId: ctx.user.tenantId || 'default',
+        tenantId,
       });
 
       // Audit access
@@ -292,12 +300,13 @@ export const claimReportsRouter = router({
       const { canAccessReport, auditReportAccess, validateTenantIsolation } = await import('../report-governance-service');
       const { getSnapshotById } = await import('../report-snapshot-service');
       const { validateAccessToken } = await import('../report-linking-service');
+      const tenantId = requireReportTenant(ctx);
 
       // If access token provided, validate it
       if (input.accessToken) {
         const tokenValidation = await validateAccessToken(
           input.accessToken,
-          ctx.user.tenantId || 'default'
+          tenantId
         );
         if (!tokenValidation.isValid) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid access token' });
@@ -358,6 +367,7 @@ export const claimReportsRouter = router({
       const { getSnapshotById } = await import('../report-snapshot-service');
       const { getPdfReportById } = await import('../pdf-storage-service');
       const { sendReportEmail, sendReportToStakeholders, getReportStakeholders } = await import('../report-email-service');
+      const tenantId = requireReportTenant(ctx);
 
       // Check permissions
       const accessCheck = await canAccessReport(ctx.user, input.snapshotId);
@@ -392,7 +402,7 @@ export const claimReportsRouter = router({
             reportType: snapshot.reportType,
             pdfUrl: pdfReport.s3Url,
             generatedBy: ctx.user.name || 'System',
-            tenantId: ctx.user.tenantId || 'default',
+            tenantId,
           });
 
           if (success) {
@@ -408,7 +418,7 @@ export const claimReportsRouter = router({
         const stakeholders = await getReportStakeholders(
           snapshot.claimId,
           snapshot.reportType,
-          ctx.user.tenantId || 'default'
+          tenantId
         );
 
         const result = await sendReportToStakeholders(
@@ -417,7 +427,7 @@ export const claimReportsRouter = router({
             reportType: snapshot.reportType,
             pdfUrl: pdfReport.s3Url,
             generatedBy: ctx.user.name || 'System',
-            tenantId: ctx.user.tenantId || 'default',
+            tenantId,
           },
           stakeholders
         );
@@ -447,10 +457,11 @@ export const claimReportsRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const { getReportAccessHistory } = await import('../report-governance-service');
+      const tenantId = requireReportTenant(ctx);
 
       const history = await getReportAccessHistory(
         input.snapshotId,
-        ctx.user.tenantId || 'default',
+        tenantId,
         ctx.user
       );
 
