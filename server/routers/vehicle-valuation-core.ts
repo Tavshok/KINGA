@@ -234,8 +234,7 @@ export const vehicleValuationCoreRouter = router({
     .input(z.object({ claimId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error('Not authenticated');
-      const allowedRoles = ['admin', 'insurer', 'assessor'];
-      if (!allowedRoles.includes(ctx.user.role)) {
+      if (!isAdminRole(ctx.user.role) && !['insurer', 'assessor'].includes(ctx.user.role)) {
         throw new Error('Insufficient permissions to run photo enrichment');
       }
 
@@ -248,7 +247,8 @@ export const vehicleValuationCoreRouter = router({
       if (!db) throw new Error('Database not available');
 
       // Load the claim and its latest KINGA assessment
-      const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+      const tenantId = requireVehicleValuationTenant(ctx);
+      await requireVehicleValuationClaim(input.claimId, tenantId);
       const { getAiAssessmentByClaimId, getClaimById } = await import('../db');
       const [assessment, claim] = await Promise.all([
         getAiAssessmentByClaimId(input.claimId, tenantId),
