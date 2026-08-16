@@ -466,6 +466,15 @@ export const agencyBrokerRouter = router({
       const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
       const now = new Date().toISOString().slice(0, 19).replace("T", " ");
 
+      const [claim] = await db
+        .select({ id: claims.id })
+        .from(claims)
+        .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId)))
+        .limit(1);
+      if (!claim) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Agency claim not found." });
+      }
+
       // Check for existing requests to avoid duplicates
       const existing = await db
         .select({ insurerTenantId: insurerQuoteRequests.insurerTenantId })
@@ -503,14 +512,18 @@ export const agencyBrokerRouter = router({
    */
   getQuoteRequests: agencyProcedure
     .input(z.object({ claimId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = requireTenantScope(ctx, undefined, "agency-broker") as string;
 
       const quotes = await db
         .select()
         .from(insurerQuoteRequests)
-        .where(eq(insurerQuoteRequests.claimId, input.claimId))
+        .where(and(
+          eq(insurerQuoteRequests.claimId, input.claimId),
+          eq(insurerQuoteRequests.agencyTenantId, tenantId),
+        ))
         .orderBy(desc(insurerQuoteRequests.createdAt));
 
       return { quotes };
