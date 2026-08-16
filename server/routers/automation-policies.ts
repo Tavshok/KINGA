@@ -9,13 +9,17 @@
 
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
-import { isAdminRole } from "@shared/role-permissions";
 import { 
   createAutomationPolicy, 
   getActiveAutomationPolicy, 
   getTenantPolicies,
   updateAutomationPolicy 
 } from "../automation-policy-manager";
+
+function requireTenantId(user: { tenantId?: string | null }) {
+  if (!user.tenantId) throw new Error("A tenant-scoped session is required");
+  return user.tenantId;
+}
 
 export const automationPoliciesRouter = router({
   /**
@@ -38,7 +42,7 @@ export const automationPoliciesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const tenantId = ctx.user.tenantId || "default";
+      const tenantId = requireTenantId(ctx.user);
       
       const policyId = await createAutomationPolicy({
         tenantId,
@@ -63,7 +67,7 @@ export const automationPoliciesRouter = router({
    * Get the active automation policy for the current tenant
    */
   getActivePolicy: protectedProcedure.query(async ({ ctx }) => {
-    const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+    const tenantId = requireTenantId(ctx.user);
     const policy = await getActiveAutomationPolicy(tenantId);
     return policy;
   }),
@@ -72,7 +76,7 @@ export const automationPoliciesRouter = router({
    * Get policy history for the current tenant
    */
   getPolicyHistory: protectedProcedure.query(async ({ ctx }) => {
-    const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+    const tenantId = requireTenantId(ctx.user);
     const history = await getTenantPolicies(tenantId);
     return history;
   }),
@@ -98,7 +102,8 @@ export const automationPoliciesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await updateAutomationPolicy(input.policyId, {
+      const tenantId = requireTenantId(ctx.user);
+      await updateAutomationPolicy(input.policyId, tenantId, {
         minAutomationConfidence: input.minAutomationConfidence,
         minHybridConfidence: input.minHybridConfidence,
         maxAiOnlyApprovalAmount: input.maxAiOnlyApprovalAmount,

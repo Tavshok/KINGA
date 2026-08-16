@@ -37,13 +37,11 @@ export async function createAutomationPolicy(config: InsertAutomationPolicy): Pr
 /**
  * Get active automation policy for a tenant
  */
-export async function getActiveAutomationPolicy(tenantId?: string): Promise<AutomationPolicy | null> {
+export async function getActiveAutomationPolicy(tenantId: string): Promise<AutomationPolicy | null> {
   const db = await getDb();
   if (!db) throw new Error("Database connection failed");
   
-  const conditions = tenantId
-    ? and(eq(automationPolicies.tenantId, tenantId), eq(automationPolicies.isActive, true))
-    : eq(automationPolicies.isActive, true);
+  const conditions = and(eq(automationPolicies.tenantId, tenantId), eq(automationPolicies.isActive, true));
   
   const policies = await db
     .select()
@@ -59,6 +57,7 @@ export async function getActiveAutomationPolicy(tenantId?: string): Promise<Auto
  */
 export async function updateAutomationPolicy(
   policyId: number,
+  tenantId: string,
   updates: Partial<InsertAutomationPolicy>
 ): Promise<void> {
   // Validate updated thresholds
@@ -73,7 +72,7 @@ export async function updateAutomationPolicy(
       ...updates,
       updatedAt: new Date(),
     })
-    .where(eq(automationPolicies.id, policyId));
+    .where(and(eq(automationPolicies.id, policyId), eq(automationPolicies.tenantId, tenantId)));
   
   console.log(`[Automation Policy] Updated policy ${policyId}`);
 }
@@ -99,15 +98,11 @@ export async function deactivateAutomationPolicy(policyId: number): Promise<void
 /**
  * Get all policies for a tenant (active and inactive)
  */
-export async function getTenantPolicies(tenantId?: string): Promise<AutomationPolicy[]> {
+export async function getTenantPolicies(tenantId: string): Promise<AutomationPolicy[]> {
   const db = await getDb();
   if (!db) throw new Error("Database connection failed");
   
-  const query = tenantId
-    ? db.select().from(automationPolicies).where(eq(automationPolicies.tenantId, tenantId))
-    : db.select().from(automationPolicies);
-  
-  return await query;
+  return await db.select().from(automationPolicies).where(eq(automationPolicies.tenantId, tenantId));
 }
 
 /**
