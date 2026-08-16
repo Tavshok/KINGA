@@ -1961,7 +1961,7 @@ export const claimsRouter = router({
           assessorId: input.assessorId,
           claimNumber: claim.claimNumber,
           claimantName: claimant?.name || 'Claimant',
-          tenantId: tenantId || 'default',
+          tenantId,
         });
         if (emailSent) {
           await markClaimAssignmentNotification(assignmentId, { emailSent: true });
