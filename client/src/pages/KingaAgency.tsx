@@ -29,13 +29,9 @@ export default function KingaAgency() {
 
   const tabs = [
     { id: 'clients', label: 'Client Management' },
-    { id: 'quotations', label: 'Client Requests & Quotes' },
     { id: 'valuation-evidence', label: 'Valuation Evidence' },
-    { id: 'policies', label: 'Policies' },
-    { id: 'documents', label: 'Documents' },
     { id: 'timeline-intelligence', label: 'Timeline Intelligence' },
     { id: 'commissions', label: 'Commissions' },
-    { id: 'compare', label: 'Compare Quotes' },
     { id: 'performance', label: 'Performance' },
   ];
 
@@ -123,12 +119,8 @@ export default function KingaAgency() {
         <div className="p11-body-2col">
           {/* ── MAIN COLUMN ── */}
           <div>
-          {activeTab === 'quotations' && <QuotationsTab />}
           {activeTab === 'valuation-evidence' && <ProfessionalValuationEvidenceTab />}
-          {activeTab === 'policies' && <PoliciesTab />}
-          {activeTab === 'documents' && <DocumentsTab />}
           {activeTab === 'timeline-intelligence' && <TimelineIntelligenceTab />}
-          {activeTab === 'compare' && <QuoteComparisonSection />}
           {activeTab === 'performance' && <AgencyPerformanceSection />}
           {activeTab === 'clients' && <ClientManagementTab />}
           </div>
@@ -146,10 +138,6 @@ export default function KingaAgency() {
                   <button className="p11-btn-gold" style={{ width:'100%', justifyContent:'center' }} onClick={() => setActiveTab('clients')}>
                     <Users style={{ width:13, height:13 }} />
                     Open Client Workspace
-                  </button>
-                  <button className="p11-btn-outline" style={{ width:'100%', justifyContent:'center' }} onClick={() => setActiveTab('documents')}>
-                    <Upload style={{ width:13, height:13 }} />
-                    Upload Document
                   </button>
                   <button className="p11-btn-outline" style={{ width:'100%', justifyContent:'center' }} onClick={() => setActiveTab('clients')}>
                     <Users style={{ width:13, height:13 }} />

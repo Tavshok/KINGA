@@ -8,6 +8,7 @@
  */
 
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure, publicProcedure } from "../_core/trpc";
 import { agencyDomainProcedure as agencyProcedure } from "../_core/domain-middleware";
 import { getDb } from "../db";
@@ -22,6 +23,33 @@ import { nanoid } from "nanoid";
 import { generateVehicleValuation } from "../insurance/valuation-engine";
 
 const db = getDb();
+
+async function requireOwnedLegacyAgencyTarget(
+  db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
+  userId: number,
+  quotationRequestId?: number,
+  policyId?: number,
+) {
+  if ((quotationRequestId == null && policyId == null) || (quotationRequestId != null && policyId != null)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Provide exactly one quotation request or policy target." });
+  }
+
+  if (quotationRequestId != null) {
+    const [quotation] = await db.select({ id: quotationRequests.id, vehicleRegistration: quotationRequests.vehicleRegistration })
+      .from(quotationRequests)
+      .where(and(eq(quotationRequests.id, quotationRequestId), eq(quotationRequests.userId, userId)))
+      .limit(1);
+    if (!quotation) throw new TRPCError({ code: "NOT_FOUND", message: "Quotation request not found." });
+    return { quotation, policy: null };
+  }
+
+  const [policy] = await db.select({ id: insurancePolicies.id })
+    .from(insurancePolicies)
+    .where(and(eq(insurancePolicies.id, policyId!), eq(insurancePolicies.customerId, userId)))
+    .limit(1);
+  if (!policy) throw new TRPCError({ code: "NOT_FOUND", message: "Policy not found." });
+  return { quotation: null, policy };
+}
 
 export const agencyRouter = router({
   /**
@@ -103,28 +131,8 @@ export const agencyRouter = router({
       limit: z.number().default(20),
       offset: z.number().default(0),
     }))
-    .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
-      const conditions = input.status 
-        ? [eq(quotationRequests.status, input.status as any)]
-        : [];
-
-      const items = await db
-        .select()
-        .from(quotationRequests)
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(desc(quotationRequests.createdAt))
-        .limit(input.limit)
-        .offset(input.offset);
-
-      const [countResult] = await db
-        .select({ count: sql<number>`COUNT(*)` })
-        .from(quotationRequests)
-        .where(conditions.length > 0 ? and(...conditions) : undefined);
-
-      return { items, total: countResult?.count ?? 0 };
+    .query(async () => {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Legacy cross-record quotation administration is unavailable. Use the governed insurer or agency service workflow." });
     }),
 
   /**
@@ -140,23 +148,8 @@ export const agencyRouter = router({
       quoteValidUntil: z.string().optional(),
       quoteNotes: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
-      const updateData: any = { status: input.status };
-      if (input.quotedPremium !== undefined) updateData.quotedPremium = input.quotedPremium;
-      if (input.quotedAnnualPremium !== undefined) updateData.quotedAnnualPremium = input.quotedAnnualPremium;
-      if (input.quotedExcess !== undefined) updateData.quotedExcess = input.quotedExcess;
-      if (input.quoteValidUntil) updateData.quoteValidUntil = new Date(input.quoteValidUntil);
-      if (input.quoteNotes) updateData.quoteNotes = input.quoteNotes;
-
-      await db
-        .update(quotationRequests)
-        .set(updateData)
-        .where(eq(quotationRequests.id, input.id));
-
-      return { success: true };
+    .mutation(async () => {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Legacy cross-record quotation updates are unavailable. Use the governed insurer service workflow." });
     }),
 
   /**
@@ -185,28 +178,8 @@ export const agencyRouter = router({
       limit: z.number().default(20),
       offset: z.number().default(0),
     }))
-    .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
-      const conditions = input.status 
-        ? [eq(insurancePolicies.status, input.status as any)]
-        : [];
-
-      const items = await db
-        .select()
-        .from(insurancePolicies)
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(desc(insurancePolicies.createdAt))
-        .limit(input.limit)
-        .offset(input.offset);
-
-      const [countResult] = await db
-        .select({ count: sql<number>`COUNT(*)` })
-        .from(insurancePolicies)
-        .where(conditions.length > 0 ? and(...conditions) : undefined);
-
-      return { items, total: countResult?.count ?? 0 };
+    .query(async () => {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Legacy cross-record policy administration is unavailable. Use the governed insurer service workflow." });
     }),
 
   /**
@@ -263,6 +236,7 @@ export const agencyRouter = router({
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
+      const target = await requireOwnedLegacyAgencyTarget(db, ctx.user!.id, input.quotationRequestId, input.policyId);
 
       // Upload to S3
       const buffer = Buffer.from(input.fileData.split(",").pop() || input.fileData, "base64");
@@ -284,8 +258,8 @@ export const agencyRouter = router({
       // C-02: If this is a vehicle photo, trigger Photo Forensics Engine + Damage Detection AI
       // This runs fire-and-forget so the upload response is immediate.
       // Results are stored against the quotation request for the Agency dashboard to display.
-      if (input.documentType === 'vehicle_photos' && input.quotationRequestId) {
-        const quotationId = input.quotationRequestId;
+      if (input.documentType === 'vehicle_photos' && target.quotation) {
+        const quotationId = target.quotation.id;
         // Mark as processing immediately so the UI can show a spinner
         await db.update(quotationRequests)
           .set({ vehicleForensicsStatus: 'processing' })
@@ -335,24 +309,17 @@ export const agencyRouter = router({
       quotationRequestId: z.number().optional(),
       policyId: z.number().optional(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
-
-      const conditions = [];
-      if (input.quotationRequestId) {
-        conditions.push(eq(agencyDocuments.quotationRequestId, input.quotationRequestId));
-      }
-      if (input.policyId) {
-        conditions.push(eq(agencyDocuments.policyId, input.policyId));
-      }
-
-      if (conditions.length === 0) return [];
+      const target = await requireOwnedLegacyAgencyTarget(db, ctx.user!.id, input.quotationRequestId, input.policyId);
 
       const docs = await db
         .select()
         .from(agencyDocuments)
-        .where(conditions.length === 1 ? conditions[0] : or(...conditions))
+        .where(target.quotation
+          ? eq(agencyDocuments.quotationRequestId, target.quotation.id)
+          : eq(agencyDocuments.policyId, target.policy!.id))
         .orderBy(desc(agencyDocuments.createdAt));
 
       return docs;
@@ -390,12 +357,21 @@ export const agencyRouter = router({
     .input(z.object({
       registrationNumber: z.string().min(1).max(30),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return null;
       const { vehicleRegistry } = await import('../../drizzle/schema');
       const { eq } = await import('drizzle-orm');
       const reg = input.registrationNumber.toUpperCase().replace(/\s/g, '');
+      const [ownedQuotation] = await db
+        .select({ id: quotationRequests.id })
+        .from(quotationRequests)
+        .where(and(
+          eq(quotationRequests.userId, ctx.user!.id),
+          eq(quotationRequests.vehicleRegistration, reg),
+        ))
+        .limit(1);
+      if (!ownedQuotation) return { found: false as const };
       const [vehicle] = await db
         .select({
           id: vehicleRegistry.id,

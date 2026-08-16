@@ -16,6 +16,7 @@ const fleetSource = readFileSync(new URL("../client/src/pages/FleetManagement.ts
 const engineerLayoutSource = readFileSync(new URL("../client/src/components/EngineerWorkspaceLayout.tsx", import.meta.url), "utf8");
 const platformLayoutSource = readFileSync(new URL("../client/src/components/PlatformLayout.tsx", import.meta.url), "utf8");
 const insurerRoleSelectionSource = readFileSync(new URL("../client/src/pages/InsurerRoleSelection.tsx", import.meta.url), "utf8");
+const agencyWorkspaceSource = readFileSync(new URL("../client/src/pages/KingaAgency.tsx", import.meta.url), "utf8");
 
 describe("professional portal conformance — insurer navigation and admission", () => {
   it("aligns shared route navigation pre-checks with actual App role guards", () => {
@@ -99,5 +100,13 @@ describe("professional portal conformance — insurer navigation and admission",
   it("admits platform-super-admin testing access to legacy platform administration routes", () => {
     expect(appSource).toMatch(/path="\/historical-claims"[\s\S]{0,160}allowedRoles=\{\["admin", "platform_super_admin"\]\}/);
     expect(appSource).toMatch(/path="\/ml\/review\/queue"[\s\S]{0,160}allowedRoles=\{\["admin", "platform_super_admin"\]\}/);
+  });
+
+  it("keeps legacy claimant self-service quotation policy document and comparison actions out of the agency broker workspace", () => {
+    expect(agencyWorkspaceSource).not.toContain("{ id: 'quotations', label: 'Client Requests & Quotes' }");
+    expect(agencyWorkspaceSource).not.toContain("{ id: 'policies', label: 'Policies' }");
+    expect(agencyWorkspaceSource).not.toContain("{ id: 'documents', label: 'Documents' }");
+    expect(agencyWorkspaceSource).not.toContain("{ id: 'compare', label: 'Compare Quotes' }");
+    expect(agencyWorkspaceSource).not.toContain("onClick={() => setActiveTab('documents')}");
   });
 });
