@@ -70,6 +70,12 @@ function parseStagesFromJson(json: string): WorkflowStage[] {
   }
 }
 
+function requireApprovalTenant(ctx: { user?: { tenantId?: string | null } }): string {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
 async function requireApprovalTenantClaim(
   drizzle: Awaited<ReturnType<typeof getDb>>,
   claimId: number,
@@ -185,7 +191,7 @@ export const approvalRouter = router({
   getTemplates: protectedProcedure.query(async ({ ctx }) => {
     const drizzle = await getDb();
     if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-    const tenantId = (ctx.user as { tenantId?: string }).tenantId ?? "default";
+    const tenantId = requireApprovalTenant(ctx);
     const rows = await drizzle
       .select()
       .from(workflowTemplates)
@@ -203,7 +209,7 @@ export const approvalRouter = router({
   getDefaultTemplate: protectedProcedure.query(async ({ ctx }) => {
     const drizzle = await getDb();
     if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-    const tenantId = (ctx.user as { tenantId?: string }).tenantId ?? "default";
+    const tenantId = requireApprovalTenant(ctx);
     const existing = await getActiveTemplate(drizzle, tenantId);
     if (existing) {
       return { ...existing, stages: parseStagesFromJson(existing.stagesJson) };
@@ -243,10 +249,10 @@ export const approvalRouter = router({
     .mutation(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-      const tenantId = (ctx.user as { tenantId?: string }).tenantId ?? "default";
+      const tenantId = requireApprovalTenant(ctx);
       const userRole = (ctx.user as { insurerRole?: string }).insurerRole ?? "";
       if (!["claims_manager", "executive"].includes(userRole) &&
-          (ctx.user as { role?: string }).role !== "admin") {
+          !isAdminRole((ctx.user as { role?: string }).role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers or executives can create workflow templates" });
       }
       // If setting as default, unset existing defaults first
@@ -288,10 +294,10 @@ export const approvalRouter = router({
     .mutation(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-      const tenantId = (ctx.user as { tenantId?: string }).tenantId ?? "default";
+      const tenantId = requireApprovalTenant(ctx);
       const userRole = (ctx.user as { insurerRole?: string }).insurerRole ?? "";
       if (!["claims_manager", "executive"].includes(userRole) &&
-          (ctx.user as { role?: string }).role !== "admin") {
+          !isAdminRole((ctx.user as { role?: string }).role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers or executives can update workflow templates" });
       }
       const updateData: Record<string, unknown> = {};
@@ -347,7 +353,7 @@ export const approvalRouter = router({
     .query(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-      const tenantId = (ctx.user as { tenantId?: string }).tenantId ?? "default";
+      const tenantId = requireApprovalTenant(ctx);
 
       // Get all approval records for this claim
       const approvalRows = await drizzle
@@ -446,7 +452,7 @@ export const approvalRouter = router({
     .mutation(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-      const tenantId = (ctx.user as { tenantId?: string }).tenantId ?? "default";
+      const tenantId = requireApprovalTenant(ctx);
       const userInsurerId = (ctx.user as { insurerRole?: string }).insurerRole ?? "";
       const userRole = (ctx.user as { role?: string }).role ?? "user";
 
@@ -665,7 +671,7 @@ export const approvalRouter = router({
     .query(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-      const tenantId = (ctx.user as { tenantId?: string }).tenantId ?? "default";
+      const tenantId = requireApprovalTenant(ctx);
       const rows = await drizzle
         .select()
         .from(claimApprovals)
@@ -702,7 +708,7 @@ export const approvalRouter = router({
     .query(async ({ input, ctx }) => {
       const drizzle = await getDb();
       if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-      const tenantId = (ctx.user as { tenantId?: string }).tenantId ?? "default";
+      const tenantId = requireApprovalTenant(ctx);
 
       // Get all approval records for this tenant
       const allApprovals = await drizzle
@@ -741,7 +747,7 @@ export const approvalRouter = router({
   getWorkflowSummary: protectedProcedure.query(async ({ ctx }) => {
     const drizzle = await getDb();
     if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-    const tenantId = (ctx.user as { tenantId?: string }).tenantId ?? "default";
+    const tenantId = requireApprovalTenant(ctx);
 
     const allApprovals = await drizzle
       .select()
