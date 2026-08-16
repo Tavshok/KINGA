@@ -12,12 +12,13 @@ describe("AUD-P0 panel-beater quote submission authority", () => {
   let repairerBUserId = 0;
   let assignedAssessorId = 0;
   let unassignedAssessorId = 0;
+  let adminAId = 0;
   let repairerAId = 0;
   let repairerBId = 0;
   let claimAId = 0;
   let quoteAId = 0;
 
-  const contextFor = (id: number, tenantId: string, role: "panel_beater" | "assessor" = "panel_beater") => ({
+  const contextFor = (id: number, tenantId: string, role: "panel_beater" | "assessor" | "admin" = "panel_beater") => ({
     user: { id, role, tenantId, openId: `quote-authority-${id}`, name: "Quote authority fixture" },
     req: {} as any,
     res: {} as any,
@@ -34,26 +35,30 @@ describe("AUD-P0 panel-beater quote submission authority", () => {
     const repairerBOpenId = `quote-repairer-b-${stamp}`;
     const assignedAssessorOpenId = `quote-assessor-a-${stamp}`;
     const unassignedAssessorOpenId = `quote-assessor-b-${stamp}`;
+    const adminAOpenId = `quote-admin-a-${stamp}`;
     const claimantOpenId = `quote-claimant-a-${stamp}`;
     await db.insert(users).values([
       { openId: repairerAOpenId, email: `${repairerAOpenId}@invalid.example`, name: "Repairer A", role: "panel_beater", tenantId: tenantA, emailVerified: 1 },
       { openId: repairerBOpenId, email: `${repairerBOpenId}@invalid.example`, name: "Repairer B", role: "panel_beater", tenantId: tenantB, emailVerified: 1 },
       { openId: assignedAssessorOpenId, email: `${assignedAssessorOpenId}@invalid.example`, name: "Assigned Assessor", role: "assessor", tenantId: tenantA, emailVerified: 1 },
       { openId: unassignedAssessorOpenId, email: `${unassignedAssessorOpenId}@invalid.example`, name: "Unassigned Assessor", role: "assessor", tenantId: tenantA, emailVerified: 1 },
+      { openId: adminAOpenId, email: `${adminAOpenId}@invalid.example`, name: "Admin A", role: "admin", tenantId: tenantA, emailVerified: 1 },
       { openId: claimantOpenId, email: `${claimantOpenId}@invalid.example`, name: "Claimant A", role: "claimant", tenantId: tenantA, emailVerified: 1 },
     ]);
-    const [repairerA, repairerB, assignedAssessor, unassignedAssessor, claimant] = await Promise.all([
+    const [repairerA, repairerB, assignedAssessor, unassignedAssessor, adminA, claimant] = await Promise.all([
       db.select({ id: users.id }).from(users).where(eq(users.openId, repairerAOpenId)).then((rows) => rows[0]),
       db.select({ id: users.id }).from(users).where(eq(users.openId, repairerBOpenId)).then((rows) => rows[0]),
       db.select({ id: users.id }).from(users).where(eq(users.openId, assignedAssessorOpenId)).then((rows) => rows[0]),
       db.select({ id: users.id }).from(users).where(eq(users.openId, unassignedAssessorOpenId)).then((rows) => rows[0]),
+      db.select({ id: users.id }).from(users).where(eq(users.openId, adminAOpenId)).then((rows) => rows[0]),
       db.select({ id: users.id }).from(users).where(eq(users.openId, claimantOpenId)).then((rows) => rows[0]),
     ]);
-    if (!repairerA || !repairerB || !assignedAssessor || !unassignedAssessor || !claimant) throw new Error("Unable to resolve quote authority users");
+    if (!repairerA || !repairerB || !assignedAssessor || !unassignedAssessor || !adminA || !claimant) throw new Error("Unable to resolve quote authority users");
     repairerAUserId = repairerA.id;
     repairerBUserId = repairerB.id;
     assignedAssessorId = assignedAssessor.id;
     unassignedAssessorId = unassignedAssessor.id;
+    adminAId = adminA.id;
 
     await db.insert(panelBeaters).values([
       { name: "Repairer A", businessName: `Authority Repairer A ${stamp}`, userId: repairerAUserId, tenantId: tenantA, approved: 1, panelBeaterStatus: "approved" },
@@ -137,5 +142,11 @@ describe("AUD-P0 panel-beater quote submission authority", () => {
   it("denies an unassigned assessor before quote-audit evidence access or write", async () => {
     const unassignedAssessor = appRouter.createCaller(contextFor(unassignedAssessorId, tenantA, "assessor"));
     await expect(unassignedAssessor.quotes.runAudit({ quoteId: quoteAId, claimId: claimAId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("keeps administrative quote reads within the caller tenant", async () => {
+    const adminA = appRouter.createCaller(contextFor(adminAId, tenantA, "admin"));
+    await expect(adminA.quotes.byClaim({ claimId: claimAId })).resolves.toHaveLength(2);
+    await expect(adminA.quotes.byClaim({ claimId: claimAId + 99999999 })).resolves.toEqual([]);
   });
 });

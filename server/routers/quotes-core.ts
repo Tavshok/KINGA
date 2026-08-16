@@ -356,7 +356,12 @@ export const quotesRouter = router({
     .input(z.object({ claimId: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "A tenant scope is required to view claim quotations." });
+      }
+      const claim = await getClaimById(input.claimId, tenantId);
+      if (!claim) return [];
       return await getQuotesByClaimId(input.claimId, tenantId);
     }),
 
