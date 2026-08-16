@@ -8,7 +8,7 @@ import { isAdminRole } from "@shared/role-permissions";
 import { z } from "zod";
 import { protectedProcedure, requireTenantScope, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { panelBeaterQuotes, claims } from "../../drizzle/schema";
+import { panelBeaterQuotes, claims, panelBeaters } from "../../drizzle/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import {
   getClaimById,
@@ -20,10 +20,53 @@ import {
   getUsersByInsurerRoles,
   getQuoteLineItemsByQuoteId,
 } from "../db";
+
+function selectedRepairerIncludes(selection: string | null | undefined, panelBeaterId: number): boolean {
+  if (!selection) return false;
+  try {
+    const values = JSON.parse(selection);
+    return Array.isArray(values) && values.some((value) => String(value) === String(panelBeaterId));
+  } catch {
+    return false;
+  }
+}
+
+async function requireAuthenticatedRepairerQuoteScope(
+  ctx: { user?: { id: number; role: string; tenantId?: string | null } },
+  claimId: number,
+  callerPanelBeaterId: number,
+) {
+  if (!ctx.user || ctx.user.role !== "panel_beater") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Only the authenticated authorised panel beater can submit a repair quote." });
+  }
+  if (!ctx.user.tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "A repairer tenant is required to submit a quote." });
+  }
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+  const [repairer] = await db.select().from(panelBeaters).where(and(
+    eq(panelBeaters.userId, ctx.user.id),
+    eq(panelBeaters.tenantId, ctx.user.tenantId),
+    eq(panelBeaters.approved, 1),
+    eq(panelBeaters.panelBeaterStatus, "approved"),
+  )).limit(1);
+  if (!repairer || repairer.id !== callerPanelBeaterId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "The supplied repairer identity is not authorised for this account." });
+  }
+  const claim = await getClaimById(claimId, ctx.user.tenantId);
+  if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+  const authorisedForClaim = claim.assignedPanelBeaterId === repairer.id
+    || selectedRepairerIncludes(claim.selectedPanelBeaterIds, repairer.id);
+  if (!authorisedForClaim) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+  }
+  return { db, claim, repairer, tenantId: ctx.user.tenantId };
+}
 import {
   emitClaimEvent,
   getAiAssessmentByClaimId
 } from "../db";
+import { isAssignedAssessorActor } from "../assessor-role-authority";
 export const quotesRouter = router({
   // Submit quote (panel beaters)
   submit: protectedProcedure
@@ -42,27 +85,27 @@ export const quotesRouter = router({
       notes: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      if (!ctx.user) throw new Error("Not authenticated");
+      const scope = await requireAuthenticatedRepairerQuoteScope(ctx, input.claimId, input.panelBeaterId);
+      const { db, claim, repairer, tenantId } = scope;
 
       // ── ROUTE 4 idempotency guard ─────────────────────────────────────────
       // Prevent duplicate quotes from the same panel beater for the same claim.
       // If a quote already exists (e.g. from pipeline extraction or a prior
       // submission), update it rather than inserting a second row.
-      const _existingDb = await getDb();
-      if (_existingDb) {
+      if (db) {
         const { panelBeaterQuotes: _pbq } = await import('../../drizzle/schema');
         const { eq: _eq2, and: _and2 } = await import('drizzle-orm');
-        const [_existing] = await _existingDb
+        const [_existing] = await db
           .select({ id: _pbq.id })
           .from(_pbq)
           .where(_and2(
             _eq2(_pbq.claimId, input.claimId),
-            _eq2(_pbq.panelBeaterId, input.panelBeaterId),
+            _eq2(_pbq.panelBeaterId, repairer.id),
           ))
           .limit(1);
         if (_existing) {
           const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-          await _existingDb.update(_pbq).set({
+          await db.update(_pbq).set({
             quotedAmount: input.quotedAmount,
             laborCost: input.laborCost ?? null,
             partsCost: input.partsCost ?? null,
@@ -76,15 +119,13 @@ export const quotesRouter = router({
           console.log(`[quotes.submit] Updated existing quote id=${_existing.id} for claim ${input.claimId} panel beater ${input.panelBeaterId}`);
           // Skip the createPanelBeaterQuote insert below and continue to post-submit logic
           const allQuotes = await getQuotesByClaimId(input.claimId);
-          const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
-          const claim = await getClaimById(input.claimId, tenantId);
           return { success: true, quoteId: _existing.id, allQuotesCount: allQuotes.length, claimStatus: claim?.status };
         }
       }
 
       await createPanelBeaterQuote({
         claimId: input.claimId,
-        panelBeaterId: input.panelBeaterId,
+        panelBeaterId: repairer.id,
         quotedAmount: input.quotedAmount,
         laborCost: input.laborCost,
         partsCost: input.partsCost,
@@ -93,6 +134,7 @@ export const quotesRouter = router({
         itemizedBreakdown: JSON.stringify(input.itemizedBreakdown),
         notes: input.notes,
         status: "submitted",
+        tenantId,
       });
       
 
@@ -107,7 +149,7 @@ export const quotesRouter = router({
             const [_newQuote] = await _db05
               .select({ id: _pbq2.id })
               .from(_pbq2)
-              .where(_and3(_eq3(_pbq2.claimId, input.claimId), _eq3(_pbq2.panelBeaterId, input.panelBeaterId)))
+              .where(_and3(_eq3(_pbq2.claimId, input.claimId), _eq3(_pbq2.panelBeaterId, repairer.id)))
               .orderBy(_desc3(_pbq2.id))
               .limit(1);
             if (_newQuote) {
@@ -133,8 +175,6 @@ export const quotesRouter = router({
       }
       // Check if all quotes have been received (3 panel beaters)
       const allQuotes = await getQuotesByClaimId(input.claimId);
-      const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
-      const claim = await getClaimById(input.claimId, tenantId);
       
       if (allQuotes.length >= 3) {
         // All quotes received, progress to comparison stage (legacy field only)
@@ -289,7 +329,7 @@ export const quotesRouter = router({
         userRole: ctx.user.role,
         tenantId,
         eventPayload: { 
-          panelBeaterId: input.panelBeaterId,
+          panelBeaterId: repairer.id,
           quotedAmount: input.quotedAmount,
           quotesReceived: allQuotes.length + 1, // Include current quote
         },
@@ -300,7 +340,7 @@ export const quotesRouter = router({
         const { notifyQuoteSubmission } = await import('../workflow-notifications');
         await notifyQuoteSubmission({
           claimId: input.claimId,
-          panelBeaterId: input.panelBeaterId,
+          panelBeaterId: repairer.id,
           claimNumber: claim.claimNumber,
           quotedAmount: input.quotedAmount,
           estimatedDays: input.estimatedDuration || 0,
@@ -381,14 +421,20 @@ export const quotesRouter = router({
       modificationReason: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      if (!ctx.user) throw new Error("Not authenticated");
+      if (!ctx.user || !isAssignedAssessorActor(ctx.user) || !ctx.user.tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only the assigned assessor can adjust a quote." });
+      }
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
       const { panelBeaterQuotes: _pbq } = await import('../../drizzle/schema');
       const { eq: _eq } = await import('drizzle-orm');
       // Fetch current quote to preserve original amount
       const [current] = await db.select().from(_pbq).where(_eq(_pbq.id, input.quoteId)).limit(1);
-      if (!current) throw new Error(`Quote ${input.quoteId} not found`);
+      if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Quote not found" });
+      const claim = await getClaimById(current.claimId, ctx.user.tenantId);
+      if (!claim || claim.assignedAssessorId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Quote not found" });
+      }
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
       await db.update(_pbq).set({
         modified: 1,
@@ -419,18 +465,24 @@ export const quotesRouter = router({
       notes: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      if (!ctx.user) throw new Error('Not authenticated');
-      const db = await getDb();
-      if (!db) throw new Error('Database unavailable');
+      const scope = await requireAuthenticatedRepairerQuoteScope(ctx, input.claimId, input.panelBeaterId);
+      const { db, claim, repairer, tenantId } = scope;
       const { panelBeaterQuotes: _pbq } = await import('../../drizzle/schema');
-      const { eq: _eq } = await import('drizzle-orm');
+      const { eq: _eq, and: _and } = await import('drizzle-orm');
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      const [parentQuote] = await db.select().from(_pbq).where(_and(
+        _eq(_pbq.id, input.parentQuoteId),
+        _eq(_pbq.claimId, claim.id),
+        _eq(_pbq.panelBeaterId, repairer.id),
+        _eq(_pbq.tenantId, tenantId),
+      )).limit(1);
+      if (!parentQuote) throw new TRPCError({ code: "NOT_FOUND", message: "Parent quote not found" });
       // Mark the parent quote as superseded
       await db.update(_pbq).set({ status: 'modified', updatedAt: now }).where(_eq(_pbq.id, input.parentQuoteId));
       // Insert the new strip-requote record
       await db.insert(_pbq).values({
         claimId: input.claimId,
-        panelBeaterId: input.panelBeaterId,
+        panelBeaterId: repairer.id,
         quotedAmount: input.quotedAmount,
         laborCost: input.laborCost ?? null,
         partsCost: input.partsCost ?? null,
@@ -442,7 +494,7 @@ export const quotesRouter = router({
         parentQuoteId: input.parentQuoteId,
         modified: 0,
         status: 'submitted',
-        tenantId: ctx.user.tenantId || 'default',
+        tenantId,
         createdAt: now,
         updatedAt: now,
       });
@@ -461,14 +513,21 @@ export const quotesRouter = router({
       itemizedBreakdown: z.array(z.object({ item: z.string(), cost: z.number() })).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      if (!ctx.user) throw new Error('Not authenticated');
-      const db = await getDb();
-      if (!db) throw new Error('Database unavailable');
+      const scope = await requireAuthenticatedRepairerQuoteScope(ctx, input.claimId, input.panelBeaterId);
+      const { db, claim, repairer, tenantId } = scope;
       const { panelBeaterQuotes: _pbq } = await import('../../drizzle/schema');
+      const { eq: _eq, and: _and } = await import('drizzle-orm');
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      const [parentQuote] = await db.select().from(_pbq).where(_and(
+        _eq(_pbq.id, input.parentQuoteId),
+        _eq(_pbq.claimId, claim.id),
+        _eq(_pbq.panelBeaterId, repairer.id),
+        _eq(_pbq.tenantId, tenantId),
+      )).limit(1);
+      if (!parentQuote) throw new TRPCError({ code: "NOT_FOUND", message: "Parent quote not found" });
       await db.insert(_pbq).values({
         claimId: input.claimId,
-        panelBeaterId: input.panelBeaterId,
+        panelBeaterId: repairer.id,
         quotedAmount: input.quotedAmount,
         itemizedBreakdown: JSON.stringify(input.itemizedBreakdown ?? []),
         notes: input.notes ?? null,
@@ -477,7 +536,7 @@ export const quotesRouter = router({
         modified: 0,
         estimatedDuration: 0,
         status: 'submitted',
-        tenantId: ctx.user.tenantId || 'default',
+        tenantId,
         createdAt: now,
         updatedAt: now,
       });
