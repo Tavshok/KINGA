@@ -10,7 +10,7 @@ import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { claims, aiAssessments } from "../../drizzle/schema";
 
 // TRE v3.0 module imports
@@ -23,13 +23,19 @@ import { generateAllExplanations, generateExplanation, type ExplanationParams } 
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function getAssessmentCTO(claimId: number) {
+function requireTreTenant(ctx: { user?: { tenantId?: string | null } }): string {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
+async function getAssessmentCTO(claimId: number, tenantId: string) {
   const db = await getDb();
   // Get claim number from claims table
   const claimRows = await db!
     .select({ id: claims.id, claimNumber: claims.claimNumber })
     .from(claims)
-    .where(eq(claims.id, claimId))
+    .where(and(eq(claims.id, claimId), eq(claims.tenantId, tenantId)))
     .limit(1);
   if (!claimRows.length) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
   const claimRow = claimRows[0];
@@ -42,7 +48,7 @@ async function getAssessmentCTO(claimId: number) {
       claimTruthObjectJson: aiAssessments.claimTruthObjectJson,
     })
     .from(aiAssessments)
-    .where(eq(aiAssessments.claimId, claimId))
+    .where(and(eq(aiAssessments.claimId, claimId), eq(aiAssessments.tenantId, tenantId)))
     .orderBy(aiAssessments.createdAt)
     .limit(1);
 
@@ -63,8 +69,8 @@ export const treGovernanceRouter = router({
   /** E6: Get the full Claim Truth Object for a claim */
   getClaimTruthObject: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
-      const { cto, row } = await getAssessmentCTO(input.claimId);
+    .query(async ({ input, ctx }) => {
+      const { cto, row } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
       if (!cto) throw new TRPCError({ code: "NOT_FOUND", message: "No CTO available for this claim — assessment may not have run yet" });
       return {
         claimNumber: row.claimNumber,
@@ -77,8 +83,8 @@ export const treGovernanceRouter = router({
   /** E6: Get canonical field values for a claim (machine-readable, stable API) */
   getCanonicalValues: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
-      const { cto, row } = await getAssessmentCTO(input.claimId);
+    .query(async ({ input, ctx }) => {
+      const { cto, row } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
       if (!cto) throw new TRPCError({ code: "NOT_FOUND", message: "No CTO available" });
 
       return {
@@ -103,8 +109,8 @@ export const treGovernanceRouter = router({
   /** E6: Verify certificate integrity for a claim */
   verifyCertificate: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
-      const { cto } = await getAssessmentCTO(input.claimId);
+    .query(async ({ input, ctx }) => {
+      const { cto } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
       if (!cto) throw new TRPCError({ code: "NOT_FOUND", message: "No CTO available" });
 
       const cert = cto.certification?.certificate;
@@ -139,8 +145,8 @@ export const treGovernanceRouter = router({
   /** E10: Get full governance summary for a claim */
   getGovernanceSummary: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
-      const { cto, row } = await getAssessmentCTO(input.claimId);
+    .query(async ({ input, ctx }) => {
+      const { cto, row } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
       if (!cto) throw new TRPCError({ code: "NOT_FOUND", message: "No CTO available" });
 
       return {
@@ -169,8 +175,8 @@ export const treGovernanceRouter = router({
   /** E10: Evaluate truth rules for a claim */
   evaluateTruthRules: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
-      const { cto } = await getAssessmentCTO(input.claimId);
+    .query(async ({ input, ctx }) => {
+      const { cto } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
       if (!cto) throw new TRPCError({ code: "NOT_FOUND", message: "No CTO available" });
 
       const ruleInput = {
@@ -214,8 +220,8 @@ export const treGovernanceRouter = router({
       claimId: z.number(),
       jurisdiction: z.enum(["ZA", "UK", "AU", "US", "EU", "GLOBAL"]).optional(),
     }))
-    .query(async ({ input }) => {
-      const { cto } = await getAssessmentCTO(input.claimId);
+    .query(async ({ input, ctx }) => {
+      const { cto } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
       if (!cto) throw new TRPCError({ code: "NOT_FOUND", message: "No CTO available" });
 
       const jurisdiction = (input.jurisdiction ?? "ZA") as RegulatoryJurisdiction;
@@ -251,8 +257,8 @@ export const treGovernanceRouter = router({
       claimId: z.number(),
       audience: z.enum(["CLAIMANT", "ASSESSOR", "AUDITOR"]).optional(),
     }))
-    .query(async ({ input }) => {
-      const { cto, row } = await getAssessmentCTO(input.claimId);
+    .query(async ({ input, ctx }) => {
+      const { cto, row } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
       if (!cto) throw new TRPCError({ code: "NOT_FOUND", message: "No CTO available" });
 
       const params: ExplanationParams = {
@@ -303,8 +309,8 @@ export const treGovernanceRouter = router({
   /** E10: Get truth quality index for a claim */
   getTruthQualityIndex: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
-      const { cto } = await getAssessmentCTO(input.claimId);
+    .query(async ({ input, ctx }) => {
+      const { cto } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
       if (!cto) throw new TRPCError({ code: "NOT_FOUND", message: "No CTO available" });
 
       const tqi = computeTruthQualityIndex({
@@ -333,10 +339,12 @@ export const treGovernanceRouter = router({
       limit: z.number().min(1).max(100).default(20),
       jurisdiction: z.enum(["ZA", "UK", "AU", "US", "EU", "GLOBAL"]).default("ZA"),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const tenantId = requireTreTenant(ctx);
       // Join claims + aiAssessments to get CTO data
-      const rows = await db!
+      const rows = await db
         .select({
           id: claims.id,
           claimNumber: claims.claimNumber,
@@ -345,6 +353,7 @@ export const treGovernanceRouter = router({
         })
         .from(claims)
         .leftJoin(aiAssessments, eq(aiAssessments.claimId, claims.id))
+        .where(and(eq(claims.tenantId, tenantId), eq(aiAssessments.tenantId, tenantId)))
         .orderBy(claims.createdAt)
         .limit(input.limit);
 
