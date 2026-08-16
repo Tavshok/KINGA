@@ -575,8 +575,16 @@ export const recoveryRouter = router({
     .input(z.object({ caseId: z.number() }))
     .query(async ({ ctx, input }) => {
       const db = await getDb();
-      if (!db) return [];
-      const tenantId = (ctx.user as any).tenantId ?? ctx.user.id.toString();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: 'FORBIDDEN', message: 'A tenant-scoped session is required' });
+      const allowedRoles = ['recovery_officer','claims_manager','executive','insurer_admin'];
+      if (!allowedRoles.includes(ctx.user.insurerRole ?? '')) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Recovery module access denied' });
+      }
+      const [recoveryCase] = await db.select({ id: recoveryCases.id }).from(recoveryCases)
+        .where(and(eq(recoveryCases.id, input.caseId), eq(recoveryCases.tenantId, tenantId))).limit(1);
+      if (!recoveryCase) throw new TRPCError({ code: 'NOT_FOUND', message: 'Recovery case not found' });
       const rows = await db
         .select()
         .from(recoveryCorrespondenceLog)
