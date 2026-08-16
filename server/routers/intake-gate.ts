@@ -283,7 +283,10 @@ export const intakeGateRouter = router({
           earlyFraudSuspicion: 1,
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(claims.id, input.claimId));
+        .where(and(
+          eq(claims.id, input.claimId),
+          eq(claims.tenantId, ctx.user.tenantId!),
+        ));
 
       // Log escalation flag
       await db.insert(auditTrail).values({
@@ -360,7 +363,10 @@ export const intakeGateRouter = router({
           workflowState: input.targetState,
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(claims.id, input.claimId));
+        .where(and(
+          eq(claims.id, input.claimId),
+          eq(claims.tenantId, ctx.user.tenantId!),
+        ));
 
       // Log override
       await db.insert(auditTrail).values({
