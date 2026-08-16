@@ -63,6 +63,8 @@ export const fleetCoreRouter = router({
       if (!isFleetManagerActor(ctx.user)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only a fleet manager or administrator can create a fleet." });
       }
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required." });
       const { createFleet } = await import('../fleet/fleet-db');
       
       const fleet = await createFleet({
@@ -70,7 +72,7 @@ export const fleetCoreRouter = router({
         description: input.description || null,
         fleetType: input.businessType,
         ownerId: ctx.user.id,
-        tenantId: ctx.user.tenantId || 'default',
+        tenantId,
       });
       
       return fleet;
@@ -186,6 +188,8 @@ export const fleetCoreRouter = router({
       if (!isFleetManagerActor(ctx.user)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only a fleet manager or administrator can register a vehicle." });
       }
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required." });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
       if (input.fleetId) await requireManagedFleet(db, ctx.user, input.fleetId);
@@ -194,7 +198,7 @@ export const fleetCoreRouter = router({
       const vehicle = await createFleetVehicle({
         ...input,
         ownerId: ctx.user.id,
-        tenantId: ctx.user.tenantId || 'default',
+        tenantId,
         policyStartDate: input.policyStartDate ? new Date(input.policyStartDate) : null,
         policyEndDate: input.policyEndDate ? new Date(input.policyEndDate) : null,
         purchaseDate: input.purchaseDate ? new Date(input.purchaseDate) : null,
@@ -435,6 +439,11 @@ export const fleetCoreRouter = router({
       mimeType: z.string(),
     }))
     .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required." });
+      await requireManagedFleet(db, ctx.user, input.fleetId);
       const { parseVehicleFile, importVehicles } = await import('../fleet/bulk-import-export');
       
       // Decode base64 file data
@@ -448,7 +457,7 @@ export const fleetCoreRouter = router({
         vehicles,
         input.fleetId,
         ctx.user.id,
-        ctx.user.tenantId || 'default'
+        tenantId
       );
       
       return result;
