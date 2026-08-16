@@ -133,6 +133,9 @@ export const globalSearchRouter = router({
       const user = ctx.user!;
       const role = user.role as UserRole;
       const tenantId = user.tenantId ?? null;
+      if (!PLATFORM_ROLES.includes(role) && !tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required for search" });
+      }
       // M-05: Use prefix LIKE for structured identifiers (uses B-tree indexes).
       // Use full substring LIKE only for free-text columns (name, email, etc.)
       const q = `%${query}%`;  // Substring search — supports mid-string matches (e.g. last digits of VIN/plate)
@@ -185,7 +188,7 @@ export const globalSearchRouter = router({
             )
           : FLEET_ROLES.includes(role)
           ? and(
-              tenantId ? eq(claims.tenantId, tenantId) : sql`1=1`,
+              eq(claims.tenantId, tenantId!),
               or(
                 like(claims.claimNumber, q) /* M-05: prefix-only */,
                 like(claims.vehicleRegistration, q) /* M-05: prefix-only */
