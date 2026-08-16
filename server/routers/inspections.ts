@@ -25,7 +25,7 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { router } from "../_core/trpc";
 import { engineerDomainProcedure } from "../_core/domain-middleware";
 import { isAdminRole } from "@shared/role-permissions";
@@ -36,6 +36,7 @@ import {
   engineerProfiles,
   assetRegistry,
   claimDocuments,
+  claims,
   users,
   inspectionProjects,
 } from "../../drizzle/schema";
@@ -82,7 +83,8 @@ async function requireInspectionAccess(
   db: any,
   inspectionId: number,
   userId: number,
-  userRole: string
+  userRole: string,
+  actorTenantId?: string | null,
 ): Promise<typeof inspections.$inferSelect> {
   const [inspection] = await db
     .select()
@@ -91,6 +93,10 @@ async function requireInspectionAccess(
     .limit(1);
 
   if (!inspection) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Inspection not found." });
+  }
+
+  if (!actorTenantId || inspection.tenantId !== actorTenantId) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Inspection not found." });
   }
 
@@ -206,7 +212,7 @@ export const inspectionsRouter = router({
       const isAdmin = isAdminRole(ctx.user!.role);
       const offset = (input.page - 1) * input.pageSize;
 
-      const conditions: any[] = [];
+      const conditions: any[] = [eq(inspections.tenantId, ctx.user!.tenantId ?? "")];
       if (!isAdmin) {
         conditions.push(
           sql`(${inspections.assignedEngineerId} = ${ctx.user!.id} OR ${inspections.createdBy} = ${ctx.user!.id})`
@@ -248,7 +254,7 @@ export const inspectionsRouter = router({
     .input(z.object({ inspectionId: z.number().int().positive() }))
     .query(async ({ input, ctx }) => {
       const inspection = await requireInspectionAccess(
-        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role
+        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId
       );
 
       const [measurements, observations] = await Promise.all([
@@ -277,7 +283,7 @@ export const inspectionsRouter = router({
       notes: z.string().max(2000).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      await requireInspectionAccess(ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role);
+      await requireInspectionAccess(ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId);
 
       const updatePayload: any = { status: input.status };
       if (input.status === "complete") {
@@ -306,6 +312,19 @@ export const inspectionsRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "Only admins can manually assign engineers." });
       }
 
+      await requireInspectionAccess(ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId);
+      const [engineerProfile] = await ctx.db
+        .select({ userId: engineerProfiles.userId })
+        .from(engineerProfiles)
+        .where(and(
+          eq(engineerProfiles.userId, input.engineerUserId),
+          eq(engineerProfiles.tenantId, ctx.user!.tenantId ?? ""),
+        ))
+        .limit(1);
+      if (!engineerProfile) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Engineer not found." });
+      }
+
       await ctx.db
         .update(inspections)
         .set({
@@ -318,7 +337,10 @@ export const inspectionsRouter = router({
       await ctx.db
         .update(engineerProfiles)
         .set({ activeInspections: sql`${engineerProfiles.activeInspections} + 1` })
-        .where(eq(engineerProfiles.userId, input.engineerUserId));
+        .where(and(
+          eq(engineerProfiles.userId, input.engineerUserId),
+          eq(engineerProfiles.tenantId, ctx.user!.tenantId ?? ""),
+        ));
 
       return { success: true };
     }),
@@ -352,10 +374,24 @@ export const inspectionsRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const inspection = await requireInspectionAccess(
-        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role
+        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId
       );
 
       const tenantId = inspection.tenantId;
+
+      if (input.evidenceDocumentIds && input.evidenceDocumentIds.length > 0) {
+        const scopedDocuments = await ctx.db
+          .select({ id: claimDocuments.id })
+          .from(claimDocuments)
+          .innerJoin(claims, eq(claimDocuments.claimId, claims.id))
+          .where(and(
+            inArray(claimDocuments.id, input.evidenceDocumentIds),
+            eq(claims.tenantId, tenantId),
+          ));
+        if (scopedDocuments.length !== input.evidenceDocumentIds.length) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Evidence document not found." });
+        }
+      }
 
       const [result] = await ctx.db.insert(physicalMeasurements).values({
         tenantId,
@@ -421,8 +457,22 @@ export const inspectionsRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const inspection = await requireInspectionAccess(
-        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role
+        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId
       );
+
+      if (input.linkedEvidenceIds && input.linkedEvidenceIds.length > 0) {
+        const scopedDocuments = await ctx.db
+          .select({ id: claimDocuments.id })
+          .from(claimDocuments)
+          .innerJoin(claims, eq(claimDocuments.claimId, claims.id))
+          .where(and(
+            inArray(claimDocuments.id, input.linkedEvidenceIds),
+            eq(claims.tenantId, inspection.tenantId),
+          ));
+        if (scopedDocuments.length !== input.linkedEvidenceIds.length) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Evidence document not found." });
+        }
+      }
 
       const [result] = await ctx.db.insert(engineerObservations).values({
         tenantId: inspection.tenantId,
@@ -478,7 +528,7 @@ export const inspectionsRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const inspection = await requireInspectionAccess(
-        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role
+        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId
       );
 
       // Transcribe the audio
@@ -535,7 +585,7 @@ export const inspectionsRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Observation not found." });
       }
 
-      await requireInspectionAccess(ctx.db, obs.inspectionId, ctx.user!.id, ctx.user!.role);
+      await requireInspectionAccess(ctx.db, obs.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId);
 
       const prompt = [
         "You are an expert engineering inspector. Improve the following field observation into a",
@@ -578,7 +628,7 @@ export const inspectionsRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const inspection = await requireInspectionAccess(
-        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role
+        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId
       );
 
       const [measurements, observations] = await Promise.all([
@@ -705,7 +755,7 @@ export const inspectionsRouter = router({
       notes: z.string().max(2000).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      await requireInspectionAccess(ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role);
+      await requireInspectionAccess(ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId);
 
       await ctx.db
         .update(inspections)
@@ -743,7 +793,7 @@ export const inspectionsRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const inspection = await requireInspectionAccess(
-        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role
+        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId
       );
 
       const measurementRows = await ctx.db
@@ -875,15 +925,18 @@ export const inspectionsRouter = router({
       claimId: z.number().int().positive().nullable(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const [insp] = await ctx.db
-        .select({ id: inspections.id, createdBy: inspections.createdBy })
-        .from(inspections)
-        .where(eq(inspections.id, input.inspectionId))
-        .limit(1);
-      if (!insp) throw new TRPCError({ code: 'NOT_FOUND', message: 'Inspection not found' });
-      const isAdmin = isAdminRole(ctx.user!.role);
-      if (!isAdmin && insp.createdBy !== ctx.user!.id) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not own this inspection' });
+      await requireInspectionAccess(
+        ctx.db, input.inspectionId, ctx.user!.id, ctx.user!.role, ctx.user!.tenantId,
+      );
+      if (input.claimId !== null) {
+        const [claim] = await ctx.db
+          .select({ id: claims.id })
+          .from(claims)
+          .where(and(eq(claims.id, input.claimId), eq(claims.tenantId, ctx.user!.tenantId ?? "")))
+          .limit(1);
+        if (!claim) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found." });
+        }
       }
       await ctx.db.update(inspections)
         .set({ claimId: input.claimId })
