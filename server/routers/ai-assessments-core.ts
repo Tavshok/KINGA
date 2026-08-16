@@ -1317,16 +1317,18 @@ export const aiAssessmentsRouter = router({
   // Get governance audit log for a claim
   getAuditLog: protectedProcedure
     .input(z.object({ claimId: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { getAuditLog } = await import('../decision-governance');
+      await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       return getAuditLog(input.claimId);
     }),
 
   // Generate full tamper-evident audit export for a claim
   getAuditExport: protectedProcedure
     .input(z.object({ claimId: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { generateAuditExport, validateAuditExport, AuditExportBlockedError } = await import('../audit-export');
+      await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       try {
         const result = await generateAuditExport(input.claimId);
         return { export_allowed: true as const, reason: 'All checks passed', checks: [], data: result };
@@ -1351,8 +1353,9 @@ export const aiAssessmentsRouter = router({
   // Validate export preconditions without generating the export
   validateAuditExport: protectedProcedure
     .input(z.object({ claimId: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { validateAuditExport } = await import('../audit-export');
+      await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       return validateAuditExport(input.claimId);
     }),
 
@@ -1407,8 +1410,9 @@ export const aiAssessmentsRouter = router({
   // Get replay logs for a claim
   getReplayLogs: protectedProcedure
     .input(z.object({ claimId: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { getReplayLogs } = await import('../decision-lifecycle');
+      await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       return getReplayLogs(input.claimId);
     }),
 
@@ -1421,7 +1425,10 @@ export const aiAssessmentsRouter = router({
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       const { runOutputValidation } = await import('../output-validation-engine');
       const { getAiAssessmentByClaimId, getQuotesByClaimId } = await import('../db');
-      const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'A tenant-scoped session is required' });
+      }
       const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
       if (!assessment) return null;
       // Parse cost intelligence JSON
@@ -1515,8 +1522,9 @@ export const aiAssessmentsRouter = router({
   // Retrieve all snapshots for a claim (audit history)
   getSnapshots: protectedProcedure
     .input(z.object({ claimId: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { getDecisionSnapshots } = await import('../db');
+      await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       const snapshots = await getDecisionSnapshots(input.claimId);
       return snapshots.map(s => ({
         id: s.id,

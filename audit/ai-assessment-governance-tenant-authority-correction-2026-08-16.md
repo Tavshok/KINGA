@@ -2,7 +2,7 @@
 
 **Author:** Tavonga Shoko, Lead Engineer  
 **Date:** 16 August 2026  
-**Status:** Partially corrected — primary P0 mutation paths closed
+**Status:** Corrected and verified
 
 ## Finding
 
@@ -10,15 +10,11 @@ The AI assessment-governance module exposed unfiltered assessment enumeration an
 
 ## Correction
 
-The assessment batch-export endpoint now requires a session tenant and filters every result by `ai_assessments.tenant_id`. A shared governed-claim resolver requires a tenant-scoped session and resolves the exact claim under that tenant. Snapshot save/read, replay, lifecycle retrieval, review, finalisation, and lock mutations now invoke that resolver before any snapshot read/write, replay log, lifecycle transition, governance audit, or authoritative-snapshot action.
+The assessment batch-export endpoint now requires a session tenant and filters every result by `ai_assessments.tenant_id`. A shared governed-claim resolver requires a tenant-scoped session and resolves the exact claim under that tenant. Snapshot save/read/history, replay, replay-log read, lifecycle retrieval, review, finalisation, lock mutations, governance audit log/export/validation reads now invoke that resolver before any snapshot read/write, replay log, lifecycle transition, governance audit, or authoritative-snapshot action. Output validation no longer bypasses tenant scope for administrative users.
 
 ## Verification
 
-The deterministic regression passed **1/1**, proving tenant-filtered enumeration and tenant-owned claim preconditions on the core snapshot/replay/lifecycle mutation paths. The bundled server and Vite production build passed; Vite emitted only the existing large-chunk advisory. No production assessment, snapshot, lifecycle state, claim, policy, payment, settlement, or financial record changed.
-
-## Remaining Qualifier
-
-The lower-risk audit-export and replay-log read helpers remain in the continuing cross-tenant audit queue. They do not mutate lifecycle state, but must receive the same tenant-owned claim precondition before the broader AI assessment-governance finding is considered fully closed.
+The expanded deterministic regression passed **1/1**, proving tenant-filtered enumeration, tenant-owned claim preconditions on the core snapshot/replay/lifecycle paths, and tenant-bound audit/export/replay/snapshot/validation reads. No production assessment, snapshot, lifecycle state, claim, policy, payment, settlement, or financial record changed.
 
 ## References
 

@@ -19,6 +19,9 @@ describe("AI assessment governance tenant authority", () => {
     const review = procedureBlock("markReviewed: protectedProcedure", "finaliseDecision:");
     const finalise = procedureBlock("finaliseDecision: protectedProcedure", "lockDecision:");
     const lock = procedureBlock("lockDecision: protectedProcedure", "getAuditLog:");
+    const auditReads = procedureBlock("getAuditLog: protectedProcedure", "validate: protectedProcedure");
+    const validation = procedureBlock("validate: protectedProcedure", "getSnapshots:");
+    const snapshots = procedureBlock("getSnapshots: protectedProcedure", "}),\n});");
 
     expect(all).toContain("eq(aiAssessments.tenantId, tenantId)");
     expect(snapshot).toContain("requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)");
@@ -26,5 +29,9 @@ describe("AI assessment governance tenant authority", () => {
     expect(review).toContain("requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)");
     expect(finalise).toContain("requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)");
     expect(lock).toContain("requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)");
+    expect(auditReads).toContain("requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)");
+    expect(validation).toContain("getAiAssessmentByClaimId(input.claimId, tenantId)");
+    expect(validation).not.toContain("ctx.user.role === 'admin' ? undefined");
+    expect(snapshots).toContain("requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)");
   });
 });
