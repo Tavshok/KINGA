@@ -609,10 +609,11 @@ export const adminRouter = router({
    * Returns latest platform health metrics with color-coded status
    */
   getObservabilityMetrics: superAdminProcedure
-    .query(async ({ ctx }) => {
+    .input(z.object({ tenantId: z.string().min(1) }))
+    .query(async ({ input }) => {
       try {
         const { getLatestObservabilityMetrics } = await import("../observability-metrics");
-        const metrics = await getLatestObservabilityMetrics(ctx.user.tenantId ?? undefined);
+        const metrics = await getLatestObservabilityMetrics(input.tenantId);
         
         return {
           success: true,
@@ -775,10 +776,11 @@ export const adminRouter = router({
     }),
 
   collectObservabilityMetrics: superAdminProcedure
-    .mutation(async ({ ctx }) => {
+    .input(z.object({ tenantId: z.string().min(1) }))
+    .mutation(async ({ input }) => {
       try {
         const { collectAndStoreObservabilityMetrics } = await import("../observability-metrics");
-        await collectAndStoreObservabilityMetrics(ctx.user.tenantId ?? undefined);
+        await collectAndStoreObservabilityMetrics(input.tenantId);
         return {
           success: true,
           message: 'Observability metrics collected successfully',
