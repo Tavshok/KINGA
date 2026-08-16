@@ -15,6 +15,22 @@ import { getDb } from "../db";
 import { runPhotoReextraction } from "../photo-reextraction-worker";
 import mysql from 'mysql2/promise';
 import { invokeLLM } from "../_core/llm";
+import { TRPCError } from "@trpc/server";
+
+function requirePhotoReextractionTenant(ctx: { user?: { tenantId?: string | null } }) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
+
+async function requirePhotoAssessmentScope(db: any, tenantId: string, assessmentId: number, claimId?: number) {
+  const [rows] = await db.execute(
+    `SELECT a.id FROM ai_assessments a INNER JOIN claims c ON c.id = a.claim_id
+     WHERE a.id = ? AND a.tenant_id = ? AND c.tenant_id = ?${claimId === undefined ? "" : " AND a.claim_id = ?"} LIMIT 1`,
+    claimId === undefined ? [assessmentId, tenantId, tenantId] : [assessmentId, tenantId, tenantId, claimId],
+  );
+  if (!(rows as any[]).length) throw new TRPCError({ code: "NOT_FOUND", message: "Assessment not found" });
+}
 
 export const photoReextractionRouter = router({
   /**
@@ -31,6 +47,8 @@ export const photoReextractionRouter = router({
       if (!ctx.user) throw new Error("Not authenticated");
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
+      const tenantId = requirePhotoReextractionTenant(ctx);
+      await requirePhotoAssessmentScope(db, tenantId, input.assessmentId, input.claimId);
 
       // Check if there's already a running or pending job for this assessment
       const [existingRows] = await (db as any).execute(
@@ -40,15 +58,6 @@ export const photoReextractionRouter = router({
       const existingJobs = existingRows as any[];
       if (existingJobs.length > 0) {
         return { jobId: existingJobs[0].id as number, status: existingJobs[0].status as string, alreadyRunning: true };
-      }
-
-      // Verify the assessment exists
-      const [assessRows] = await (db as any).execute(
-        `SELECT id FROM ai_assessments WHERE id = ? LIMIT 1`,
-        [input.assessmentId]
-      );
-      if ((assessRows as any[]).length === 0) {
-        throw new Error(`Assessment ${input.assessmentId} not found`);
       }
 
       // Get the PDF URL from the claim's source documents
@@ -91,12 +100,14 @@ export const photoReextractionRouter = router({
     .input(z.object({
       jobId: z.number().int().positive(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
+      const tenantId = requirePhotoReextractionTenant(ctx);
       const [rows] = await (db as any).execute(
-        `SELECT * FROM photo_reextraction_jobs WHERE id = ? LIMIT 1`,
-        [input.jobId]
+        `SELECT j.* FROM photo_reextraction_jobs j INNER JOIN claims c ON c.id = j.claim_id
+         WHERE j.id = ? AND c.tenant_id = ? LIMIT 1`,
+        [input.jobId, tenantId]
       );
       const jobs = rows as any[];
 
@@ -147,11 +158,15 @@ export const photoReextractionRouter = router({
   classifyPhotoUrls: protectedProcedure
     .input(z.object({
       urls: z.array(z.string().url()).max(50),
-      assessmentId: z.number().int().positive().optional(), // Optional: if provided, check DB cache first
+      assessmentId: z.number().int().positive(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { urls, assessmentId } = input;
       if (urls.length === 0) return { classifications: [], source: 'empty' as const };
+      const tenantId = requirePhotoReextractionTenant(ctx);
+      const scopedDb = await getDb();
+      if (!scopedDb) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      await requirePhotoAssessmentScope(scopedDb, tenantId, assessmentId);
 
       type PhotoCategory = 'damage_photo' | 'vehicle_overview' | 'quotation_scan' | 'document_page' | 'other';
       const validCategories: PhotoCategory[] = ['damage_photo', 'vehicle_overview', 'quotation_scan', 'document_page', 'other'];
@@ -204,7 +219,7 @@ export const photoReextractionRouter = router({
                   };
                 });
                 // Persist merged result back to cache
-                await persistClassificationCache(db, assessmentId, [
+                await persistClassificationCache(db, assessmentId, tenantId, [
                   ...cachedEntries,
                   ...llmResult.map((r) => ({ url: r.url, category: r.category, confidence: r.confidence })),
                 ]);
@@ -229,6 +244,7 @@ export const photoReextractionRouter = router({
               await persistClassificationCache(
                 db,
                 assessmentId,
+                tenantId,
                 classifications.map((c) => ({ url: c.url, category: c.category, confidence: c.confidence }))
               );
             }
@@ -261,9 +277,11 @@ export const photoReextractionRouter = router({
     .input(z.object({
       assessmentId: z.number().int().positive(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
+      const tenantId = requirePhotoReextractionTenant(ctx);
+      await requirePhotoAssessmentScope(db, tenantId, input.assessmentId);
       const [rows] = await (db as any).execute(
         `SELECT * FROM photo_reextraction_jobs WHERE assessment_id = ? ORDER BY id DESC LIMIT 1`,
         [input.assessmentId]
@@ -397,6 +415,7 @@ Return ONLY valid JSON: { "classifications": [ { "index": 0, "category": "...", 
 async function persistClassificationCache(
   _db: any,
   assessmentId: number,
+  tenantId: string,
   entries: Array<{ url: string; category: string; confidence: number }>
 ): Promise<void> {
   // Use a raw mysql2 connection — the Drizzle ORM instance returned by getDb()
@@ -407,8 +426,8 @@ async function persistClassificationCache(
   try {
     conn = await mysql.createConnection(DB_URL);
     await conn.execute(
-      'UPDATE ai_assessments SET photo_classification_json = ? WHERE id = ?',
-      [JSON.stringify(entries), assessmentId]
+      'UPDATE ai_assessments SET photo_classification_json = ? WHERE id = ? AND tenant_id = ?',
+      [JSON.stringify(entries), assessmentId, tenantId]
     );
   } finally {
     if (conn) await conn.end().catch(() => {});
