@@ -270,6 +270,8 @@ export const adminRouter = router({
           { make: "Nissan", model: "Navara", severity: "minor" },
           { make: "Mazda", model: "BT-50", severity: "moderate" },
         ];
+        const tenantId = ctx.user.tenantId;
+        if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
 
         for (let i = 0; i < input.claimCount; i++) {
           try {
@@ -298,7 +300,7 @@ export const adminRouter = router({
               .values({
                 claimNumber,
                 claimantId: selectedUserId, // Use randomly selected user as claimant
-                tenantId: ctx.user.tenantId || "default",
+                tenantId,
                 vehicleMake: template.make,
                 vehicleModel: template.model,
                 vehicleYear: 2020,
