@@ -899,7 +899,8 @@ export const appRouter = router({
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const actorTenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+        const actorTenantId = ctx.user.tenantId;
+        if (!actorTenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
         const claim = await getClaimById(input.claimId, actorTenantId);
         if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
         return await getLatestAcceptedAssessorEvaluation(input.claimId, claim.tenantId);
@@ -1415,12 +1416,13 @@ If any value is not found, use null or 0. Line items category must be one of: pa
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        if (!['assessor', 'insurer', 'admin'].includes(ctx.user.role)) {
+        if (!['assessor', 'insurer'].includes(ctx.user.role) && !isAdminRole(ctx.user.role)) {
           throw new Error("Not authorized");
         }
 
         // Get claim details for cross-validation
-        const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
+        const tenantId = ctx.user.tenantId;
+        if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
 
