@@ -120,12 +120,12 @@ export const PORTAL_ROUTE_ROLES: Array<{
   { prefix: "/insurer-portal/recovery",           allowedRoles: ["recovery_officer", "claims_manager", "insurer_admin"] },
   { prefix: "/insurer-portal/risk-analytics",     allowedRoles: ["risk_manager"] },
   { prefix: "/insurer-portal/policy-management",  allowedRoles: ["insurer_admin", "executive"] },
-  // ── Shared analytics/reporting routes (all insurer roles) ─────────────
+  // ── Shared analytics/reporting routes ─────────────────────────────────
   { prefix: "/insurer-portal/workflow-analytics",          allowedRoles: [] },
-  { prefix: "/insurer-portal/exception-intelligence",      allowedRoles: [] },
+  { prefix: "/insurer-portal/exception-intelligence",      allowedRoles: ["risk_manager", "claims_manager", "executive", "insurer_admin"] },
   { prefix: "/insurer-portal/relationship-intelligence",   allowedRoles: [] },
   { prefix: "/insurer-portal/reports-centre",              allowedRoles: [] },
-  { prefix: "/insurer-portal/team-members",                allowedRoles: [] },
+  { prefix: "/insurer-portal/team-members",                allowedRoles: ["insurer_admin"] },
   // ── Root insurer-portal (role selection page) ──────────────────────────
   { prefix: "/insurer-portal",                    allowedRoles: [] },
 

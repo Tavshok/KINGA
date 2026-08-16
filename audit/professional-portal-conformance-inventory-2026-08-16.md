@@ -2,7 +2,7 @@
 
 **Author:** Tavonga Shoko, Lead Engineer  
 **Date:** 16 August 2026  
-**Status:** Initial route-admission inventory; no-write audit in progress
+**Status:** Route-admission findings corrected or qualified; broader procedure/data-authority audit remains open
 
 ## Initial Route Findings
 
@@ -45,3 +45,18 @@ The current assessor and panel-beater sidebars confirm the recorded repeated-des
 ## Insurer Parameterised Route Follow-up
 
 The route scan identified several insurer sidebar destinations containing query strings or fragment identifiers, such as claims-manager queue filters and recovery/report status filters. Their base destinations are registered insurer routes; the scan classified the full parameterised strings as unregistered because it compares exact paths. These entries are therefore parameter-contract follow-ups, not missing-page destinations. A page-level tab or fragment behaviour check is required only if a specific user action fails.
+
+## 16 August Correction Closeout
+
+| Initial route/navigation finding | Current position |
+|---|---|
+| Shared registry broader than route guards | Corrected: Exception Intelligence and Team Members now use the same insurer-sub-role map as `App.tsx`; navigation rejects unauthorised roles before route entry. |
+| Workflow Settings leaves insurer domain | Corrected: explicit platform-managed unavailable state. |
+| External assessor lacks a landing | Corrected: assignment-governed external-assessor workspace and route admission. |
+| Assessor and panel-beater repeated dashboard tools | Corrected: explicit context-only states direct the user to assigned claim work. |
+| Fleet driver registration leakage | Corrected: manager-only control with driver explanation. |
+| Engineer sidebar icon and repeated inspection destinations | Corrected: safe icon fallback and context-only inspection tasks. |
+| Platform nested anchors and Claim Trace missing claim ID | Corrected: valid direct links and explicit in-context Claim Trace state. |
+| Legacy platform admin-only route admission | Corrected: platform-super-admin shell testing admission added without object-authority expansion. |
+
+The inventory's remaining scope is the documented role-to-feature procedure/data-source/mutation audit. Parameterised insurer route strings remain page-level behaviour follow-ups rather than route-admission defects.

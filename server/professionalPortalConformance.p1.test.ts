@@ -18,11 +18,13 @@ const platformLayoutSource = readFileSync(new URL("../client/src/components/Plat
 const insurerRoleSelectionSource = readFileSync(new URL("../client/src/pages/InsurerRoleSelection.tsx", import.meta.url), "utf8");
 
 describe("professional portal conformance — insurer navigation and admission", () => {
-  it("records shared-registry routes that are narrowed by actual App role guards", () => {
-    expect(getPortalAllowedRoles("/insurer-portal/exception-intelligence")).toEqual([]);
-    expect(getPortalAllowedRoles("/insurer-portal/team-members")).toEqual([]);
-    expect(isPortalNavigationAllowed("/insurer-portal/exception-intelligence", "insurer", "claims_processor")).toBe(true);
-    expect(isPortalNavigationAllowed("/insurer-portal/team-members", "insurer", "claims_processor")).toBe(true);
+  it("aligns shared route navigation pre-checks with actual App role guards", () => {
+    expect(getPortalAllowedRoles("/insurer-portal/exception-intelligence")).toEqual(["risk_manager", "claims_manager", "executive", "insurer_admin"]);
+    expect(getPortalAllowedRoles("/insurer-portal/team-members")).toEqual(["insurer_admin"]);
+    expect(isPortalNavigationAllowed("/insurer-portal/exception-intelligence", "insurer", "claims_processor")).toBe(false);
+    expect(isPortalNavigationAllowed("/insurer-portal/team-members", "insurer", "claims_processor")).toBe(false);
+    expect(isPortalNavigationAllowed("/insurer-portal/exception-intelligence", "insurer", "risk_manager")).toBe(true);
+    expect(isPortalNavigationAllowed("/insurer-portal/team-members", "insurer", "insurer_admin")).toBe(true);
 
     expect(appSource).toMatch(/path="\/insurer-portal\/exception-intelligence"[\s\S]{0,300}RoleGuard allowedRoles=\{\["risk_manager", "claims_manager", "executive", "insurer_admin"\]\}/);
     expect(appSource).toMatch(/path="\/insurer-portal\/team-members"[\s\S]{0,220}RoleGuard allowedRoles=\{\["insurer_admin"\]\}/);
