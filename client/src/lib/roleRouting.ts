@@ -80,6 +80,7 @@ export function isPortalShellAdmissionAllowed(path: string, userRoles: Array<str
 export const INSURER_ROLE_PORTAL_MAP: Record<string, string> = {
   claims_processor:  "/insurer-portal/claims-processor",
   assessor_internal: "/insurer-portal/internal-assessor",
+  assessor_external: "/insurer-portal/external-assessor",
   risk_manager:      "/insurer-portal/risk-manager",
   claims_manager:    "/insurer-portal/claims-manager",
   executive:         "/insurer-portal/executive",
@@ -112,6 +113,7 @@ export const PORTAL_ROUTE_ROLES: Array<{
   { prefix: "/insurer-portal/claims-manager",     allowedRoles: ["claims_manager"] },
   { prefix: "/insurer-portal/claims-processor",   allowedRoles: ["claims_processor"] },
   { prefix: "/insurer-portal/internal-assessor",  allowedRoles: ["assessor_internal"] },
+  { prefix: "/insurer-portal/external-assessor",  allowedRoles: ["assessor_external"] },
   { prefix: "/insurer-portal/risk-manager",       allowedRoles: ["risk_manager"] },
   { prefix: "/insurer-portal/insurer-admin",      allowedRoles: ["insurer_admin"] },
   // ── Multi-role shared portals ──────────────────────────────────────────

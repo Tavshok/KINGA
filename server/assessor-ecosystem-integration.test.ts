@@ -29,6 +29,7 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
   // Created entity IDs
   let internalAssessorId: number;
   let internalAssessorUserId: number;
+  let externalAssessorUserId: number;
   let marketplaceAssessorId: number;
   let marketplaceAssessorUserId: number;
   let testClaimId1: number;
@@ -85,6 +86,21 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
         tenantId: processorUser.tenantId,
       },
     };
+
+    // Create an insurer-scoped external assessor. This actor must be able to
+    // work only on claims formally assigned to this exact user identity.
+    const externalAssessorOpenId = `test_external_assessor_${ts}`;
+    await db.insert(users).values({
+      openId: externalAssessorOpenId,
+      email: `external.assessor.${ts}@testinsurer.co.zw`,
+      name: "Test External Assessor",
+      role: "insurer",
+      insurerRole: "assessor_external",
+      tenantId,
+      emailVerified: 1,
+    });
+    const [externalAssessorUser] = await db.select().from(users).where(eq(users.openId, externalAssessorOpenId)).limit(1);
+    externalAssessorUserId = externalAssessorUser.id;
 
     // Create assessor user (for marketplace self-registration)
     const assessorOpenId = `test_assessor_user_${ts}`;
@@ -750,12 +766,34 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
       expect(afterEvents3).toHaveLength(beforeEvents3.length);
     });
 
-    it("Test 7.3: native report requires original evidence before a draft exists", async () => {
+    it("Test 7.3: external assessors can accept and submit only their formally assigned work", async () => {
+      const insurerCaller = appRouter.createCaller(insurerAdminContext);
+      await expect(insurerCaller.claims.assignToAssessor({ claimId: testClaimId3, assessorId: externalAssessorUserId })).resolves.toMatchObject({ success: true });
+
+      const externalCaller = appRouter.createCaller({ user: { id: externalAssessorUserId, role: "insurer", insurerRole: "assessor_external", tenantId } } as any);
+      const assignments = await externalCaller.claims.myAssignments();
+      expect(assignments.some((claim: any) => claim.id === testClaimId3)).toBe(true);
+
+      await expect(externalCaller.claims.getById({ id: testClaimId1 })).rejects.toThrow("Claim not found or access denied");
+      await expect(externalCaller.claims.getById({ id: testClaimId3 })).resolves.toMatchObject({ id: testClaimId3 });
+      await expect(externalCaller.assessorEvaluations.acceptAssignment({ claimId: testClaimId3 })).resolves.toEqual({ success: true });
+
+      const draft = await externalCaller.assessorReports.createDraft({
+        claimId: testClaimId3,
+        creationMethod: "kinga_assisted",
+        title: "External assessor report",
+        reportPayload: evaluationInput,
+      });
+      await expect(externalCaller.assessorReports.attest({ reportId: draft.reportId })).resolves.toEqual({ success: true });
+      await expect(externalCaller.assessorReports.submitForReview({ reportId: draft.reportId })).resolves.toMatchObject({ reviewerRole: "claims_manager" });
+    });
+
+    it("Test 7.4: native report requires original evidence before a draft exists", async () => {
       const assessorCaller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId } } as any);
       await expect(assessorCaller.assessorReports.createDraft({ claimId: testClaimId1, creationMethod: "native_upload", title: "Missing original", reportPayload: evaluationInput })).rejects.toThrow("requires its original uploaded file");
     });
 
-    it("Test 7.4: a later accepted assessor report supersedes the prior accepted version and becomes the latest projection", async () => {
+    it("Test 7.5: a later accepted assessor report supersedes the prior accepted version and becomes the latest projection", async () => {
       const assessorCaller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId } } as any);
       const secondDraft = await assessorCaller.assessorReports.createDraft({
         claimId: testClaimId1,

@@ -52,6 +52,7 @@ import { exportClaimPDF } from "../claim-pdf-export";
 import { logger } from "../logger";
 import { nanoid } from "nanoid";
 import { isAdminRole } from "@shared/role-permissions";
+import { isExternalAssessor } from "../assessor-role-authority";
 import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment } from "../services/canonicalClaimIntake";
 import { submitPortalCanonicalIntake } from "../services/canonicalIntakeAdapters";
 
@@ -1808,6 +1809,9 @@ export const claimsRouter = router({
       if (!ctx.user) throw new Error("Not authenticated");
       const tenantId = isAdminRole(ctx.user.role) ? undefined : (ctx.user.tenantId || "default");
       const claim = await getClaimById(input.id, tenantId);
+      if (claim && isExternalAssessor(ctx.user) && claim.assignedAssessorId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
+      }
       
       // Extend response with parsed physics validation data (forensic-grade quantitative physics)
       if (claim) {

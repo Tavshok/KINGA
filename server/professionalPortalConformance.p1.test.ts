@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   INSURER_ROLE_PORTAL_MAP,
   PORTAL_ROUTE_ROLES,
+  getRoleDashboardPath,
   getPortalAllowedRoles,
   isPortalNavigationAllowed,
 } from "../client/src/lib/roleRouting";
@@ -14,6 +15,7 @@ const panelBeaterLayoutSource = readFileSync(new URL("../client/src/components/P
 const fleetSource = readFileSync(new URL("../client/src/pages/FleetManagement.tsx", import.meta.url), "utf8");
 const engineerLayoutSource = readFileSync(new URL("../client/src/components/EngineerWorkspaceLayout.tsx", import.meta.url), "utf8");
 const platformLayoutSource = readFileSync(new URL("../client/src/components/PlatformLayout.tsx", import.meta.url), "utf8");
+const insurerRoleSelectionSource = readFileSync(new URL("../client/src/pages/InsurerRoleSelection.tsx", import.meta.url), "utf8");
 
 describe("professional portal conformance — insurer navigation and admission", () => {
   it("records shared-registry routes that are narrowed by actual App role guards", () => {
@@ -33,9 +35,15 @@ describe("professional portal conformance — insurer navigation and admission",
     expect(appSource).toContain('path="/admin/workflows"');
   });
 
-  it("records the insurer external-assessor landing gap without treating it as a valid portal target", () => {
-    expect("assessor_external" in INSURER_ROLE_PORTAL_MAP).toBe(false);
-    expect(PORTAL_ROUTE_ROLES.some((entry) => entry.allowedRoles.includes("assessor_external"))).toBe(false);
+  it("gives external assessors a role-correct assigned-work landing without the generic upload utility", () => {
+    expect(INSURER_ROLE_PORTAL_MAP.assessor_external).toBe("/insurer-portal/external-assessor");
+    expect(getRoleDashboardPath("insurer", "assessor_external")).toBe("/insurer-portal/external-assessor");
+    expect(PORTAL_ROUTE_ROLES).toContainEqual({ prefix: "/insurer-portal/external-assessor", allowedRoles: ["assessor_external"] });
+    expect(insurerRoleSelectionSource).toContain('id: "assessor_external"');
+    expect(insurerRoleSelectionSource).toContain('path: "/insurer-portal/external-assessor"');
+    expect(appSource).toMatch(/path="\/insurer-portal\/external-assessor"[\s\S]{0,280}RoleGuard allowedRoles=\{\["assessor_external"\]\}/);
+    expect(appSource).toContain('routePattern="/insurer-portal/external-assessor/claims/:id"');
+    expect(appSource).not.toMatch(/path="\/insurer-portal\/external-assessor"[\s\S]{0,400}InsurerExternalAssessmentUpload/);
   });
 
   it("preserves the documented server-authority boundary for cross-workflow claim documents", () => {

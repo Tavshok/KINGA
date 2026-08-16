@@ -78,6 +78,21 @@ const ROLES = [
     ],
   },
   {
+    id: "assessor_external",
+    title: "External Assessor",
+    description: "Assigned external damage assessments and governed report submission.",
+    icon: Search,
+    path: "/insurer-portal/external-assessor",
+    gradient: "from-sky-600 to-blue-600",
+    accent: "border-sky-500/40 hover:border-sky-400",
+    responsibilities: [
+      "Accept formally assigned assessments",
+      "Review assigned damage evidence",
+      "Submit attested assessor reports",
+      "Track report review history",
+    ],
+  },
+  {
     id: "risk_manager",
     title: "Risk Manager",
     description: "Fraud investigation, technical approval, risk register management, and analytics.",

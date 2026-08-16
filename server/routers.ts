@@ -14,6 +14,7 @@ import { resolveDashboardRoute, getRolePermissions, ANALYTICS_ALLOWED_ROLES, GOV
 import { REPORT_ACCESS } from "./reporting/reportDefinitions";
 import { canAccessReport } from "./routers/reporting";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { isAssignedAssessorActor, isExternalAssessor } from "./assessor-role-authority";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router, insurerDomainProcedure } from "./_core/trpc";
 import { tenantRouter } from "./routers/tenant";
@@ -831,7 +832,7 @@ export const appRouter = router({
         if (!actorTenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
 
         const claim = await getClaimById(input.claimId, actorTenantId);
-        if (!claim || claim.tenantId !== actorTenantId || ctx.user.role !== "assessor" || claim.assignedAssessorId !== ctx.user.id) {
+        if (!claim || claim.tenantId !== actorTenantId || !isAssignedAssessorActor(ctx.user) || claim.assignedAssessorId !== ctx.user.id) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
         }
 
@@ -845,7 +846,7 @@ export const appRouter = router({
           userId: ctx.user.id,
           // Workflow audit uses the established insurer workflow vocabulary;
           // authenticated assessor identity has already been verified above.
-          userRole: "assessor_internal" as any,
+          userRole: (isExternalAssessor(ctx.user) ? "assessor_external" : "assessor_internal") as any,
           decisionData: { comments: "Assessor accepted assigned claim" },
         });
 
@@ -909,7 +910,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const tenantId = ctx.user.tenantId;
         const claim = tenantId ? await getClaimById(input.claimId, tenantId) : null;
-        if (!tenantId || !claim || ctx.user.role !== "assessor" || claim.assignedAssessorId !== ctx.user.id) {
+        if (!tenantId || !claim || !isAssignedAssessorActor(ctx.user) || claim.assignedAssessorId !== ctx.user.id) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
         }
         const assignment = await getAcceptedClaimAssessorAssignment({ claimId: input.claimId, tenantId, assessorId: ctx.user.id });
@@ -958,7 +959,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const tenantId = ctx.user.tenantId;
         const report = tenantId ? await getAssessorReportById(input.reportId, tenantId) : null;
-        if (!tenantId || !report || ctx.user.role !== "assessor" || report.assessorUserId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN", message: "Report not found or access denied" });
+        if (!tenantId || !report || !isAssignedAssessorActor(ctx.user) || report.assessorUserId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN", message: "Report not found or access denied" });
         await attestAssessorReport(input.reportId, tenantId, ctx.user.id);
         await createAuditEntry({ claimId: report.claimId, userId: ctx.user.id, action: "assessor_report_attested", entityType: "assessor_report", changeDescription: "Assessor attested the report as their professional conclusion" });
         return { success: true };
@@ -968,7 +969,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const tenantId = ctx.user.tenantId;
         const report = tenantId ? await getAssessorReportById(input.reportId, tenantId) : null;
-        if (!tenantId || !report || ctx.user.role !== "assessor" || report.assessorUserId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN", message: "Report not found or access denied" });
+        if (!tenantId || !report || !isAssignedAssessorActor(ctx.user) || report.assessorUserId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN", message: "Report not found or access denied" });
         const reviewer = await getAssessorReportReviewer({ claimId: report.claimId, tenantId });
         const reviewId = await submitAssessorReportForReview({ reportId: input.reportId, tenantId, ...reviewer });
         await createAuditEntry({ claimId: report.claimId, userId: ctx.user.id, action: "assessor_report_submitted_for_review", entityType: "assessor_report", changeDescription: `Routed to ${reviewer.reviewerRole}` });

@@ -26,11 +26,17 @@ import { ClaimCommentThread } from "@/components/ClaimCommentThread";
 import FraudScorePanel from "@/components/FraudScorePanel";
 import { ConfidenceScorePanel } from "@/components/ConfidenceScorePanel";
 
-export default function AssessorClaimDetails() {
+export default function AssessorClaimDetails({
+  routePattern = "/assessor/claims/:id",
+  dashboardPath = "/assessor/dashboard",
+}: {
+  routePattern?: string;
+  dashboardPath?: string;
+}) {
   const { user, logout } = useAuth();
   const { fmt } = useTenantCurrency();
   const [, setLocation] = useLocation();
-  const [, params] = useRoute("/assessor/claims/:id");
+  const [, params] = useRoute(routePattern);
   const claimId = Number(params?.id ? parseInt(params.id) : 0);
 
   // Form state for evaluation
@@ -106,7 +112,7 @@ export default function AssessorClaimDetails() {
       await attestReport.mutateAsync({ reportId: draft.reportId });
       const route = await submitReportForReview.mutateAsync({ reportId: draft.reportId });
       toast.success(`Report submitted to ${route.reviewerRole.replace(/_/g, " ")} for review`);
-      setLocation("/assessor/dashboard");
+      setLocation(dashboardPath);
     } catch (error: any) {
       toast.error(`Unable to submit assessor report: ${error.message}`);
     }
@@ -129,7 +135,7 @@ export default function AssessorClaimDetails() {
             <CardDescription>The requested claim could not be found</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setLocation("/assessor/dashboard")}>
+            <Button onClick={() => setLocation(dashboardPath)}>
               Back to Dashboard
             </Button>
           </CardContent>
@@ -201,7 +207,7 @@ export default function AssessorClaimDetails() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => setLocation("/assessor/dashboard")}
+                onClick={() => setLocation(dashboardPath)}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Dashboard
@@ -662,7 +668,7 @@ export default function AssessorClaimDetails() {
                       type="button"
                       variant="outline"
                       className="flex-1"
-                      onClick={() => setLocation("/assessor/dashboard")}
+                      onClick={() => setLocation(dashboardPath)}
                     >
                       Cancel
                     </Button>

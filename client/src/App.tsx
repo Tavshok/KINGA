@@ -57,6 +57,7 @@ const ExecutiveDashboard = lazy(() => import("./pages/ExecutiveDashboard"));
 const WorkflowAnalyticsDashboard = lazy(() => import("./pages/WorkflowAnalyticsDashboard"));
 const ClaimsProcessorDashboard = lazy(() => import("./pages/ClaimsProcessorDashboard"));
 const InternalAssessorDashboard = lazy(() => import("./pages/InternalAssessorDashboard"));
+const ExternalAssessorWorkspace = lazy(() => import("./pages/ExternalAssessorWorkspace"));
 const RiskManagerDashboard = lazy(() => import("./pages/RiskManagerDashboard"));
 const RiskManagerAnalytics = lazy(() => import("./pages/RiskManagerAnalytics"));
 const ClaimsManagerDashboard = lazy(() => import("./pages/ClaimsManagerDashboard"));
@@ -379,6 +380,22 @@ function Router() {
           <ProtectedRoute allowedRoles={["insurer", "admin", "platform_super_admin"]}>
             <RoleGuard allowedRoles={["assessor_internal"]}>
               <InsurerPortalLayout><InternalAssessorDashboard /></InsurerPortalLayout>
+            </RoleGuard>
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/insurer-portal/external-assessor/claims/:id">
+          <ProtectedRoute allowedRoles={["insurer", "admin", "platform_super_admin"]}>
+            <RoleGuard allowedRoles={["assessor_external"]}>
+              <InsurerPortalLayout><AssessorClaimDetails routePattern="/insurer-portal/external-assessor/claims/:id" dashboardPath="/insurer-portal/external-assessor" /></InsurerPortalLayout>
+            </RoleGuard>
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/insurer-portal/external-assessor">
+          <ProtectedRoute allowedRoles={["insurer", "admin", "platform_super_admin"]}>
+            <RoleGuard allowedRoles={["assessor_external"]}>
+              <InsurerPortalLayout><ExternalAssessorWorkspace /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>
         </Route>

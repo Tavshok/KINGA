@@ -210,6 +210,21 @@ const navByRole: Record<string, NavSection[]> = {
     },
   ],
 
+  assessor_external: [
+    {
+      title: "Overview",
+      items: [
+        { label: "My Workspace", description: "Assigned assessments and report history", href: "/insurer-portal/external-assessor", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Assessment Work",
+      items: [
+        { label: "Assigned Assessments", description: "Claims formally assigned to you", href: "/insurer-portal/external-assessor", icon: ClipboardList },
+      ],
+    },
+  ],
+
   recovery_officer: [
     {
       title: "Overview",
@@ -293,6 +308,7 @@ const ROLE_LABEL: Record<string, string> = {
   claims_processor:  "Claims Processor",
   risk_manager:      "Risk Manager",
   assessor_internal: "Internal Assessor",
+  assessor_external: "External Assessor",
   insurer_admin:     "Insurer Admin",
   recovery_officer:  "Recovery Officer",
 };
@@ -328,6 +344,7 @@ const ROLE_BADGE: Record<string, { label: string }> = {
   risk_manager:     { label: "Risk Manager" },
   executive:        { label: "Executive" },
   assessor_internal:{ label: "Internal Assessor" },
+  assessor_external:{ label: "External Assessor" },
   insurer_admin:    { label: "Insurer Admin" },
   recovery_officer: { label: "Recovery Officer" },
 };
