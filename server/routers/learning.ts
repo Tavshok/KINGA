@@ -40,6 +40,13 @@ import {
   evaluateCalibrationFeedback,
   type CalibrationFeedbackInput,
 } from "../pipeline-v2/calibrationFeedbackController";
+import { TRPCError } from "@trpc/server";
+
+function requireLearningTenant(ctx: { user?: { tenantId?: string | null } }) {
+  const tenantId = ctx.user?.tenantId;
+  if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+  return tenantId;
+}
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
@@ -65,6 +72,7 @@ export const learningRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
+      const tenantId = requireLearningTenant(ctx);
       // 1. Fetch all assessments that have a validatedOutcomeJson and partsReconciliationJson
       const drizzle = await getDb();
       if (!drizzle) return { high_cost_drivers: [], component_weighting: {}, insights: [], metadata: null, total_stored_records: 0 };
@@ -84,7 +92,9 @@ export const learningRouter = router({
         .where(
           and(
             isNotNull(aiAssessments.validatedOutcomeJson),
-            isNotNull(aiAssessments.partsReconciliationJson)
+            isNotNull(aiAssessments.partsReconciliationJson),
+            eq(aiAssessments.tenantId, tenantId),
+            eq(claims.tenantId, tenantId)
           )
         )
         .limit(5000); // safety cap — analysis is in-memory
@@ -148,6 +158,7 @@ export const learningRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
+      const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle)
         return {
@@ -174,7 +185,9 @@ export const learningRouter = router({
         .where(
           and(
             isNotNull(aiAssessments.validatedOutcomeJson),
-            isNotNull(aiAssessments.fraudScoreBreakdownJson)
+            isNotNull(aiAssessments.fraudScoreBreakdownJson),
+            eq(aiAssessments.tenantId, tenantId),
+            eq(claims.tenantId, tenantId)
           )
         )
         .limit(5000);
@@ -244,6 +257,7 @@ export const learningRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
+      const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) {
         return {
@@ -302,7 +316,9 @@ export const learningRouter = router({
         .where(
           and(
             isNotNull(aiAssessments.validatedOutcomeJson),
-            isNotNull(aiAssessments.estimatedCost)
+            isNotNull(aiAssessments.estimatedCost),
+            eq(aiAssessments.tenantId, tenantId),
+            eq(claims.tenantId, tenantId)
           )
         )
         .limit(5000);
@@ -369,6 +385,7 @@ export const learningRouter = router({
    * Useful for the dashboard to show dataset health at a glance.
    */
   getLearningStats: protectedProcedure.query(async ({ ctx }) => {
+      const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) return { total_stored: 0, total_not_stored: 0, by_quality_tier: { HIGH: 0, MEDIUM: 0, LOW: 0 }, by_scenario: {}, dataset_health: "INSUFFICIENT" as const, recommendation: "Database unavailable." };
       const rows = await drizzle
@@ -378,7 +395,7 @@ export const learningRouter = router({
       })
       .from(aiAssessments)
       .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
-      .where(isNotNull(aiAssessments.validatedOutcomeJson))
+      .where(and(isNotNull(aiAssessments.validatedOutcomeJson), eq(aiAssessments.tenantId, tenantId), eq(claims.tenantId, tenantId)))
       .limit(10000);
 
     let highCount = 0;
@@ -467,7 +484,8 @@ export const learningRouter = router({
         limit: z.number().min(1).max(5000).default(1000),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) return { summary: { total: 0, by_method: { country_iso: 0, country_name: 0, region: 0, location_inference: 0, global_fallback: 0 }, by_jurisdiction: {}, average_confidence: 0, global_fallback_count: 0, claims_with_warnings: 0 }, sample_results: [] };
       const rows = await drizzle
@@ -477,6 +495,7 @@ export const learningRouter = router({
           currencyCode: claims.currencyCode,
         })
         .from(claims)
+        .where(eq(claims.tenantId, tenantId))
         .limit(input.limit);
 
       const batchInputs = rows.map((row) => ({
@@ -514,7 +533,8 @@ export const learningRouter = router({
         min_match_threshold: z.number().min(1).max(100).default(1),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) return {
         in_domain: false,
@@ -533,6 +553,7 @@ export const learningRouter = router({
       const rows = await drizzle
         .select({ caseSignature: costLearningRecords.caseSignature })
         .from(costLearningRecords)
+        .where(eq(costLearningRecords.tenantId, tenantId))
         .limit(5000);
 
       // Build signature database with frequency counts
@@ -561,7 +582,8 @@ export const learningRouter = router({
         limit: z.number().min(1).max(5000).default(500),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) return {
         summary: {
@@ -582,6 +604,7 @@ export const learningRouter = router({
       const allSigRows = await drizzle
         .select({ caseSignature: costLearningRecords.caseSignature })
         .from(costLearningRecords)
+        .where(eq(costLearningRecords.tenantId, tenantId))
         .limit(5000);
 
       const sigMap = new Map<string, number>();
@@ -601,6 +624,7 @@ export const learningRouter = router({
           caseSignature: costLearningRecords.caseSignature,
         })
         .from(costLearningRecords)
+        .where(eq(costLearningRecords.tenantId, tenantId))
         .orderBy(costLearningRecords.recordedAt)
         .limit(input.limit);
 
@@ -637,7 +661,8 @@ export const learningRouter = router({
         jurisdiction: z.string().default("global"),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) throw new Error("Database unavailable");
 
@@ -656,7 +681,9 @@ export const learningRouter = router({
         .where(
           and(
             isNotNull(claims.finalApprovedAmount),
-            isNotNull(aiAssessments.estimatedCost)
+            isNotNull(aiAssessments.estimatedCost),
+            eq(claims.tenantId, tenantId),
+            eq(aiAssessments.tenantId, tenantId)
           )
         )
         .limit(500);
@@ -773,6 +800,7 @@ export const learningRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) throw new Error("Database unavailable");
 
@@ -782,7 +810,7 @@ export const learningRouter = router({
       }
 
       await drizzle.insert(calibrationOverrides).values({
-        tenantId: String((ctx.user as { tenantId?: string }).tenantId ?? "default"),
+        tenantId,
         jurisdiction: input.jurisdiction,
         costMultiplier: Math.round(input.cost_multiplier * 1000), // store as int×1000
         fraudAdjustmentsJson: JSON.stringify(input.fraud_adjustments),
@@ -802,13 +830,15 @@ export const learningRouter = router({
    */
   getCalibrationHistory: protectedProcedure
     .input(z.object({ jurisdiction: z.string().optional() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) throw new Error("Database unavailable");
 
       const rows = await drizzle
         .select()
         .from(calibrationOverrides)
+        .where(eq(calibrationOverrides.tenantId, tenantId))
         .orderBy(desc(calibrationOverrides.createdAt))
         .limit(50);
 
