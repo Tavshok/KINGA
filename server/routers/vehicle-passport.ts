@@ -557,6 +557,18 @@ export const vehiclePassportRouter = router({
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
+      }
+
+      const [vehicle] = await db
+        .select({ id: vehicleRegistry.id, tenantId: vehicleRegistry.tenantId })
+        .from(vehicleRegistry)
+        .where(eq(vehicleRegistry.id, input.vehicleRegistryId))
+        .limit(1);
+      if (!vehicle || !await canAccessVehiclePassport(db, vehicle, input.vehicleRegistryId, ctx.user.tenantId)) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Vehicle not found or access denied" });
+      }
 
       const [snapshot] = await db
         .select()
@@ -564,9 +576,7 @@ export const vehiclePassportRouter = router({
         .where(
           and(
             eq(vehiclePassportSnapshots.vehicleRegistryId, input.vehicleRegistryId),
-            ctx.user.tenantId
-              ? eq(vehiclePassportSnapshots.tenantId, ctx.user.tenantId)
-              : sql`1=1`
+            eq(vehiclePassportSnapshots.tenantId, ctx.user.tenantId)
           )
         )
         .orderBy(desc(vehiclePassportSnapshots.generatedAt))
