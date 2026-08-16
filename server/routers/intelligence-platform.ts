@@ -15,7 +15,7 @@
  * Governance: ADR-001, ADR-002, ADR-008, P-01, P-03, P-04, P-07, P-14
  */
 
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, protectedProcedure as baseProtectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc, count, sql, gte, lte, avg } from "drizzle-orm";
@@ -49,6 +49,14 @@ function requireIntelligenceTenant(ctx: { user?: { tenantId?: string | null } })
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
   return tenantId;
 }
+
+// Every intelligence module is tenant-bound. The legacy predicates below are
+// progressively being simplified, but no protected procedure may evaluate one
+// without this session-derived tenant admission boundary.
+const protectedProcedure = baseProtectedProcedure.use(async ({ ctx, next }) => {
+  requireIntelligenceTenant(ctx);
+  return next({ ctx });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. CROSS-MODULE INTELLIGENCE ROUTER
