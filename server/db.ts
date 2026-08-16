@@ -907,14 +907,14 @@ export async function getLatestAcceptedAssessorEvaluation(claimId: number, tenan
   return evaluation || null;
 }
 
-export async function updateClaimPolicyVerification(claimId: number, verified: boolean) {
+export async function updateClaimPolicyVerification(claimId: number, verified: boolean, tenantId: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
   await db.update(claims).set({ 
     policyVerified: verified ? 1 : 0,
     updatedAt: new Date().toISOString() 
-  }).where(eq(claims.id, claimId));
+  }).where(and(eq(claims.id, claimId), eq(claims.tenantId, tenantId)));
 }
 
 /**

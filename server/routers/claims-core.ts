@@ -56,6 +56,21 @@ import { isExternalAssessor } from "../assessor-role-authority";
 import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment } from "../services/canonicalClaimIntake";
 import { submitPortalCanonicalIntake } from "../services/canonicalIntakeAdapters";
 
+async function requireTenantScopedClaim(
+  ctx: { user: { tenantId?: string | null } },
+  claimId: number,
+) {
+  const tenantId = ctx.user.tenantId;
+  if (!tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
+  }
+  const claim = await getClaimById(claimId, tenantId);
+  if (!claim) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+  }
+  return { claim, tenantId };
+}
+
 export const claimsRouter = router({
   /**
    * Extract Claim Form Data from Document
@@ -2021,8 +2036,9 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      
-      await updateClaimPolicyVerification(input.claimId, input.verified);
+      const { tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
+
+      await updateClaimPolicyVerification(input.claimId, input.verified, tenantId);
 
       // Create audit entry
       await createAuditEntry({
@@ -3202,6 +3218,7 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      await requireTenantScopedClaim(ctx, input.claimId);
       const { adjusterSignOffs } = await import('../../drizzle/schema');
       const now = Date.now();
       const _adjDb = await getDb();
@@ -3247,6 +3264,7 @@ export const claimsRouter = router({
     .input(z.object({ claimId: z.number() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      await requireTenantScopedClaim(ctx, input.claimId);
       const { adjusterSignOffs } = await import('../../drizzle/schema');
       const _adjDb = await getDb();
       if (!_adjDb) return null;
@@ -3270,13 +3288,7 @@ export const claimsRouter = router({
       assertRestrictedAgencyAssistedCapability(ctx.user, "settlement_instruction");
       const _settleDb = await getDb();
       if (!_settleDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
-      const claim = await _settleDb
-        .select()
-        .from(claims)
-        .where(eq(claims.id, input.claimId))
-        .limit(1)
-        .then(r => r[0]);
-      if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       // Only the claimant who owns the claim may accept
       if (claim.claimantId !== ctx.user.id && ctx.user.role !== 'admin') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only the claimant may accept a settlement' });
@@ -3287,7 +3299,10 @@ export const claimsRouter = router({
       await _settleDb
         .update(claims)
         .set({ workflowState: 'closed' as any, status: 'completed', updatedAt: new Date().toISOString() })
-        .where(eq(claims.id, input.claimId));
+        .where(and(
+          eq(claims.id, input.claimId),
+          eq(claims.tenantId, tenantId),
+        ));
       await createAuditEntry({
         claimId: input.claimId,
         userId: ctx.user.id,
@@ -3376,13 +3391,7 @@ export const claimsRouter = router({
       assertRestrictedAgencyAssistedCapability(ctx.user, "dispute_instruction");
       const _disputeDb = await getDb();
       if (!_disputeDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
-      const claim = await _disputeDb
-        .select()
-        .from(claims)
-        .where(eq(claims.id, input.claimId))
-        .limit(1)
-        .then(r => r[0]);
-      if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       if (claim.claimantId !== ctx.user.id && ctx.user.role !== 'admin') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only the claimant may initiate a dispute' });
       }
@@ -3393,7 +3402,10 @@ export const claimsRouter = router({
       await _disputeDb
         .update(claims)
         .set({ workflowState: 'disputed' as any, status: 'under_review' as any, updatedAt: new Date().toISOString() })
-        .where(eq(claims.id, input.claimId));
+        .where(and(
+          eq(claims.id, input.claimId),
+          eq(claims.tenantId, tenantId),
+        ));
       await createAuditEntry({
         claimId: input.claimId,
         userId: ctx.user.id,
@@ -3421,7 +3433,9 @@ export const claimsRouter = router({
    */
   getDisputeInfo: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      await requireTenantScopedClaim(ctx, input.claimId);
       const { auditTrail } = await import('../../drizzle/schema');
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
@@ -3459,8 +3473,7 @@ export const claimsRouter = router({
       assertRestrictedAgencyAssistedCapability(ctx.user, "payment_authority");
       const _authDb = await getDb();
       if (!_authDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
-      const claim = await _authDb.select().from(claims).where(eq(claims.id, input.claimId)).limit(1).then(r => r[0]);
-      if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       if (claim.workflowState !== 'financial_decision') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: `Payment can only be authorised from financial_decision state (current: ${claim.workflowState})` });
       }
@@ -3472,7 +3485,10 @@ export const claimsRouter = router({
       if (input.settlementAmountCents) {
         updateData.finalApprovedAmount = input.settlementAmountCents;
       }
-      await _authDb.update(claims).set(updateData as any).where(eq(claims.id, input.claimId));
+      await _authDb.update(claims).set(updateData as any).where(and(
+        eq(claims.id, input.claimId),
+        eq(claims.tenantId, tenantId),
+      ));
       await createAuditEntry({
         claimId: input.claimId,
         userId: ctx.user.id,
@@ -3517,8 +3533,7 @@ export const claimsRouter = router({
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       const _rejectDb = await getDb();
       if (!_rejectDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
-      const claim = await _rejectDb.select().from(claims).where(eq(claims.id, input.claimId)).limit(1).then(r => r[0]);
-      if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       const nonRejectableStates = ['closed', 'completed', 'rejected'];
       if (nonRejectableStates.includes(claim.workflowState as string)) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: `Cannot reject a claim in ${claim.workflowState} state` });
@@ -3533,7 +3548,10 @@ export const claimsRouter = router({
         rejectionCategory: input.rejectionCategory,
         rejectedBy: ctx.user.id,
         rejectedAt: now,
-      } as any).where(eq(claims.id, input.claimId));
+      } as any).where(and(
+        eq(claims.id, input.claimId),
+        eq(claims.tenantId, tenantId),
+      ));
       await createAuditEntry({
         claimId: input.claimId,
         userId: ctx.user.id,
@@ -3584,8 +3602,7 @@ export const claimsRouter = router({
       }
       const _overrideDb = await getDb();
       if (!_overrideDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
-      const claim = await _overrideDb.select().from(claims).where(eq(claims.id, input.claimId)).limit(1).then(r => r[0]);
-      if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       const terminalStates = ['closed', 'completed'];
       if (terminalStates.includes(claim.workflowState as string)) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: `Cannot override a claim in terminal state: ${claim.workflowState}` });
@@ -3607,7 +3624,10 @@ export const claimsRouter = router({
       if (input.overrideDecision === 'approve' && input.settlementAmountCents) {
         updateData.finalApprovedAmount = input.settlementAmountCents;
       }
-      await _overrideDb.update(claims).set(updateData as any).where(eq(claims.id, input.claimId));
+      await _overrideDb.update(claims).set(updateData as any).where(and(
+        eq(claims.id, input.claimId),
+        eq(claims.tenantId, tenantId),
+      ));
       await createAuditEntry({
         claimId: input.claimId,
         userId: ctx.user.id,
