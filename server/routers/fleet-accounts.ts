@@ -685,6 +685,8 @@ export const fleetAccountsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
       const allowedRoles = ["claims_manager", "insurer_admin", "admin"];
       const allowedInsurerRoles = ["claims_manager", "insurer_admin"];
       const isAllowed =
@@ -692,9 +694,19 @@ export const fleetAccountsRouter = router({
         allowedInsurerRoles.includes((ctx.user as any).insurerRole ?? "");
       if (!isAllowed) throw new TRPCError({ code: "FORBIDDEN", message: "Claims manager access required" });
       const [request] = await db
-        .select()
+        .select({
+          id: fleetManagerRequests.id,
+          status: fleetManagerRequests.status,
+          userId: fleetManagerRequests.userId,
+          companyName: fleetManagerRequests.companyName,
+          fleetAccountId: fleetManagerRequests.fleetAccountId,
+        })
         .from(fleetManagerRequests)
-        .where(eq(fleetManagerRequests.id, input.requestId))
+        .innerJoin(fleetAccounts, eq(fleetManagerRequests.fleetAccountId, fleetAccounts.id))
+        .where(and(
+          eq(fleetManagerRequests.id, input.requestId),
+          eq(fleetAccounts.linkedInsurerTenantId, tenantId),
+        ))
         .limit(1);
       if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Request not found" });
       if (request.status !== "pending") {
@@ -704,7 +716,10 @@ export const fleetAccountsRouter = router({
       // 1. Mark request as approved
       await db.update(fleetManagerRequests)
         .set({ status: "approved" as any, reviewedByUserId: ctx.user.id, reviewedAt: now, reviewNotes: input.notes ?? null, updatedAt: now } as any)
-        .where(eq(fleetManagerRequests.id, input.requestId));
+        .where(and(
+          eq(fleetManagerRequests.id, input.requestId),
+          eq(fleetManagerRequests.fleetAccountId, request.fleetAccountId!),
+        ));
       // 2. Upgrade user role to fleet_manager
       // Fetch previous role for audit trail before overwriting
       const [userBeforeUpgrade] = await db
@@ -734,7 +749,10 @@ export const fleetAccountsRouter = router({
       if (request.fleetAccountId) {
         await db.update(fleetAccounts)
           .set({ verificationStatus: "approved" as any, verifiedByUserId: ctx.user.id, verifiedAt: now, status: "active" as any, updatedAt: now } as any)
-          .where(eq(fleetAccounts.id, request.fleetAccountId));
+          .where(and(
+            eq(fleetAccounts.id, request.fleetAccountId),
+            eq(fleetAccounts.linkedInsurerTenantId, tenantId),
+          ));
       }
       console.log(`[FleetAccounts] Request ${input.requestId} APPROVED by ${ctx.user.id}. User ${request.userId} upgraded to fleet_manager.`);
       // Notify the applicant — non-blocking
@@ -769,6 +787,8 @@ export const fleetAccountsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
       const allowedRoles = ["claims_manager", "insurer_admin", "admin"];
       const allowedInsurerRoles = ["claims_manager", "insurer_admin"];
       const isAllowed =
@@ -778,7 +798,11 @@ export const fleetAccountsRouter = router({
       const [request] = await db
         .select({ id: fleetManagerRequests.id, status: fleetManagerRequests.status, userId: fleetManagerRequests.userId, companyName: fleetManagerRequests.companyName, fleetAccountId: fleetManagerRequests.fleetAccountId })
         .from(fleetManagerRequests)
-        .where(eq(fleetManagerRequests.id, input.requestId))
+        .innerJoin(fleetAccounts, eq(fleetManagerRequests.fleetAccountId, fleetAccounts.id))
+        .where(and(
+          eq(fleetManagerRequests.id, input.requestId),
+          eq(fleetAccounts.linkedInsurerTenantId, tenantId),
+        ))
         .limit(1);
       if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Request not found" });
       if (request.status !== "pending") {
@@ -787,11 +811,17 @@ export const fleetAccountsRouter = router({
       const now = new Date().toISOString().slice(0, 19).replace("T", " ");
       await db.update(fleetManagerRequests)
         .set({ status: "rejected" as any, reviewedByUserId: ctx.user.id, reviewedAt: now, reviewNotes: input.notes, updatedAt: now } as any)
-        .where(eq(fleetManagerRequests.id, input.requestId));
+        .where(and(
+          eq(fleetManagerRequests.id, input.requestId),
+          eq(fleetManagerRequests.fleetAccountId, request.fleetAccountId!),
+        ));
       if (request.fleetAccountId) {
         await db.update(fleetAccounts)
           .set({ verificationStatus: "rejected" as any, updatedAt: now } as any)
-          .where(eq(fleetAccounts.id, request.fleetAccountId));
+          .where(and(
+            eq(fleetAccounts.id, request.fleetAccountId),
+            eq(fleetAccounts.linkedInsurerTenantId, tenantId),
+          ));
       }
       console.log(`[FleetAccounts] Request ${input.requestId} REJECTED by ${ctx.user.id}.`);
       // Notify the applicant — non-blocking
@@ -837,11 +867,15 @@ export const fleetAccountsRouter = router({
       }
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-      // Verify the claim exists
+      // Verify the claim is attached to a fleet account owned by this fleet manager.
       const [claim] = await db
         .select({ id: claims.id, claimNumber: claims.claimNumber, status: claims.status })
         .from(claims)
-        .where(eq(claims.id, input.claimId))
+        .innerJoin(fleetAccounts, eq(claims.fleetAccountId, fleetAccounts.id))
+        .where(and(
+          eq(claims.id, input.claimId),
+          eq(fleetAccounts.ownerUserId, ctx.user.id),
+        ))
         .limit(1);
       if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found." });
       const terminalStates = ["closed", "rejected", "archived"];
@@ -1272,6 +1306,18 @@ export const fleetAccountsRouter = router({
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
       const tenantId = ctx.user.tenantId;
       if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'No tenant' });
+      if (ctx.user.role !== 'fleet_manager' && ctx.user.role !== 'fleet_admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only fleet managers can assign drivers.' });
+      }
+      const [fleetAccount] = await db
+        .select({ id: fleetAccounts.id })
+        .from(fleetAccounts)
+        .where(and(
+          eq(fleetAccounts.id, input.fleetAccountId),
+          eq(fleetAccounts.ownerUserId, ctx.user.id),
+        ))
+        .limit(1);
+      if (!fleetAccount) throw new TRPCError({ code: 'NOT_FOUND', message: 'Fleet account not found' });
       const result = await db.insert(fleetDrivers).values({
         fleetId: input.fleetAccountId,
         tenantId,
