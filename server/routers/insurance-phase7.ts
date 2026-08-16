@@ -15,9 +15,27 @@ import { TRPCError } from "@trpc/server";
 import { randomBytes } from "crypto";
 import { storagePut } from "../storage";
 import { assertRestrictedAgencyAssistedCapability } from "../agency/agencyAssistedClaimantIdentity";
+import { auditP0CrossTenantAccess, resolveP0TenantScope, validateP0TenantScope } from "../security/p0TenantBoundary";
+import { isAdminRole } from "@shared/role-permissions";
 
 function generateToken(): string {
   return randomBytes(32).toString("hex");
+}
+
+function assertLegacyValuationServiceRole(role: string): void {
+  if (role === "agency" || role === "insurer" || isAdminRole(role)) return;
+  throw new TRPCError({ code: "FORBIDDEN", message: "Only agency or insurer service users can access legacy valuation history." });
+}
+
+async function resolveLegacyValuationScope(
+  ctx: { user: { id: number; role: string; tenantId?: string | null }; req?: { headers?: Record<string, string | string[] | undefined> } },
+  requestedTenantId: string | undefined,
+  procedureName: string,
+) {
+  assertLegacyValuationServiceRole(ctx.user.role);
+  const scope = resolveP0TenantScope(ctx, requestedTenantId, procedureName);
+  await validateP0TenantScope(scope);
+  return scope;
 }
 
 export const insurancePhase7Router = router({
@@ -297,15 +315,18 @@ export const insurancePhase7Router = router({
   unlockReportOnPolicyIssuance: protectedProcedure
     .input(z.object({
       quotationRequestId: z.number(),
+      tenantId: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
-      const allowed = ["insurer", "admin", "platform_super_admin"];
-      if (!allowed.includes(ctx.user.role)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only insurers can unlock reports" });
-      }
+      const scope = await resolveLegacyValuationScope(ctx, input.tenantId, "insuranceV2.unlockReportOnPolicyIssuance");
+      const [request] = await db.select({ id: quotationRequests.id })
+        .from(quotationRequests)
+        .where(and(eq(quotationRequests.id, input.quotationRequestId), eq(quotationRequests.tenantId, scope.tenantId)))
+        .limit(1);
+      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Legacy valuation history record not found." });
 
       await db.update(quotationRequests)
         .set({
@@ -313,7 +334,8 @@ export const insurancePhase7Router = router({
           reportUnlockedAt: new Date().toISOString(),
           status: "accepted",
         } as any)
-        .where(eq(quotationRequests.id, input.quotationRequestId));
+        .where(and(eq(quotationRequests.id, input.quotationRequestId), eq(quotationRequests.tenantId, scope.tenantId)));
+      await auditP0CrossTenantAccess(ctx, scope, "legacy_valuation_report_unlock", String(input.quotationRequestId));
 
       return { success: true };
     }),
@@ -326,19 +348,19 @@ export const insurancePhase7Router = router({
     .input(z.object({
       status: z.string().optional(),
       limit: z.number().int().min(1).max(100).default(50),
+      tenantId: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
-      const allowed = ["insurer", "admin", "platform_super_admin"];
-      if (!allowed.includes(ctx.user.role)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only agency/insurer users can view valuation requests" });
-      }
+      const scope = await resolveLegacyValuationScope(ctx, input.tenantId, "insuranceV2.getValuationRequests");
 
       const rows = await db.select().from(quotationRequests)
+        .where(eq(quotationRequests.tenantId, scope.tenantId))
         .orderBy(desc(quotationRequests.createdAt))
         .limit(input.limit);
+      await auditP0CrossTenantAccess(ctx, scope, "legacy_valuation_history_list", "legacy_quotation_history");
 
       return rows.map((row) => ({
         ...row,
@@ -355,22 +377,31 @@ export const insurancePhase7Router = router({
       quotationRequestId: z.number(),
       inspectorUserId: z.number(),
       notes: z.string().optional(),
+      tenantId: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
-      const allowed = ["insurer", "admin", "platform_super_admin"];
-      if (!allowed.includes(ctx.user.role)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only agency/insurer users can assign inspectors" });
-      }
+      const scope = await resolveLegacyValuationScope(ctx, input.tenantId, "insuranceV2.assignInspector");
+      const [request] = await db.select({ id: quotationRequests.id })
+        .from(quotationRequests)
+        .where(and(eq(quotationRequests.id, input.quotationRequestId), eq(quotationRequests.tenantId, scope.tenantId)))
+        .limit(1);
+      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Legacy valuation history record not found." });
+      const [inspector] = await db.select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.id, input.inspectorUserId), eq(users.tenantId, scope.tenantId)))
+        .limit(1);
+      if (!inspector) throw new TRPCError({ code: "NOT_FOUND", message: "Inspector not found in the selected tenant." });
 
       await db.update(quotationRequests)
         .set({
           inspectionAssignedTo: input.inspectorUserId,
           status: "under_review",
         } as any)
-        .where(eq(quotationRequests.id, input.quotationRequestId));
+        .where(and(eq(quotationRequests.id, input.quotationRequestId), eq(quotationRequests.tenantId, scope.tenantId)));
+      await auditP0CrossTenantAccess(ctx, scope, "legacy_valuation_inspector_assignment", String(input.quotationRequestId));
 
       return { success: true };
     }),
@@ -387,18 +418,16 @@ export const insurancePhase7Router = router({
       quotedExcess: z.number().min(0).optional(),
       quoteNotes: z.string().optional(),
       quoteValidDays: z.number().min(1).max(90).default(30),
+      tenantId: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-      const allowed = ["insurer", "admin", "platform_super_admin"];
-      if (!allowed.includes(ctx.user.role)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only agency/insurer users can send quotes" });
-      }
+      const scope = await resolveLegacyValuationScope(ctx, input.tenantId, "insuranceV2.sendQuoteToClient");
       const [request] = await db.select().from(quotationRequests)
-        .where(eq(quotationRequests.id, input.quotationRequestId))
+        .where(and(eq(quotationRequests.id, input.quotationRequestId), eq(quotationRequests.tenantId, scope.tenantId)))
         .limit(1);
-      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Quotation request not found" });
+      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Legacy valuation history record not found." });
       const validUntil = new Date();
       validUntil.setDate(validUntil.getDate() + input.quoteValidDays);
       await db.update(quotationRequests)
@@ -411,7 +440,8 @@ export const insurancePhase7Router = router({
           quoteValidUntil: validUntil.toISOString().slice(0, 19).replace("T", " "),
           assignedAgentId: ctx.user.id,
         } as any)
-        .where(eq(quotationRequests.id, input.quotationRequestId));
+        .where(and(eq(quotationRequests.id, input.quotationRequestId), eq(quotationRequests.tenantId, scope.tenantId)));
+      await auditP0CrossTenantAccess(ctx, scope, "legacy_valuation_quote_send", String(input.quotationRequestId));
       // Send in-app notification to the client if they have a userId
       if ((request as any).userId) {
         try {
@@ -500,17 +530,19 @@ export const insurancePhase7Router = router({
       mimeType: z.string().optional(),
       notes: z.string().max(1000).optional(),
       emailToClient: z.boolean().default(false),
+      tenantId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       assertRestrictedAgencyAssistedCapability(ctx.user, "insurance_document_access");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-      // Verify the request exists and agent has access
+      const scope = await resolveLegacyValuationScope(ctx, input.tenantId, "insuranceV2.sendDocumentToClient");
+      // Verify the legacy history record is tenant-scoped before upload.
       const [request] = await db.select()
         .from(quotationRequests)
-        .where(eq(quotationRequests.id, input.quotationRequestId))
+        .where(and(eq(quotationRequests.id, input.quotationRequestId), eq(quotationRequests.tenantId, scope.tenantId)))
         .limit(1);
-      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Quotation request not found" });
+      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Legacy valuation history record not found." });
       // Upload to S3
       const rawBase64 = input.fileData.includes(",") ? input.fileData.split(",")[1] : input.fileData;
       const buffer = Buffer.from(rawBase64, "base64");
@@ -549,6 +581,7 @@ export const insurancePhase7Router = router({
           });
         } catch (_notifyErr) { /* non-fatal */ }
       }
+      await auditP0CrossTenantAccess(ctx, scope, "legacy_valuation_document_send", String(input.quotationRequestId));
       return { success: true, fileUrl };
     }),
 
