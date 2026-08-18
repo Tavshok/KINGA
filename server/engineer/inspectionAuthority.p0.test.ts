@@ -97,4 +97,35 @@ describe("AUD-P0 engineering inspection authority", () => {
     const rows = await db.select({ id: physicalMeasurements.id }).from(physicalMeasurements).where(eq(physicalMeasurements.inspectionId, inspectionAId));
     expect(rows).toHaveLength(0);
   });
+
+  it("denies list, assign, and linkToClaim for a session with no tenant scope", async () => {
+    const tenantlessEngineer = appRouter.createCaller(contextFor(engineerAId, "engineer", undefined as unknown as string));
+    const tenantlessAdmin = appRouter.createCaller(contextFor(adminAId, "admin", undefined as unknown as string));
+
+    await expect(tenantlessEngineer.inspections.list({})).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(tenantlessAdmin.inspections.assign({ inspectionId: inspectionAId, engineerUserId: engineerAId })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(tenantlessEngineer.inspections.linkToClaim({ inspectionId: inspectionAId, claimId: null })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("ignores a caller-supplied tenantId and keeps list results scoped to the session tenant", async () => {
+    const engineerA = appRouter.createCaller(contextFor(engineerAId, "engineer", tenantA));
+    const result = await engineerA.inspections.list({ tenantId: tenantB } as any);
+    expect(result.inspections.map((inspection: { id: number }) => inspection.id)).toContain(inspectionAId);
+    expect(result.inspections.map((inspection: { id: number }) => inspection.id)).not.toContain(inspectionBId);
+  });
+
+  it("leaves the foreign engineer's active inspection count unchanged after a denied cross-tenant assignment", async () => {
+    const adminA = appRouter.createCaller(contextFor(adminAId, "admin", tenantA));
+    const [before] = await db.select({ activeInspections: engineerProfiles.activeInspections })
+      .from(engineerProfiles)
+      .where(and(eq(engineerProfiles.userId, engineerBId), eq(engineerProfiles.tenantId, tenantB)));
+
+    await expect(adminA.inspections.assign({ inspectionId: inspectionAId, engineerUserId: engineerBId }))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    const [after] = await db.select({ activeInspections: engineerProfiles.activeInspections })
+      .from(engineerProfiles)
+      .where(and(eq(engineerProfiles.userId, engineerBId), eq(engineerProfiles.tenantId, tenantB)));
+    expect(after?.activeInspections).toBe(before?.activeInspections);
+  });
 });
