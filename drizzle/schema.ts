@@ -2,7 +2,7 @@ import { mysqlTable, mysqlSchema, AnyMySqlColumn, int, varchar, text, timestamp,
 import { sql } from "drizzle-orm"
 
 export const accessDenialLog = mysqlTable("access_denial_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	userId: int("user_id"),
 	attemptedRoute: varchar("attempted_route", { length: 500 }),
 	userRole: varchar("user_role", { length: 100 }),
