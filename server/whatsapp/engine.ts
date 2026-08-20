@@ -21,7 +21,7 @@ import { and, eq, or } from "drizzle-orm";
 import { createHash } from "crypto";
 import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment, type CanonicalIntakeActor } from "../services/canonicalClaimIntake";
 import { submitWhatsAppCanonicalIntake } from "../services/canonicalIntakeAdapters";
-import { applyWhatsAppSubmissionSideEffects } from "./submissionSideEffects";
+import { applyWhatsAppSubmissionSideEffects, type WhatsAppSubmissionSession } from "./submissionSideEffects";
 
 // ─── Provider Singleton ───────────────────────────────────────────────────────
 
@@ -363,7 +363,9 @@ async function submitClaimToDb(
       updatedAt: now,
     } as any); */
 
-    await applyWhatsAppSubmissionSideEffects(session, phone, provider, result, { saveSession });
+    await applyWhatsAppSubmissionSideEffects(session, phone, provider, result, {
+      saveSession: (s: WhatsAppSubmissionSession) => saveSession(s as Session),
+    });
 
   } catch (err) {
     console.error("[WA] Failed to write claim to DB:", err);
