@@ -21,6 +21,8 @@
  *   uses reconcileEngineerMeasurements() from crossStageConsistencyEngine.ts.
  * - AI analysis uses invokeLLM() with a structured JSON schema response.
  * - Voice transcription uses transcribeAudio() from voiceTranscription.ts.
+ * - Tenant/object authority hardening is maintained here; session-derived tenant
+ *   predicates must remain in place for every inspection read and mutation.
  */
 
 import { z } from "zod";
