@@ -1633,6 +1633,7 @@ export const aiAssessmentsRouter = router({
         if (targetUser.id) {
           await createNotification({
             userId: targetUser.id,
+            tenantId,
             title: `Report Shared: ${claimRef}`,
             message: `${actorName} has shared the assessment report for ${claimRef}${vehicleLabel ? ` (${vehicleLabel})` : ""} with your role${customMsg}. View it in your Reports Centre.`,
             type: "system_alert",

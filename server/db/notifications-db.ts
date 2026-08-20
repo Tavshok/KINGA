@@ -36,11 +36,18 @@ export async function getAuditTrailByUser(userId: number) {
 // ============================================================================
 
 /**
- * Create a new notification for a user
+ * Create a new notification for a user.
+ *
+ * `tenantId` is required (not just part of the generic InsertNotification shape) so
+ * every call site is forced by the type system to supply it — a notification with no
+ * tenant_id is invisible to the tenant-scoped reads in server/routers/notifications.ts,
+ * not just an isolation gap. See KINGA-CLAUDE-CODE-READINESS.md Section 3.
  * @param data - Notification data
  * @returns Created notification result
  */
-export async function createNotification(data: InsertNotification) {
+export async function createNotification(
+  data: Omit<InsertNotification, "tenantId"> & { tenantId: string },
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 

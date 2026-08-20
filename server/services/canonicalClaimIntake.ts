@@ -103,7 +103,7 @@ export async function startCanonicalIntakeAssessment(actor: CanonicalIntakeActor
   catch (error) {
     await db.update(claims).set({ status: "intake_pending", workflowState: "intake_queue", documentProcessingStatus: "ASSESSMENT_START_FAILED" }).where(and(eq(claims.id, claimId), eq(claims.tenantId, actor.tenantId)));
     await db.update(claimIntakeRequests).set({ status: "assessment_start_failed" }).where(where);
-    await createNotification({ userId: actor.id, title: "Claim received — assessment start needs attention", message: `Claim ${claimId} was saved with all evidence and queued for operational attention.`, type: "system_alert", claimId, entityType: "claim", entityId: claimId, priority: "high" });
+    await createNotification({ userId: actor.id, tenantId: actor.tenantId, title: "Claim received — assessment start needs attention", message: `Claim ${claimId} was saved with all evidence and queued for operational attention.`, type: "system_alert", claimId, entityType: "claim", entityId: claimId, priority: "high" });
     await createAuditEntry({ claimId, userId: actor.id, action: "assessment_start_recoverable_failure", entityType: "claim", changeDescription: error instanceof Error ? error.message : "Unknown assessment-start failure" });
     return { status: "recoverable_failure" as const };
   }

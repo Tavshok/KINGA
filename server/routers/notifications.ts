@@ -46,7 +46,7 @@ const restrictedCommunicationProcedure = protectedProcedure.use(({ ctx, next }) 
   return next();
 });
 
-function requireNotificationTenant(ctx: { user?: { tenantId?: string | null } }) {
+function requireNotificationTenant(ctx: { user?: { tenantId?: string | null } | null }) {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
   return tenantId;
@@ -73,24 +73,24 @@ export const notificationsRouter = router({
     .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = requireNotificationTenant(ctx);
 
       const filter = input.unreadOnly ? "unread" : input.filter;
-      const conditions: any[] = [eq(notifications.userId, ctx.user.id)];
+      const conditions: any[] = [
+        eq(notifications.userId, ctx.user.id),
+        eq(notifications.tenantId, tenantId),
+      ];
 
       if (filter === "unread") {
         conditions.push(isNull(notifications.readAt));
-        // @ts-ignore — archived_at added via ALTER TABLE
         conditions.push(isNull(notifications.archivedAt));
       } else if (filter === "archived") {
-        // @ts-ignore
         conditions.push(isNotNull(notifications.archivedAt));
       } else {
-        // @ts-ignore
         conditions.push(isNull(notifications.archivedAt));
       }
 
       if (input.module) {
-        // @ts-ignore — module column added via ALTER TABLE
         conditions.push(eq(notifications.module, input.module));
       }
 
@@ -109,6 +109,7 @@ export const notificationsRouter = router({
   getUnreadCount: restrictedCommunicationProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return { count: 0 };
+    const tenantId = requireNotificationTenant(ctx);
 
     const rows = await db
       .select({ id: notifications.id })
@@ -116,8 +117,8 @@ export const notificationsRouter = router({
       .where(
         and(
           eq(notifications.userId, ctx.user.id),
+          eq(notifications.tenantId, tenantId),
           isNull(notifications.readAt),
-          // @ts-ignore
           isNull(notifications.archivedAt)
         )
       );
@@ -133,6 +134,7 @@ export const notificationsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = requireNotificationTenant(ctx);
 
       await db
         .update(notifications)
@@ -140,7 +142,8 @@ export const notificationsRouter = router({
         .where(
           and(
             eq(notifications.id, input.notificationId),
-            eq(notifications.userId, ctx.user.id)
+            eq(notifications.userId, ctx.user.id),
+            eq(notifications.tenantId, tenantId)
           )
         );
 
@@ -153,6 +156,7 @@ export const notificationsRouter = router({
   markAllAsRead: restrictedCommunicationProcedure.mutation(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+    const tenantId = requireNotificationTenant(ctx);
 
     await db
       .update(notifications)
@@ -160,6 +164,7 @@ export const notificationsRouter = router({
       .where(
         and(
           eq(notifications.userId, ctx.user.id),
+          eq(notifications.tenantId, tenantId),
           isNull(notifications.readAt)
         )
       );
@@ -175,19 +180,20 @@ export const notificationsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const tenantId = requireNotificationTenant(ctx);
 
       const now = new Date().toISOString().slice(0, 19).replace("T", " ");
       await db
         .update(notifications)
         .set({
-          // @ts-ignore
           archivedAt: now,
           readAt: now,
         })
         .where(
           and(
             eq(notifications.id, input.notificationId),
-            eq(notifications.userId, ctx.user.id)
+            eq(notifications.userId, ctx.user.id),
+            eq(notifications.tenantId, tenantId)
           )
         );
 
@@ -200,18 +206,19 @@ export const notificationsRouter = router({
   archiveAll: restrictedCommunicationProcedure.mutation(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+    const tenantId = requireNotificationTenant(ctx);
 
     const now = new Date().toISOString().slice(0, 19).replace("T", " ");
     await db
       .update(notifications)
-      .set({ // @ts-ignore
+      .set({
         archivedAt: now,
       })
       .where(
         and(
           eq(notifications.userId, ctx.user.id),
+          eq(notifications.tenantId, tenantId),
           isNotNull(notifications.readAt),
-          // @ts-ignore
           isNull(notifications.archivedAt)
         )
       );

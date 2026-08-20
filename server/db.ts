@@ -58,7 +58,7 @@ import {
 import { ENV } from './_core/env';
 import { logger } from './logger';
 import * as dbPipeline from './db-pipeline.ts';
-import { getTenantRates } from './db/intelligence-db';
+import { getTenantRates, notifyTenantProcessors } from './db/intelligence-db';
 import { resolveKingaWriteOffRecommendation } from '../shared/writeOffRecommendation';
 
 import type { MySql2Database } from 'drizzle-orm/mysql2';
@@ -1590,16 +1590,20 @@ export async function triggerAiAssessment(claimId: number) {
         `Score: ${_gateResult.overallScore}%. Proceeding in degraded mode. ${_gateResult.summary}`
       );
       // Notify processors in-app (non-blocking, informational — not a hard stop)
-      notifyTenantProcessors(claim.tenantId, {
-        title: `⚠️ Low Document Quality: Claim ${claim.claimNumber || claimId}`,
-        message: `Document health score: ${_gateResult.overallScore}%. Assessment proceeding in degraded mode. ${_gateResult.summary} Recommended: ${_gateResult.recommendedAction}`,
-        type: 'system_alert',
-        priority: 'medium',
-        claimId,
-        actionUrl: `/insurer/claims/${claimId}`,
-        entityType: 'claim',
-        entityId: claimId,
-      }).catch(() => {});
+      if (claim.tenantId) {
+        notifyTenantProcessors(claim.tenantId, {
+          title: `⚠️ Low Document Quality: Claim ${claim.claimNumber || claimId}`,
+          message: `Document health score: ${_gateResult.overallScore}%. Assessment proceeding in degraded mode. ${_gateResult.summary} Recommended: ${_gateResult.recommendedAction}`,
+          type: 'system_alert',
+          priority: 'medium',
+          claimId,
+          actionUrl: `/insurer/claims/${claimId}`,
+          entityType: 'claim',
+          entityId: claimId,
+        }).catch(() => {});
+      } else {
+        console.warn(`[KINGA Assessment] Claim ${claimId}: skipping processor notification — claim has no tenantId.`);
+      }
       // Fall through — pipeline continues regardless of gate score.
     }
 
@@ -1803,16 +1807,20 @@ export async function triggerAiAssessment(claimId: number) {
         recordRunComplete({ runId: _pipelineRunId, status: 'failed', totalDurationMs: 0, stagesCompleted: 0, stagesFailed: 1, stagesDegraded: 0 }).catch(() => {});
       }).catch(() => {});
       // Send in-app notification to processors (non-blocking, fire-and-forget)
-      notifyTenantProcessors(claim.tenantId, {
-        title: `🔴 Pipeline Failure: Claim ${claim.claimNumber || claimId}`,
-        message: `KINGA pipeline could not complete: ${pipelineErr.message}. Claim routed to document_failed for manual review.`,
-        type: 'system_alert',
-        priority: 'high',
-        claimId,
-        actionUrl: `/insurer/claims/${claimId}`,
-        entityType: 'claim',
-        entityId: claimId,
-      }).catch(() => {});
+      if (claim.tenantId) {
+        notifyTenantProcessors(claim.tenantId, {
+          title: `🔴 Pipeline Failure: Claim ${claim.claimNumber || claimId}`,
+          message: `KINGA pipeline could not complete: ${pipelineErr.message}. Claim routed to document_failed for manual review.`,
+          type: 'system_alert',
+          priority: 'high',
+          claimId,
+          actionUrl: `/insurer/claims/${claimId}`,
+          entityType: 'claim',
+          entityId: claimId,
+        }).catch(() => {});
+      } else {
+        console.warn(`[KINGA Assessment] Claim ${claimId}: skipping processor notification — claim has no tenantId.`);
+      }
       // DRA: Route PipelineIncompleteError to DRA terminal state, not legacy failed/intake_pending.
       // This ensures the stuck-recovery-job and UI see the correct state.
       // IMPORTANT: Do NOT reset aiAssessmentTriggered to 0 here.
