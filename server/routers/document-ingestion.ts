@@ -18,8 +18,8 @@ function generateClaimNumber(): string {
   return `DOC-${datePart}-${randomPart}`;
 }
 
-function requireSessionTenant(ctx: { user: { tenantId?: string | null } }) {
-  const tenantId = ctx.user.tenantId;
+function requireSessionTenant(ctx: { user: { tenantId?: string | null } | null }) {
+  const tenantId = ctx.user?.tenantId;
   if (!tenantId) {
     throw new TRPCError({
       code: "FORBIDDEN",

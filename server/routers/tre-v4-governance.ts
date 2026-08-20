@@ -33,7 +33,7 @@ import type { ClaimTruthObject } from "../pipeline-v2/truthReconciliationEngine"
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function requireTreV4Tenant(ctx: { user?: { tenantId?: string | null } }): string {
+function requireTreV4Tenant(ctx: { user?: { tenantId?: string | null } | null }): string {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
   return tenantId;

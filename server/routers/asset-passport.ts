@@ -48,7 +48,7 @@ interface AssetTimelineEvent {
   metadata: Record<string, unknown>;
 }
 
-function requireAssetPassportTenant(ctx: { user?: { tenantId?: string | null } }) {
+function requireAssetPassportTenant(ctx: { user?: { tenantId?: string | null } | null }) {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
   return tenantId;

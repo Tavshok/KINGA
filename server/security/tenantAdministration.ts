@@ -7,7 +7,7 @@ import {
 } from "./p0TenantBoundary";
 
 type TenantAdminContext = {
-  user: { id: number; role: string; tenantId?: string | null };
+  user: { id: number; role: string; tenantId?: string | null } | null;
   req?: { headers?: Record<string, string | string[] | undefined> };
 };
 
@@ -21,6 +21,9 @@ export async function requireTenantAdministrationScope(
   tenantId: string,
   action: string,
 ): Promise<void> {
+  if (!ctx.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
+  }
   if (!isAdminRole(ctx.user.role)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Only administrators can manage tenant configuration" });
   }

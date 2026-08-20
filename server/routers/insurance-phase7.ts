@@ -28,10 +28,13 @@ function assertLegacyValuationServiceRole(role: string): void {
 }
 
 async function resolveLegacyValuationScope(
-  ctx: { user: { id: number; role: string; tenantId?: string | null }; req?: { headers?: Record<string, string | string[] | undefined> } },
+  ctx: { user: { id: number; role: string; tenantId?: string | null } | null; req?: { headers?: Record<string, string | string[] | undefined> } },
   requestedTenantId: string | undefined,
   procedureName: string,
 ) {
+  if (!ctx.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
+  }
   assertLegacyValuationServiceRole(ctx.user.role);
   const scope = resolveP0TenantScope(ctx, requestedTenantId, procedureName);
   await validateP0TenantScope(scope);

@@ -35,7 +35,7 @@ async function requireReportTenantClaim(claimId: string, tenantId: string | null
   return claim;
 }
 
-function requireReportTenant(ctx: { user?: { tenantId?: string | null } }): string {
+function requireReportTenant(ctx: { user?: { tenantId?: string | null } | null }): string {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
   return tenantId;
