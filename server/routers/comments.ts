@@ -168,9 +168,10 @@ export const commentsRouter = router({
         if (notifyRoles.length > 0) {
           const notifyUsers = await getUsersByInsurerRoles(notifyRoles);
           for (const u of notifyUsers) {
-            if (u.id !== ctx.user.id) {
+            if (u.id !== ctx.user.id && ctx.user.tenantId) {
               await createNotification({
                 userId: u.id,
+                tenantId: ctx.user.tenantId,
                 title:
                   input.severity === "fraud_risk"
                     ? `⚠️ Fraud Risk annotation on claim #${input.claimId}`

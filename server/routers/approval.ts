@@ -573,6 +573,7 @@ export const approvalRouter = router({
           if (claimRow?.claimantId) {
             await createNotification({
               userId: claimRow.claimantId,
+              tenantId,
               title: notification.title,
               message: notification.message,
               type: notification.notification_type,
@@ -589,6 +590,7 @@ export const approvalRouter = router({
           if (actorId && actorId !== claimRow?.claimantId) {
             await createNotification({
               userId: actorId,
+              tenantId,
               title: `Decision Recorded — ${notification.title}`,
               message: `Your decision on ${claimRow?.claimNumber ?? `Claim #${input.claim_id}`} has been saved: ${notification.message}`,
               type: notification.notification_type,
@@ -620,6 +622,7 @@ export const approvalRouter = router({
                 if (nextUser.id) {
                   await createNotification({
                     userId: nextUser.id,
+                    tenantId,
                     title: `Claim Ready for Your Review — ${claimRow?.claimNumber ?? `#${input.claim_id}`}`,
                     message: `Stage ${input.stage_order} (${input.stage_name}) has been approved by ${(ctx.user as { name?: string }).name ?? "a colleague"}. The claim is now awaiting your action at Stage ${nextStage.stage_order}: "${nextStage.stage_name}".`,
                     type: "system_alert",

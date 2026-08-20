@@ -1973,6 +1973,7 @@ export const claimsRouter = router({
         const { createNotification } = await import("../db");
         await createNotification({
           userId: input.assessorId,
+          tenantId: tenantId!, // guaranteed non-null by insurerDomainProcedure — see above
           title: "New Claim Assigned",
           message: `You have been assigned to assess claim ${claim.claimNumber} for ${claim.vehicleMake} ${claim.vehicleModel}`,
           type: "claim_assigned",
@@ -2011,6 +2012,7 @@ export const claimsRouter = router({
           const { createNotification: _cn9 } = await import('../db');
           await _cn9({
             userId: claim.claimantId,
+            tenantId: tenantId!, // guaranteed non-null by insurerDomainProcedure — see above
             title: 'Your Claim Is Being Assessed',
             message: `Your claim ${claim.claimNumber} has been assigned to an assessor. KINGA has completed its analysis. Your assessor will review the findings within 24 hours. No action is required from you right now.`,
             type: 'status_changed',
@@ -2184,6 +2186,7 @@ export const claimsRouter = router({
                   entityId: aiAssessment.id,
                   actionUrl: `/insurer/claims/${input.claimId}/comparison`,
                   priority: "urgent",
+                  tenantId: asyncTenantId,
                 });
               } else {
                 await createNotification({
@@ -2197,6 +2200,7 @@ export const claimsRouter = router({
                   entityType: "ai_assessment",
                   actionUrl: `/insurer/claims/${input.claimId}/comparison`,
                   priority: "medium",
+                  tenantId: asyncTenantId,
                 });
               }
             }
@@ -2558,6 +2562,7 @@ export const claimsRouter = router({
           const { createNotification: _cn8 } = await import('../db');
           await _cn8({
             userId: claim.claimantId,
+            tenantId,
             title: 'Good News — Your Claim Has Been Approved',
             message: `Your claim ${claim.claimNumber} has been approved for repair. ${panelBeater?.businessName || 'Your selected panel beater'} will contact you to schedule the repair. No action is required from you right now.`,
             type: 'status_changed',
@@ -3345,8 +3350,10 @@ export const claimsRouter = router({
         const { createNotification: _cn10 } = await import('../db');
         const settlementAmt = claim.finalApprovedAmount || claim.approvedAmount;
         const amtStr = settlementAmt ? `$${Number(settlementAmt).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'the agreed amount';
+        if (!claim.tenantId) throw new Error('Claim has no tenantId');
         await _cn10({
           userId: ctx.user.id,
+          tenantId: claim.tenantId,
           title: 'Your Claim Has Been Settled',
           message: `Your claim ${claim.claimNumber} has been settled. The settlement amount of ${amtStr} has been processed. Your claim is now closed. Thank you for choosing KINGA.`,
           type: 'status_changed',
@@ -3487,6 +3494,7 @@ export const claimsRouter = router({
           const { createNotification } = await import('../db');
           await createNotification({
             userId: claim.claimantId,
+            tenantId,
             title: 'Settlement Offer Ready',
             message: `Your claim ${claim.claimNumber || `#${input.claimId}`} has been approved. A settlement offer is ready for your review. Please log in to accept or dispute the offer.`,
             type: 'status_changed',
@@ -3550,6 +3558,7 @@ export const claimsRouter = router({
           const { createNotification } = await import('../db');
           await createNotification({
             userId: claim.claimantId,
+            tenantId,
             title: 'Claim Decision: Rejected',
             message: `Your claim ${claim.claimNumber || `#${input.claimId}`} has been rejected. Reason: ${input.rejectionReason}. If you believe this is incorrect, please contact your insurer or log in to dispute the decision.`,
             type: 'status_changed',
@@ -3626,6 +3635,7 @@ export const claimsRouter = router({
           const { createNotification } = await import('../db');
           await createNotification({
             userId: claim.claimantId,
+            tenantId,
             title: input.overrideDecision === 'approve' ? 'Claim Approved — Settlement Ready' : 'Claim Decision: Rejected',
             message: input.overrideDecision === 'approve'
               ? `Your claim ${claim.claimNumber || `#${input.claimId}`} has been approved by your insurer. A settlement offer is ready for your review.`

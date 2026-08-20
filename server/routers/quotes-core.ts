@@ -277,8 +277,10 @@ export const quotesRouter = router({
           const { createNotification } = await import("../db");
           
           for (const insurer of tenantInsurers) {
+            if (!claim.tenantId) continue;
             await createNotification({
               userId: insurer.id,
+              tenantId: claim.tenantId,
               title: "All Quotes Received — AI Analysis Running",
               message: `All panel beater quotes received for claim ${claim.claimNumber}. AI cost optimisation has been triggered.`,
               type: "quote_submitted",
@@ -298,8 +300,10 @@ export const quotesRouter = router({
           const { createNotification } = await import("../db");
           
           for (const insurer of tenantInsurers) {
+            if (!claim.tenantId) continue;
             await createNotification({
               userId: insurer.id,
+              tenantId: claim.tenantId,
               title: "New Quote Submitted",
               message: `Panel beater submitted quote for claim ${claim.claimNumber} (${allQuotes.length}/3 quotes received)`,
               type: "quote_submitted",

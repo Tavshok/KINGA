@@ -448,6 +448,7 @@ export const insurancePhase7Router = router({
           const { createNotification } = await import("../db");
           await createNotification({
             userId: (request as any).userId,
+            tenantId: scope.tenantId,
             title: "Your Insurance Quote Is Ready",
             message: `Your quote for ${request.vehicleMake} ${request.vehicleModel} (${request.vehicleYear}) is ready. Monthly premium: $${input.quotedPremium.toLocaleString()}. Valid for ${input.quoteValidDays} days. Log in to review and accept your quote.`,
             type: "status_changed",
@@ -506,6 +507,7 @@ export const insurancePhase7Router = router({
           const { createNotification } = await import("../db");
           await createNotification({
             userId: request.assignedAgentId,
+            tenantId,
             title: "Quote Accepted by Client",
             message: `The client has accepted the quote for ${request.vehicleMake} ${request.vehicleModel} (${request.vehicleYear}). Request #${request.requestNumber}. Please proceed with policy issuance.`,
             type: "status_changed",
@@ -579,6 +581,7 @@ export const insurancePhase7Router = router({
           const { createNotification } = await import("../db");
           await createNotification({
             userId: request.userId,
+            tenantId: scope.tenantId,
             title: `Document from Your Agent: ${input.title}`,
             message: `Your agent has sent you a document: "${input.title}" for your ${request.vehicleMake} ${request.vehicleModel} (${request.vehicleYear}). You can view and download it from your Client Portal under Insurance → Documents.`,
             type: "document_received",

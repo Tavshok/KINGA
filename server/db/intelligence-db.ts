@@ -6,7 +6,7 @@
 import { eq, and, desc, sql, inArray, gte, lte, or, count, avg } from "drizzle-orm";
 import {
   claimEvents, InsertClaimEvent, decisionSnapshots, DecisionSnapshot,
-  tenants, users, claims,
+  tenants, users, claims, notifications,
   ingestionDocuments,} from "../../drizzle/schema";
 import * as schema from "../../drizzle/schema";
 import { getDb } from "../db-core";
@@ -1146,11 +1146,17 @@ export async function findSimilarImagesByPHash(
  * pipeline failures, fraud alerts). Each relevant user gets a personal in-app
  * notification that appears in their NotificationCentre bell.
  *
- * @param tenantId  - The tenant whose staff should be notified (null = platform admin only)
+ * @param tenantId  - The tenant whose staff should be notified. Required — there is
+ *                    no platform-wide fallback. A claim/pipeline event always belongs
+ *                    to exactly one tenant, and every inserted notification row is
+ *                    stamped with it so tenant-scoped reads (server/routers/notifications.ts)
+ *                    can find it. Passing a falsy value is a caller bug, not a valid
+ *                    "notify everyone" request — it is rejected rather than silently
+ *                    routed to platform admins only.
  * @param payload   - Notification fields (title, message, type, priority, claimId, actionUrl)
  */
 export async function notifyTenantProcessors(
-  tenantId: string | null | undefined,
+  tenantId: string,
   payload: {
     title: string;
     message: string;
@@ -1163,26 +1169,32 @@ export async function notifyTenantProcessors(
   }
 ): Promise<void> {
   try {
+    if (!tenantId) {
+      console.warn('[notifyTenantProcessors] Refusing to send: no tenantId provided.');
+      return;
+    }
+
     const db = await getDb();
     if (!db) return;
 
     // Find all processor/admin users for this tenant
     const targetRoles = ['claims_processor', 'claims_manager', 'insurer_admin'];
-    const conditions: any[] = [
-      eq(users.role, 'insurer' as any),
-      inArray(users.insurerRole as any, targetRoles as any),
-      eq(users.isActive, 1),
-    ];
-    if (tenantId) {
-      conditions.push(eq(users.tenantId, tenantId));
-    }
-    // Also include platform admins
     const [processorUsers, adminUsers] = await Promise.all([
-      db.select({ id: users.id }).from(users).where(and(...conditions)),
+      db.select({ id: users.id }).from(users).where(
+        and(
+          eq(users.role, 'insurer' as any),
+          inArray(users.insurerRole as any, targetRoles as any),
+          eq(users.isActive, 1),
+          eq(users.tenantId, tenantId),
+        )
+      ),
+      // Platform admins are tenant-scoped too, so the notification row (and its
+      // tenant_id) stays consistent with the tenant that raised the event.
       db.select({ id: users.id }).from(users).where(
         and(
           inArray(users.role as any, ['admin', 'platform_super_admin'] as any),
-          eq(users.isActive, 1)
+          eq(users.isActive, 1),
+          eq(users.tenantId, tenantId),
         )
       ),
     ]);
@@ -1201,6 +1213,7 @@ export async function notifyTenantProcessors(
     // Insert notifications in a single batch (up to 50 recipients)
     const batch = uniqueTargets.slice(0, 50).map(u => ({
       userId: u.id,
+      tenantId,
       title: payload.title,
       message: payload.message,
       type: payload.type,

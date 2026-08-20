@@ -2531,14 +2531,20 @@ export const multiReferenceTruth = mysqlTable("multi_reference_truth", {
 export const notifications = mysqlTable("notifications", {
 	id: int().autoincrement().notNull(),
 	userId: int("user_id").notNull(),
+	// Added via ALTER TABLE in Epic 5-B (commit 523d8be0) — not previously reflected here.
+	// See scripts/tenant-onboarding/add-tenant-id-columns.sql for the original DDL.
+	tenantId: varchar("tenant_id", { length: 255 }),
 	title: varchar({ length: 255 }).notNull(),
 	message: text().notNull(),
 	type: mysqlEnum(['claim_assigned','quote_submitted','fraud_detected','status_changed','assessment_completed','approval_required','document_uploaded','system_alert']).notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
 	entityType: varchar("entity_type", { length: 50 }),
 	entityId: int("entity_id"),
+	// Source module — see ALL_MODULES in server/routers/notifications.ts.
+	module: varchar({ length: 64 }),
 	isRead: tinyint("is_read").default(0).notNull(),
 	readAt: timestamp("read_at", { mode: 'string' }),
+	archivedAt: timestamp("archived_at", { mode: 'string' }),
 	actionUrl: varchar("action_url", { length: 500 }),
 	priority: mysqlEnum(['low','medium','high','urgent']).default('medium').notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
