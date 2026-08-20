@@ -17,7 +17,7 @@ import mysql from 'mysql2/promise';
 import { invokeLLM } from "../_core/llm";
 import { TRPCError } from "@trpc/server";
 
-function requirePhotoReextractionTenant(ctx: { user?: { tenantId?: string | null } }) {
+function requirePhotoReextractionTenant(ctx: { user?: { tenantId?: string | null } | null }) {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
   return tenantId;

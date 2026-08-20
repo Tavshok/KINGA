@@ -32,7 +32,7 @@ function selectedRepairerIncludes(selection: string | null | undefined, panelBea
 }
 
 async function requireAuthenticatedRepairerQuoteScope(
-  ctx: { user?: { id: number; role: string; tenantId?: string | null } },
+  ctx: { user?: { id: number; role: string; tenantId?: string | null } | null },
   claimId: number,
   callerPanelBeaterId: number,
 ) {

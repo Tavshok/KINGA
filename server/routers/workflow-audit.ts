@@ -9,7 +9,7 @@ import {
 } from "../utils/workflow-audit";
 import { TRPCError } from "@trpc/server";
 
-function requireWorkflowAuditTenant(ctx: { user?: { tenantId?: string | null } }) {
+function requireWorkflowAuditTenant(ctx: { user?: { tenantId?: string | null } | null }) {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
   return tenantId;

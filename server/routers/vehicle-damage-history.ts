@@ -22,7 +22,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { claims } from "../../drizzle/schema";
 import { TRPCError } from "@trpc/server";
 
-function requireVehicleDamageHistoryTenant(ctx: { user?: { tenantId?: string | null } }) {
+function requireVehicleDamageHistoryTenant(ctx: { user?: { tenantId?: string | null } | null }) {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
   return tenantId;

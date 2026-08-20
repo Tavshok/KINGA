@@ -42,7 +42,7 @@ import {
 } from "../pipeline-v2/calibrationFeedbackController";
 import { TRPCError } from "@trpc/server";
 
-function requireLearningTenant(ctx: { user?: { tenantId?: string | null } }) {
+function requireLearningTenant(ctx: { user?: { tenantId?: string | null } | null }) {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
   return tenantId;

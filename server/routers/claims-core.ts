@@ -57,10 +57,10 @@ import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment } from "../
 import { submitPortalCanonicalIntake } from "../services/canonicalIntakeAdapters";
 
 async function requireTenantScopedClaim(
-  ctx: { user: { tenantId?: string | null } },
+  ctx: { user: { tenantId?: string | null } | null },
   claimId: number,
 ) {
-  const tenantId = ctx.user.tenantId;
+  const tenantId = ctx.user?.tenantId;
   if (!tenantId) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
   }
@@ -71,8 +71,8 @@ async function requireTenantScopedClaim(
   return { claim, tenantId };
 }
 
-function requireSessionTenant(ctx: { user: { tenantId?: string | null } }) {
-  const tenantId = ctx.user.tenantId;
+function requireSessionTenant(ctx: { user: { tenantId?: string | null } | null }) {
+  const tenantId = ctx.user?.tenantId;
   if (!tenantId) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
   }

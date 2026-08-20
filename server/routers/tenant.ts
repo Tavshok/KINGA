@@ -33,7 +33,7 @@ import {
 } from "../services/tenant-config";
 import { getTenantRates, updateTenantRates } from "../db";
 
-function requireRequestedTenant(ctx: { user?: { tenantId?: string | null } }, requestedTenantId: string) {
+function requireRequestedTenant(ctx: { user?: { tenantId?: string | null } | null }, requestedTenantId: string) {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId || tenantId !== requestedTenantId) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Tenant access denied" });

@@ -26,8 +26,8 @@ import { getDb } from "../db";
 import { vehicleRegistry } from "../../drizzle/schema";
 import { and, eq, sql } from "drizzle-orm";
 
-function requireVehicleTenant(ctx: { user: { tenantId?: string | null } }) {
-  const tenantId = ctx.user.tenantId;
+function requireVehicleTenant(ctx: { user: { tenantId?: string | null } | null }) {
+  const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new Error("A tenant-scoped session is required for vehicle registry access");
   return tenantId;
 }

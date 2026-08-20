@@ -13,7 +13,7 @@ import { extractIp } from "../_core/trpc";
 import { insertIsoAuditLog } from "../utils/audit-helpers";
 
 export type P0ScopeContext = {
-  user: { id: number; role: string; tenantId?: string | null };
+  user: { id: number; role: string; tenantId?: string | null } | null;
   req?: { headers?: Record<string, string | string[] | undefined> };
 };
 
@@ -37,6 +37,7 @@ export function resolveP0TenantScope(
   requestedTenantId: string | undefined,
   procedureName: string,
 ): P0TenantScope {
+  if (!ctx.user) denied("Authentication is required for this operation.");
   const sessionTenantId = ctx.user.tenantId ?? null;
   const isPlatformSuperAdmin = ctx.user.role === "platform_super_admin";
 
@@ -84,6 +85,7 @@ export async function auditP0CrossTenantAccess(
   metadata: Record<string, unknown> = {},
 ): Promise<void> {
   if (!scope.isPlatformSuperAdmin || !scope.isCrossTenant) return;
+  if (!ctx.user) denied("Authentication is required for this operation.");
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
   await insertIsoAuditLog(db as any, {

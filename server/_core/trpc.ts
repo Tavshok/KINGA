@@ -381,10 +381,13 @@ export { logTenantIsolationViolation, extractIp, logSystemError };
  * @returns tenantId string (scoped) or null (platform_super_admin cross-tenant)
  */
 export function requireTenantScope(
-  ctx: { user: { id: number; tenantId?: string | null; role: string }; req?: any },
+  ctx: { user: { id: number; tenantId?: string | null; role: string } | null; req?: any },
   inputTenantId: string | undefined,
   procedureName: string
 ): string | null {
+  if (!ctx.user) {
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
+  }
   const isSuperAdmin = ctx.user.role === 'platform_super_admin';
 
   if (!isSuperAdmin) {
