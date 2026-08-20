@@ -3681,7 +3681,7 @@ export const userInvitations = mysqlTable("user_invitations", {
 ]);
 
 export const users = mysqlTable("users", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	openId: varchar({ length: 64 }).notNull(),
 	name: text(),
 	email: varchar({ length: 320 }),

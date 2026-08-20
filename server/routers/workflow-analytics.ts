@@ -31,6 +31,7 @@ export const workflowAnalyticsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
       const tenantId = ctx.user.tenantId;
       if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "No tenant context" });
 
@@ -107,6 +108,7 @@ export const workflowAnalyticsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
       const tenantId = ctx.user.tenantId;
       if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "No tenant context" });
 
@@ -183,6 +185,7 @@ export const workflowAnalyticsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
       const tenantId = ctx.user.tenantId;
       if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "No tenant context" });
 
@@ -283,6 +286,7 @@ export const workflowAnalyticsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
       const tenantId = ctx.user.tenantId;
       if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "No tenant context" });
 
@@ -347,6 +351,7 @@ export const workflowAnalyticsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
       const tenantId = ctx.user.tenantId;
       if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "No tenant context" });
 
