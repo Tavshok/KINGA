@@ -33,4 +33,26 @@ describe("KINGA write-off recommendation boundary", () => {
     expect(result.writeOffRecommended).toBe(true);
     expect(resolveRepairabilityVerdict({ totalLossIndicated: false, kingaRecommendation: result }).label).toBe("Economic and technical write-off recommended");
   });
+
+  it("does not drop the 65% warning signal when technical evidence is incomplete (physics not executed)", () => {
+    // Real production path: stage-7-physics sets physicsExecuted=false on
+    // SKIPPED_NO_SPEED / ESTIMATED_FALLBACK, not just error cases.
+    const result = resolveKingaWriteOffRecommendation({ completeL2CostUsd: 6700, verifiedMarketValueUsd: 10000, structuralDamageDetected: false, physicsExecuted: false, physicsSeverity: null });
+    expect(result.kind).toBe("human_review_required");
+    expect(result.writeOffRecommended).toBe(false);
+    expect(result.writeOffWarning).toBe(true);
+    expect(result.detail).toContain("early-warning threshold");
+    // The presentation layer must surface the warning label even though `kind`
+    // is human_review_required, since writeOffWarning is an independent signal.
+    expect(resolveRepairabilityVerdict({ totalLossIndicated: false, kingaRecommendation: result }).label)
+      .toBe("Approaching write-off territory — review required");
+  });
+
+  it("does not drop the 65% warning signal when structural damage lacks severe physics support", () => {
+    const result = resolveKingaWriteOffRecommendation({ completeL2CostUsd: 6700, verifiedMarketValueUsd: 10000, structuralDamageDetected: true, physicsExecuted: true, physicsSeverity: "moderate" });
+    expect(result.kind).toBe("human_review_required");
+    expect(result.writeOffWarning).toBe(true);
+    expect(resolveRepairabilityVerdict({ totalLossIndicated: false, kingaRecommendation: result }).label)
+      .toBe("Approaching write-off territory — review required");
+  });
 });

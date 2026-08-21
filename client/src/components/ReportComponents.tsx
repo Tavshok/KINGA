@@ -30,7 +30,7 @@ import {
   Legend,
 } from "chart.js";
 import { Bar, Radar } from "react-chartjs-2";
-import { WRITE_OFF_RECOMMENDATION_THRESHOLD, WRITE_OFF_WARNING_THRESHOLD } from "@shared/writeOffPolicy";
+import { WRITE_OFF_RECOMMENDATION_THRESHOLD, WRITE_OFF_WARNING_THRESHOLD, WRITE_OFF_UI_LABELS } from "@shared/writeOffPolicy";
 
 ChartJS.register(
   CategoryScale,
@@ -928,7 +928,10 @@ export function CostWaterfallChart({ data }: { data: CostWaterfallData }) {
           const xScale = scales.x;
           if (!xScale) return;
           const { top, bottom } = chart.chartArea;
-          const drawPolicyLine = (value: number, color: string, label: string) => {
+          // The 65% and 70% thresholds are frequently only a few percent of the axis
+          // apart, so the two labels are drawn on staggered rows (rather than both at
+          // the same y) to guarantee they never overlap regardless of x proximity.
+          const drawPolicyLine = (value: number, color: string, label: string, labelY: number) => {
             const xPx = xScale.getPixelForValue(value);
             ctx.save();
             ctx.beginPath();
@@ -941,11 +944,11 @@ export function CostWaterfallChart({ data }: { data: CostWaterfallData }) {
             ctx.font = "bold 9px Inter, sans-serif";
             ctx.fillStyle = color;
             ctx.textAlign = "center";
-            ctx.fillText(label, xPx, top - 4);
+            ctx.fillText(label, xPx, labelY);
             ctx.restore();
           };
-          drawPolicyLine(writeOffWarningThreshold, colors.amber, "65% review warning");
-          drawPolicyLine(writeOffRecommendationThreshold, colors.red, "70% recommendation");
+          drawPolicyLine(writeOffWarningThreshold, colors.amber, WRITE_OFF_UI_LABELS.warning, top - 14);
+          drawPolicyLine(writeOffRecommendationThreshold, colors.red, WRITE_OFF_UI_LABELS.recommendation, top - 4);
         },
       }
     : null;

@@ -2502,8 +2502,22 @@ function ExecutiveSummaryInline({
   const fraudLevel = (normalisedFraudLevel ?? aiAssessment.fraudRiskLevel ?? 'unknown') as string;
   const confidence = aiAssessment.confidenceScore || 0;
   const isTotalLoss = aiAssessment.totalLossIndicated === 1;
+  // Prefer the pipeline's own un-rounded verdict (costIntelligenceJson.repairabilityDecision)
+  // over re-deriving one from the persisted integer-percentage ratio: repairToValueRatio is
+  // stored as Math.round(ratio * 100), so a true ratio like 0.696 rounds to 70 and would
+  // otherwise misclassify as RECOMMENDATION here while totalLossIndicated stays false.
+  const repairabilityWarningFromJson = (() => {
+    try {
+      const ci = aiAssessment.costIntelligenceJson ? JSON.parse(aiAssessment.costIntelligenceJson) : null;
+      return ci?.repairabilityDecision?.writeOffWarning === true;
+    } catch { return false; }
+  })();
   const writeOffBand = isTotalLoss ? "RECOMMENDATION" : classifyRepairToValueRatio((aiAssessment.repairToValueRatio ?? 0) / 100);
-  const isWriteOffWarning = writeOffBand === "WARNING";
+  // Also treat a rounded-up RECOMMENDATION band as a warning (not silently "repair") when
+  // totalLossIndicated itself is false — that combination only occurs at the 69.5-69.99%
+  // rounding boundary, never a genuine recommendation, since a real recommendation always
+  // sets totalLossIndicated.
+  const isWriteOffWarning = !isTotalLoss && (repairabilityWarningFromJson || writeOffBand === "WARNING" || writeOffBand === "RECOMMENDATION");
   const fraudColor =
     fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical' ? 'text-red-400' :
     fraudLevel === 'moderate' || fraudLevel === 'medium' ? 'text-amber-400' :

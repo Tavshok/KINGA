@@ -108,12 +108,15 @@ export function resolveKingaWriteOffRecommendation(input: KingaWriteOffInput): K
       structuralConfirmed && !physicsSeveritySupportsWriteOff ? "structural damage requires the completed KINGA physics threshold assessment" : null,
       input.physicsExecuted !== true ? "KINGA physics analysis has not completed" : null,
     ].filter((value): value is string => Boolean(value));
+    // The technical-evidence gap above takes priority for `kind`/label, but the economic
+    // ratio's warning-band membership is an independent fact — callers that key off
+    // `writeOffWarning` (rather than `kind`) must still see it, so it is not lost here.
     return {
       kind: "human_review_required",
       label: "Repairability review required",
-      detail: `KINGA cannot make a final write-off recommendation because ${reasons.join("; ")}.`,
+      detail: `KINGA cannot make a final write-off recommendation because ${reasons.join("; ")}.${economicWarning ? ` Note: the repair-to-value ratio (${(repairToValueRatio! * 100).toFixed(1)}%) has also reached the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold.` : ""}`,
       writeOffRecommended: false,
-      writeOffWarning: false,
+      writeOffWarning: economicWarning,
       repairToValueRatio,
       economicEvidenceComplete,
       technicalEvidenceComplete,

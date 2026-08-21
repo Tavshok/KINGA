@@ -19,3 +19,13 @@ export function classifyRepairToValueRatio(ratio: number | null | undefined): Wr
   if (ratio >= WRITE_OFF_WARNING_THRESHOLD) return "WARNING";
   return "REPAIR";
 }
+
+/**
+ * Short on-canvas/inline marker text shared by every live UI and chart surface that
+ * draws both thresholds side by side (ForensicDecisionPanel, ReportComponents), so
+ * the two surfaces cannot drift apart in spelling.
+ */
+export const WRITE_OFF_UI_LABELS = {
+  warning: "65% review warning",
+  recommendation: "70% recommendation",
+} as const;

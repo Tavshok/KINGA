@@ -32,7 +32,7 @@ import { ImpactVectorDiagram } from "@/components/ImpactVectorDiagram";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
 import { CostComparisonChart, FraudBreakdownChart, DamageSeverityChart, ConfidenceGauge } from "@/components/ForensicCharts";
 import { toHumanLabel, stripStageRefs, formatIntegrityFlag } from "@/lib/labelUtils";
-import { WRITE_OFF_RECOMMENDATION_THRESHOLD, WRITE_OFF_WARNING_THRESHOLD } from "@shared/writeOffPolicy";
+import { WRITE_OFF_RECOMMENDATION_THRESHOLD, WRITE_OFF_WARNING_THRESHOLD, WRITE_OFF_UI_LABELS } from "@shared/writeOffPolicy";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & helpers
@@ -774,8 +774,8 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
                 </div>
                 <div className="flex justify-between mt-1">
                   <span className="text-xs text-muted-foreground">0%</span>
-                  <span className="text-xs text-amber-600 dark:text-amber-400">65% review warning</span>
-                  <span className="text-xs text-red-600 dark:text-red-400">70% recommendation</span>
+                  <span className="text-xs text-amber-600 dark:text-amber-400">{WRITE_OFF_UI_LABELS.warning}</span>
+                  <span className="text-xs text-red-600 dark:text-red-400">{WRITE_OFF_UI_LABELS.recommendation}</span>
                   <span className="text-xs text-muted-foreground">100%</span>
                 </div>
                 <p className={`text-xs font-semibold mt-1.5 ${repairToValueTone}`}>
