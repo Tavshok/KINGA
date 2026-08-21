@@ -1,15 +1,22 @@
 /**
  * KINGA repair-versus-replace recommendation policy.
  *
- * This reducer is recommendation-only. It never authorises settlement, payment,
- * disposal, or policy action. Those decisions remain separately controlled.
+ * This reducer is decision support only. It never authorises settlement,
+ * payment, disposal, or policy action; those decisions remain human-controlled.
  */
-export const KINGA_ECONOMIC_WRITE_OFF_THRESHOLD = 0.7;
+import {
+  WRITE_OFF_RECOMMENDATION_THRESHOLD,
+  WRITE_OFF_WARNING_THRESHOLD,
+} from "./writeOffPolicy";
+
+/** @deprecated Use WRITE_OFF_RECOMMENDATION_THRESHOLD. */
+export const KINGA_ECONOMIC_WRITE_OFF_THRESHOLD = WRITE_OFF_RECOMMENDATION_THRESHOLD;
 
 export type KingaWriteOffRecommendationKind =
   | "economic_write_off_recommended"
   | "technical_write_off_recommended"
   | "economic_and_technical_write_off_recommended"
+  | "economic_write_off_warning"
   | "human_review_required"
   | "repair_recommended";
 
@@ -18,21 +25,17 @@ export type KingaWriteOffRecommendation = {
   label: string;
   detail: string;
   writeOffRecommended: boolean;
+  writeOffWarning: boolean;
   repairToValueRatio: number | null;
   economicEvidenceComplete: boolean;
   technicalEvidenceComplete: boolean;
 };
 
 export type KingaWriteOffInput = {
-  /** Complete supported KINGA Optimised Quote in whole currency units. */
   completeL2CostUsd?: number | null;
-  /** Verified vehicle market value in whole currency units. */
   verifiedMarketValueUsd?: number | null;
-  /** Dedicated KINGA structural-damage analysis output (Stage 6). */
   structuralDamageDetected?: boolean | null;
-  /** KINGA physics analysis must have run to support a technical recommendation. */
   physicsExecuted?: boolean | null;
-  /** KINGA physics accident severity (Stage 7). */
   physicsSeverity?: string | null;
 };
 
@@ -45,60 +48,72 @@ function isSeverePhysicsSeverity(value: string | null | undefined): boolean {
 }
 
 /**
- * Produces a transparent recommendation using only KINGA's explicit analysis
- * outputs. Economic recommendation requires final L2 plus verified market value.
- * Technical recommendation requires both dedicated structural detection and
- * executed severe/catastrophic physics evidence. Missing or incomplete evidence
- * is a review state, never an invented cost or automatic settlement outcome.
+ * Produces a transparent repair-versus-replace outcome from explicit KINGA
+ * evidence. A 65% ratio produces a warning only; a 70% ratio produces a
+ * human-overridable recommendation only.
  */
 export function resolveKingaWriteOffRecommendation(input: KingaWriteOffInput): KingaWriteOffRecommendation {
   const economicEvidenceComplete = isPositiveFinite(input.completeL2CostUsd) && isPositiveFinite(input.verifiedMarketValueUsd);
   const repairToValueRatio = economicEvidenceComplete
     ? input.completeL2CostUsd / input.verifiedMarketValueUsd
     : null;
-  const economicWriteOff = repairToValueRatio !== null && repairToValueRatio >= KINGA_ECONOMIC_WRITE_OFF_THRESHOLD;
-
+  const economicRecommendation = repairToValueRatio !== null && repairToValueRatio >= WRITE_OFF_RECOMMENDATION_THRESHOLD;
+  const economicWarning = repairToValueRatio !== null
+    && repairToValueRatio >= WRITE_OFF_WARNING_THRESHOLD
+    && repairToValueRatio < WRITE_OFF_RECOMMENDATION_THRESHOLD;
   const structuralConfirmed = input.structuralDamageDetected === true;
   const physicsSeveritySupportsWriteOff = input.physicsExecuted === true && isSeverePhysicsSeverity(input.physicsSeverity);
   const technicalEvidenceComplete = structuralConfirmed && input.physicsExecuted === true;
   const technicalWriteOff = structuralConfirmed && physicsSeveritySupportsWriteOff;
 
-  if (economicWriteOff && technicalWriteOff) {
+  if (economicRecommendation && technicalWriteOff) {
     return {
       kind: "economic_and_technical_write_off_recommended",
       label: "Economic and technical write-off recommended",
-      detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio * 100).toFixed(1)}%, meeting the ${Math.round(KINGA_ECONOMIC_WRITE_OFF_THRESHOLD * 100)}% economic threshold; dedicated structural analysis and ${input.physicsSeverity} physics evidence also support technical write-off.`,
+      detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio * 100).toFixed(1)}%, meeting the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% economic recommendation threshold; dedicated structural analysis and ${input.physicsSeverity} physics evidence also support technical write-off. Human assessor or insurer review remains required.`,
       writeOffRecommended: true,
+      writeOffWarning: false,
       repairToValueRatio,
       economicEvidenceComplete,
       technicalEvidenceComplete,
     };
   }
-
-  if (economicWriteOff) {
+  if (economicRecommendation) {
     return {
       kind: "economic_write_off_recommended",
       label: "Economic write-off recommended",
-      detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio * 100).toFixed(1)}%, meeting the ${Math.round(KINGA_ECONOMIC_WRITE_OFF_THRESHOLD * 100)}% economic threshold.`,
+      detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio * 100).toFixed(1)}%, meeting the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% economic recommendation threshold. Human assessor or insurer review remains required.`,
       writeOffRecommended: true,
+      writeOffWarning: false,
       repairToValueRatio,
       economicEvidenceComplete,
       technicalEvidenceComplete,
     };
   }
-
   if (technicalWriteOff) {
     return {
       kind: "technical_write_off_recommended",
       label: "Technical write-off recommended",
       detail: `KINGA’s dedicated structural analysis confirmed structural damage and its executed physics analysis assessed the collision as ${input.physicsSeverity}.`,
       writeOffRecommended: true,
+      writeOffWarning: false,
       repairToValueRatio,
       economicEvidenceComplete,
       technicalEvidenceComplete,
     };
   }
-
+  if (economicWarning) {
+    return {
+      kind: "economic_write_off_warning",
+      label: "Approaching write-off territory — review required",
+      detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio * 100).toFixed(1)}%, reaching the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold but remaining below the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% write-off recommendation threshold. Surface this to the assessor or reviewer; no write-off recommendation is made.`,
+      writeOffRecommended: false,
+      writeOffWarning: true,
+      repairToValueRatio,
+      economicEvidenceComplete,
+      technicalEvidenceComplete,
+    };
+  }
   if (!economicEvidenceComplete || structuralConfirmed || input.physicsExecuted !== true) {
     const reasons = [
       !economicEvidenceComplete ? "complete KINGA Optimised Quote and/or verified market value is unavailable" : null,
@@ -110,17 +125,18 @@ export function resolveKingaWriteOffRecommendation(input: KingaWriteOffInput): K
       label: "Repairability review required",
       detail: `KINGA cannot make a final write-off recommendation because ${reasons.join("; ")}.`,
       writeOffRecommended: false,
+      writeOffWarning: false,
       repairToValueRatio,
       economicEvidenceComplete,
       technicalEvidenceComplete,
     };
   }
-
   return {
     kind: "repair_recommended",
     label: "Repair recommended",
-    detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio! * 100).toFixed(1)}%, below the ${Math.round(KINGA_ECONOMIC_WRITE_OFF_THRESHOLD * 100)}% economic threshold, with no combined technical write-off evidence.`,
+    detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio! * 100).toFixed(1)}%, below the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold, with no combined technical write-off evidence.`,
     writeOffRecommended: false,
+    writeOffWarning: false,
     repairToValueRatio,
     economicEvidenceComplete,
     technicalEvidenceComplete,

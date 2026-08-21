@@ -20,7 +20,7 @@ import type { ClaimRecord } from "./types";
 import type { Stage3Output } from "./types";
 import type { EvidenceRegistry } from "./evidenceRegistryEngine";
 import type { ExtractedQuote } from "./quoteExtractionEngine";
-import { ECONOMIC_WRITE_OFF_THRESHOLD } from "./pipelineCostConstants"; // R-E-01: shared write-off threshold
+import { WRITE_OFF_RECOMMENDATION_THRESHOLD } from "./pipelineCostConstants";
 
 // ─── CLAIM TRUTH TYPES ──────────────────────────────────────────────────────
 
@@ -198,7 +198,7 @@ export interface ClaimTruthInput {
 const CTL_VERSION = "1.0.0";
 const OVERPRICED_THRESHOLD = 0.10; // 10% above KINGA estimate
 const UNDERPRICED_THRESHOLD = -0.15; // 15% below KINGA estimate
-// R-E-01: local WRITE_OFF_THRESHOLD removed — using ECONOMIC_WRITE_OFF_THRESHOLD from pipelineCostConstants.ts
+// R-E-01: economic write-off is a 70% human-overridable recommendation signal.
 
 /**
  * Build the unified Claim Truth from all extraction outputs.
@@ -576,8 +576,8 @@ function resolveVehicle(input: ClaimTruthInput, costBasis: ClaimTruthCostBasis):
     marketValueUsd,
     marketValueSource,
     repairToValueRatio,
-    writeOffThreshold: ECONOMIC_WRITE_OFF_THRESHOLD,
-    isEconomicWriteOff: repairToValueRatio >= ECONOMIC_WRITE_OFF_THRESHOLD,
+    writeOffThreshold: WRITE_OFF_RECOMMENDATION_THRESHOLD,
+    isEconomicWriteOff: repairToValueRatio >= WRITE_OFF_RECOMMENDATION_THRESHOLD,
   };
 }
 

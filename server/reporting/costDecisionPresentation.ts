@@ -60,6 +60,9 @@ export function resolveRepairabilityVerdict(evidence: RepairabilityEvidence): Re
     if (recommendation.kind === "technical_write_off_recommended") {
       return { label: "Technical write-off recommended", detail: recommendation.detail };
     }
+    if (recommendation.kind === "economic_write_off_warning") {
+      return { label: "Approaching write-off territory — review required", detail: recommendation.detail };
+    }
     if (recommendation.kind === "human_review_required") {
       return { label: "Repairability review required", detail: recommendation.detail };
     }

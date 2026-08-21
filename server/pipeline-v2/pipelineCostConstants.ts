@@ -9,7 +9,8 @@
  * the cost intelligence narrative, and the learning database.
  *
  * Threshold hierarchy:
- *   ECONOMIC_WRITE_OFF_THRESHOLD (0.70) — KINGA economic write-off recommendation threshold.
+ *   WRITE_OFF_WARNING_THRESHOLD (0.65) — assessor/reviewer warning only.
+ *   WRITE_OFF_RECOMMENDATION_THRESHOLD (0.70) — KINGA human-overridable recommendation threshold.
  *     Used by: claimTruthLayer (decision panel), costIntelligenceNarrative (narrative text).
  *     Meaning: complete KINGA Optimised Quote ≥ 70% of verified market value →
  *     economic write-off recommendation. This does not create settlement authority.
@@ -21,16 +22,21 @@
  *     uses a stricter threshold to avoid classifying borderline cases as total-loss benchmarks.
  *     It is NOT an adjuster-facing decision threshold.
  *
- * User-confirmed policy: all economic write-off recommendation paths use 0.70.
+ * User-confirmed policy: 65% surfaces a warning and 70% permits a recommendation.
  * The 0.75 learning cost-tier threshold remains classification-only.
  */
 
-/**
- * Repair-to-value ratio at which a vehicle is considered an economic write-off.
- * This is the single source of truth for adjuster-facing write-off decisions.
- * Applies to: decision panel (claimTruthLayer) and cost narrative text (costIntelligenceNarrative).
- */
-export const ECONOMIC_WRITE_OFF_THRESHOLD = 0.7; // 70% — KINGA recommendation threshold
+import {
+  WRITE_OFF_RECOMMENDATION_THRESHOLD as SHARED_WRITE_OFF_RECOMMENDATION_THRESHOLD,
+  WRITE_OFF_WARNING_THRESHOLD as SHARED_WRITE_OFF_WARNING_THRESHOLD,
+} from "../../shared/writeOffPolicy";
+
+/** 65% — early warning for assessor/reviewer attention; never a recommendation. */
+export const WRITE_OFF_WARNING_THRESHOLD = SHARED_WRITE_OFF_WARNING_THRESHOLD;
+/** 70% — human-overridable KINGA economic write-off recommendation. */
+export const WRITE_OFF_RECOMMENDATION_THRESHOLD = SHARED_WRITE_OFF_RECOMMENDATION_THRESHOLD;
+/** @deprecated Use WRITE_OFF_RECOMMENDATION_THRESHOLD. */
+export const ECONOMIC_WRITE_OFF_THRESHOLD = WRITE_OFF_RECOMMENDATION_THRESHOLD;
 
 /**
  * Repair-to-value ratio at which a claim is classified as "total_loss" cost tier

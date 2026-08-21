@@ -32,6 +32,7 @@ import { ImpactVectorDiagram } from "@/components/ImpactVectorDiagram";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
 import { CostComparisonChart, FraudBreakdownChart, DamageSeverityChart, ConfidenceGauge } from "@/components/ForensicCharts";
 import { toHumanLabel, stripStageRefs, formatIntegrityFlag } from "@/lib/labelUtils";
+import { WRITE_OFF_RECOMMENDATION_THRESHOLD, WRITE_OFF_WARNING_THRESHOLD } from "@shared/writeOffPolicy";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & helpers
@@ -287,6 +288,12 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
   const labourTotal      = Number(normCosts?.labourUsd ?? costIntel?.labourCostUsd ?? 0);
   const marketValue      = Number(costIntel?.marketValueUsd ?? 0);
   const repairToValue    = marketValue > 0 ? (aiCost / marketValue) * 100 : Number(costIntel?.repairToValuePct ?? 0);
+  const repairToValueRatio = repairToValue / 100;
+  const hasWriteOffRecommendation = repairToValueRatio >= WRITE_OFF_RECOMMENDATION_THRESHOLD;
+  const hasWriteOffWarning = repairToValueRatio >= WRITE_OFF_WARNING_THRESHOLD && !hasWriteOffRecommendation;
+  const repairToValueTone = hasWriteOffRecommendation ? "text-red-600 dark:text-red-400" : hasWriteOffWarning ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400";
+  const repairToValueBarTone = hasWriteOffRecommendation ? "bg-red-500" : hasWriteOffWarning ? "bg-amber-500" : "bg-green-500";
+  const repairToValueSummary = hasWriteOffRecommendation ? "write-off recommendation — human review required" : hasWriteOffWarning ? "approaching write-off territory — review warning" : "repair case";
   const maxCost          = Math.max(aiCost, originalQuote, 1);
   const quotesReceived   = Number(costIntel?.quotesReceived ?? 0);
   // Cost Decision Engine output — the authoritative cost figure
@@ -338,7 +345,7 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
   const narrative = [
     `The ${claim?.vehicleMake ?? "vehicle"} (${claim?.vehicleRegistration ?? "—"}) was involved in a ${impactDirection.toLowerCase()} collision${estimatedSpeedKmh > 0 ? ` at an estimated ${estimatedSpeedKmh.toFixed(1)} km/h` : ""}, dissipating ${energyKj > 0 ? `${energyKj.toFixed(1)} kJ` : "an unknown amount of energy"} across ${totalComponents} identified components.`,
     totalComponents > 0 ? `Damage spans ${[frontComponents.length > 0 && `${frontComponents.length} front`, rearComponents.length > 0 && `${rearComponents.length} rear`, sideComponents.length > 0 && `${sideComponents.length} side`].filter(Boolean).join(", ")} components — consistent with the reported collision mechanism.` : null,
-    costBasis > 0 ? `${quotesReceived > 0 ? `${quotesReceived} quotes obtained;` : "Estimated"} repair cost ${fmt(costBasis)}${marketValue > 0 ? ` (${repairToValue.toFixed(1)}% of ${fmt(marketValue)} market value)` : ""} — ${repairToValue < 70 ? "clear repair case" : "approaching total-loss threshold"}.` : null,
+    costBasis > 0 ? `${quotesReceived > 0 ? `${quotesReceived} quotes obtained;` : "Estimated"} repair cost ${fmt(costBasis)}${marketValue > 0 ? ` (${repairToValue.toFixed(1)}% of ${fmt(marketValue)} market value)` : ""} — ${repairToValueSummary}.` : null,
     fraudScore <= 15 ? `Fraud score ${fraudScore}/100 (minimal); ${fraudIndicators.length > 0 ? `active indicator: ${fraudIndicators[0]?.indicator ?? fraudIndicators[0]?.label ?? "—"}` : "no active fraud indicators"}.` : `Fraud score ${fraudScore}/100 — review required.`,
     integrityFlags.length > 0 ? `${integrityFlags.length} attention item${integrityFlags.length > 1 ? "s" : ""} require review: ${integrityFlags.map(f => toHumanLabel(f.flag)).join("; ")}.` : "All integrity checks passed.",
   ].filter(Boolean) as string[];
@@ -754,21 +761,23 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
               <div className="mt-4 pt-4 border-t border-border">
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-sm font-semibold text-foreground">Repair-to-Value Ratio</p>
-                  <span className={`text-sm font-bold tabular-nums ${repairToValue < 70 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                    {repairToValue.toFixed(1)}% of {fmt(marketValue)}
+                  <span className={`text-sm font-bold tabular-nums ${repairToValueTone}`}>
+                    {repairToValue.toFixed(1)}% — {repairToValueSummary}
                   </span>
                 </div>
                 <div className="relative">
-                  <Bar value={repairToValue} colorCls={repairToValue < 70 ? "bg-green-500" : "bg-red-500"} />
-                  <div className="absolute top-0 h-1.5 w-0.5 bg-amber-400 rounded" style={{ left: "70%" }} />
+                  <Bar value={repairToValue} colorCls={repairToValueBarTone} />
+                  <div className="absolute top-0 h-1.5 w-0.5 bg-amber-400 rounded" style={{ left: `${WRITE_OFF_WARNING_THRESHOLD * 100}%` }} title="65% early-warning threshold" />
+                  <div className="absolute top-0 h-1.5 w-0.5 bg-red-500 rounded" style={{ left: `${WRITE_OFF_RECOMMENDATION_THRESHOLD * 100}%` }} title="70% write-off recommendation threshold" />
                 </div>
                 <div className="flex justify-between mt-1">
                   <span className="text-xs text-muted-foreground">0%</span>
-                  <span className="text-xs text-amber-600 dark:text-amber-400">70% total-loss threshold</span>
+                  <span className="text-xs text-amber-600 dark:text-amber-400">65% review warning</span>
+                  <span className="text-xs text-red-600 dark:text-red-400">70% recommendation</span>
                   <span className="text-xs text-muted-foreground">100%</span>
                 </div>
-                <p className={`text-xs font-semibold mt-1.5 ${repairToValue < 70 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                  {repairToValue < 70 ? "✓ Clear repair case" : "⚠ Approaching total-loss threshold"}
+                <p className={`text-xs font-semibold mt-1.5 ${repairToValueTone}`}>
+                  {hasWriteOffRecommendation ? "⚠ KINGA write-off recommendation — human assessor or insurer override remains required" : hasWriteOffWarning ? "⚠ 65% early-warning threshold reached — surface for assessor/reviewer attention; no write-off recommendation" : "✓ Clear repair case"}
                 </p>
               </div>
             )}
