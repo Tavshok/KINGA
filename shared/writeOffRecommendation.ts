@@ -7,6 +7,7 @@
 import {
   WRITE_OFF_RECOMMENDATION_THRESHOLD,
   WRITE_OFF_WARNING_THRESHOLD,
+  classifyRepairToValueRatio,
 } from "./writeOffPolicy";
 
 /** @deprecated Use WRITE_OFF_RECOMMENDATION_THRESHOLD. */
@@ -57,10 +58,9 @@ export function resolveKingaWriteOffRecommendation(input: KingaWriteOffInput): K
   const repairToValueRatio = economicEvidenceComplete
     ? input.completeL2CostUsd / input.verifiedMarketValueUsd
     : null;
-  const economicRecommendation = repairToValueRatio !== null && repairToValueRatio >= WRITE_OFF_RECOMMENDATION_THRESHOLD;
-  const economicWarning = repairToValueRatio !== null
-    && repairToValueRatio >= WRITE_OFF_WARNING_THRESHOLD
-    && repairToValueRatio < WRITE_OFF_RECOMMENDATION_THRESHOLD;
+  const repairToValueBand = classifyRepairToValueRatio(repairToValueRatio);
+  const economicRecommendation = repairToValueBand === "RECOMMENDATION";
+  const economicWarning = repairToValueBand === "WARNING";
   const structuralConfirmed = input.structuralDamageDetected === true;
   const physicsSeveritySupportsWriteOff = input.physicsExecuted === true && isSeverePhysicsSeverity(input.physicsSeverity);
   const technicalEvidenceComplete = structuralConfirmed && input.physicsExecuted === true;
@@ -102,18 +102,6 @@ export function resolveKingaWriteOffRecommendation(input: KingaWriteOffInput): K
       technicalEvidenceComplete,
     };
   }
-  if (economicWarning) {
-    return {
-      kind: "economic_write_off_warning",
-      label: "Approaching write-off territory — review required",
-      detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio * 100).toFixed(1)}%, reaching the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold but remaining below the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% write-off recommendation threshold. Surface this to the assessor or reviewer; no write-off recommendation is made.`,
-      writeOffRecommended: false,
-      writeOffWarning: true,
-      repairToValueRatio,
-      economicEvidenceComplete,
-      technicalEvidenceComplete,
-    };
-  }
   if (!economicEvidenceComplete || structuralConfirmed || input.physicsExecuted !== true) {
     const reasons = [
       !economicEvidenceComplete ? "complete KINGA Optimised Quote and/or verified market value is unavailable" : null,
@@ -126,6 +114,18 @@ export function resolveKingaWriteOffRecommendation(input: KingaWriteOffInput): K
       detail: `KINGA cannot make a final write-off recommendation because ${reasons.join("; ")}.`,
       writeOffRecommended: false,
       writeOffWarning: false,
+      repairToValueRatio,
+      economicEvidenceComplete,
+      technicalEvidenceComplete,
+    };
+  }
+  if (economicWarning) {
+    return {
+      kind: "economic_write_off_warning",
+      label: "Approaching write-off territory — review required",
+      detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio * 100).toFixed(1)}%, reaching the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold but remaining below the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% write-off recommendation threshold. Surface this to the assessor or reviewer; no write-off recommendation is made.`,
+      writeOffRecommended: false,
+      writeOffWarning: true,
       repairToValueRatio,
       economicEvidenceComplete,
       technicalEvidenceComplete,

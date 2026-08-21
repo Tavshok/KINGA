@@ -517,7 +517,7 @@ export interface VehicleValuation {
   valuationMethod: string | null;      // 'database' | 'llm_estimate' | 'not_available'
   repairCostUsd: number | null;        // from repairQuote
   repairToValueRatio: number | null;   // repairCost / marketValue
-  verdict: 'repairable' | 'write_off' | 'borderline' | 'unknown';
+  verdict: 'repairable' | 'write_off' | 'write_off_warning' | 'borderline' | 'unknown';
   verdictReason: string | null;
   dataSource: string | null;           // e.g. 'AutoTrader ZA', 'LLM estimate'
 }

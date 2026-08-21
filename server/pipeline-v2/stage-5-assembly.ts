@@ -41,7 +41,7 @@ import { selectScenarioEngine } from "./scenarioEngineSelector";
 import { markFallback } from "./engineFallback";
 import { invokeLLM, withRetry } from "../_core/llm";
 import { getDefaultCurrencyForCountry, getDefaultCurrencySymbolForCountry, COUNTRY_CURRENCY_MAP } from '../../shared/countryCurrency';
-import { WRITE_OFF_RECOMMENDATION_THRESHOLD, WRITE_OFF_WARNING_THRESHOLD } from "./pipelineCostConstants";
+import { WRITE_OFF_RECOMMENDATION_THRESHOLD, WRITE_OFF_WARNING_THRESHOLD, classifyRepairToValueRatio } from "./pipelineCostConstants";
 // ── Utility: wrap async fn with a hard timeout (mirrors Stage 6 pattern) ─────
 // R-B-01 / R-B-02 fix: LLM calls in Stage 5 must be bounded so a slow or hung
 // LLM response cannot freeze the pipeline indefinitely.
@@ -616,14 +616,14 @@ Return ONLY valid JSON with no markdown.`,
         let verdict: VehicleValuation["verdict"];
         let verdictReason: string;
         // Stage 5 is preliminary; final repairability uses the completed L2 basis.
-        const WRITE_OFF_RATIO_THRESHOLD = WRITE_OFF_RECOMMENDATION_THRESHOLD;
+        const repairToValueBand = classifyRepairToValueRatio(ratio);
         /** Repair-to-value ratio above which vehicle is borderline */
         const BORDERLINE_RATIO_THRESHOLD = 0.60;
-        if (ratio >= WRITE_OFF_RATIO_THRESHOLD) {
+        if (repairToValueBand === "RECOMMENDATION") {
           verdict = "write_off";
-          verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Meets the ${Math.round(WRITE_OFF_RATIO_THRESHOLD * 100)}% economic write-off recommendation threshold.`;
-        } else if (ratio >= WRITE_OFF_WARNING_THRESHOLD) {
-          verdict = "borderline";
+          verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Meets the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% economic write-off recommendation threshold.`;
+        } else if (repairToValueBand === "WARNING") {
+          verdict = "write_off_warning";
           verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Meets KINGA’s ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold: surface for assessor or reviewer attention; no write-off recommendation is made.`;
         } else if (ratio >= BORDERLINE_RATIO_THRESHOLD) {
           verdict = "borderline";

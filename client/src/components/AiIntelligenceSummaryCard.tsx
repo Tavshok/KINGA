@@ -245,6 +245,14 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
           {aiAssessment.totalLossIndicated === 1 && (
             <Badge variant="destructive" className="ml-2 text-xs">TOTAL LOSS INDICATED</Badge>
           )}
+          {aiAssessment.totalLossIndicated !== 1 && (() => {
+            try {
+              const ci = aiAssessment.costIntelligenceJson ? JSON.parse(aiAssessment.costIntelligenceJson) : null;
+              return ci?.repairabilityDecision?.writeOffWarning === true;
+            } catch { return false; }
+          })() && (
+            <Badge className="ml-2 text-xs bg-amber-500 text-white hover:bg-amber-500">APPROACHING WRITE-OFF — REVIEW WARNING</Badge>
+          )}
         </CardTitle>
       </CardHeader>
 

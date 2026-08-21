@@ -8,7 +8,17 @@ import type { ReportCostIntegrity } from "./costIntegrity";
 export type { CostDecisionPresentation } from "../../shared/costDecisionPresentation";
 
 export type RepairabilityVerdict = {
-  label: "Repairable" | "Repairable with conditions" | "Further structural review required" | "Total loss indicated";
+  label:
+    | "Repairable"
+    | "Repairable with conditions"
+    | "Further structural review required"
+    | "Total loss indicated"
+    | "Economic and technical write-off recommended"
+    | "Economic write-off recommended"
+    | "Technical write-off recommended"
+    | "Approaching write-off territory — review required"
+    | "Repairability review required"
+    | "Repair recommended";
   detail: string;
 };
 

@@ -45,6 +45,7 @@ import { generateRiskSurveyReport } from "./riskSurveyReport";
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { classifyRepairToValueRatio } from "../../shared/writeOffPolicy";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
@@ -393,6 +394,12 @@ async function generateClaimAssessmentReport(
       : `All-in payable repair-cost basis${costIntegrity.costBasis ? ` (${costIntegrity.costBasis.replaceAll("_", " ")})` : ""}.`;
     const repairToValue = Number(claim.repair_to_value_ratio ?? 0);
     const isTotalLoss = Boolean(claim.total_loss_indicated);
+    // Same 65-70% policy band used by costDecisionSummary above (via costIntel.repairabilityDecision) —
+    // kept consistent here so the scorecard/banner never contradict the cost-decision section.
+    const isWriteOffWarning = !isTotalLoss && (
+      (costIntel as any)?.repairabilityDecision?.writeOffWarning === true
+      || classifyRepairToValueRatio(repairToValue / 100) === "WARNING"
+    );
     // BUG-02 fix: prefer excess_amount_cents (canonical cents column) over legacy policy_excess
     const excessCL = claim.excess_amount_cents != null
       ? Number(claim.excess_amount_cents) / 100
@@ -595,7 +602,7 @@ ${(() => {
       </td>
       <td style="padding:8px 12px;vertical-align:top">
         <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Repair Decision</div>
-        <div style="font-size:11px;font-weight:600;color:#171717">${isTotalLoss ? "TOTAL LOSS" : `REPAIR (${kFmtPct(repairToValue)} R:V)` }</div>
+        <div style="font-size:11px;font-weight:600;color:#171717">${isTotalLoss ? "TOTAL LOSS" : isWriteOffWarning ? `REVIEW WARNING (${kFmtPct(repairToValue)} R:V)` : `REPAIR (${kFmtPct(repairToValue)} R:V)` }</div>
       </td>
     </tr>
   </table>
@@ -707,10 +714,11 @@ ${totalPhotosCL > 0 ? `
 <div class="section">
   <div class="section-tab sans"><span class="num">04</span> Quotation &amp; Cost Optimisation</div>
   <table style="width:100%;border-collapse:collapse"><tr>
-    <td style="padding:10px 14px;border:1px solid ${isTotalLoss ? "#a83232" : "#c8dfc9"};background:${isTotalLoss ? "#fbe9e7" : "#e9f3ea"};border-radius:3px;vertical-align:middle">
-      <span style="font-size:13px;font-weight:700;color:${isTotalLoss ? "#a83232" : "#3C7844"}">${isTotalLoss ? "TOTAL LOSS — Replace Vehicle" : "REPAIR RECOMMENDED"}</span>
+    <td style="padding:10px 14px;border:1px solid ${isTotalLoss ? "#a83232" : isWriteOffWarning ? "#d8a72b" : "#c8dfc9"};background:${isTotalLoss ? "#fbe9e7" : isWriteOffWarning ? "#fbf1de" : "#e9f3ea"};border-radius:3px;vertical-align:middle">
+      <span style="font-size:13px;font-weight:700;color:${isTotalLoss ? "#a83232" : isWriteOffWarning ? "#b8720b" : "#3C7844"}">${isTotalLoss ? "TOTAL LOSS — Replace Vehicle" : isWriteOffWarning ? "APPROACHING WRITE-OFF — REVIEW WARNING" : "REPAIR RECOMMENDED"}</span>
       ${!isTotalLoss && repairToValue > 0 ? `<span style="font-size:11px;color:#4a4a4a;margin-left:12px">Repair-to-Value Ratio: <strong>${kFmtPct(repairToValue)}</strong></span>` : ""}
       ${isTotalLoss ? `<span style="font-size:11px;color:#a83232;margin-left:12px">Repair cost exceeds vehicle market value threshold.</span>` : ""}
+      ${isWriteOffWarning ? `<span style="font-size:11px;color:#b8720b;margin-left:12px">Repair cost has reached KINGA's early-warning threshold; surface for assessor/reviewer attention. No write-off recommendation is made.</span>` : ""}
     </td>
   </tr></table>
   ${kingaOptimised !== null
@@ -1012,7 +1020,7 @@ async function generateForensicReport(
         <div class="section-title">7. Decision Authority &amp; Recommended Action</div>
         <div class="kv-grid cols-2">
           <div class="kv-item"><div class="kv-label">AI Estimated Cost</div><div class="kv-value">${fmtCurrency(claim.estimated_cost as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Total Loss Indicated</div><div class="kv-value bold">${claim.total_loss_indicated ? "YES" : "No"}</div></div>
+          <div class="kv-item"><div class="kv-label">Total Loss Indicated</div><div class="kv-value bold">${claim.total_loss_indicated ? "YES" : classifyRepairToValueRatio(Number(claim.repair_to_value_ratio ?? 0) / 100) === "WARNING" ? "APPROACHING — REVIEW WARNING" : "No"}</div></div>
         </div>
       </div>
 
@@ -1281,9 +1289,12 @@ async function generateRepairDecisionReport(
       classification: "INTERNAL",
     };
 
+    const repairToValueBand = classifyRepairToValueRatio(Number(claim.repair_to_value_ratio ?? 0) / 100);
     const repairDecision = claim.total_loss_indicated
       ? "TOTAL LOSS — Replace Vehicle"
-      : `REPAIR — Repair-to-Value Ratio: ${fmtPct(claim.repair_to_value_ratio as number)}`;
+      : repairToValueBand === "WARNING"
+        ? `APPROACHING WRITE-OFF TERRITORY — REVIEW WARNING (Repair-to-Value Ratio: ${fmtPct(claim.repair_to_value_ratio as number)}; no write-off recommendation is made)`
+        : `REPAIR — Repair-to-Value Ratio: ${fmtPct(claim.repair_to_value_ratio as number)}`;
 
     const body = `
       <div class="section">

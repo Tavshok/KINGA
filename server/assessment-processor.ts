@@ -548,7 +548,7 @@ function validateNarrative(
   }
   
   // Cost vs market value check
-  if (marketValue > 0 && totalCost > marketValue * WRITE_OFF_RECOMMENDATION_THRESHOLD) {
+  if (marketValue > 0 && totalCost >= marketValue * WRITE_OFF_RECOMMENDATION_THRESHOLD) {
     concerns.push(`Repair cost ($${totalCost}) exceeds the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% recommendation threshold of market value ($${marketValue}) — recommend human write-off review`);
     score -= 5;
   }

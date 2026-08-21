@@ -18,7 +18,7 @@
  *   COST_TIER_TOTAL_LOSS_THRESHOLD (0.75) — learning DB cost tier classification only.
  *     Used by: caseSignatureGenerator (inferCostTier).
  *     Meaning: repair cost ≥ 75% of market value → cost tier = "total_loss" for benchmarking.
- *     This is intentionally higher than ECONOMIC_WRITE_OFF_THRESHOLD because the learning DB
+ *     This is intentionally higher than WRITE_OFF_RECOMMENDATION_THRESHOLD because the learning DB
  *     uses a stricter threshold to avoid classifying borderline cases as total-loss benchmarks.
  *     It is NOT an adjuster-facing decision threshold.
  *
@@ -29,6 +29,8 @@
 import {
   WRITE_OFF_RECOMMENDATION_THRESHOLD as SHARED_WRITE_OFF_RECOMMENDATION_THRESHOLD,
   WRITE_OFF_WARNING_THRESHOLD as SHARED_WRITE_OFF_WARNING_THRESHOLD,
+  classifyRepairToValueRatio,
+  type WriteOffPolicyBand,
 } from "../../shared/writeOffPolicy";
 
 /** 65% — early warning for assessor/reviewer attention; never a recommendation. */
@@ -37,11 +39,12 @@ export const WRITE_OFF_WARNING_THRESHOLD = SHARED_WRITE_OFF_WARNING_THRESHOLD;
 export const WRITE_OFF_RECOMMENDATION_THRESHOLD = SHARED_WRITE_OFF_RECOMMENDATION_THRESHOLD;
 /** @deprecated Use WRITE_OFF_RECOMMENDATION_THRESHOLD. */
 export const ECONOMIC_WRITE_OFF_THRESHOLD = WRITE_OFF_RECOMMENDATION_THRESHOLD;
+export { classifyRepairToValueRatio, type WriteOffPolicyBand };
 
 /**
  * Repair-to-value ratio at which a claim is classified as "total_loss" cost tier
  * in the learning database case signature. This is intentionally higher than
- * ECONOMIC_WRITE_OFF_THRESHOLD to avoid polluting the total_loss benchmark pool
+ * WRITE_OFF_RECOMMENDATION_THRESHOLD to avoid polluting the total_loss benchmark pool
  * with borderline economic write-off cases.
  * Applies to: caseSignatureGenerator.inferCostTier only.
  */

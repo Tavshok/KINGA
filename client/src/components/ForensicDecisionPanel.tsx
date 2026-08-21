@@ -287,13 +287,6 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
   const partsTotal       = Number(normCosts?.partsUsd ?? costIntel?.partsCostUsd ?? 0);
   const labourTotal      = Number(normCosts?.labourUsd ?? costIntel?.labourCostUsd ?? 0);
   const marketValue      = Number(costIntel?.marketValueUsd ?? 0);
-  const repairToValue    = marketValue > 0 ? (aiCost / marketValue) * 100 : Number(costIntel?.repairToValuePct ?? 0);
-  const repairToValueRatio = repairToValue / 100;
-  const hasWriteOffRecommendation = repairToValueRatio >= WRITE_OFF_RECOMMENDATION_THRESHOLD;
-  const hasWriteOffWarning = repairToValueRatio >= WRITE_OFF_WARNING_THRESHOLD && !hasWriteOffRecommendation;
-  const repairToValueTone = hasWriteOffRecommendation ? "text-red-600 dark:text-red-400" : hasWriteOffWarning ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400";
-  const repairToValueBarTone = hasWriteOffRecommendation ? "bg-red-500" : hasWriteOffWarning ? "bg-amber-500" : "bg-green-500";
-  const repairToValueSummary = hasWriteOffRecommendation ? "write-off recommendation — human review required" : hasWriteOffWarning ? "approaching write-off territory — review warning" : "repair case";
   const maxCost          = Math.max(aiCost, originalQuote, 1);
   const quotesReceived   = Number(costIntel?.quotesReceived ?? 0);
   // Cost Decision Engine output — the authoritative cost figure
@@ -321,6 +314,15 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
                             costDecision?.cost_basis ?? 'KINGA Estimate';
   // costBasis: prefer L2 optimised, then KINGA estimate, then normalised total
   const costBasis         = l2OptimisedUsd > 0 ? l2OptimisedUsd : (aiCost > 0 ? aiCost : trueCostUsd);
+  // Repair-to-value ratio must use the authoritative cost basis, not the raw AI estimate,
+  // so it agrees with the cost figure actually displayed as the repair cost in this panel.
+  const repairToValue    = marketValue > 0 ? (costBasis / marketValue) * 100 : Number(costIntel?.repairToValuePct ?? 0);
+  const repairToValueRatio = repairToValue / 100;
+  const hasWriteOffRecommendation = repairToValueRatio >= WRITE_OFF_RECOMMENDATION_THRESHOLD;
+  const hasWriteOffWarning = repairToValueRatio >= WRITE_OFF_WARNING_THRESHOLD && !hasWriteOffRecommendation;
+  const repairToValueTone = hasWriteOffRecommendation ? "text-red-600 dark:text-red-400" : hasWriteOffWarning ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400";
+  const repairToValueBarTone = hasWriteOffRecommendation ? "bg-red-500" : hasWriteOffWarning ? "bg-amber-500" : "bg-green-500";
+  const repairToValueSummary = hasWriteOffRecommendation ? "write-off recommendation — human review required" : hasWriteOffWarning ? "approaching write-off territory — review warning" : "repair case";
   const costRecommendation = costDecision?.recommendation ?? null;
   const costAnomalies     = Array.isArray(costDecision?.anomalies) ? costDecision.anomalies : [];
   const costNarrative     = costIntel?.costNarrative ?? null;
@@ -438,17 +440,17 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
             <div>
               <div className="flex justify-between text-xs text-muted-foreground mb-1">
                 <span>Repair-to-Value</span>
-                <span className={repairToValue < 70 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                  {repairToValue.toFixed(1)}% {repairToValue < 70 ? "— repair" : "— near total loss"}
+                <span className={repairToValueTone}>
+                  {repairToValue.toFixed(1)}% {hasWriteOffRecommendation ? "— write-off recommendation" : hasWriteOffWarning ? "— review warning" : "— repair"}
                 </span>
               </div>
               <div className="relative">
                 <Bar
                   value={repairToValue}
-                  colorCls={repairToValue < 70 ? "bg-green-500" : "bg-red-500"}
+                  colorCls={repairToValueBarTone}
                 />
-                {/* 70% threshold marker */}
-                <div className="absolute top-0 h-1.5 w-0.5 bg-amber-400 rounded" style={{ left: "70%" }} />
+                <div className="absolute top-0 h-1.5 w-0.5 bg-amber-400 rounded" style={{ left: `${WRITE_OFF_WARNING_THRESHOLD * 100}%` }} title="65% early-warning threshold" />
+                <div className="absolute top-0 h-1.5 w-0.5 bg-red-500 rounded" style={{ left: `${WRITE_OFF_RECOMMENDATION_THRESHOLD * 100}%` }} title="70% write-off recommendation threshold" />
               </div>
             </div>
           )}

@@ -20,7 +20,7 @@ import type { ClaimRecord } from "./types";
 import type { Stage3Output } from "./types";
 import type { EvidenceRegistry } from "./evidenceRegistryEngine";
 import type { ExtractedQuote } from "./quoteExtractionEngine";
-import { WRITE_OFF_RECOMMENDATION_THRESHOLD } from "./pipelineCostConstants";
+import { WRITE_OFF_RECOMMENDATION_THRESHOLD, WRITE_OFF_WARNING_THRESHOLD } from "./pipelineCostConstants";
 
 // ─── CLAIM TRUTH TYPES ──────────────────────────────────────────────────────
 
@@ -77,6 +77,8 @@ export interface ClaimTruthVehicle {
   repairToValueRatio: number;
   writeOffThreshold: number;
   isEconomicWriteOff: boolean;
+  writeOffWarningThreshold: number;
+  isEconomicWriteOffWarning: boolean;
 }
 
 export interface PhysicsAnomaly {
@@ -578,6 +580,8 @@ function resolveVehicle(input: ClaimTruthInput, costBasis: ClaimTruthCostBasis):
     repairToValueRatio,
     writeOffThreshold: WRITE_OFF_RECOMMENDATION_THRESHOLD,
     isEconomicWriteOff: repairToValueRatio >= WRITE_OFF_RECOMMENDATION_THRESHOLD,
+    writeOffWarningThreshold: WRITE_OFF_WARNING_THRESHOLD,
+    isEconomicWriteOffWarning: repairToValueRatio >= WRITE_OFF_WARNING_THRESHOLD && repairToValueRatio < WRITE_OFF_RECOMMENDATION_THRESHOLD,
   };
 }
 
@@ -765,6 +769,9 @@ function resolveDecision(
   if (vehicle.isEconomicWriteOff) {
     if (recommendation !== "ESCALATE") recommendation = "REVIEW";
     reviewTriggers.push(`Repair-to-value ratio ${(vehicle.repairToValueRatio * 100).toFixed(0)}% exceeds write-off threshold ${(vehicle.writeOffThreshold * 100).toFixed(0)}%`);
+  } else if (vehicle.isEconomicWriteOffWarning) {
+    if (recommendation !== "ESCALATE") recommendation = "REVIEW";
+    reviewTriggers.push(`Repair-to-value ratio ${(vehicle.repairToValueRatio * 100).toFixed(0)}% reached the ${(vehicle.writeOffWarningThreshold * 100).toFixed(0)}% early-warning threshold — surface for assessor/reviewer attention`);
   }
 
   // Late submission (only if genuinely late with reliable dates)
