@@ -48,6 +48,10 @@ function isSeverePhysicsSeverity(value: string | null | undefined): boolean {
   return value === "severe" || value === "catastrophic";
 }
 
+function formatRepairToValueRatio(ratio: number | null): string {
+  return ratio === null ? "unavailable" : `${(ratio * 100).toFixed(1)}%`;
+}
+
 /**
  * Produces a transparent repair-versus-replace outcome from explicit KINGA
  * evidence. A 65% ratio produces a warning only; a 70% ratio produces a
@@ -70,7 +74,7 @@ export function resolveKingaWriteOffRecommendation(input: KingaWriteOffInput): K
     return {
       kind: "economic_and_technical_write_off_recommended",
       label: "Economic and technical write-off recommended",
-      detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio * 100).toFixed(1)}%, meeting the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% economic recommendation threshold; dedicated structural analysis and ${input.physicsSeverity} physics evidence also support technical write-off. Human assessor or insurer review remains required.`,
+      detail: `KINGA’s complete repair-to-value assessment is ${formatRepairToValueRatio(repairToValueRatio)}, meeting the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% economic recommendation threshold; dedicated structural analysis and ${input.physicsSeverity} physics evidence also support technical write-off. Human assessor or insurer review remains required.`,
       writeOffRecommended: true,
       writeOffWarning: false,
       repairToValueRatio,
@@ -82,7 +86,7 @@ export function resolveKingaWriteOffRecommendation(input: KingaWriteOffInput): K
     return {
       kind: "economic_write_off_recommended",
       label: "Economic write-off recommended",
-      detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio * 100).toFixed(1)}%, meeting the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% economic recommendation threshold. Human assessor or insurer review remains required.`,
+      detail: `KINGA’s complete repair-to-value assessment is ${formatRepairToValueRatio(repairToValueRatio)}, meeting the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% economic recommendation threshold. Human assessor or insurer review remains required.`,
       writeOffRecommended: true,
       writeOffWarning: false,
       repairToValueRatio,
@@ -114,7 +118,7 @@ export function resolveKingaWriteOffRecommendation(input: KingaWriteOffInput): K
     return {
       kind: "human_review_required",
       label: "Repairability review required",
-      detail: `KINGA cannot make a final write-off recommendation because ${reasons.join("; ")}.${economicWarning ? ` Note: the repair-to-value ratio (${(repairToValueRatio! * 100).toFixed(1)}%) has also reached the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold.` : ""}`,
+      detail: `KINGA cannot make a final write-off recommendation because ${reasons.join("; ")}.${economicWarning ? ` Note: the repair-to-value ratio (${formatRepairToValueRatio(repairToValueRatio)}) has also reached the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold.` : ""}`,
       writeOffRecommended: false,
       writeOffWarning: economicWarning,
       repairToValueRatio,
@@ -126,7 +130,7 @@ export function resolveKingaWriteOffRecommendation(input: KingaWriteOffInput): K
     return {
       kind: "economic_write_off_warning",
       label: "Approaching write-off territory — review required",
-      detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio * 100).toFixed(1)}%, reaching the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold but remaining below the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% write-off recommendation threshold. Surface this to the assessor or reviewer; no write-off recommendation is made.`,
+      detail: `KINGA’s complete repair-to-value assessment is ${formatRepairToValueRatio(repairToValueRatio)}, reaching the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold but remaining below the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% write-off recommendation threshold. Surface this to the assessor or reviewer; no write-off recommendation is made.`,
       writeOffRecommended: false,
       writeOffWarning: true,
       repairToValueRatio,
@@ -137,7 +141,7 @@ export function resolveKingaWriteOffRecommendation(input: KingaWriteOffInput): K
   return {
     kind: "repair_recommended",
     label: "Repair recommended",
-    detail: `KINGA’s complete repair-to-value assessment is ${(repairToValueRatio! * 100).toFixed(1)}%, below the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold, with no combined technical write-off evidence.`,
+    detail: `KINGA’s complete repair-to-value assessment is ${formatRepairToValueRatio(repairToValueRatio)}, below the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold, with no combined technical write-off evidence.`,
     writeOffRecommended: false,
     writeOffWarning: false,
     repairToValueRatio,
