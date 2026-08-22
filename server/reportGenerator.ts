@@ -26,6 +26,7 @@ import {
   Font,
   pdf,
 } from "@react-pdf/renderer";
+import { classifyRepairToValueRatio } from "../shared/writeOffPolicy";
 
 // ── Colour constants ────────────────────────────────────────────────────────
 const C = {
@@ -680,7 +681,7 @@ function DamageAnalysisSection({ assessment }: any) {
     React.createElement(View, { style: body.twoCol },
       React.createElement(View, { style: body.col },
         React.createElement(InfoRow, { label: "Structural Severity", value: fmt(assessment?.structuralDamageSeverity) }),
-        React.createElement(InfoRow, { label: "Total Loss Indicated", value: assessment?.totalLossIndicated ? "YES" : "NO" }),
+        React.createElement(InfoRow, { label: "Total Loss Indicated", value: assessment?.totalLossIndicated ? "YES" : classifyRepairToValueRatio((assessment?.repairToValueRatio ?? 0) / 100) === "WARNING" ? "APPROACHING — REVIEW WARNING" : "NO" }),
         React.createElement(InfoRow, { label: "Repair-to-Value Ratio", value: assessment?.repairToValueRatio ? `${assessment.repairToValueRatio}%` : "—" }),
       ),
       React.createElement(View, { style: body.col },

@@ -131,6 +131,14 @@ describe("R0 concise cost decision presentation", () => {
     expect(resolveRepairabilityVerdict({ totalLossIndicated: true, repairToValueRatio: 48 }).label).toBe("Total loss indicated");
   });
 
+  it("classifies the 65-70% warning band from the raw ratio when no kingaRecommendation was recorded (legacy claims / JSON parse failures)", () => {
+    // repairToValueRatio here is a 0-100 percentage, matching the persisted DB column.
+    expect(resolveRepairabilityVerdict({ totalLossIndicated: false, repairToValueRatio: 67 }).label)
+      .toBe("Approaching write-off territory — review required");
+    expect(resolveRepairabilityVerdict({ totalLossIndicated: false, repairToValueRatio: 64 }).label).toBe("Repairable");
+    expect(resolveRepairabilityVerdict({ totalLossIndicated: false, repairToValueRatio: 40 }).label).toBe("Repairable");
+  });
+
   it("propagates only explicit persisted structural-review evidence and rationale", () => {
     expect(extractExplicitStructuralReviewEvidence({ structuralReviewRequired: true, structuralReviewRationale: "Front rail alignment measurement is required." }))
       .toEqual({ structuralReviewRequired: true, structuralReviewDetail: "Front rail alignment measurement is required." });

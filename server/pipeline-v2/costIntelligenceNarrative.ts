@@ -1,4 +1,8 @@
-import { ECONOMIC_WRITE_OFF_THRESHOLD, RTV_ELEVATED_THRESHOLD } from "./pipelineCostConstants"; // R-E-01: shared write-off thresholds
+import {
+  RTV_ELEVATED_THRESHOLD,
+  WRITE_OFF_RECOMMENDATION_THRESHOLD,
+  WRITE_OFF_WARNING_THRESHOLD,
+} from "./pipelineCostConstants";
 /**
  * costIntelligenceNarrative.ts
  *
@@ -132,9 +136,11 @@ function repairToValueComment(
 ): string {
   if (!agreedCost || !marketValue || marketValue === 0) return "";
   const ratio = (agreedCost / marketValue) * 100;
-  // R-E-01: thresholds aligned with ECONOMIC_WRITE_OFF_THRESHOLD (shared constant)
-  if (ratio >= ECONOMIC_WRITE_OFF_THRESHOLD * 100) {
-    return `The repair-to-value ratio of ${ratio.toFixed(1)}% meets or exceeds the write-off threshold (${(ECONOMIC_WRITE_OFF_THRESHOLD * 100).toFixed(0)}%); a write-off assessment is recommended before authorising repairs. Consider total-loss settlement.`;
+  if (ratio >= WRITE_OFF_RECOMMENDATION_THRESHOLD * 100) {
+    return `The repair-to-value ratio of ${ratio.toFixed(1)}% meets or exceeds the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% write-off recommendation threshold; KINGA recommends write-off consideration before authorising repairs. Human assessor or insurer review remains required.`;
+  }
+  if (ratio >= WRITE_OFF_WARNING_THRESHOLD * 100) {
+    return `The repair-to-value ratio of ${ratio.toFixed(1)}% has reached the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold and is approaching write-off territory. Surface this for assessor or reviewer attention; no write-off recommendation is made.`;
   }
   if (ratio >= RTV_ELEVATED_THRESHOLD * 100) {
     return `The repair-to-value ratio of ${ratio.toFixed(1)}% is elevated; the insurer should confirm the vehicle's current market value before proceeding.`;
@@ -198,9 +204,14 @@ function determineRecommendation(input: CostNarrativeInput): {
   if (flags.includes("inflated_quote") && input.quotes.length === 1) {
     return { recommendation: "REVIEW", reason: "Single quote with inflation flag — additional quotes required" };
   }
-  // R-E-01: aligned with ECONOMIC_WRITE_OFF_THRESHOLD
-  if (agreed_cost_usd && market_value_usd && (agreed_cost_usd / market_value_usd) >= ECONOMIC_WRITE_OFF_THRESHOLD) {
-    return { recommendation: "REVIEW", reason: `Repair-to-value ratio meets or exceeds the write-off threshold (${(ECONOMIC_WRITE_OFF_THRESHOLD * 100).toFixed(0)}%)` };
+  if (agreed_cost_usd && market_value_usd) {
+    const ratio = agreed_cost_usd / market_value_usd;
+    if (ratio >= WRITE_OFF_RECOMMENDATION_THRESHOLD) {
+      return { recommendation: "REVIEW", reason: `Repair-to-value ratio meets the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% write-off recommendation threshold; human review remains required` };
+    }
+    if (ratio >= WRITE_OFF_WARNING_THRESHOLD) {
+      return { recommendation: "REVIEW", reason: `Repair-to-value ratio meets the ${Math.round(WRITE_OFF_WARNING_THRESHOLD * 100)}% early-warning threshold; assessor or reviewer attention is required` };
+    }
   }
   if (alignment_status === "PARTIALLY_ALIGNED" && input.critical_missing.length > 0) {
     return { recommendation: "REVIEW", reason: "Structural components missing from quote require clarification" };

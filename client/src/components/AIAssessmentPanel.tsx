@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, AlertTriangle, DollarSign, Shield, Activity } from "lucide-react";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { fraudLevelDisplayLabel, normaliseFraudLevel } from '../../../shared/fraudScoring';
+import { classifyRepairToValueRatio } from '../../../shared/writeOffPolicy';
 
 interface AIAssessmentPanelProps {
   claimId: number;
@@ -23,6 +24,8 @@ interface AIAssessmentPanelProps {
     fraudIndicators: string | null;
     physicsAnalysis: string | null;
     totalLossIndicated: number | null;
+    /** Repair-to-value ratio as a 0-100 percentage (matches the repair_to_value_ratio DB column). */
+    repairToValueRatio: number | null;
     structuralDamageSeverity: string | null;
     createdAt: Date;
   } | null;
@@ -248,6 +251,19 @@ export default function AIAssessmentPanel({
                 </h3>
                 <p className="text-sm text-red-600">
                   Structural Damage Severity: <strong>{aiAssessment.structuralDamageSeverity}</strong>
+                </p>
+              </div>
+            )}
+
+            {/* Write-off early-warning — 65-69.99% RTV, distinct from the 70%+ recommendation above */}
+            {aiAssessment.totalLossIndicated !== 1 && classifyRepairToValueRatio((aiAssessment.repairToValueRatio ?? 0) / 100) === "WARNING" && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                <h3 className="font-semibold text-sm text-amber-700 dark:text-amber-300 mb-2 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Approaching Write-Off Territory — Review Warning
+                </h3>
+                <p className="text-sm text-amber-600">
+                  Repair-to-value ratio {aiAssessment.repairToValueRatio}% has reached KINGA's early-warning threshold. Surface for assessor/reviewer attention; no write-off recommendation is made.
                 </p>
               </div>
             )}
