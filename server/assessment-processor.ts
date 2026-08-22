@@ -31,6 +31,7 @@ import { resolveComponent, normalizeComponentName, type VehiclePart } from '../s
 import { crossValidateQuotesVsPhotos, type CrossValidationReport } from './cross-validation';
 import { extendPhysicsValidationOutput } from './physics-quantitative-output';
 import { validatePhysicsAnalysis, type PhysicsAnalysis as TypedPhysicsAnalysis } from '../shared/physics-types';
+import { WRITE_OFF_RECOMMENDATION_THRESHOLD } from '../shared/writeOffPolicy';
 
 // ============================================================
 // TYPE DEFINITIONS
@@ -547,8 +548,8 @@ function validateNarrative(
   }
   
   // Cost vs market value check
-  if (marketValue > 0 && totalCost > marketValue * 0.7) {
-    concerns.push(`Repair cost ($${totalCost}) exceeds 70% of market value ($${marketValue}) — consider write-off`);
+  if (marketValue > 0 && totalCost >= marketValue * WRITE_OFF_RECOMMENDATION_THRESHOLD) {
+    concerns.push(`Repair cost ($${totalCost}) exceeds the ${Math.round(WRITE_OFF_RECOMMENDATION_THRESHOLD * 100)}% recommendation threshold of market value ($${marketValue}) — recommend human write-off review`);
     score -= 5;
   }
   

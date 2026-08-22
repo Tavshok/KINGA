@@ -30,6 +30,7 @@ import {
   Legend,
 } from "chart.js";
 import { Bar, Radar } from "react-chartjs-2";
+import { WRITE_OFF_RECOMMENDATION_THRESHOLD, WRITE_OFF_WARNING_THRESHOLD, WRITE_OFF_UI_LABELS } from "@shared/writeOffPolicy";
 
 ChartJS.register(
   CategoryScale,
@@ -899,9 +900,9 @@ export function CostWaterfallChart({ data }: { data: CostWaterfallData }) {
 
   if (labels.length === 0) return null;
 
-  // 70% write-off threshold line — only shown when marketValueUsd is available
-  const writeOffThreshold = marketValueUsd && marketValueUsd > 0 ? marketValueUsd * 0.70 : null;
-  const maxVal = Math.max(...values, writeOffThreshold ?? 0, 1);
+  const writeOffWarningThreshold = marketValueUsd && marketValueUsd > 0 ? marketValueUsd * WRITE_OFF_WARNING_THRESHOLD : null;
+  const writeOffRecommendationThreshold = marketValueUsd && marketValueUsd > 0 ? marketValueUsd * WRITE_OFF_RECOMMENDATION_THRESHOLD : null;
+  const maxVal = Math.max(...values, writeOffWarningThreshold ?? 0, writeOffRecommendationThreshold ?? 0, 1);
 
   const chartData = {
     labels,
@@ -917,31 +918,37 @@ export function CostWaterfallChart({ data }: { data: CostWaterfallData }) {
     ],
   };
 
-  // Chart.js annotation plugin is not registered here — we use a custom afterDraw plugin
-  // to draw the 70% threshold vertical line directly on the canvas.
-  const writeOffPlugin = writeOffThreshold
+  // Chart.js annotation plugin is not registered here — a custom afterDraw plugin
+  // draws the decision-distinct warning and recommendation lines on the canvas.
+  const writeOffPlugin = writeOffWarningThreshold && writeOffRecommendationThreshold
     ? {
-        id: "writeOffLine",
+        id: "writeOffPolicyLines",
         afterDraw(chart: any) {
           const { ctx, scales } = chart;
           const xScale = scales.x;
           if (!xScale) return;
-          const xPx = xScale.getPixelForValue(writeOffThreshold);
           const { top, bottom } = chart.chartArea;
-          ctx.save();
-          ctx.beginPath();
-          ctx.setLineDash([5, 4]);
-          ctx.strokeStyle = colors.red;
-          ctx.lineWidth = 1.5;
-          ctx.moveTo(xPx, top);
-          ctx.lineTo(xPx, bottom);
-          ctx.stroke();
-          // Label
-          ctx.font = "bold 9px Inter, sans-serif";
-          ctx.fillStyle = colors.red;
-          ctx.textAlign = "center";
-          ctx.fillText("70% write-off", xPx, top - 4);
-          ctx.restore();
+          // The 65% and 70% thresholds are frequently only a few percent of the axis
+          // apart, so the two labels are drawn on staggered rows (rather than both at
+          // the same y) to guarantee they never overlap regardless of x proximity.
+          const drawPolicyLine = (value: number, color: string, label: string, labelY: number) => {
+            const xPx = xScale.getPixelForValue(value);
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([5, 4]);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.moveTo(xPx, top);
+            ctx.lineTo(xPx, bottom);
+            ctx.stroke();
+            ctx.font = "bold 9px Inter, sans-serif";
+            ctx.fillStyle = color;
+            ctx.textAlign = "center";
+            ctx.fillText(label, xPx, labelY);
+            ctx.restore();
+          };
+          drawPolicyLine(writeOffWarningThreshold, colors.amber, WRITE_OFF_UI_LABELS.warning, top - 14);
+          drawPolicyLine(writeOffRecommendationThreshold, colors.red, WRITE_OFF_UI_LABELS.recommendation, top - 4);
         },
       }
     : null;
@@ -987,11 +994,12 @@ export function CostWaterfallChart({ data }: { data: CostWaterfallData }) {
           plugins={writeOffPlugin ? [writeOffPlugin] : []}
         />
       </div>
-      {writeOffThreshold && (
+      {writeOffWarningThreshold && writeOffRecommendationThreshold && (
         <p className="text-xs" style={{ color: colors.muted }}>
+          <span style={{ color: colors.amber, fontWeight: 700 }}>— — —</span>
+          {" "}65% review warning ({fmt(writeOffWarningThreshold)}) surfaces approaching write-off territory without making a recommendation. {" "}
           <span style={{ color: colors.red, fontWeight: 700 }}>— — —</span>
-          {" "}70% write-off indicator ({fmt(writeOffThreshold)}) is a guideline only, not a binding threshold.
-          Final write-off determination requires insurer authorisation.
+          {" "}70% recommendation threshold ({fmt(writeOffRecommendationThreshold)}) supports a human-overridable KINGA write-off recommendation; final determination requires insurer authorisation.
         </p>
       )}
       {quoteOverpriced && (

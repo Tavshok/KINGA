@@ -19,6 +19,7 @@ import { QuoteComparison } from "@/components/QuoteComparison";
 import { generateComparisonPDF, generateDamageReportPDF } from "@/lib/pdfExport";
 import ThemeToggle from "@/components/ThemeToggle";
 import PhysicsConfidenceDashboard from "@/components/PhysicsConfidenceDashboard";
+import { classifyRepairToValueRatio } from "@shared/writeOffPolicy";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
 import { QuoteOptimisationPanel } from "@/components/QuoteOptimisationPanel";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
@@ -2501,6 +2502,22 @@ function ExecutiveSummaryInline({
   const fraudLevel = (normalisedFraudLevel ?? aiAssessment.fraudRiskLevel ?? 'unknown') as string;
   const confidence = aiAssessment.confidenceScore || 0;
   const isTotalLoss = aiAssessment.totalLossIndicated === 1;
+  // Prefer the pipeline's own un-rounded verdict (costIntelligenceJson.repairabilityDecision)
+  // over re-deriving one from the persisted integer-percentage ratio: repairToValueRatio is
+  // stored as Math.round(ratio * 100), so a true ratio like 0.696 rounds to 70 and would
+  // otherwise misclassify as RECOMMENDATION here while totalLossIndicated stays false.
+  const repairabilityWarningFromJson = (() => {
+    try {
+      const ci = aiAssessment.costIntelligenceJson ? JSON.parse(aiAssessment.costIntelligenceJson) : null;
+      return ci?.repairabilityDecision?.writeOffWarning === true;
+    } catch { return false; }
+  })();
+  const writeOffBand = isTotalLoss ? "RECOMMENDATION" : classifyRepairToValueRatio((aiAssessment.repairToValueRatio ?? 0) / 100);
+  // Also treat a rounded-up RECOMMENDATION band as a warning (not silently "repair") when
+  // totalLossIndicated itself is false — that combination only occurs at the 69.5-69.99%
+  // rounding boundary, never a genuine recommendation, since a real recommendation always
+  // sets totalLossIndicated.
+  const isWriteOffWarning = !isTotalLoss && (repairabilityWarningFromJson || writeOffBand === "WARNING" || writeOffBand === "RECOMMENDATION");
   const fraudColor =
     fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical' ? 'text-red-400' :
     fraudLevel === 'moderate' || fraudLevel === 'medium' ? 'text-amber-400' :
@@ -2519,7 +2536,7 @@ function ExecutiveSummaryInline({
     { label: 'Avg Quote', value: avgQuote > 0 ? `${currencySymbol(claim?.currencyCode)}${avgQuote.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'No quotes' },
     { label: 'Fraud Risk', value: fraudLevel.toUpperCase(), className: fraudColor },
     { label: 'KINGA Confidence', value: `${confidence}%` },
-    { label: 'Outcome', value: isTotalLoss ? 'Total Loss' : (fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical') ? 'Investigate' : 'Proceed with Repair', className: isTotalLoss || (fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical') ? 'text-red-400' : 'text-green-400' },
+    { label: 'Outcome', value: isTotalLoss ? 'Total Loss' : isWriteOffWarning ? 'Review Warning' : (fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical') ? 'Investigate' : 'Proceed with Repair', className: isTotalLoss || (fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical') ? 'text-red-400' : isWriteOffWarning ? 'text-amber-400' : 'text-green-400' },
   ];
 
   return (
@@ -2548,6 +2565,19 @@ function ExecutiveSummaryInline({
             )}
             {aiAssessment.repairToValueRatio && (
               <p className="text-xs text-red-400 mt-1">Repair/Value Ratio: {aiAssessment.repairToValueRatio}%</p>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Write-off early-warning — 65-69.99% RTV, distinct from the total-loss recommendation above */}
+      {!isTotalLoss && isWriteOffWarning && (
+        <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-amber-500" style={{ background: 'var(--fp-warning-bg, rgba(245, 158, 11, 0.1))' }}>
+          <span className="text-amber-400 font-bold text-lg flex-shrink-0">⚠</span>
+          <div>
+            <p className="font-bold text-amber-400 mb-1">APPROACHING WRITE-OFF TERRITORY — REVIEW WARNING</p>
+            <p className="text-sm text-amber-300">Repair-to-value ratio has reached KINGA's early-warning threshold. Surface for assessor/reviewer attention; no write-off recommendation is made.</p>
+            {aiAssessment.repairToValueRatio && (
+              <p className="text-xs text-amber-400 mt-1">Repair/Value Ratio: {aiAssessment.repairToValueRatio}%</p>
             )}
           </div>
         </div>

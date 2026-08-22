@@ -11,7 +11,7 @@
 
 import { ensurePhysicsContract } from "./engineFallback";
 import { isPhysicsEligibleVisionComponent } from "./imageEvidenceEligibility";
-import { ECONOMIC_WRITE_OFF_THRESHOLD } from "./pipelineCostConstants";
+import { WRITE_OFF_RECOMMENDATION_THRESHOLD } from "./pipelineCostConstants";
 import {
   applyPhysicsNumericalContract,
   mergeNumericalContract,
@@ -1029,7 +1029,7 @@ export async function runPhysicsStage(
         damagedZoneCount,
         // Damage severity context for crush-depth plausibility check
         damageSeverity: output.accidentSeverity ?? null,
-        totalLossIndicated: !!(claimRecord.valuation?.repairToValueRatio && claimRecord.valuation.repairToValueRatio >= ECONOMIC_WRITE_OFF_THRESHOLD),
+        totalLossIndicated: !!(claimRecord.valuation?.repairToValueRatio && claimRecord.valuation.repairToValueRatio >= WRITE_OFF_RECOMMENDATION_THRESHOLD),
         // M7: Claimant-stated speed from claim documents.
         // MUST read from ctx.claimantStatedSpeedKmh — the IMMUTABLE field set once
         // after Stage 5 from the original Stage 3 extraction. DO NOT use

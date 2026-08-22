@@ -120,10 +120,10 @@ describe("REVIEW — partially aligned with structural gap", () => {
   });
 });
 
-// ─── REVIEW: repair-to-value near threshold ───────────────────────────────────
+// ─── REVIEW: repair-to-value recommendation threshold ─────────────────────────
 
-describe("REVIEW — repair-to-value near total-loss threshold", () => {
-  it("should recommend REVIEW when RTV >= 70%", () => {
+describe("REVIEW — repair-to-value write-off recommendation threshold", () => {
+  it("recommends human review and write-off consideration when RTV reaches 70%", () => {
     const input: CostNarrativeInput = {
       ...ISUZU_INPUT,
       agreed_cost_usd: 12500.00,
@@ -133,7 +133,8 @@ describe("REVIEW — repair-to-value near total-loss threshold", () => {
     };
     const result = generateCostIntelligenceNarrative(input);
     expect(result.recommendation).toBe("REVIEW");
-    expect(result.narrative.toLowerCase()).toContain("total-loss");
+    expect(result.narrative.toLowerCase()).toContain("write-off recommendation threshold");
+    expect(result.narrative.toLowerCase()).toContain("human assessor or insurer review remains required");
   });
 });
 
