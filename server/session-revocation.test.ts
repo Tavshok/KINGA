@@ -95,14 +95,35 @@ describe("Session revocation — isActive check in authenticateRequest", () => {
   });
 
   /**
-   * Test 3: Documents the known limitation — hard-delete does NOT revoke the JWT.
-   * Skipped because it requires a live OAuth mock.
+   * Test 3 (P0 acceptance criterion): a hard-deleted user must not be recreated
+   * from a still-valid session JWT. This uses the real configured database.
    */
-  it.skip("documents known limitation: hard-delete does not revoke JWT (use deactivateUser instead)", () => {
-    // If a user row is hard-deleted, authenticateRequest will attempt to
-    // re-sync from OAuth. If OAuth still has the user, they will be re-created
-    // with isActive=1 and the JWT will be accepted again.
-    // Mitigation: never hard-delete users; always use admin.deactivateUser.
+  it("rejects a still-valid JWT after its non-owner user row is hard-deleted without re-provisioning", async () => {
+    const { sdk } = await import("./_core/sdk");
+    const db = await import("./db");
+    const dbConn = await db.getDb();
+    if (!dbConn) throw new Error("DB unavailable in test");
+    const { users } = await import("../drizzle/schema");
+    const { eq } = await import("drizzle-orm");
+
+    const openId = `test-revocation-hard-delete-${Date.now()}`;
+    await db.upsertUser({
+      openId,
+      name: "Hard Delete Test User",
+      email: `${openId}@test.local`,
+      loginMethod: "test",
+      lastSignedIn: new Date().toISOString(),
+    });
+
+    const token = await sdk.createSessionToken(openId, { name: "Hard Delete Test User" });
+    await dbConn.delete(users).where(eq(users.openId, openId));
+
+    await expect(sdk.authenticateRequest(makeCookieRequest(token))).rejects.toMatchObject({
+      message: expect.stringContaining("not found"),
+    });
+
+    const recreated = await db.getUserByOpenId(openId);
+    expect(recreated).toBeUndefined();
   });
 
   /**

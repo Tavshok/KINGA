@@ -351,66 +351,15 @@ class SDKServer {
     const signedInAt = new Date().toISOString();
     let user = await db.getUserByOpenId(sessionUserId);
 
-    // ── KINGA-AUTH-01: Fail-closed re-sync guard ──────────────────────────────
-    // Only the platform owner (ENV.ownerOpenId) is auto-synced from the OAuth
-    // server when not found in the DB. All other missing users are rejected
-    // immediately with FORBIDDEN.
-    //
-    // Previously, any authenticated user not found in the DB was re-synced,
-    // which allowed hard-deleted users to be re-created on every request because
-    // their JWT remains valid for 1 year. This fix ensures that removing a user
-    // from the DB is a permanent revocation. The correct revocation path is
-    // admin.deactivateUser (sets isActive=0); hard-deleting a row is also safe
-    // now because missing users are rejected rather than re-created.
+    // ── KINGA-AUTH-01: fail closed for every missing identity ─────────────────
+    // A valid session proves token origin, not continuing account entitlement.
+    // If the DB row is absent, it may have been deleted as a revocation action.
+    // Do not re-sync or upsert from an authenticated request: that would recreate
+    // a deleted identity (including via a stale JWT) and defeat revocation.
+    // Interactive OAuth callback is the only account-provisioning path.
     if (!user) {
-      if (sessionUserId === ENV.ownerOpenId) {
-        // Owner auto-sync path (kept for backward compatibility)
-        try {
-          const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
-          await db.upsertUser({
-            openId: userInfo.openId,
-            name: userInfo.name || null,
-            email: userInfo.email ?? null,
-            loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-            lastSignedIn: signedInAt,
-          });
-          user = await db.getUserByOpenId(userInfo.openId);
-        } catch (error) {
-          console.error("[Auth] Failed to sync owner from OAuth:", error);
-          throw ForbiddenError("Failed to sync owner info");
-        }
-      } else {
-        // KINGA-AUTH-02: First-login auto-sync for all OAuth-verified users.
-        //
-        // The OAuth callback calls upsertUser before setting the cookie, but there
-        // is a race condition on the deployed Cloud Run instance: the DB write may
-        // not be visible to the next request (different instance, read replica lag,
-        // or the callback errored silently after setting the cookie).
-        //
-        // Since the JWT was signed by our own server (JWT_SECRET), the user's
-        // identity is already verified. We can safely re-sync them from the OAuth
-        // server rather than permanently locking them out.
-        //
-        // Hard-deleted users: the isActive=0 revocation check below handles this.
-        // If an admin wants to permanently revoke access, they should use
-        // admin.deactivateUser (sets isActive=0) rather than hard-deleting the row.
-        console.info(`[Auth] User openId=${sessionUserId} not in DB — attempting OAuth re-sync`);
-        try {
-          await db.upsertUser({
-            openId: sessionUserId,
-            lastSignedIn: signedInAt,
-          });
-          user = await db.getUserByOpenId(sessionUserId);
-          console.info(`[Auth] Re-sync successful for openId=${sessionUserId}`);
-        } catch (error) {
-          console.error("[Auth] Failed to re-sync user from OAuth:", error);
-          throw ForbiddenError("User not found and re-sync failed");
-        }
-      }
-    }
-
-    if (!user) {
-      throw ForbiddenError("User not found after owner sync");
+      console.warn(`[Auth] Rejected missing user openId=${sessionUserId}`);
+      throw ForbiddenError("User not found");
     }
 
     // ── Revocation check ──────────────────────────────────────────────────────
@@ -422,10 +371,9 @@ class SDKServer {
       throw ForbiddenError("Account has been deactivated");
     }
 
-    await db.upsertUser({
-      openId: user.openId,
-      lastSignedIn: signedInAt,
-    });
+    // Update only an existing row. Upsert here could recreate an account if an
+    // administrator deletes it between the read above and this activity update.
+    await db.updateUserLastSignedIn(user.openId, signedInAt);
 
     return user;
   }
