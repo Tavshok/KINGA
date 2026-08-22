@@ -278,6 +278,33 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 }
 
+/**
+ * Update authentication activity for an existing user only.
+ *
+ * This deliberately uses UPDATE rather than upsert: an authenticated request
+ * must never recreate an account that was removed after its session was issued.
+ */
+export async function updateUserLastSignedIn(
+  openId: string,
+  lastSignedIn: string,
+): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot update user sign-in activity: database not available");
+    return;
+  }
+
+  try {
+    await db
+      .update(users)
+      .set({ lastSignedIn })
+      .where(eq(users.openId, openId));
+  } catch (error) {
+    console.error("[Database] Failed to update user sign-in activity:", error);
+    throw error;
+  }
+}
+
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) {
