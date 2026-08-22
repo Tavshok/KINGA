@@ -49,6 +49,7 @@ import { classifyRepairToValueRatio } from "../../shared/writeOffPolicy";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
+import { resolveCanonicalClaimReportPresentation } from "./canonicalClaimReportPresentation";
 import { assessors, fraudIndicators, tenants, users } from "../../drizzle/schema";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct as kFmtPct,
@@ -225,6 +226,12 @@ async function generateClaimAssessmentReport(
     const claim = claims[0];
     if (!claim) throw new Error(`Claim ${claimId} not found`);
 
+    // Shared CL/CI/FR fields must flow through the canonical resolver pair.
+    // Report-specific evidence may still be loaded below, but it must not
+    // independently select fraud, cost, or decision values for presentation.
+    const canonicalPresentation = resolveCanonicalClaimReportPresentation(claim);
+    const canonicalReport = canonicalPresentation.report;
+
     const physics = safeJson(claim.physics_analysis);
     // ARCH-02: Parse physics_truth_json (PTL) as primary source; fall back to legacy physics_analysis
     const physicsTruthCL = safeJson(claim.physics_truth_json) as any;
@@ -326,22 +333,16 @@ async function generateClaimAssessmentReport(
       };
     }).sort((a, b) => b.estimated_cost - a.estimated_cost);
 
-    // FRAUD-RECONCILE: Use fraud_score_breakdown_json.overallScore as canonical when available.
-    // This ensures the header scorecard and the Appendix A fraud section show the same number.
-    // a.fraud_score (the stored column) may differ if it was set by a different pipeline stage.
+    // The normalisation contract owns fraud-score priority and contradiction handling.
     const fraudScoreRaw = Number(claim.fraud_score ?? 0);
     const fraudBreakOverall = (fraud as any)?.overallScore ?? (fraud as any)?.compositeScore ?? null;
-    const fraudScore = fraudBreakOverall != null ? Number(fraudBreakOverall) : fraudScoreRaw;
-    const fraudScoreMismatch = fraudBreakOverall != null && Math.abs(Number(fraudBreakOverall) - fraudScoreRaw) >= 5;
+    const fraudScore = canonicalReport.fraud.score;
+    const fraudScoreMismatch = fraudBreakOverall != null && Math.abs(Number(fraudBreakOverall) - fraudScore) >= 5;
     const confidenceScore = Number(claim.confidence_score ?? 0);
-    // estimatedCost: ai_assessments.estimated_cost is stored in CENTS — divide by 100.
-    // Documented agreed cost is calibration evidence only; it is not an L2 or
-    // settlement fallback for this report.
-    const estimatedCostRaw = Number(claim.estimated_cost ?? 0);
-    const estimatedCost = estimatedCostRaw > 0 ? estimatedCostRaw / 100 : 0;
+    const estimatedCost = canonicalReport.costs.aiEstimateUsd ?? 0;
     const costIntegrity = resolveReportCostIntegrity(costIntel, quoteRows as unknown[]);
     const reportDecision = resolveReportDecisionIntegrity({
-      recommendation: claim.recommendation,
+      recommendation: canonicalReport.verdict.verdict,
       workflowState: claim.workflow_state ?? claim.status,
       costIntegrity,
     });
