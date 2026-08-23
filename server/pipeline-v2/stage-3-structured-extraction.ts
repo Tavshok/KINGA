@@ -609,6 +609,10 @@ const NON_LATIN_BLOCK_RE = /[\u0400-\u04FF\u0500-\u052F\u0370-\u03FF\u0600-\u06F
 /** Regex matching OCR garbage: replacement chars, control chars, excessive symbols */
 const OCR_GARBAGE_RE = /[\uFFFD\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g;
 
+// CALIBRATION: origin unknown, do not change without benchmarking.
+const MIN_GARBLED_TEXT_CHARS = 20;
+const MIN_EXTRACTED_NARRATIVE_CHARS = 20;
+
 /**
  * Detect whether a string is predominantly garbled.
  * Returns true if the text should be treated as unreadable.
@@ -627,7 +631,7 @@ function isGarbledText(text: string): boolean {
   // Flag as garbled if >10% of characters are OCR garbage
   if (garbageRatio > 0.10) return true;
   // Flag as garbled if the string has no spaces and >20 chars (no word boundaries)
-  if (!text.includes(' ') && len > 20 && /[^a-zA-Z0-9\-\/\.]/.test(text)) return true;
+  if (!text.includes(' ') && len > MIN_GARBLED_TEXT_CHARS && /[^a-zA-Z0-9\-\/\.]/.test(text)) return true;
   return false;
 }
 
@@ -843,7 +847,7 @@ const DAMAGE_COMPONENT_KEYWORDS = [
  * Prioritises agreed/adjusted cost over original quote.
  */
 function recoverQuoteFromText(rawText: string): RecoveredQuote | null {
-  if (!rawText || rawText.trim().length < 20) return null;
+  if (!rawText || rawText.trim().length < MIN_EXTRACTED_NARRATIVE_CHARS) return null;
 
     // R-A-18/C-A-04 FIX: Added ZiG and ZWG to all currency prefix patterns.
   // R-CX-01b FIX: Extended all patterns to cover multi-country SADC/African currencies:
