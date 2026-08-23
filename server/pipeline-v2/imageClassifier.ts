@@ -125,6 +125,8 @@ export interface ClassificationResult {
  * CALIBRATION: origin unknown — do not change without benchmarking.
  */
 const HIGH_CONFIDENCE_THRESHOLD = 0.80;
+// CALIBRATION: origin unknown, do not change without benchmarking.
+const FALLBACK_POOL_CONFIDENCE_FLOOR = 0.4;
 
 /**
  * Heuristic score below which the classifier trusts the heuristic result directly
@@ -731,7 +733,7 @@ export async function classifyExtractedImages(
   for (const img of allClassified) {
     // Low-confidence classifications go to fallback pool for low-priority analysis
     // CALIBRATION: 0.4 confidence floor — origin unknown, do not change without benchmarking.
-    if (img.confidence < 0.4 && img.category !== 'document_page') {
+    if (img.confidence < FALLBACK_POOL_CONFIDENCE_FLOOR && img.category !== 'document_page') {
       result.fallbackPool.push(img);
       continue;
     }
