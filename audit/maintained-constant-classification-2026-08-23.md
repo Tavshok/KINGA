@@ -26,6 +26,7 @@ This note tracks the narrowed maintainability batch approved for the preserved `
 | `server/pipeline-v2/costDecisionEngine.ts` lines 175/177/798 (`20`, `30`, `80`) | Current | Exclude from extraction | Live source already names its negotiation, review, and anomaly thresholds in the constants block |
 | `server/pipeline-v2/photoForensicsEngine.ts` line 372 (`120`) | Current | Exclude from extraction | Numeric image-analysis examples inside an LLM prompt, not an executable threshold |
 | `server/pipeline-v2/evidenceStrengthScorer.ts` lines 144/148 (`0.36`, `0.18`) | Current | Exclude from extraction | Live source already names both assumption penalty caps as exported constants |
+| `server/pipeline-v2/scenarioFraudEngine.ts` lines 53/54/101/604/614/810 (`48`, `90`) | Current | Exclude from extraction | Values appear only in comments and flag narratives; the actual `recently_purchased` condition is supplied by enrichment rather than a runtime day-count comparison in this module |
 
 ## Reviewed extractions already preserved on branch
 
