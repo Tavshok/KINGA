@@ -117,72 +117,6 @@
     },
     {
       "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 165,
-      "value": "0.5",
-      "context": "let score = 0.5; // Start neutral"
-    },
-    {
-      "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 170,
-      "value": "0.35",
-      "context": "score -= 0.35;"
-    },
-    {
-      "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 182,
-      "value": "0.10",
-      "context": "score -= 0.10;"
-    },
-    {
-      "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 212,
-      "value": "0.15",
-      "context": "score += 0.15;"
-    },
-    {
-      "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 218,
-      "value": "0.15",
-      "context": "score -= 0.15;"
-    },
-    {
-      "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 224,
-      "value": "0.10",
-      "context": "score += 0.10;"
-    },
-    {
-      "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 227,
-      "value": "0.10",
-      "context": "score -= 0.10;"
-    },
-    {
-      "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 234,
-      "value": "0.10",
-      "context": "score += 0.10;"
-    },
-    {
-      "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 237,
-      "value": "0.15",
-      "context": "score -= 0.15;"
-    },
-    {
-      "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 243,
-      "value": "0.15",
-      "context": "score -= 0.15;"
-    },
-    {
-      "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 249,
-      "value": "0.25",
-      "context": "score -= 0.25;"
-    },
-    {
-      "file": "server/pipeline-v2/imageClassifier.ts",
       "line": 699,
       "value": "0.4",
       "context": "if (img.confidence < 0.4 && img.category !== 'document_page') {"
@@ -249,24 +183,6 @@
     },
     {
       "file": "server/pipeline-v2/scenarioFraudEngine.ts",
-      "line": 481,
-      "value": "55",
-      "context": "if (score >= 55) return \"HIGH\";"
-    },
-    {
-      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
-      "line": 482,
-      "value": "25",
-      "context": "if (score >= 25) return \"MEDIUM\";"
-    },
-    {
-      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
-      "line": 536,
-      "value": "30",
-      "context": "profile.police_report_score >= 30 ? \"HIGH\" : \"MEDIUM\","
-    },
-    {
-      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
       "line": 604,
       "value": "48",
       "context": "`A significant gap exists in the incident timeline (> 48 hours unexplained). ` +"
@@ -308,46 +224,10 @@
       "context": "severity: highestQuoteDeviationPct > 80 ? \"critical\" : \"high\","
     },
     {
-      "file": "server/pipeline-v2/quoteOptimisationEngine.ts",
-      "line": 848,
-      "value": "20",
-      "context": "if (cv <= 20) return `Submitted prices are consistent across repairers (CV ${cv}%) — lowest submitted price selected wit"
-    },
-    {
-      "file": "server/pipeline-v2/quoteOptimisationEngine.ts",
-      "line": 849,
-      "value": "40",
-      "context": "if (cv <= 40) return `Moderate price variation across repairers (CV ${cv}%) — lowest credible submitted price selected.`"
-    },
-    {
-      "file": "server/pipeline-v2/quoteOptimisationEngine.ts",
-      "line": 903,
-      "value": "50",
-      "context": "if (pct > 50) {"
-    },
-    {
       "file": "server/pipeline-v2/stage-5-assembly.ts",
       "line": 483,
       "value": "2020",
       "context": "? `- Zimbabwe uses USD cash transactions for vehicle sales. Prices are NOT discounted vs SA.\\n- Import duties and scarci"
-    },
-    {
-      "file": "server/pipeline-v2/decisionReadinessEngine.ts",
-      "line": 314,
-      "value": "60",
-      "context": "classification_confidence < 60"
-    },
-    {
-      "file": "server/pipeline-v2/decisionReadinessEngine.ts",
-      "line": 380,
-      "value": "40",
-      "context": "physics_confidence < 40"
-    },
-    {
-      "file": "server/pipeline-v2/decisionReadinessEngine.ts",
-      "line": 437,
-      "value": "50",
-      "context": "cost_confidence < 50"
     },
     {
       "file": "server/pipeline-v2/evidenceStrengthScorer.ts",
@@ -442,6 +322,72 @@
       "context": "const isDuplicate = seenHashes.some(h => hammingDistance(h, hash) <= 8);"
     },
     {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 165,
+      "value": "0.5",
+      "context": "let score = 0.5; // Start neutral"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 170,
+      "value": "0.35",
+      "context": "score -= 0.35;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 182,
+      "value": "0.10",
+      "context": "score -= 0.10;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 212,
+      "value": "0.15",
+      "context": "score += 0.15;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 218,
+      "value": "0.15",
+      "context": "score -= 0.15;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 224,
+      "value": "0.10",
+      "context": "score += 0.10;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 227,
+      "value": "0.10",
+      "context": "score -= 0.10;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 234,
+      "value": "0.10",
+      "context": "score += 0.10;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 237,
+      "value": "0.15",
+      "context": "score -= 0.15;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 243,
+      "value": "0.15",
+      "context": "score -= 0.15;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 249,
+      "value": "0.25",
+      "context": "score -= 0.25;"
+    },
+    {
       "file": "server/pipeline-v2/speedInferenceEnsemble.ts",
       "line": 102,
       "value": "40",
@@ -472,6 +418,24 @@
       "context": "if (score < 55) return \"moderate\";"
     },
     {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 481,
+      "value": "55",
+      "context": "if (score >= 55) return \"HIGH\";"
+    },
+    {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 482,
+      "value": "25",
+      "context": "if (score >= 25) return \"MEDIUM\";"
+    },
+    {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 536,
+      "value": "30",
+      "context": "profile.police_report_score >= 30 ? \"HIGH\" : \"MEDIUM\","
+    },
+    {
       "file": "server/pipeline-v2/pipelineCostConstants.ts",
       "line": 34,
       "value": "0.65",
@@ -482,6 +446,42 @@
       "line": 845,
       "value": "20",
       "context": "if (cv <= 20) return `Submitted prices are consistent (CV ${cv}%) but failed the credibility gate — benchmark P50 used a"
+    },
+    {
+      "file": "server/pipeline-v2/quoteOptimisationEngine.ts",
+      "line": 848,
+      "value": "20",
+      "context": "if (cv <= 20) return `Submitted prices are consistent across repairers (CV ${cv}%) — lowest submitted price selected wit"
+    },
+    {
+      "file": "server/pipeline-v2/quoteOptimisationEngine.ts",
+      "line": 849,
+      "value": "40",
+      "context": "if (cv <= 40) return `Moderate price variation across repairers (CV ${cv}%) — lowest credible submitted price selected.`"
+    },
+    {
+      "file": "server/pipeline-v2/quoteOptimisationEngine.ts",
+      "line": 903,
+      "value": "50",
+      "context": "if (pct > 50) {"
+    },
+    {
+      "file": "server/pipeline-v2/decisionReadinessEngine.ts",
+      "line": 314,
+      "value": "60",
+      "context": "classification_confidence < 60"
+    },
+    {
+      "file": "server/pipeline-v2/decisionReadinessEngine.ts",
+      "line": 380,
+      "value": "40",
+      "context": "physics_confidence < 40"
+    },
+    {
+      "file": "server/pipeline-v2/decisionReadinessEngine.ts",
+      "line": 437,
+      "value": "50",
+      "context": "cost_confidence < 50"
     },
     {
       "file": "server/pipeline-v2/forensicCDI.ts",

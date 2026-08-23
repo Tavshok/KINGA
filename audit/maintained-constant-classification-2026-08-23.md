@@ -9,8 +9,8 @@ This note tracks the narrowed maintainability batch approved for the preserved `
 | Category | Count | Notes |
 |---|---:|---|
 | Recorded candidate lines in maintained inventory | 92 | Source: `scripts/magic-numbers-raw.json` |
-| Stale or changed since the maintained scan | 25 | Present in the old scan, not present in the current matching source context |
-| Current matches remaining to classify from live source | 67 | This is the true actionable pool, not 170 |
+| Stale, changed, or now-named since the maintained scan | 45 | Present in the old scan but absent from the current matching source context after verified extractions |
+| Current matches remaining to classify from live source | 47 | This is the true remaining review pool, not 170 |
 | Executable threshold references already extracted on branch | 29 | No effective-value change |
 
 ## Reviewed exclusions so far
@@ -40,4 +40,4 @@ This note tracks the narrowed maintainability batch approved for the preserved `
 
 ## Working conclusion
 
-The maintained scan’s true remaining scope is already **materially smaller than 170**. Even before finishing classification, the actionable pool is capped at **67 current matches**, and that pool will shrink further as already-named values, prompt examples, and grouped request-budget literals are excluded with rationale.
+The maintained scan’s true remaining scope is already **materially smaller than 170**. After the verified initial extractions, the remaining review pool is **47 current matches**; it will shrink further as already-named values, prompt examples, and grouped request-budget literals are excluded with rationale.
