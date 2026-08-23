@@ -611,7 +611,6 @@ const OCR_GARBAGE_RE = /[\uFFFD\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u00
 
 // CALIBRATION: origin unknown, do not change without benchmarking.
 const MIN_GARBLED_TEXT_CHARS = 20;
-const MIN_EXTRACTED_NARRATIVE_CHARS = 20;
 
 /**
  * Detect whether a string is predominantly garbled.
@@ -847,7 +846,7 @@ const DAMAGE_COMPONENT_KEYWORDS = [
  * Prioritises agreed/adjusted cost over original quote.
  */
 function recoverQuoteFromText(rawText: string): RecoveredQuote | null {
-  if (!rawText || rawText.trim().length < MIN_EXTRACTED_NARRATIVE_CHARS) return null;
+  if (!rawText || rawText.trim().length < 20) return null;
 
     // R-A-18/C-A-04 FIX: Added ZiG and ZWG to all currency prefix patterns.
   // R-CX-01b FIX: Extended all patterns to cover multi-country SADC/African currencies:
