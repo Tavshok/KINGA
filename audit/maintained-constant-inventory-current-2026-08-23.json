@@ -80,12 +80,6 @@
       "context": "const MAX_TOTAL = 24000; // total budget sent to detection LLM"
     },
     {
-      "file": "server/pipeline-v2/quoteExtractionEngine.ts",
-      "line": 727,
-      "value": "0.6",
-      "context": "if (minLen > 0 && overlap / minLen >= 0.6) return true;"
-    },
-    {
       "file": "server/pipeline-v2/imageIntelligence.ts",
       "line": 316,
       "value": "0.5",
@@ -278,6 +272,12 @@
       "line": 402,
       "value": "85",
       "context": "if (fn === 85 || fn === 86) {"
+    },
+    {
+      "file": "server/pipeline-v2/quoteExtractionEngine.ts",
+      "line": 727,
+      "value": "0.6",
+      "context": "if (minLen > 0 && overlap / minLen >= 0.6) return true;"
     },
     {
       "file": "server/pipeline-v2/imageIntelligence.ts",
