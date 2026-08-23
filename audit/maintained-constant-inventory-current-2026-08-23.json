@@ -201,42 +201,6 @@
     },
     {
       "file": "server/pipeline-v2/orchestrator.ts",
-      "line": 1581,
-      "value": "70",
-      "context": "scenario_fraud_flagged: stage8Data.fraudRiskScore > 70,"
-    },
-    {
-      "file": "server/pipeline-v2/orchestrator.ts",
-      "line": 2049,
-      "value": "50",
-      "context": "is_plausible: (stage7Data.damageConsistencyScore ?? 0) >= 50,"
-    },
-    {
-      "file": "server/pipeline-v2/orchestrator.ts",
-      "line": 2051,
-      "value": "30",
-      "context": "has_critical_inconsistency: (stage7Data.damageConsistencyScore ?? 100) < 30,"
-    },
-    {
-      "file": "server/pipeline-v2/orchestrator.ts",
-      "line": 2066,
-      "value": "70",
-      "context": "scenario_fraud_flagged: (stage8Data.fraudRiskScore ?? 0) >= 70,"
-    },
-    {
-      "file": "server/pipeline-v2/orchestrator.ts",
-      "line": 2073,
-      "value": "60",
-      "context": "is_within_range: stage9Data.costDecision.confidence >= 60,"
-    },
-    {
-      "file": "server/pipeline-v2/orchestrator.ts",
-      "line": 2075,
-      "value": "50",
-      "context": "has_anomalies: (stage9Data.costDecision.confidence ?? 100) < 50,"
-    },
-    {
-      "file": "server/pipeline-v2/orchestrator.ts",
       "line": 2401,
       "value": "30",
       "context": "(claimRecord as any)?.accidentDetails?.incidentClassification?.confidence <= 30;"
@@ -521,6 +485,12 @@
     },
     {
       "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 1581,
+      "value": "70",
+      "context": "scenario_fraud_flagged: stage8Data.fraudRiskScore > 70,"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
       "line": 1788,
       "value": "40",
       "context": "if (consensusResult?.consensus_label === \"CONFLICTING\" && (consensusResult?.consensus_score ?? 100) < 40) {"
@@ -530,6 +500,36 @@
       "line": 1822,
       "value": "50",
       "context": "if (reconciliationLog && reconciliationLog.congruencyScore < 50) {"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 2049,
+      "value": "50",
+      "context": "is_plausible: (stage7Data.damageConsistencyScore ?? 0) >= 50,"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 2051,
+      "value": "30",
+      "context": "has_critical_inconsistency: (stage7Data.damageConsistencyScore ?? 100) < 30,"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 2066,
+      "value": "70",
+      "context": "scenario_fraud_flagged: (stage8Data.fraudRiskScore ?? 0) >= 70,"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 2073,
+      "value": "60",
+      "context": "is_within_range: stage9Data.costDecision.confidence >= 60,"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 2075,
+      "value": "50",
+      "context": "has_anomalies: (stage9Data.costDecision.confidence ?? 100) < 50,"
     },
     {
       "file": "server/pipeline-v2/stage-4-validation.ts",
