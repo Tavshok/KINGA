@@ -56,12 +56,6 @@
       "context": "repairCountry: { type: [\"string\", \"null\"], description: \"Country where the vehicle is being repaired. Look for the panel"
     },
     {
-      "file": "server/pipeline-v2/stage-3-structured-extraction.ts",
-      "line": 573,
-      "value": "20",
-      "context": "if (!text.includes(' ') && len > 20 && /[^a-zA-Z0-9\\-\\/\\.]/.test(text)) return true;"
-    },
-    {
       "file": "server/pdf-image-extractor.ts",
       "line": 166,
       "value": "220",
@@ -285,6 +279,12 @@
     }
   ],
   "stale_or_changed": [
+    {
+      "file": "server/pipeline-v2/stage-3-structured-extraction.ts",
+      "line": 573,
+      "value": "20",
+      "context": "if (!text.includes(' ') && len > 20 && /[^a-zA-Z0-9\\-\\/\\.]/.test(text)) return true;"
+    },
     {
       "file": "server/pipeline-v2/imageIntelligence.ts",
       "line": 114,
