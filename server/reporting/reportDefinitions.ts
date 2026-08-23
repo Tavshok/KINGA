@@ -46,6 +46,7 @@ import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { classifyRepairToValueRatio } from "../../shared/writeOffPolicy";
+import type { KingaWriteOffRecommendation, KingaWriteOffRecommendationKind } from "../../shared/writeOffRecommendation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
@@ -58,6 +59,37 @@ import {
 
 const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
+
+const KINGA_WRITE_OFF_RECOMMENDATION_KINDS = new Set<KingaWriteOffRecommendationKind>([
+  "economic_write_off_recommended",
+  "technical_write_off_recommended",
+  "economic_and_technical_write_off_recommended",
+  "economic_write_off_warning",
+  "human_review_required",
+  "repair_recommended",
+]);
+
+/**
+ * Validates persisted report JSON before it reaches the typed repairability
+ * presentation boundary. Malformed or legacy-shaped values intentionally render
+ * as absent evidence rather than being coerced into a recommendation.
+ */
+export function parseKingaWriteOffRecommendation(value: unknown): KingaWriteOffRecommendation | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  if (
+    typeof candidate.kind !== "string"
+    || !KINGA_WRITE_OFF_RECOMMENDATION_KINDS.has(candidate.kind as KingaWriteOffRecommendationKind)
+    || typeof candidate.label !== "string"
+    || typeof candidate.detail !== "string"
+    || typeof candidate.writeOffRecommended !== "boolean"
+    || typeof candidate.writeOffWarning !== "boolean"
+    || (candidate.repairToValueRatio !== null && (typeof candidate.repairToValueRatio !== "number" || !Number.isFinite(candidate.repairToValueRatio)))
+    || typeof candidate.economicEvidenceComplete !== "boolean"
+    || typeof candidate.technicalEvidenceComplete !== "boolean"
+  ) return null;
+  return candidate as KingaWriteOffRecommendation;
+}
 
 // ─── Report Role Access Map ───────────────────────────────────────────────────
 // Each report key maps to the EXACT set of roles that may access it.
@@ -327,7 +359,7 @@ async function generateClaimAssessmentReport(
       repairability: {
         totalLossIndicated: Boolean(claim.total_loss_indicated),
         repairToValueRatio: claim.repair_to_value_ratio == null ? null : Number(claim.repair_to_value_ratio),
-        kingaRecommendation: costIntel?.repairabilityDecision ?? null,
+        kingaRecommendation: parseKingaWriteOffRecommendation(costIntel?.repairabilityDecision),
         ...extractExplicitStructuralReviewEvidence(claim.repair_intelligence_json),
       },
     });
