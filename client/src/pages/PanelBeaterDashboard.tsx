@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Render the Panel Beater Dashboard route and coordinate its role-specific KINGA client experience.
+ * PRIMARY CALLERS: The client route registry and authenticated user navigation.
+ * NEVER: Bypass typed tRPC contracts or decide tenant, role, or workflow authority in the browser.
+ */
+
 import React, { useState, useMemo, useCallback } from "react";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, ScatterController } from 'chart.js';
 import { Bar, Scatter, Doughnut, Line } from 'react-chartjs-2';
