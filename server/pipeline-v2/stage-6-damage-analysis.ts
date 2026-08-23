@@ -112,6 +112,8 @@ async function withRetry<T>(
 // Returns { accessible, httpStatus }. Falls back to accessible=true on network
 // errors so that a proxy/CORS issue never silently drops a valid URL.
 const HTTP_CLIENT_ERROR_STATUS = 400;
+// CALIBRATION: high confidence that a direction-filtered component is an LLM vision error.
+const DIRECTION_FILTER_EXCLUSION_CONFIDENCE = 0.85;
 
 async function checkUrlAccessibility(url: string): Promise<{ accessible: boolean; httpStatus?: number }> {
   try {
@@ -1839,9 +1841,8 @@ export async function runDamageAnalysisStage(
             reason: `Collision direction is '${collisionDirForFilter}'; components in zones [${badZones.join(", ")}] ` +
                     `are physically implausible for this incident type and are likely LLM vision errors.`,
             strategy: "contextual_inference" as const,
-            // CALIBRATION: 0.85 confidence for direction-filter exclusion is engineering-judgment.
-            // This represents "high confidence" that the excluded components are LLM vision errors.
-            confidence: 0.85,
+            // CALIBRATION: this represents high confidence that the excluded components are LLM vision errors.
+            confidence: DIRECTION_FILTER_EXCLUSION_CONFIDENCE,
             stage: "Stage 6 direction filter",
           });
           damagedParts = filtered;
