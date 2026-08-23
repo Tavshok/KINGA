@@ -156,6 +156,8 @@ async function extractFeatures(url: string): Promise<ImageFeatures | null> {
 
 // ── Scoring function ──────────────────────────────────────────────────────────
 function scoreDamageLikelihood(f: ImageFeatures): number {
+  // CALIBRATION: origin unknown, do not change without benchmarking against labelled image classifications.
+  const MIN_TYPICAL_PHOTO_ASPECT_RATIO = 0.5;
   // Weighted formula — tuned for vehicle damage photos vs. insurance documents
   //
   // Damage photos tend to:
@@ -180,7 +182,7 @@ function scoreDamageLikelihood(f: ImageFeatures): number {
   const aspectWeight  = 0.05;
 
   // Aspect ratio score: 0.5–2.0 is typical for photos; >2.5 or <0.4 is unusual
-  const aspectScore = f.aspectRatio >= 0.5 && f.aspectRatio <= 2.5
+  const aspectScore = f.aspectRatio >= MIN_TYPICAL_PHOTO_ASPECT_RATIO && f.aspectRatio <= 2.5
     ? 1 - Math.abs(f.aspectRatio - 1.2) / 2.5
     : 0.2;
 
