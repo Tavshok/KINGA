@@ -24,6 +24,7 @@ This note tracks the narrowed maintainability batch approved for the preserved `
 | `server/pipeline-v2/stage-3-structured-extraction.ts` lines 67/80/132 (`2024`, `59133`, `3166`) | Current | Exclude from extraction | These are prompt/example literals in schema descriptions, not executable runtime thresholds |
 | `server/pipeline-v2/stage-3-structured-extraction.ts` line 573 (`20`) | Current | Pending | Executable string-length heuristic; still under review |
 | `server/pipeline-v2/costDecisionEngine.ts` lines 175/177/798 (`20`, `30`, `80`) | Current | Exclude from extraction | Live source already names its negotiation, review, and anomaly thresholds in the constants block |
+| `server/pipeline-v2/photoForensicsEngine.ts` line 372 (`120`) | Current | Exclude from extraction | Numeric image-analysis examples inside an LLM prompt, not an executable threshold |
 
 ## Reviewed extractions already preserved on branch
 
