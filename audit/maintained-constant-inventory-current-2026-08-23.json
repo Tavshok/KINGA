@@ -86,12 +86,6 @@
       "context": "features: { textDensity: 0.5, colourVariance: 0.3, edgeDensity: 0.3, blurScore: 0.3, aspectRatio: 1, meanBrightness: 128"
     },
     {
-      "file": "server/pipeline-v2/imageClassifier.ts",
-      "line": 699,
-      "value": "0.4",
-      "context": "if (img.confidence < 0.4 && img.category !== 'document_page') {"
-    },
-    {
       "file": "server/pipeline-v2/stage-6-damage-analysis.ts",
       "line": 265,
       "value": "30000",
@@ -338,6 +332,12 @@
       "line": 249,
       "value": "0.25",
       "context": "score -= 0.25;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 699,
+      "value": "0.4",
+      "context": "if (img.confidence < 0.4 && img.category !== 'document_page') {"
     },
     {
       "file": "server/pipeline-v2/stage-6-damage-analysis.ts",
