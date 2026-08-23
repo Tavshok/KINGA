@@ -12,7 +12,12 @@ import { enqueueReport, getAuthorisedReportObject, getJobStatus, recordDownload,
 import { REPORT_ACCESS } from "../reporting/reportDefinitions";
 import { isAdminRole } from "../../shared/role-permissions";
 import { storageGet } from "../storage";
-import { auditP0CrossTenantAccess, resolveP0TenantScope, validateP0TenantScope } from "../security/p0TenantBoundary";
+import {
+  auditP0CrossTenantAccess,
+  auditP0PlatformGlobalAccess,
+  resolveP0TenantScope,
+  validateP0TenantScope,
+} from "../security/p0TenantBoundary";
 import mysql from "mysql2/promise";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -139,6 +144,22 @@ export const reportingRouter = router({
       await auditP0CrossTenantAccess(ctx, scope, "report_generate", input.claimId ? String(input.claimId) : input.reportKey, { reportKey: input.reportKey });
 
       const params: Record<string, unknown> = { tenantId: scope.tenantId };
+      if (input.reportKey === "executive.platform_dashboard") {
+        const reportActor = ctx.user;
+        if (!reportActor || !isAdminRole(reportActor.role) || insurerRole) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Platform-super-admin authority is required for platform-global reporting." });
+        }
+        const actorRole = reportActor.role === "platform_super_admin" ? "platform_super_admin" : "admin";
+        params.platformAggregateAuthority = {
+          kind: "platform_global",
+          auditTenantId: scope.tenantId,
+          actorId: reportActor.id,
+          actorRole,
+        };
+        await auditP0PlatformGlobalAccess(ctx, scope.tenantId, "report_generate", input.reportKey, {
+          reportKey: input.reportKey,
+        });
+      }
       if (input.claimId)    params.claimId    = input.claimId;
       if (input.fromTs)     params.fromTs     = input.fromTs;
       if (input.toTs)       params.toTs       = input.toTs;

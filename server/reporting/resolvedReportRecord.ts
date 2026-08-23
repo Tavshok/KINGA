@@ -44,6 +44,7 @@ export interface ResolvedReportRecord {
   claim: Readonly<{
     status: string | null;
     workflowState: string | null;
+    confidenceScore: number | null;
     createdAt: Date | string | null;
     updatedAt: Date | string | null;
     lodgerName: string | null;
@@ -159,8 +160,8 @@ export interface QuoteEvidence {
 }
 
 export interface ReportCollectionFilters {
-  from?: Date | string;
-  to?: Date | string;
+  from?: Date | string | number;
+  to?: Date | string | number;
   statuses?: string[];
 }
 
@@ -190,6 +191,10 @@ function asNumber(value: unknown): number | null {
   return Number.isFinite(number) ? number : null;
 }
 
+function asString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
 function asBoolean(value: unknown): boolean | null {
   if (value == null) return null;
   return Boolean(value);
@@ -212,6 +217,12 @@ interface ReportChildren {
   recordedClaimEvents: readonly RecordedClaimEvent[];
   quoteEvidence: readonly QuoteEvidence[];
 }
+
+const EMPTY_REPORT_CHILDREN: ReportChildren = {
+  assessmentHistory: [],
+  recordedClaimEvents: [],
+  quoteEvidence: [],
+};
 
 async function loadReportChildren(
   conn: mysql.Connection,
@@ -386,7 +397,7 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
     fraudScore: row.fraud_score,
     fraudRiskLevel: row.fraud_risk_level,
     fraudScoreBreakdownJson: row.fraud_score_breakdown_json,
-    recommendation: row.recommendation,
+    recommendation: asString(row.recommendation),
     costIntelligenceJson: parseJson(row.cost_intelligence_json),
     physicsAnalysis: row.physics_analysis,
     narrativeAnalysisJson: row.narrative_analysis_json,
@@ -401,7 +412,7 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
     estimatedLaborCost: asNumber(row.labor_cost),
     fraudScore: asNumber(row.fraud_score),
     fraudRiskLevel: row.fraud_risk_level as string | null,
-    recommendation: row.recommendation as string | null,
+    recommendation: asString(row.recommendation),
     currencyCode: (row.assessment_currency_code ?? row.currency_code) as string | null,
     costIntelligenceJson: parseJson(row.cost_intelligence_json) as any,
     fraudScoreBreakdownJson: parseJson(row.fraud_score_breakdown_json) as any,
@@ -414,6 +425,7 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
     claim: {
       status: row.status as string | null,
       workflowState: row.workflow_state as string | null,
+      confidenceScore: asNumber(row.confidence_score),
       createdAt: row.created_at as Date | string | null,
       updatedAt: row.updated_at as Date | string | null,
       lodgerName: row.lodger_name as string | null,
@@ -560,6 +572,8 @@ export async function resolveReportCollection(input: {
   tenantId: string;
   audience: ReportAudience;
   filters?: ReportCollectionFilters;
+  /** Aggregate helpers may avoid non-essential child evidence loading. */
+  includeChildren?: boolean;
 }): Promise<ResolvedReportCollection> {
   const tenantId = requireTenant(input.tenantId);
   const conditions = ["c.tenant_id = ?"];
@@ -579,7 +593,9 @@ export async function resolveReportCollection(input: {
     const records = await Promise.all(rows.map(async (row) => {
       const claimId = Number(row.id);
       Object.assign(row, await loadLatestAssessment(conn, claimId, tenantId));
-      const children = await loadReportChildren(conn, claimId, tenantId);
+      const children = input.includeChildren === false
+        ? EMPTY_REPORT_CHILDREN
+        : await loadReportChildren(conn, claimId, tenantId);
       return toResolvedRecord(row, tenantId, children);
     }));
     return { tenantId, records };

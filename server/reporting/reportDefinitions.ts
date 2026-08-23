@@ -51,6 +51,10 @@ import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
 import { resolveReportRecord, toReportDefinitionRow } from "./resolvedReportRecord";
+import {
+  resolvePlatformReportCollection,
+  type ResolvedPlatformReportAuthority,
+} from "./resolvedPlatformReportCollection";
 import { assessors, fraudIndicators, tenants, users } from "../../drizzle/schema";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct as kFmtPct,
@@ -89,6 +93,38 @@ export function parseKingaWriteOffRecommendation(value: unknown): KingaWriteOffR
     || typeof candidate.technicalEvidenceComplete !== "boolean"
   ) return null;
   return candidate as KingaWriteOffRecommendation;
+}
+
+function requireTenantAggregateAuthority(tenantId: string | undefined): ResolvedPlatformReportAuthority {
+  if (!tenantId?.trim()) throw new Error("Tenant scope is required for aggregate reporting");
+  return { kind: "tenant", tenantId };
+}
+
+function requirePlatformAggregateAuthority(
+  params: Record<string, unknown>,
+  queueTenantId: string | undefined,
+): ResolvedPlatformReportAuthority {
+  const raw = params.platformAggregateAuthority;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("Explicit platform-super-admin aggregate authority is required");
+  }
+  const candidate = raw as Record<string, unknown>;
+  if (
+    candidate.kind !== "platform_global"
+    || typeof candidate.auditTenantId !== "string"
+    || candidate.auditTenantId !== queueTenantId
+    || typeof candidate.actorId !== "number"
+    || !Number.isInteger(candidate.actorId)
+    || (candidate.actorRole !== "admin" && candidate.actorRole !== "platform_super_admin")
+  ) {
+    throw new Error("Invalid platform-super-admin aggregate authority");
+  }
+  return {
+    kind: "platform_global",
+    auditTenantId: candidate.auditTenantId,
+    actorId: candidate.actorId,
+    actorRole: candidate.actorRole,
+  };
 }
 
 // ─── Report Role Access Map ───────────────────────────────────────────────────
@@ -197,7 +233,7 @@ export async function generateReportHtml(
     case "portfolio.panel_beater_performance": return generatePanelBeaterPerformanceReport(params, tenantId);
     case "portfolio.dwell_time":  return generateDwellTimeReport(params, tenantId);
     case "risk_manager_portfolio": return generateFraudSummaryReport(params, tenantId); // alias → fraud/risk portfolio
-    case "executive.platform_dashboard": return generatePlatformDashboardReport(params);
+    case "executive.platform_dashboard": return generatePlatformDashboardReport(params, tenantId);
     case "governance.sar":        return generateSARReport(params, tenantId);
     case "governance.regulatory_compliance": return generateRegulatoryComplianceReport(params, tenantId);
     case "governance.data_retention":         return generateDataRetentionReport(params, tenantId);
@@ -1301,44 +1337,15 @@ async function generateClaimsSummaryReport(
   params: Record<string, unknown>,
   tenantId?: string
 ): Promise<string> {
-  const conn = await getConn();
-  try {
-    const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const toTs = params.toTs as number ?? Date.now();
-    const tid = tenantId ?? params.tenantId as string;
-
-    const whereClause = tid
-      ? `WHERE c.tenant_id=? AND c.created_at BETWEEN ? AND ?`
-      : `WHERE c.created_at BETWEEN ? AND ?`;
-    const whereParams = tid ? [tid, fromTs, toTs] : [fromTs, toTs];
-
-    // c.psm_status → c.status; a.overall_fraud_score → a.fraud_score; a.total_claimed_amount → a.estimated_cost
-    const [summary] = await conn.execute(
-      `SELECT
-        COUNT(*) as total_claims,
-        SUM(CASE WHEN c.status='approved' THEN 1 ELSE 0 END) as approved,
-        SUM(CASE WHEN c.status='rejected' THEN 1 ELSE 0 END) as rejected,
-        SUM(CASE WHEN c.status IN ('in_review','assessment_in_progress','submitted') THEN 1 ELSE 0 END) as in_progress,
-        SUM(CASE WHEN c.status='settled' THEN 1 ELSE 0 END) as settled,
-        AVG(a.fraud_score) as avg_fraud_score,
-        SUM(CASE WHEN a.fraud_risk_level='high' OR a.fraud_risk_level='critical' THEN 1 ELSE 0 END) as high_risk_count,
-        SUM(a.estimated_cost) as total_estimated,
-        AVG(c.confidence_score) as avg_quality_score
-       FROM claims c
-       LEFT JOIN ai_assessments a ON a.claim_id=c.id
-       ${whereClause}`,
-      whereParams
-    ) as [Record<string, unknown>[], unknown];
-
-    const stats = (summary as Record<string, unknown>[])[0] ?? {};
-
-    // c.claim_type → c.incident_type
-    const [byType] = await conn.execute(
-      `SELECT c.incident_type, COUNT(*) as cnt, SUM(a.estimated_cost) as total_value
-       FROM claims c LEFT JOIN ai_assessments a ON a.claim_id=c.id
-       ${whereClause} GROUP BY c.incident_type ORDER BY cnt DESC`,
-      whereParams
-    ) as [Record<string, unknown>[], unknown];
+  const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const toTs = params.toTs as number ?? Date.now();
+  const tid = tenantId ?? params.tenantId as string;
+  const aggregate = await resolvePlatformReportCollection({
+    authority: requireTenantAggregateAuthority(tid),
+    filters: { fromTs, toTs },
+  });
+  const stats = aggregate.portfolio;
+  const byType = stats.incidentTypes;
 
     const meta: ReportMeta = {
       title: "Claims Portfolio Summary",
@@ -1350,9 +1357,9 @@ async function generateClaimsSummaryReport(
       classification: "CONFIDENTIAL",
     };
 
-    const total = Number(stats.total_claims ?? 0);
-    const approved = Number(stats.approved ?? 0);
-    const rejected = Number(stats.rejected ?? 0);
+    const total = stats.totalClaims;
+    const approved = stats.approvedCount;
+    const rejected = stats.rejectedCount;
     const approvalRate = total > 0 ? (approved / total) * 100 : 0;
 
     const body = `
@@ -1362,25 +1369,25 @@ async function generateClaimsSummaryReport(
           <div class="kv-item"><div class="kv-label">Total Claims</div><div class="kv-value bold">${total.toLocaleString()}</div></div>
           <div class="kv-item"><div class="kv-label">Approved</div><div class="kv-value">${approved.toLocaleString()} (${approvalRate.toFixed(1)}%)</div></div>
           <div class="kv-item"><div class="kv-label">Rejected</div><div class="kv-value">${rejected.toLocaleString()}</div></div>
-          <div class="kv-item"><div class="kv-label">In Progress</div><div class="kv-value">${Number(stats.in_progress ?? 0).toLocaleString()}</div></div>
-          <div class="kv-item"><div class="kv-label">Total AI Estimated Value</div><div class="kv-value bold">${fmtCurrency(stats.total_estimated as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">High Risk Claims</div><div class="kv-value">${Number(stats.high_risk_count ?? 0).toLocaleString()}</div></div>
-          <div class="kv-item"><div class="kv-label">Avg Fraud Score</div><div class="kv-value">${scoreBar(Math.round(Number(stats.avg_fraud_score ?? 0)))}</div></div>
-          <div class="kv-item"><div class="kv-label">Avg Confidence Score</div><div class="kv-value">${scoreBar(Math.round(Number(stats.avg_quality_score ?? 0)))}</div></div>
+          <div class="kv-item"><div class="kv-label">In Progress</div><div class="kv-value">${stats.inProgressCount.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Total AI Estimated Value</div><div class="kv-value bold">${fmtCurrency(stats.aiEstimatedValueUsd)}</div></div>
+          <div class="kv-item"><div class="kv-label">High Risk Claims</div><div class="kv-value">${stats.highRiskClaimCount.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Fraud Score</div><div class="kv-value">${scoreBar(Math.round(stats.averageFraudScore ?? 0))}</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Confidence Score</div><div class="kv-value">${scoreBar(Math.round(stats.averageConfidenceScore ?? 0))}</div></div>
         </div>
       </div>
 
-      ${(byType as Record<string, unknown>[]).length > 0 ? `
+      ${byType.length > 0 ? `
       <div class="section">
         <div class="section-title">2. Claims by Incident Type</div>
         <table>
           <thead><tr><th>Incident Type</th><th class="text-right">Count</th><th class="text-right">Total AI Estimated Value</th></tr></thead>
           <tbody>
-            ${(byType as Record<string, unknown>[]).map((r) => `
+            ${byType.map((r) => `
               <tr>
-                <td>${escHtml(String(r.incident_type ?? "Unknown"))}</td>
-                <td class="text-right">${Number(r.cnt).toLocaleString()}</td>
-                <td class="text-right">${fmtCurrency(r.total_value as number)}</td>
+                <td>${escHtml(r.incidentType)}</td>
+                <td class="text-right">${r.claimCount.toLocaleString()}</td>
+                <td class="text-right">${fmtCurrency(r.aiEstimatedValueUsd)}</td>
               </tr>`).join("")}
           </tbody>
         </table>
@@ -1392,32 +1399,21 @@ async function generateClaimsSummaryReport(
       </div>
     `;
 
-    return buildBaseHtml(meta, body);
-  } finally {
-    await conn.end();
-  }
+  return buildBaseHtml(meta, body);
 }
 
 async function generateFraudSummaryReport(
   params: Record<string, unknown>,
   tenantId?: string
 ): Promise<string> {
-  const conn = await getConn();
-  try {
-    const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const toTs = params.toTs as number ?? Date.now();
-    const tid = tenantId ?? params.tenantId as string;
-
-    const whereClause = tid ? `WHERE c.tenant_id=? AND c.created_at BETWEEN ? AND ?` : `WHERE c.created_at BETWEEN ? AND ?`;
-    const whereParams = tid ? [tid, fromTs, toTs] : [fromTs, toTs];
-
-    // a.overall_fraud_score → a.fraud_score (verified 2026-05-04)
-    const [riskDist] = await conn.execute(
-      `SELECT a.fraud_risk_level, COUNT(*) as cnt, AVG(a.fraud_score) as avg_score
-       FROM claims c LEFT JOIN ai_assessments a ON a.claim_id=c.id
-       ${whereClause} GROUP BY a.fraud_risk_level ORDER BY avg_score DESC`,
-      whereParams
-    ) as [Record<string, unknown>[], unknown];
+  const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const toTs = params.toTs as number ?? Date.now();
+  const tid = tenantId ?? params.tenantId as string;
+  const aggregate = await resolvePlatformReportCollection({
+    authority: requireTenantAggregateAuthority(tid),
+    filters: { fromTs, toTs },
+  });
+  const riskDist = aggregate.fraudRiskDistribution;
 
     const meta: ReportMeta = {
       title: "Fraud Detection Summary Report",
@@ -1435,11 +1431,11 @@ async function generateFraudSummaryReport(
         <table>
           <thead><tr><th>Risk Level</th><th class="text-right">Claim Count</th><th>Avg Fraud Score</th></tr></thead>
           <tbody>
-            ${(riskDist as Record<string, unknown>[]).map((r) => `
+            ${riskDist.map((r) => `
               <tr>
-                <td>${riskBadge(String(r.fraud_risk_level ?? "unknown"))}</td>
-                <td class="text-right">${Number(r.cnt).toLocaleString()}</td>
-                <td>${scoreBar(Math.round(Number(r.avg_score ?? 0)))}</td>
+                <td>${riskBadge(r.riskLevel)}</td>
+                <td class="text-right">${r.claimCount.toLocaleString()}</td>
+                <td>${r.averageScore === null ? "—" : scoreBar(Math.round(r.averageScore))}</td>
               </tr>`).join("")}
           </tbody>
         </table>
@@ -1450,10 +1446,7 @@ async function generateFraudSummaryReport(
       </div>
     `;
 
-    return buildBaseHtml(meta, body);
-  } finally {
-    await conn.end();
-  }
+  return buildBaseHtml(meta, body);
 }
 
 async function generateAssessorPerformanceReport(
@@ -1594,25 +1587,14 @@ async function generateDwellTimeReport(
   params: Record<string, unknown>,
   tenantId?: string
 ): Promise<string> {
-  const conn = await getConn();
-  try {
-    const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const toTs = params.toTs as number ?? Date.now();
-    const tid = tenantId ?? params.tenantId as string;
-
-    const whereClause = tid ? `WHERE c.tenant_id=? AND c.created_at BETWEEN ? AND ?` : `WHERE c.created_at BETWEEN ? AND ?`;
-    const whereParams = tid ? [tid, fromTs, toTs] : [fromTs, toTs];
-
-    // c.psm_status → c.status (verified 2026-05-04)
-    const [rows] = await conn.execute(
-      `SELECT c.status,
-              COUNT(*) as cnt,
-              AVG((c.updated_at - c.created_at) / 3600000) as avg_hours_in_state,
-              MAX((c.updated_at - c.created_at) / 3600000) as max_hours_in_state
-       FROM claims c ${whereClause}
-       GROUP BY c.status ORDER BY avg_hours_in_state DESC`,
-      whereParams
-    ) as [Record<string, unknown>[], unknown];
+  const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const toTs = params.toTs as number ?? Date.now();
+  const tid = tenantId ?? params.tenantId as string;
+  const aggregate = await resolvePlatformReportCollection({
+    authority: requireTenantAggregateAuthority(tid),
+    filters: { fromTs, toTs },
+  });
+  const rows = aggregate.dwellTimeByStatus;
 
     const meta: ReportMeta = {
       title: "Claims Processing Dwell Time Report",
@@ -1626,52 +1608,41 @@ async function generateDwellTimeReport(
 
     const body = `
       <div class="section">
-        <div class="section-title">1. Average Dwell Time by Workflow Status</div>
+        <div class="section-title">1. Elapsed Processing Time by Current Status</div>
         <table>
           <thead><tr>
             <th>Status</th>
             <th class="text-right">Claim Count</th>
-            <th class="text-right">Avg Hours in State</th>
-            <th class="text-right">Max Hours in State</th>
+            <th class="text-right">Avg Elapsed Hours</th>
+            <th class="text-right">Max Elapsed Hours</th>
           </tr></thead>
           <tbody>
-            ${(rows as Record<string, unknown>[]).map((r) => `
+            ${rows.map((r) => `
               <tr>
-                <td>${escHtml(String(r.status ?? "—"))}</td>
-                <td class="text-right">${Number(r.cnt).toLocaleString()}</td>
-                <td class="text-right ${Number(r.avg_hours_in_state ?? 0) > 48 ? "bold" : ""}">${Number(r.avg_hours_in_state ?? 0).toFixed(1)}h</td>
-                <td class="text-right">${Number(r.max_hours_in_state ?? 0).toFixed(1)}h</td>
+                <td>${escHtml(r.status)}</td>
+                <td class="text-right">${r.claimCount.toLocaleString()}</td>
+                <td class="text-right ${r.averageElapsedHours > 48 ? "bold" : ""}">${r.averageElapsedHours.toFixed(1)}h</td>
+                <td class="text-right">${r.maximumElapsedHours.toFixed(1)}h</td>
               </tr>`).join("")}
           </tbody>
         </table>
       </div>
     `;
 
-    return buildBaseHtml(meta, body);
-  } finally {
-    await conn.end();
-  }
+  return buildBaseHtml(meta, body);
 }
 
 // ─── Phase 2d: Executive & Governance Reports ─────────────────────────────────
 
 async function generatePlatformDashboardReport(
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  tenantId?: string,
 ): Promise<string> {
-  const conn = await getConn();
-  try {
-    // a.total_claimed_amount → a.estimated_cost; a.overall_fraud_score → a.fraud_score (verified 2026-05-04)
-    const [totals] = await conn.execute(
-      `SELECT COUNT(*) as total_claims,
-              COUNT(DISTINCT c.tenant_id) as active_insurers,
-              SUM(a.estimated_cost) as total_estimated,
-              AVG(a.fraud_score) as avg_fraud_score,
-              SUM(CASE WHEN a.fraud_risk_level IN ('high','critical') THEN 1 ELSE 0 END) as high_risk
-       FROM claims c LEFT JOIN ai_assessments a ON a.claim_id=c.id`,
-      []
-    ) as [Record<string, unknown>[], unknown];
-
-    const stats = (totals as Record<string, unknown>[])[0] ?? {};
+  const aggregate = await resolvePlatformReportCollection({
+    authority: requirePlatformAggregateAuthority(params, tenantId),
+    filters: {},
+  });
+  const stats = aggregate.portfolio;
 
     const meta: ReportMeta = {
       title: "Platform Executive Dashboard",
@@ -1686,11 +1657,11 @@ async function generatePlatformDashboardReport(
       <div class="section">
         <div class="section-title">1. Platform-Wide Summary</div>
         <div class="kv-grid cols-4">
-          <div class="kv-item"><div class="kv-label">Total Claims Processed</div><div class="kv-value bold">${Number(stats.total_claims ?? 0).toLocaleString()}</div></div>
-          <div class="kv-item"><div class="kv-label">Active Insurers</div><div class="kv-value bold">${Number(stats.active_insurers ?? 0)}</div></div>
-          <div class="kv-item"><div class="kv-label">Total AI Estimated Value</div><div class="kv-value bold">${fmtCurrency(stats.total_estimated as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">High Risk Claims</div><div class="kv-value bold">${Number(stats.high_risk ?? 0).toLocaleString()}</div></div>
-          <div class="kv-item"><div class="kv-label">Avg Platform Fraud Score</div><div class="kv-value">${scoreBar(Math.round(Number(stats.avg_fraud_score ?? 0)))}</div></div>
+          <div class="kv-item"><div class="kv-label">Total Claims Processed</div><div class="kv-value bold">${stats.totalClaims.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Active Insurers</div><div class="kv-value bold">${stats.activeInsurerCount}</div></div>
+          <div class="kv-item"><div class="kv-label">Total AI Estimated Value</div><div class="kv-value bold">${fmtCurrency(stats.aiEstimatedValueUsd)}</div></div>
+          <div class="kv-item"><div class="kv-label">High Risk Claims</div><div class="kv-value bold">${stats.highRiskClaimCount.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Platform Fraud Score</div><div class="kv-value">${scoreBar(Math.round(stats.averageFraudScore ?? 0))}</div></div>
         </div>
       </div>
       <div class="section">
@@ -1699,10 +1670,7 @@ async function generatePlatformDashboardReport(
       </div>
     `;
 
-    return buildBaseHtml(meta, body);
-  } finally {
-    await conn.end();
-  }
+  return buildBaseHtml(meta, body);
 }
 
 async function generateSARReport(

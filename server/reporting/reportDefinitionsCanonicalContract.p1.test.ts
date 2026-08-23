@@ -23,9 +23,21 @@ describe("individual report canonical record contract", () => {
     }
   });
 
-  it("keeps the approved platform, SAR, and aggregate raw-SQL renderers outside this individual-report migration", () => {
-    const deferred = block("async function generatePlatformDashboardReport", "async function generateSARReport");
-    expect(deferred).toMatch(/FROM\s+claims\b/i);
+  it("routes the approved platform and aggregate renderers through the named aggregate contract while leaving SAR untouched", () => {
+    const claimsSummary = block("async function generateClaimsSummaryReport", "async function generateFraudSummaryReport");
+    const fraudSummary = block("async function generateFraudSummaryReport", "async function generateAssessorPerformanceReport");
+    const dwellTime = block("async function generateDwellTimeReport", "async function generatePlatformDashboardReport");
+    const platform = block("async function generatePlatformDashboardReport", "async function generateSARReport");
+    const sar = block("async function generateSARReport", "async function generateRegulatoryComplianceReport");
+
+    for (const renderer of [claimsSummary, fraudSummary, dwellTime, platform]) {
+      expect(renderer).toContain("resolvePlatformReportCollection");
+      expect(renderer).not.toMatch(/FROM\s+claims\b/i);
+      expect(renderer).not.toMatch(/FROM\s+ai_assessments\b/i);
+    }
+    expect(platform).toContain("requirePlatformAggregateAuthority");
+    expect(sar).toMatch(/FROM\s+claims\b/i);
+    expect(sar).not.toContain("resolvePlatformReportCollection");
     expect(fs.existsSync(path.resolve(process.cwd(), "audit/deferred-report-contract-scoping-2026-08-22.md"))).toBe(true);
   });
 });
