@@ -29,6 +29,7 @@ This note tracks the narrowed maintainability batch approved for the preserved `
 | `server/pipeline-v2/scenarioFraudEngine.ts` lines 53/54/101/604/614/810 (`48`, `90`) | Current | Exclude from extraction | Values appear only in comments and flag narratives; the actual `recently_purchased` condition is supplied by enrichment rather than a runtime day-count comparison in this module |
 | `server/pipeline-v2/stage-8-fraud.ts` line 891 (`15`) | Stale | Exclude from extraction | The current source location is a photo-forensics object-property mapping, not a numeric threshold |
 | `server/pipeline-v2/stage-5-assembly.ts` line 483 (`2020`) | Stale | Exclude from extraction | The current source location is a third-party record mapping, not a numeric threshold |
+| `server/pipeline-v2/speedInferenceEnsemble.ts` line 745 (`60`) | Stale | Exclude from extraction | The current source vicinity is weighted-consensus computation with no numeric threshold; the scan’s original match no longer applies |
 
 ## Reviewed extractions already preserved on branch
 
