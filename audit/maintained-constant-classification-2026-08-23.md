@@ -30,6 +30,7 @@ This note tracks the narrowed maintainability batch approved for the preserved `
 | `server/pipeline-v2/stage-8-fraud.ts` line 891 (`15`) | Stale | Exclude from extraction | The current source location is a photo-forensics object-property mapping, not a numeric threshold |
 | `server/pipeline-v2/stage-5-assembly.ts` line 483 (`2020`) | Stale | Exclude from extraction | The current source location is a third-party record mapping, not a numeric threshold |
 | `server/pipeline-v2/speedInferenceEnsemble.ts` line 745 (`60`) | Stale | Exclude from extraction | The current source vicinity is weighted-consensus computation with no numeric threshold; the scan’s original match no longer applies |
+| `server/pipeline-v2/orchestrator.ts` line 2401 (`30`) | Stale | Exclude from extraction | The current source location is a Truth Reconciliation Engine comment, not a numeric threshold |
 
 ## Reviewed extractions already preserved on branch
 
