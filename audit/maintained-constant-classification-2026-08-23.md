@@ -23,6 +23,7 @@ This note tracks the narrowed maintainability batch approved for the preserved `
 | `server/pipeline-v2/stage-2-extraction.ts` lines 151/395/613 (`16384`) | Current | Exclude from this batch for now | LLM request budget values repeated across extraction paths; should be normalised together in a dedicated request-budget pass |
 | `server/pipeline-v2/stage-3-structured-extraction.ts` lines 67/80/132 (`2024`, `59133`, `3166`) | Current | Exclude from extraction | These are prompt/example literals in schema descriptions, not executable runtime thresholds |
 | `server/pipeline-v2/stage-3-structured-extraction.ts` line 573 (`20`) | Current | Pending | Executable string-length heuristic; still under review |
+| `server/pipeline-v2/costDecisionEngine.ts` lines 175/177/798 (`20`, `30`, `80`) | Current | Exclude from extraction | Live source already names its negotiation, review, and anomaly thresholds in the constants block |
 
 ## Reviewed extractions already preserved on branch
 
