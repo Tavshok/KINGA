@@ -164,12 +164,6 @@
       "context": "`Vehicle was recently purchased (< 90 days) and is now subject to a ${scenario_type.replace(/_/g, \" \")} claim. ` +"
     },
     {
-      "file": "server/pipeline-v2/fraudPatternLearningEngine.ts",
-      "line": 356,
-      "value": "0.3",
-      "context": "if (fpRate < 0.3) continue; // only surface if FP rate >= 30%"
-    },
-    {
       "file": "server/pipeline-v2/costDecisionEngine.ts",
       "line": 175,
       "value": "20",
@@ -434,6 +428,12 @@
       "line": 536,
       "value": "30",
       "context": "profile.police_report_score >= 30 ? \"HIGH\" : \"MEDIUM\","
+    },
+    {
+      "file": "server/pipeline-v2/fraudPatternLearningEngine.ts",
+      "line": 356,
+      "value": "0.3",
+      "context": "if (fpRate < 0.3) continue; // only surface if FP rate >= 30%"
     },
     {
       "file": "server/pipeline-v2/pipelineCostConstants.ts",
