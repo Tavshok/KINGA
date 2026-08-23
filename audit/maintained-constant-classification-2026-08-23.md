@@ -2,16 +2,16 @@
 
 ## Scope
 
-This note tracks the narrowed maintainability batch approved for the preserved `scripts/magic-numbers-raw.json` inventory only. The recorded scan contains **92 candidate lines**. A current-source reconciliation found **67 current matches** and **25 stale or changed entries** that no longer describe the live source tree.
+This note tracks the narrowed maintainability batch approved for the preserved `scripts/magic-numbers-raw.json` inventory only. The recorded scan contains **92 candidate lines**. A context-aware comparison of the final branch diff against that inventory confirmed every source replacement recorded below.
 
 ## Current classification status
 
 | Category | Count | Notes |
 |---|---:|---|
 | Recorded candidate lines in maintained inventory | 92 | Source: `scripts/magic-numbers-raw.json` |
-| Stale, changed, or now-named since the maintained scan | 62 | Present in the old scan but absent from the current matching source context after verified extractions |
-| Current matches remaining to classify from live source | 30 | This is the true remaining review pool, not 170 |
-| Executable threshold references already extracted on branch | 29 | No effective-value change |
+| Executable references extracted into named constants | 45 | Context-aware diff matcher confirmed each replacement against the maintained inventory; no effective-value change |
+| Excluded from this batch | 47 | Already named, prompt/example text, stale scan location, low-level guard, or a deliberately deferred grouped request-budget value |
+| Unresolved candidate lines | 0 | All 92 maintained candidates now have a documented outcome |
 
 ## Reviewed exclusions so far
 
@@ -22,7 +22,7 @@ This note tracks the narrowed maintainability batch approved for the preserved `
 | `server/pipeline-v2/stage-2-extraction.ts` line 107 (`32`) | Current | Exclude from extraction for now | Low-level codepoint guard inside garbled-text detection; keep for a later, file-focused pass rather than mixing semantic and byte-level thresholds |
 | `server/pipeline-v2/stage-2-extraction.ts` lines 151/395/613 (`16384`) | Current | Exclude from this batch for now | LLM request budget values repeated across extraction paths; should be normalised together in a dedicated request-budget pass |
 | `server/pipeline-v2/stage-3-structured-extraction.ts` lines 67/80/132 (`2024`, `59133`, `3166`) | Current | Exclude from extraction | These are prompt/example literals in schema descriptions, not executable runtime thresholds |
-| `server/pipeline-v2/stage-3-structured-extraction.ts` line 573 (`20`) | Current | Pending | Executable string-length heuristic; still under review |
+| `server/pipeline-v2/stage-3-structured-extraction.ts` line 573 (`20`) | Current | Extracted | Named as `MIN_GARBLED_TEXT_CHARS` with no change to the existing comparison |
 | `server/pipeline-v2/costDecisionEngine.ts` lines 175/177/798 (`20`, `30`, `80`) | Current | Exclude from extraction | Live source already names its negotiation, review, and anomaly thresholds in the constants block |
 | `server/pipeline-v2/photoForensicsEngine.ts` line 372 (`120`) | Current | Exclude from extraction | Numeric image-analysis examples inside an LLM prompt, not an executable threshold |
 | `server/pipeline-v2/evidenceStrengthScorer.ts` lines 144/148 (`0.36`, `0.18`) | Current | Exclude from extraction | Live source already names both assumption penalty caps as exported constants |
@@ -36,16 +36,22 @@ This note tracks the narrowed maintainability batch approved for the preserved `
 
 | File group | Extracted references |
 |---|---|
+| `server/pdf-image-extractor.ts` | 5 |
+| `server/pipeline-v2/stage-3-structured-extraction.ts` | 1 |
+| `server/pipeline-v2/quoteExtractionEngine.ts` | 1 |
+| `server/pipeline-v2/imageClassifier.ts` | 12 |
+| `server/pipeline-v2/stage-6-damage-analysis.ts` | 2 |
+| `server/pipeline-v2/scenarioFraudEngine.ts` | 3 |
+| `server/pipeline-v2/fraudPatternLearningEngine.ts` | 1 |
+| `server/pipeline-v2/quoteOptimisationEngine.ts` | 4 |
+| `server/pipeline-v2/decisionReadinessEngine.ts` | 3 |
 | `server/pipeline-v2/forensicCDI.ts` | 3 |
-| `server/pipeline-v2/extractionQualityScorer.ts` | 2 |
+| `server/pipeline-v2/orchestrator.ts` | 6 |
 | `server/pipeline-v2/stage-4-validation.ts` | 1 |
 | `server/pipeline-v2/incidentClassificationEngine.ts` | 1 |
 | `server/pipeline-v2/fieldValidationEngine.ts` | 1 |
-| `server/pipeline-v2/imageClassifier.ts` | 12 |
-| `server/pipeline-v2/decisionReadinessEngine.ts` | 3 |
-| `server/pipeline-v2/scenarioFraudEngine.ts` | 3 |
-| `server/pipeline-v2/quoteOptimisationEngine.ts` | 3 |
+| `server/pipeline-v2/extractionQualityScorer.ts` | 1 |
 
 ## Working conclusion
 
-The maintained scan’s true remaining scope is already **materially smaller than 170**. After the verified initial extractions, the remaining review pool is **30 current matches**; it will shrink further as already-named values, prompt examples, and grouped request-budget literals are excluded with rationale.
+The maintained scan is **meaningfully smaller than the earlier 170-item figure**: the committed source of truth contains only 92 lines. Of those, **45** were executable references safely extracted into named constants and **47** were excluded with recorded rationale. No maintained candidate was skipped or left unresolved.
