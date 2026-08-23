@@ -77,6 +77,9 @@ const UNIFORM_STDDEV_THRESHOLD = 8;
 const DOWNLOAD_RETRY_BASE_DELAY_MS = 5_000;
 const PDFJS_PAINT_IMAGE_XOBJECT_OP = 85;
 const PDFJS_PAINT_INLINE_IMAGE_XOBJECT_OP = 86;
+// CALIBRATION: page-orientation heuristics; do not change without evaluating scanned PDF rotation accuracy.
+const ROTATE_TO_PORTRAIT_ASPECT_RATIO = 1.6;
+const LANDSCAPE_ASPECT_RATIO = 1.3;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ImageQualityReport {
@@ -349,10 +352,10 @@ async function applyHeuristicRotation(
     const rh = meta.height ?? 1;
     const ratio = rw / rh;
     const isLastPage = pageNum === pagesToRender;
-    if (ratio > 1.6 && !isLastPage) {
+    if (ratio > ROTATE_TO_PORTRAIT_ASPECT_RATIO && !isLastPage) {
       console.log(`[PDF Extractor] R-A-07: Page ${pageNum}: heuristic rotation applied (ratio=${ratio.toFixed(2)}, rotating 90° CCW to portrait)`);
       return sharpInst(pngBuffer).rotate(90).toBuffer();
-    } else if (ratio > 1.3 && ratio <= 1.6) {
+    } else if (ratio > LANDSCAPE_ASPECT_RATIO && ratio <= ROTATE_TO_PORTRAIT_ASPECT_RATIO) {
       console.log(`[PDF Extractor] R-A-07: Page ${pageNum}: landscape ratio=${ratio.toFixed(2)} below rotation threshold (1.6) — keeping original orientation`);
     }
   } catch (rotErr: any) {
