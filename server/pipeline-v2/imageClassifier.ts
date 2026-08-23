@@ -172,13 +172,26 @@ function computeHeuristicScore(img: ExtractedImageInput): {
   likelyCategory: ImageCategory;
   reasoning: string;
 } {
+  // CALIBRATION: origin unknown, do not change without benchmarking.
+  const NEUTRAL_DAMAGE_PHOTO_SCORE = 0.5;
+  const TEXT_HEAVY_PENALTY = 0.35;
+  const PAGE_RENDER_PENALTY = 0.10;
+  const HIGH_COLOUR_VARIANCE_BONUS = 0.15;
+  const MEDIUM_COLOUR_VARIANCE_BONUS = 0.05;
+  const LOW_COLOUR_VARIANCE_PENALTY = 0.15;
+  const SHARP_IMAGE_BONUS = 0.10;
+  const BLURRY_IMAGE_PENALTY = 0.10;
+  const LARGE_IMAGE_BONUS = 0.10;
+  const TINY_IMAGE_PENALTY = 0.15;
+  const EXTREME_ASPECT_RATIO_PENALTY = 0.15;
+  const UNIFORM_IMAGE_PENALTY = 0.25;
   const q = img.quality;
-  let score = 0.5; // Start neutral
+  let score = NEUTRAL_DAMAGE_PHOTO_SCORE;
   const reasons: string[] = [];
 
   // ── Factor 1: Text-heavy images are almost always document pages ──────
   if (q.isTextHeavy) {
-    score -= 0.35;
+    score -= TEXT_HEAVY_PENALTY;
     reasons.push('text-heavy (-0.35)');
   }
 
@@ -190,7 +203,7 @@ function computeHeuristicScore(img: ExtractedImageInput): {
   // can visually inspect them. Page renders get a small penalty since they
   // are more likely to be document pages.
   if (img.source === 'page_render') {
-    score -= 0.10;
+    score -= PAGE_RENDER_PENALTY;
     reasons.push('page_render (-0.10)');
   }
   // embedded_image: no bonus — let LLM decide for mid-size images
@@ -220,44 +233,44 @@ function computeHeuristicScore(img: ExtractedImageInput): {
 
   // ── Factor 3: Colour variance — photos have higher variance ──────────
   if (q.colourVariance > COLOUR_VAR_HIGH) {
-    score += 0.15;
+    score += HIGH_COLOUR_VARIANCE_BONUS;
     reasons.push(`high_colour_var=${q.colourVariance.toFixed(0)} (+0.15)`);
   } else if (q.colourVariance > COLOUR_VAR_MED) {
-    score += 0.05;
+    score += MEDIUM_COLOUR_VARIANCE_BONUS;
     reasons.push(`med_colour_var=${q.colourVariance.toFixed(0)} (+0.05)`);
   } else if (q.colourVariance < COLOUR_VAR_LOW) {
-    score -= 0.15;
+    score -= LOW_COLOUR_VARIANCE_PENALTY;
     reasons.push(`low_colour_var=${q.colourVariance.toFixed(0)} (-0.15)`);
   }
 
   // ── Factor 4: Blur score — sharp images are more likely real photos ───
   if (q.blurScore > BLUR_SCORE_SHARP) {
-    score += 0.10;
+    score += SHARP_IMAGE_BONUS;
     reasons.push(`sharp=${q.blurScore.toFixed(0)} (+0.10)`);
   } else if (q.blurScore < BLUR_SCORE_BLURRY) {
-    score -= 0.10;
+    score -= BLURRY_IMAGE_PENALTY;
     reasons.push(`blurry=${q.blurScore.toFixed(0)} (-0.10)`);
   }
 
   // ── Factor 5: Size — damage photos tend to be larger ──────────────────
   const megapixels = q.pixelArea / 1_000_000;
   if (megapixels > MP_LARGE) {
-    score += 0.10;
+    score += LARGE_IMAGE_BONUS;
     reasons.push(`large=${megapixels.toFixed(1)}MP (+0.10)`);
   } else if (megapixels < MP_TINY) {
-    score -= 0.15;
+    score -= TINY_IMAGE_PENALTY;
     reasons.push(`tiny=${megapixels.toFixed(2)}MP (-0.15)`);
   }
 
   // ── Factor 6: Aspect ratio — extreme ratios suggest banners/headers ───
   if (q.aspectRatio > ASPECT_EXTREME_MAX || q.aspectRatio < ASPECT_EXTREME_MIN) {
-    score -= 0.15;
+    score -= EXTREME_ASPECT_RATIO_PENALTY;
     reasons.push(`extreme_aspect=${q.aspectRatio.toFixed(2)} (-0.15)`);
   }
 
   // ── Factor 7: Uniform images are blank/logo pages ─────────────────────
   if (q.isUniform) {
-    score -= 0.25;
+    score -= UNIFORM_IMAGE_PENALTY;
     reasons.push('uniform (-0.25)');
   }
 
