@@ -370,44 +370,33 @@ describe("FIX-6: Stage 3 extraction — police officer, charge, fine, third-part
 // FIX 7: Stage 6 — canonical parts vocabulary applied to LLM output
 // ─────────────────────────────────────────────────────────────────────────────
 describe("FIX-7: Stage 6 — canonical parts vocabulary applied to LLM output", () => {
-  it("stage-6-damage-analysis.ts imports normalisePartName", async () => {
+  const visionSource = async () => {
     const fs = await import("fs");
-    const content = fs.readFileSync(
-      new URL("./stage-6-damage-analysis.ts", import.meta.url).pathname,
+    return fs.readFileSync(
+      new URL("./stage-6-damage-analysis.vision.ts", import.meta.url).pathname,
       "utf-8"
     );
-    expect(content).toContain("normalisePartName");
-    expect(content).toContain("canonicalPartsVocabulary");
+  };
+
+  it("vision concern imports the canonical part-name normaliser", async () => {
+    const content = await visionSource();
+    expect(content).toMatch(/import\s*\{[^}]*normalisePartName[^}]*\}\s*from\s*["']\.\/canonicalPartsVocabulary["']/s);
   });
 
-  it("stage-6-damage-analysis.ts applies normalisePartName to primary LLM result", async () => {
-    const fs = await import("fs");
-    const content = fs.readFileSync(
-      new URL("./stage-6-damage-analysis.ts", import.meta.url).pathname,
-      "utf-8"
-    );
-    // normalisePartName should appear in the component mapping
+  it("vision concern canonicalises primary LLM components before publication", async () => {
+    const content = await visionSource();
     const primaryBlock = content.match(/primaryResult\s*=\s*\{[\s\S]{0,500}normalisePartName/);
     expect(primaryBlock).toBeTruthy();
   });
 
-  it("stage-6-damage-analysis.ts applies normalisePartName to fallback LLM result", async () => {
-    const fs = await import("fs");
-    const content = fs.readFileSync(
-      new URL("./stage-6-damage-analysis.ts", import.meta.url).pathname,
-      "utf-8"
-    );
-    // normalisePartName should appear in the fallback component mapping too
+  it("vision concern canonicalises fallback LLM components before publication", async () => {
+    const content = await visionSource();
     const fbBlock = content.match(/fbComponents[\s\S]{0,500}normalisePartName/);
     expect(fbBlock).toBeTruthy();
   });
 
-  it("stage-6-damage-analysis.ts LLM prompt includes CANONICAL_PARTS_PROMPT_LIST", async () => {
-    const fs = await import("fs");
-    const content = fs.readFileSync(
-      new URL("./stage-6-damage-analysis.ts", import.meta.url).pathname,
-      "utf-8"
-    );
+  it("vision concern carries the canonical vocabulary in its LLM prompt", async () => {
+    const content = await visionSource();
     expect(content).toContain("CANONICAL_PARTS_PROMPT_LIST");
   });
 });
