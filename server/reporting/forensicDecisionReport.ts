@@ -18,7 +18,8 @@ import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml 
 import { renderEvidenceGovernancePanel, type EvidenceGovernanceReportData } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
 import type { CGIAvailabilitySummary } from "../pipeline-v2/stage-9-5-cgi";
-import { resolveForensicReportModel, type ForensicReportModel } from "./forensicReportModel";
+import { isKingaWriteOffRecommendation } from "../../shared/writeOffRecommendation";
+import { resolveForensicReportModel, type ForensicApprovalStage, type ForensicReportModel } from "./forensicReportModel";
 import { toReportDefinitionRow } from "./resolvedReportRecord";
 
 type LegacyRendererInputs = Readonly<{
@@ -28,7 +29,7 @@ type LegacyRendererInputs = Readonly<{
   preLossCondition: Record<string, unknown> | null;
   disputes: readonly Record<string, unknown>[];
   evidenceGovernanceData: EvidenceGovernanceReportData;
-  approvalStages: readonly Record<string, unknown>[];
+  approvalStages: readonly ForensicApprovalStage[];
   completedStages: number;
 }>;
 
@@ -211,7 +212,9 @@ export async function generateForensicDecisionReport(
       repairability: {
         totalLossIndicated: Boolean(c.total_loss_indicated),
         repairToValueRatio: c.repair_to_value_ratio == null ? null : rtvRatio,
-        kingaRecommendation: costIntel?.repairabilityDecision ?? null,
+        kingaRecommendation: isKingaWriteOffRecommendation(costIntel?.repairabilityDecision)
+          ? costIntel.repairabilityDecision
+          : null,
         ...extractExplicitStructuralReviewEvidence(repairIntel),
       },
     });
@@ -1629,7 +1632,7 @@ export async function generateForensicDecisionReport(
     const sections: any[] = interpData.sections ?? [];
     return `
   <div class="section">
-    ${sectionTab('09c', 'Claim Interpretation', overallClass, overallClass === 'NORMAL' ? 'green' : overallClass === 'CRITICAL' ? 'red' : 'amber')}
+    ${sectionTab('09c', 'Claim Interpretation', overallClass, overallClass === 'NORMAL' ? 'ok' : overallClass === 'CRITICAL' ? 'high' : 'mid')}
     <div class="box" style="border-left:4px solid ${classColor};margin-bottom:16px;">
       <h4 style="color:${classColor};">Overall Classification: ${esc(overallClass)}</h4>
       ${interpData.overallNarrative ? `<p style="font-size:13px;line-height:1.6;">${esc(interpData.overallNarrative)}</p>` : ''}

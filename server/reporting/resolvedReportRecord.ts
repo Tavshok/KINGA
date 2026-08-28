@@ -181,6 +181,7 @@ export interface QuoteEvidence {
   currencyCode: string | null;
   panelBeaterName: string | null;
   quoteCongruencyScore: number | null;
+  createdAt: Date | string | null;
   lineItems: readonly QuoteLineEvidence[];
 }
 
@@ -310,7 +311,7 @@ async function loadReportChildren(
   ) as [Record<string, unknown>[], unknown];
 
   const [quoteRows] = await conn.execute(
-    `SELECT q.id AS quote_id, q.quoted_amount, q.parts_cost, q.labor_cost, q.status,
+    `SELECT q.id AS quote_id, q.quoted_amount, q.parts_cost, q.labor_cost, q.status, q.created_at,
             q.quote_type, q.parent_quote_id, q.currency_code, q.quote_congruency_score, q.components_json,
             q.itemized_breakdown, pb.business_name AS panel_beater_name
        FROM panel_beater_quotes q
@@ -341,6 +342,7 @@ async function loadReportChildren(
       currencyCode: quote.currency_code as string | null,
       panelBeaterName: quote.panel_beater_name as string | null,
       quoteCongruencyScore: asNumber(quote.quote_congruency_score),
+      createdAt: quote.created_at as Date | string | null,
       lineItems: lineRows.map((line) => ({
         description: line.description as string | null,
         category: line.category as string | null,

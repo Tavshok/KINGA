@@ -40,6 +40,7 @@ export async function generateClaimsIntelligenceReport(
     quote_type: quote.quoteType,
     parent_quote_id: quote.parentQuoteId,
     status: quote.status,
+    created_at: quote.createdAt,
     quote_congruency_score: quote.quoteCongruencyScore,
     panel_beater_name: quote.panelBeaterName,
   }));
@@ -420,7 +421,7 @@ ${(() => {
       </tr>
       ${quoteArr.length > 0 ? `<tr>
         <td>Earliest Quote Date</td>
-        <td>${fmtD(quoteArr[0].created_at)}</td>
+        <td>${fmtD(quotes[0]?.created_at ?? null)}</td>
         <td class="tm">—</td>
         <td>${chip("Received", "pass")}</td>
       </tr>` : ""}
