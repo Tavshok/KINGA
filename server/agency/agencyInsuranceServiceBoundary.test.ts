@@ -9,6 +9,7 @@ const assistedSubmissionService = readFileSync(resolve(projectRoot, "server/agen
 const vehiclePassportRouter = readFileSync(resolve(projectRoot, "server/routers/vehicle-passport.ts"), "utf8");
 const claimsLedgerReport = readFileSync(resolve(projectRoot, "server/reporting/claimsIntelligenceReport.ts"), "utf8");
 const forensicReport = readFileSync(resolve(projectRoot, "server/reporting/forensicDecisionReport.ts"), "utf8");
+const resolvedReportRecord = readFileSync(resolve(projectRoot, "server/reporting/resolvedReportRecord.ts"), "utf8");
 
 describe("agency feature-separation contract", () => {
   it("removes the legacy synthetic claim writer from the agency broker router", () => {
@@ -49,7 +50,9 @@ describe("agency feature-separation contract", () => {
     for (const report of [claimsLedgerReport, forensicReport]) {
       expect(report).toContain("Vehicle Passport — Pre-Loss Condition Evidence");
       expect(report).toContain("Dated pre-loss valuation evidence only");
-      expect(report).toContain("vehicle_condition_snapshots");
     }
+    expect(claimsLedgerReport).toContain("resolveReportRecord({ claimId, tenantId");
+    expect(resolvedReportRecord).toContain("vehicle_condition_snapshots");
+    expect(forensicReport).toContain("vehicle_condition_snapshots");
   });
 });

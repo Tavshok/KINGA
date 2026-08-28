@@ -10,6 +10,7 @@ import {
   users,
 } from "../../drizzle/schema";
 import { getDb } from "../db";
+import { generateClaimsIntelligenceReport } from "./claimsIntelligenceReport";
 import { generateForensicDecisionReport } from "./forensicDecisionReport";
 import { resolveForensicReportModel } from "./forensicReportModel";
 
@@ -95,6 +96,7 @@ describe("ForensicReportModel", () => {
           entity_intelligence: { normScore: 3, budget: 10 },
           photo_forensics: { normScore: 2, budget: 5 },
         },
+        quoteSimilarity: { verdict: "possible", highestPairSimilarity: 0.92 },
       }),
       ifeResultJson: JSON.stringify({
         completenessScore: 88,
@@ -310,6 +312,17 @@ describe("ForensicReportModel", () => {
     expect(html).toContain(`${model.technical.speed.consensusRounded}`);
     expect(html).toContain("Third-party rear strike");
     expect(html).toContain("Quote coverage requires review");
+  });
+
+  it("renders the Claims Intelligence tier from the same canonical decision, valuation, physics, and quotation evidence", async () => {
+    const model = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
+    const html = await generateClaimsIntelligenceReport(claimId, tenantId);
+
+    expect(html).toContain("Kinga Forensic Parity 2024");
+    expect(html).toContain(`${model.executive.fraud.value}/100`);
+    expect(html).toContain("$30,000.00");
+    expect(html).toContain(`${model.technical.deltaV.value}`);
+    expect(html).toContain("Copy-Quotation — Possible");
   });
 
   it("fails closed when a different tenant requests the same claim", async () => {

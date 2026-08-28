@@ -14,8 +14,6 @@
  *   §5        — Decision & Next Steps (action table, sign-off, upgrade banner)
  */
 
-import mysql from "mysql2/promise";
-import { fraudIndicators } from "../../drizzle/schema";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct, safeJson, scoreColour, chip, badge, photoZonePanel,
 } from "./templates/kingaDesignSystem";
@@ -23,98 +21,59 @@ import { resolveReportCostIntegrity, resolveReportQuoteEvidencePresentation } fr
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
-import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
+import { renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
-
-const DB_URL = process.env.DATABASE_URL!;
-async function getConn() { return mysql.createConnection(DB_URL); }
+import { resolveReportRecord, toReportDefinitionRow } from "./resolvedReportRecord";
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 export async function generateClaimsIntelligenceReport(
   claimId: number,
   tenantId?: string
 ): Promise<string> {
-  const conn = await getConn();
-  try {
-    // ── 1. Fetch claim + latest assessment ──────────────────────────────────
-    const [claims] = await conn.execute(
-      `SELECT c.*,
-              CONCAT(c.vehicle_make, ' ', c.vehicle_model, ' ', c.vehicle_year) AS vehicle_description,
-              a.fraud_score, a.fraud_risk_level, a.recommendation,
-              a.estimated_cost, a.total_loss_indicated, a.repair_to_value_ratio,
-              a.cost_intelligence_json, a.repair_intelligence_json,
-              a.fraud_score_breakdown_json, a.ife_result_json,
-              a.narrative_analysis_json, a.physics_analysis, a.physics_truth_json,
-              a.cross_validation_json, a.claim_truth_json,
-              a.enriched_photos_json,
-              a.cgi_result_json, a.interpretation_result_json,
-              a.created_at AS assessment_date, a.model_version
-       FROM claims c
-       LEFT JOIN ai_assessments a ON a.claim_id = c.id
-       WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""}
-       ORDER BY a.created_at DESC LIMIT 1`,
-      tenantId ? [claimId, tenantId] : [claimId]
-    ) as [Record<string, unknown>[], unknown];
-
-    const c = claims[0];
-    if (!c) throw new Error(`Claim ${claimId} not found`);
-
-    // ── 2. Fetch quote line items ────────────────────────────────────────────
-    const [quotes] = await conn.execute(
-      `SELECT q.id, q.quoted_amount, q.currency, q.quote_type, q.parent_quote_id, q.status, q.quote_congruency_score,
-              pb.business_name AS panel_beater_name
-       FROM panel_beater_quotes q
-       LEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id
-       WHERE q.claim_id = ?
-       ORDER BY q.quoted_amount ASC`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
-
-    const [lineItems] = await conn.execute(
-      `SELECT li.*, q.panel_beater_id,
-              pb.business_name AS panel_beater_name
-       FROM quote_line_items li
-       JOIN panel_beater_quotes q ON q.id = li.quote_id
-       LEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id
-       WHERE q.claim_id = ?
-       ORDER BY li.quote_id, li.unit_price DESC`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
-
-    // ── 3. Fetch documents ───────────────────────────────────────────────────
-	const [docs] = await conn.execute(
-      `SELECT document_category, file_name, created_at
-       FROM claim_documents
-       WHERE claim_id = ?
-       ORDER BY created_at DESC`,
-      [claimId]
-	) as [Record<string, unknown>[], unknown];
-	const evidenceGovernanceData = await loadEvidenceGovernanceReportData(conn, claimId, tenantId);
-
-    // ── 3b. Fetch vehicle claim history ─────────────────────────────────────
-    const vehicleRegRaw = String(c.vehicle_registration ?? c.registration_number ?? '');
-    const [vehicleHistory] = vehicleRegRaw ? await conn.execute(
-      `SELECT c2.claim_reference, c2.incident_date, c2.incident_type, c2.workflow_state, c2.created_at
-       FROM claims c2
-       WHERE c2.vehicle_registration = ? AND c2.id != ?
-       ORDER BY c2.created_at DESC LIMIT 5`,
-      [vehicleRegRaw, claimId]
-    ) as [Record<string, unknown>[], unknown] : [[], null];
-    const reportTenantId = tenantId ?? String(c.tenant_id ?? "");
-    const [preLossConditionRows] = c.vehicle_registry_id && reportTenantId ? await conn.execute(
-      `SELECT vcs.snapshot_version, vcs.snapshot_date, vcs.exterior_condition, vcs.interior_condition,
-              vcs.mechanical_condition, vcs.existing_damage_notes, vcs.odometer_km,
-              asr.request_number, asr.valuation_date
-       FROM vehicle_condition_snapshots vcs
-       JOIN agency_insurance_service_requests asr ON asr.id = vcs.insurance_service_request_id
-       JOIN agency_insurance_service_request_insurers asri ON asri.service_request_id = asr.id
-       WHERE vcs.vehicle_registry_id = ? AND asri.insurer_tenant_id = ?
-         AND asri.status IN ('invited','viewed','responded')
-         AND (c.incident_date IS NULL OR vcs.snapshot_date <= c.incident_date)
-       ORDER BY vcs.snapshot_date DESC LIMIT 1`,
-      [c.vehicle_registry_id, reportTenantId],
-    ) as [Record<string, unknown>[], unknown] : [[], null];
-    const preLossCondition = preLossConditionRows[0] ?? null;
+  if (!tenantId?.trim()) throw new Error("Tenant scope is required for Claims Intelligence reporting");
+  const record = await resolveReportRecord({ claimId, tenantId, audience: "claim_assessment" });
+  const c = toReportDefinitionRow(record) as Record<string, any>;
+  const quotes = record.evidence.quoteEvidence.map((quote) => ({
+    id: quote.quoteId,
+    quoted_amount: quote.quotedAmount,
+    currency: quote.currencyCode,
+    quote_type: quote.quoteType,
+    parent_quote_id: quote.parentQuoteId,
+    status: quote.status,
+    quote_congruency_score: quote.quoteCongruencyScore,
+    panel_beater_name: quote.panelBeaterName,
+  }));
+  const lineItems = record.evidence.quoteEvidence.flatMap((quote) => quote.lineItems.map((line) => ({
+    quote_id: quote.quoteId,
+    panel_beater_name: quote.panelBeaterName,
+    description: line.description,
+    category: line.category,
+    unit_price: line.unitPrice,
+    line_total: line.lineTotal,
+  })));
+  const docs = record.evidence.documents.map((document) => ({
+    document_category: document.documentCategory,
+    file_name: document.fileName,
+    created_at: document.createdAt,
+  }));
+  const vehicleHistory = record.history.vehicleClaimHistory.map((history) => ({
+    claim_reference: history.claimReference,
+    incident_date: history.incidentDate,
+    incident_type: history.incidentType,
+    workflow_state: history.workflowState,
+    created_at: history.createdAt,
+  }));
+  const preLossCondition = record.preLossCondition.value === null ? null : {
+    request_number: record.preLossCondition.value.requestNumber,
+    snapshot_version: record.preLossCondition.value.snapshotVersion,
+    snapshot_date: record.preLossCondition.value.snapshotDate,
+    exterior_condition: record.preLossCondition.value.exteriorCondition,
+    interior_condition: record.preLossCondition.value.interiorCondition,
+    mechanical_condition: record.preLossCondition.value.mechanicalCondition,
+    existing_damage_notes: record.preLossCondition.value.existingDamageNotes,
+    odometer_km: record.preLossCondition.value.odometerKm,
+  };
+  const evidenceGovernanceData = record.evidence.evidenceGovernance;
     // ── 4. Parse JSON fields ─────────────────────────────────────────────────
     const costIntel  = safeJson(c.cost_intelligence_json as string) as any;
     const repairIntel = safeJson(c.repair_intelligence_json as string) as any;
@@ -1021,8 +980,4 @@ ${(() => {
 
     const body = renderClaimReportReadinessBanner(c) + cover + s1 + sP + s2 + s3 + s4 + s5;
     return buildKingaHtml(`KINGA Claims Intelligence Report — ${claimRef}`, body);
-
-  } finally {
-    await conn.end();
-  }
 }
