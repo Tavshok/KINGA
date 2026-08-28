@@ -10,7 +10,7 @@ This change is limited to the three individual claim report tiers: Claim Assessm
 
 > The renderer boundary is now deliberate: report generators receive resolved tenant-scoped data only. They must not open database connections, select claim or assessment rows, or select supporting evidence as a fallback.
 
-The legacy `generateForensicReport()` function retained within `reportDefinitions.ts` is not registered by the dispatcher for `claim.forensic`; the active runtime route continues to call `generateForensicDecisionReport()`.
+The legacy `generateForensicReport()` function retained within `reportDefinitions.ts` is not registered by the dispatcher for `claim.forensic`; the active runtime route continues to call `generateForensicDecisionReport()`. During final validation, this dormant function was also found to retain an unnecessary local database connection despite already using `resolveReportRecord()`. Its connection lifecycle was removed, leaving it canonical-record-only and eliminating the remaining dormant forensic direct-access path.
 
 ## Explicit Forensic-Model Dependency Decision
 
@@ -24,7 +24,7 @@ The contract was incorporated as a separate traceable commit before FR migration
 |---|---|---|---|
 | CL | One direct connection used solely to call `loadEvidenceGovernanceReportData(conn, claimId, tenantId)`. | `ResolvedReportRecord.evidence.evidenceGovernance`, loaded after claim tenant resolution. | `generateClaimAssessmentReport()` has no local connection or direct evidence query. |
 | CI | Direct `claims` + latest `ai_assessments` SQL plus quote, line-item, document, vehicle-history, pre-loss, and evidence-governance reads. | `resolveReportRecord()` now loads typed quote evidence, documents, vehicle claim history, pre-loss condition, evidence governance, claim/assessment metadata, CGI, interpretation, and incident description. | `generateClaimsIntelligenceReport()` consumes `ResolvedReportRecord` and its presentation adapter only. |
-| FR | Direct `claims` + latest `ai_assessments` SQL plus quotation, document, pre-loss, audit-event, and dispute reads. | `resolveForensicReportModel()` composes the authorised resolved record and tenant-scoped report-specific support data. | `generateForensicDecisionReport()` calls only `resolveForensicReportModel({ claimId, tenantId, audience: "forensic" })` and its compatibility adapter. It contains no connection, `SELECT`, or evidence-governance loader call. |
+| FR | Direct `claims` + latest `ai_assessments` SQL plus quotation, document, pre-loss, audit-event, and dispute reads. A dormant legacy FR helper also retained an unnecessary local connection. | `resolveForensicReportModel()` composes the authorised resolved record and tenant-scoped report-specific support data. The dormant helper already uses `resolveReportRecord()`. | `generateForensicDecisionReport()` calls only `resolveForensicReportModel({ claimId, tenantId, audience: "forensic" })` and its compatibility adapter. The active and dormant FR paths now contain no local connection, `SELECT`, or evidence-governance loader call. |
 
 The codebase scan identified no other active individual-report renderer database bypass after the migration. Supporting data is loaded only after the parent claim has been resolved in the requested tenant scope.
 
@@ -62,6 +62,7 @@ The existing evidence and cost-provenance contract tests were updated only where
 | Explicit audit-event and dispute-availability parity | Live TiDB fixture, 1 file, 4 tests passed. |
 | CL / CI / FR shared-value parity group | 2 files, 7 tests passed. |
 | Qualified photo and cost-provenance contract group | 4 files, 14 tests passed. |
+| Final active-and-dormant report-path contract group | 8 files, 134 tests passed after the legacy forensic connection removal. |
 | Server bundle after FR migration | Passed. |
 | Vite production build after FR and CL migration | Passed; existing chunk-size warnings only. |
 | Extra FR-commit full suite | Reached the inherited single-worker 1.8 GB heap limit and exited unexpectedly after executing tests; this is the known suite-reliability limitation. |

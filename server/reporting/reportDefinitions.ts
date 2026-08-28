@@ -887,8 +887,6 @@ async function generateForensicReport(
 ): Promise<string> {
   const claimId = params.claimId as number;
   if (!tenantId) throw new Error("Tenant scope is required for Forensic reporting");
-  const conn = await getConn();
-  try {
     const record = await resolveReportRecord({ claimId, tenantId, audience: "forensic" });
     const claim = toReportDefinitionRow(record) as Record<string, any>;
 
@@ -1054,9 +1052,6 @@ async function generateForensicReport(
     `;
 
     return buildBaseHtml(meta, body);
-  } finally {
-    await conn.end();
-  }
 }
 
 async function generateAuditTrailReport(
