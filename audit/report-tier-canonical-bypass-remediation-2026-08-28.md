@@ -67,6 +67,7 @@ The existing evidence and cost-provenance contract tests were updated only where
 | Vite production build after FR and CL migration | Passed; existing chunk-size warnings only. |
 | Extra FR-commit full suite | Reached the inherited single-worker 1.8 GB heap limit and exited unexpectedly after executing tests; this is the known suite-reliability limitation. |
 | Final committed branch full suite | 21 failed files, 42 failed tests, 9,052 passed, 3 skipped; worker exited unexpectedly at the 1.8 GB heap limit. Its 43 extracted failed identifiers exactly matched the retained current-main baseline's 43 identifiers: no branch-only failure. |
+| Final post-cleanup full suite | Repeated after the dormant forensic connection removal: 21 failed files, 42 failed tests, 9,052 passed, 3 skipped; the same inherited worker heap exit occurred. The same 43 extracted failed identifiers exactly matched current main: no branch-only failure. |
 | TypeScript project check | Not a green gate: this repository's global check exhausts the same configured 1.8 GB heap before emitting diagnostics. Runtime compilation succeeded in focused tests and both production builds. |
 
 ## Held Status
