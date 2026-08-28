@@ -303,6 +303,7 @@ describe("ForensicReportModel", () => {
   it("matches the current generator’s observable output for the same resolved model values", async () => {
     const model = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
     const html = await generateForensicDecisionReport(claimId, tenantId);
+    const processorStage = model.approval.stages[0]! as Record<string, unknown>;
 
     expect(html).toContain("Kinga Forensic Parity 2024");
     expect(html).toContain("47<span");
@@ -312,6 +313,26 @@ describe("ForensicReportModel", () => {
     expect(html).toContain(`${model.technical.speed.consensusRounded}`);
     expect(html).toContain("Third-party rear strike");
     expect(html).toContain("Quote coverage requires review");
+    expect(processorStage).toMatchObject({
+      stage: 1,
+      role: "Claims Processor Review",
+      status: "Complete",
+      officer: "claims_processor",
+    });
+    expect(html).toContain(String(processorStage.role));
+    expect(html).toContain(String(processorStage.status));
+    expect(html).toContain(String(processorStage.officer));
+
+    // The live database does not currently expose claim_disputes. The model must
+    // preserve that fact explicitly and the renderer must not manufacture a
+    // dispute section from a missing source.
+    expect(model.availability.disputes).toMatchObject({
+      state: "source_unavailable",
+      value: null,
+      source: "claim_disputes",
+    });
+    expect(model.disputes).toEqual([]);
+    expect(html).not.toContain("Dispute Record");
   });
 
   it("renders the Claims Intelligence tier from the same canonical decision, valuation, physics, and quotation evidence", async () => {

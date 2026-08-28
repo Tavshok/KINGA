@@ -68,6 +68,7 @@ export interface ResolvedReportRecord {
     type: string | null;
     date: Date | string | null;
     location: string | null;
+    description: string | null;
     weatherConditions: string | null;
     roadSurface: string | null;
     gpsLatitude: number | null;
@@ -467,6 +468,7 @@ export function toReportDefinitionRow(record: ResolvedReportRecord): Record<stri
     incident_type: incident.type,
     incident_date: incident.date,
     incident_location: incident.location,
+    incident_description: incident.description,
     weather_conditions: incident.weatherConditions,
     road_surface: incident.roadSurface,
     gps_lat: incident.gpsLatitude,
@@ -586,6 +588,7 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
       type: resolved.incidentType,
       date: resolved.accidentDate,
       location: resolved.accidentLocation,
+      description: asString(row.incident_description),
       weatherConditions: row.weather_conditions as string | null,
       roadSurface: row.road_surface as string | null,
       gpsLatitude: asNumber(row.gps_lat),
