@@ -12,6 +12,7 @@ import {
 import { getDb } from "../db";
 import { generateClaimsIntelligenceReport } from "./claimsIntelligenceReport";
 import { generateForensicDecisionReport } from "./forensicDecisionReport";
+import { generateReportHtml } from "./reportDefinitions";
 import { resolveForensicReportModel } from "./forensicReportModel";
 
 describe("ForensicReportModel", () => {
@@ -344,6 +345,26 @@ describe("ForensicReportModel", () => {
     expect(html).toContain("$30,000.00");
     expect(html).toContain(`${model.technical.deltaV.value}`);
     expect(html).toContain("Copy-Quotation — Possible");
+  });
+
+  it("renders CL, CI, and FR from the same claim with identical shared forensic values", async () => {
+    const model = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
+    const [claimsLedgerHtml, claimsIntelligenceHtml, forensicHtml] = await Promise.all([
+      generateReportHtml("claim.assessment", { claimId }, tenantId),
+      generateClaimsIntelligenceReport(claimId, tenantId),
+      generateForensicDecisionReport(claimId, tenantId),
+    ]);
+    const reports = [claimsLedgerHtml, claimsIntelligenceHtml, forensicHtml];
+
+    for (const report of reports) {
+      expect(report).toContain("Kinga Forensic Parity 2024");
+      expect(report).toContain(String(model.executive.fraud.value));
+      expect(report).toContain("$30,000.00");
+      expect(report).toContain(String(model.technical.deltaV.value));
+    }
+
+    const decisionLabel = model.executive.decision.status.replaceAll("_", " ").toLowerCase();
+    for (const report of reports) expect(report.toLowerCase()).toContain(decisionLabel);
   });
 
   it("fails closed when a different tenant requests the same claim", async () => {
