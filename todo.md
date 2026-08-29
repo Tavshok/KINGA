@@ -2019,3 +2019,7 @@ which is for corporate fleet operators.
 - [ ] Role-based portfolio reports — build separate canonical claims-manager and risk-manager report keys using tenant-scoped aggregate helpers; map only the approved responsibilities, preserve recovery-officer ownership of recovery data, and prove role access before retiring superseded executive keys.
 
 - [x] Role-based portfolio reports — added canonical `claims_manager.portfolio_overview` and `risk_manager.portfolio_overview`, each tenant-scoped through `resolvePlatformReportCollection`; reports omit recovery/cross-insurer data and have mutual/executive denial assertions. Focused access tests, server bundle, and Vite build passed. Executive parity and retirement remain separate phases.
+
+- [ ] Role-based portfolio reports — build one canonical executive portfolio report, limited to aggregate portfolio, fraud, financial, and dwell-time trends, then prove shared KPI values match the manager reports without exposing recovery, assessor, action-register, or cross-insurer data.
+
+- [x] Role-based portfolio reports — added canonical `executive.portfolio_overview`; live tenant-owned fixture proves manager/executive shared KPI values and excludes recovery content. Corrected canonical aggregate millisecond-to-datetime filtering, which had suppressed records in all filtered report windows. Focused access/parity tests, server bundle, and Vite build passed.

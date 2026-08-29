@@ -150,8 +150,10 @@ function whereClause(authority: ResolvedPlatformReportAuthority, filters: Platfo
     clauses.push("c.tenant_id = ?");
     values.push(authority.tenantId);
   }
-  if (filters.fromTs !== undefined) { clauses.push("c.created_at >= ?"); values.push(filters.fromTs); }
-  if (filters.toTs !== undefined) { clauses.push("c.created_at <= ?"); values.push(filters.toTs); }
+  // Report callers supply UTC milliseconds; claims.created_at is a physical
+  // datetime column, so compare against an explicit SQL datetime conversion.
+  if (filters.fromTs !== undefined) { clauses.push("c.created_at >= FROM_UNIXTIME(? / 1000)"); values.push(filters.fromTs); }
+  if (filters.toTs !== undefined) { clauses.push("c.created_at <= FROM_UNIXTIME(? / 1000)"); values.push(filters.toTs); }
   return { sql: clauses.join(" AND "), values };
 }
 

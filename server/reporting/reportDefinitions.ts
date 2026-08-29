@@ -175,6 +175,7 @@ export const REPORT_ACCESS: Record<string, string[]> = {
 
   // ── Executive Reports ─────────────────────────────────────────────────────
   // Executives see high-level KPI summaries; managers also get trend data
+  "executive.portfolio_overview":       ["insurer_admin", "executive"],
   "executive.insurer_summary":         ["insurer_admin", "executive"],
   "executive.full_report":              ["insurer_admin", "executive"],
   "executive.claims_trend":            ["insurer_admin", "claims_manager", "risk_manager", "executive"],
@@ -237,6 +238,7 @@ export async function generateReportHtml(
     case "claims_manager.portfolio_overview": return generateClaimsManagerPortfolioReport(params, tenantId);
     case "risk_manager_portfolio": return generateFraudSummaryReport(params, tenantId); // alias → fraud/risk portfolio
     case "risk_manager.portfolio_overview": return generateRiskManagerPortfolioReport(params, tenantId);
+    case "executive.portfolio_overview": return generateExecutivePortfolioReport(params, tenantId);
     case "executive.platform_dashboard": return generatePlatformDashboardReport(params, tenantId);
     case "governance.sar":        return generateSARReport(params, tenantId);
     case "governance.regulatory_compliance": return generateRegulatoryComplianceReport(params, tenantId);
@@ -1471,6 +1473,17 @@ async function generateRiskManagerPortfolioReport(params: Record<string, unknown
   const p = aggregate.portfolio;
   const body = `<div class="section"><div class="section-title">Risk & Financial Exposure</div><div class="kv-grid cols-4"><div class="kv-item"><div class="kv-label">High-Risk Claims</div><div class="kv-value bold">${p.highRiskClaimCount}</div></div><div class="kv-item"><div class="kv-label">Average Fraud Score</div><div class="kv-value">${p.averageFraudScore?.toFixed(1) ?? "—"}</div></div><div class="kv-item"><div class="kv-label">Assessed Claims</div><div class="kv-value">${p.assessedClaimCount}</div></div><div class="kv-item"><div class="kv-label">AI Estimated Financial Exposure</div><div class="kv-value">${fmtCurrency(p.aiEstimatedValueUsd)}</div></div></div></div><div class="section"><div class="section-title">Fraud Risk Distribution</div><table><thead><tr><th>Risk level</th><th>Claims</th><th>Average score</th></tr></thead><tbody>${aggregate.fraudRiskDistribution.map(r => `<tr><td>${riskBadge(r.riskLevel)}</td><td>${r.claimCount}</td><td>${r.averageScore?.toFixed(1) ?? "—"}</td></tr>`).join("")}</tbody></table></div>`;
   return buildBaseHtml({ title: "Risk Manager Portfolio Report", subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`, reportRef: `RPT-RM-${Date.now()}`, generatedAt: new Date(), generatedBy: "KINGA Intelligence Platform", tenantName: tid, classification: "CONFIDENTIAL" }, body);
+}
+
+async function generateExecutivePortfolioReport(params: Record<string, unknown>, tenantId?: string): Promise<string> {
+  const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const toTs = params.toTs as number ?? Date.now();
+  const tid = tenantId ?? params.tenantId as string;
+  const aggregate = await resolvePlatformReportCollection({ authority: requireTenantAggregateAuthority(tid), filters: { fromTs, toTs } });
+  const p = aggregate.portfolio;
+  const approvalRate = p.totalClaims ? (p.approvedCount / p.totalClaims * 100).toFixed(1) : "0.0";
+  const body = `<div class="section"><div class="section-title">Portfolio & Financial Overview</div><div class="kv-grid cols-4"><div class="kv-item"><div class="kv-label">Total Claims</div><div class="kv-value bold">${p.totalClaims}</div></div><div class="kv-item"><div class="kv-label">Approval Rate</div><div class="kv-value">${approvalRate}%</div></div><div class="kv-item"><div class="kv-label">High-Risk Claims</div><div class="kv-value">${p.highRiskClaimCount}</div></div><div class="kv-item"><div class="kv-label">AI Estimated Portfolio Value</div><div class="kv-value">${fmtCurrency(p.aiEstimatedValueUsd)}</div></div></div></div><div class="section"><div class="section-title">Fraud & Operational Trends</div><table><thead><tr><th>Risk or processing status</th><th>Claims</th><th>Average score / elapsed time</th></tr></thead><tbody>${aggregate.fraudRiskDistribution.map(r => `<tr><td>${riskBadge(r.riskLevel)}</td><td>${r.claimCount}</td><td>${r.averageScore?.toFixed(1) ?? "—"}</td></tr>`).join("")}${aggregate.dwellTimeByStatus.map(r => `<tr><td>${escHtml(r.status)}</td><td>${r.claimCount}</td><td>${r.averageElapsedHours.toFixed(1)} hours</td></tr>`).join("")}</tbody></table></div>`;
+  return buildBaseHtml({ title: "Executive Portfolio Report", subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`, reportRef: `RPT-EXEC-PORTFOLIO-${Date.now()}`, generatedAt: new Date(), generatedBy: "KINGA Intelligence Platform", tenantName: tid, classification: "CONFIDENTIAL" }, body);
 }
 
 async function generateAssessorPerformanceReport(

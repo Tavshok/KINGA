@@ -38,10 +38,14 @@ describe("resolved platform report collection authority", () => {
       expect(globalAfter.portfolio.totalClaims).toBe(globalBefore.portfolio.totalClaims + 2);
       expect(globalAfter.portfolio.rejectedCount).toBe(globalBefore.portfolio.rejectedCount + 1);
 
-      const [claimsSummary, fraudSummary, dwellTime, platformDashboard] = await Promise.all([
-        generateReportHtml("portfolio.claims_summary", { fromTs: 0, toTs: Date.now() }, tenantA),
-        generateReportHtml("portfolio.fraud_summary", { fromTs: 0, toTs: Date.now() }, tenantA),
-        generateReportHtml("portfolio.dwell_time", { fromTs: 0, toTs: Date.now() }, tenantA),
+      const reportParams = {};
+      const [claimsSummary, fraudSummary, dwellTime, claimsManager, riskManager, executivePortfolio, platformDashboard] = await Promise.all([
+        generateReportHtml("portfolio.claims_summary", reportParams, tenantA),
+        generateReportHtml("portfolio.fraud_summary", reportParams, tenantA),
+        generateReportHtml("portfolio.dwell_time", reportParams, tenantA),
+        generateReportHtml("claims_manager.portfolio_overview", reportParams, tenantA),
+        generateReportHtml("risk_manager.portfolio_overview", reportParams, tenantA),
+        generateReportHtml("executive.portfolio_overview", reportParams, tenantA),
         generateReportHtml("executive.platform_dashboard", {
           platformAggregateAuthority: { kind: "platform_global", auditTenantId: tenantA, actorId: 1, actorRole: "admin" },
         }, tenantA),
@@ -49,6 +53,16 @@ describe("resolved platform report collection authority", () => {
       expect(claimsSummary).toContain("Claims Portfolio Summary");
       expect(fraudSummary).toContain("Fraud Detection Summary Report");
       expect(dwellTime).toContain("Elapsed Processing Time by Current Status");
+      expect(claimsManager).toContain("Claims Manager Portfolio Report");
+      expect(riskManager).toContain("Risk Manager Portfolio Report");
+      expect(executivePortfolio).toContain("Executive Portfolio Report");
+      expect(claimsManager).toContain("Total Claims</div><div class=\"kv-value bold\">1");
+      expect(executivePortfolio).toContain("Total Claims</div><div class=\"kv-value bold\">1");
+      expect(riskManager).toContain("High-Risk Claims");
+      expect(executivePortfolio).toContain("High-Risk Claims");
+      expect(claimsManager).not.toContain("Recovery Pipeline");
+      expect(riskManager).not.toContain("Recovery Pipeline");
+      expect(executivePortfolio).not.toContain("Recovery Pipeline");
       expect(platformDashboard).toContain("Platform Executive Dashboard");
 
       await expect(resolvePlatformReportCollection({
