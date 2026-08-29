@@ -2041,3 +2041,11 @@ which is for corporate fleet operators.
 - [x] Post-P0 access phase follow-up — aligned the alternate report integration fixture with the legitimate `insurer_admin` role required by the enforced matrix. Direct router/tenant/access validation passed 52/52, with server and Vite builds passing.
 
 - [x] Post-P0 remediation final validation — fresh-worker suite completed 42 shards and was compared with the immutable baseline; no substantive branch-only failure identifier was found. Controlled TypeScript comparison showed zero branch-only diagnostics. Final evidence: `audit/post-p0-downloadable-report-remediation-final-2026-08-29.md`.
+
+- [ ] Verification-only — generate same-tenant, same-period executive and role-specific reports; compare at least fraud rate, claims volume or approval rate, and financial exposure where present; trace canonical per-claim aggregation paths; report any exact displayed-value mismatch without changing application logic.
+
+- [x] Verification-only — generated a temporary owned same-tenant, same-period non-zero fixture, compared executive/role displayed claims volume, high-risk count, and AI-estimated exposure, traced canonical aggregation, and confirmed cleanup. Fraud rate is absent from both relevant output contracts, so it remains unverifiable rather than assumed.
+
+- [ ] Correct portfolio `approvedCount` and derived Approval Rate after tracing the actual approved-decision semantics; search every invalid claim-status comparison, add an owned multi-status regression, prove a non-zero executive/claims-manager same-period parity result, and commit the single held correction without touching unrelated report tiers.
+
+- [x] Correct portfolio `approvedCount` and derived Approval Rate: live enum and authorised workflow trace establish `completed` as the approved claim outcome; canonical aggregate now counts it via a named mapping; live multi-status regression and same-period Executive/Claims Manager non-zero 33.3% parity passed. Evidence: `audit/approval-rate-status-mismatch-correction-2026-08-29.md`.
