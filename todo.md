@@ -2033,3 +2033,7 @@ which is for corporate fleet operators.
 - [ ] Post-P0 label phase — distinguish aggregate total-claim elapsed time from workflow-state-duration metrics in active report catalogue, report-centre, and downloadable dwell-time wording; preserve all calculations and data inputs unchanged.
 
 - [x] Post-P0 label phase — clarified that portfolio elapsed-time metrics measure claim creation through latest update and are grouped by current status, not time spent in a workflow stage. Focused live aggregate regression and server/Vite builds passed; no calculations or inputs changed.
+
+- [ ] Post-P0 access phase — apply `REPORT_ACCESS` through the standard access function to alternate executive, financial, and aggregate audit PDF procedures; preserve their existing tenant checks and add role-negative coverage.
+
+- [x] Post-P0 access phase — alternate executive, financial, and aggregate audit PDF procedures now invoke the standard report access function before database access, retaining session-tenant checks. Focused tenant/access regression passed 39/39; server bundle and Vite build passed.
