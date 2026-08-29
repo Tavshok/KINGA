@@ -2037,3 +2037,5 @@ which is for corporate fleet operators.
 - [ ] Post-P0 access phase — apply `REPORT_ACCESS` through the standard access function to alternate executive, financial, and aggregate audit PDF procedures; preserve their existing tenant checks and add role-negative coverage.
 
 - [x] Post-P0 access phase — alternate executive, financial, and aggregate audit PDF procedures now invoke the standard report access function before database access, retaining session-tenant checks. Focused tenant/access regression passed 39/39; server bundle and Vite build passed.
+
+- [x] Post-P0 access phase follow-up — aligned the alternate report integration fixture with the legitimate `insurer_admin` role required by the enforced matrix. Direct router/tenant/access validation passed 52/52, with server and Vite builds passing.
