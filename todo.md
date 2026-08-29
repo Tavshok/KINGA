@@ -2027,3 +2027,5 @@ which is for corporate fleet operators.
 - [ ] Role-based portfolio reports — retire `executive.insurer_summary`, `executive.claims_trend`, `executive.financial_exposure`, and `executive.full_report` after replacing the two identified UI callers, report catalogue/dispatcher registrations, workflow validation, and access-test expectations with the approved role-specific keys.
 
 - [x] Role-based portfolio reports — retired the four superseded executive keys from active access, dispatch, catalogue, workflow readiness, and UI callers after trace; legacy names now appear only in negative access assertions. Focused access tests, server bundle, and Vite build passed.
+
+- [x] Role-based portfolio reports — verified `executive.ml_performance` remains registered only with top-level `admin`; both catalogue filtering and generation use `canAccessReport`, and the executive-role negative assertion passed in the focused 37-test access suite. No production-data or ML-output change was required.
