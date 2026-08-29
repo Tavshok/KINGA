@@ -177,8 +177,8 @@ const VALID_VERDICTS = new Set([
   'APPROVE', 'REVIEW', 'REJECT', 'ESCALATE', 'NEGOTIATE', 'PROCEED_TO_ASSESSMENT',
 ]);
 
-function toVerdict(v: string | null | undefined): NormalisedVerdict | null {
-  if (!v) return null;
+function toVerdict(v: unknown): NormalisedVerdict | null {
+  if (typeof v !== "string" || !v.trim()) return null;
   const upper = v.toUpperCase().trim();
   return VALID_VERDICTS.has(upper) ? upper as NormalisedVerdict : null;
 }
