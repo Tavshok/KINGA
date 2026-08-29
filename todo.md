@@ -2015,3 +2015,7 @@ which is for corporate fleet operators.
 - [x] Post-P0 Phase 2 — Assessment PDF server authority: endpoint now accepts only a persisted claim ID and derives template values from the tenant-scoped canonical record; pre-persistence UI is honestly disabled; live-TiDB tampering and foreign-tenant regression passed; builds passed. Evidence: `audit/post-p0-assessment-pdf-server-authority-2026-08-29.md`.
 
 - [ ] Post-P0 Phase 3 — Fast Track exports: remove the placeholder PDF labelled as a PDF and the fabricated zero-value CSV until a tenant-scoped, supported reporting model exists; retain no misleading downloadable output.
+
+- [ ] Role-based portfolio reports — build separate canonical claims-manager and risk-manager report keys using tenant-scoped aggregate helpers; map only the approved responsibilities, preserve recovery-officer ownership of recovery data, and prove role access before retiring superseded executive keys.
+
+- [x] Role-based portfolio reports — added canonical `claims_manager.portfolio_overview` and `risk_manager.portfolio_overview`, each tenant-scoped through `resolvePlatformReportCollection`; reports omit recovery/cross-insurer data and have mutual/executive denial assertions. Focused access tests, server bundle, and Vite build passed. Executive parity and retirement remain separate phases.

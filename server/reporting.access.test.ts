@@ -92,6 +92,8 @@ describe("REPORT_ACCESS — role-based access control", () => {
       expect(reports).toContain("portfolio.fraud_summary");
       expect(reports).toContain("portfolio.assessor_performance");
       expect(reports).toContain("risk_manager_portfolio");
+      expect(reports).toContain("claims_manager.portfolio_overview");
+      expect(reports).not.toContain("risk_manager.portfolio_overview");
     });
 
     it("can access executive trend and financial reports", () => {
@@ -126,6 +128,8 @@ describe("REPORT_ACCESS — role-based access control", () => {
       expect(reports).toContain("portfolio.fraud_summary");
       expect(reports).toContain("portfolio.assessor_performance");
       expect(reports).toContain("risk_manager_portfolio");
+      expect(reports).toContain("risk_manager.portfolio_overview");
+      expect(reports).not.toContain("claims_manager.portfolio_overview");
     });
 
     it("can access executive trend and financial exposure", () => {
@@ -157,6 +161,8 @@ describe("REPORT_ACCESS — role-based access control", () => {
 
     it("can access portfolio claims summary", () => {
       expect(reports).toContain("portfolio.claims_summary");
+      expect(reports).not.toContain("claims_manager.portfolio_overview");
+      expect(reports).not.toContain("risk_manager.portfolio_overview");
     });
 
     it("can access regulatory compliance", () => {
