@@ -73,8 +73,8 @@ const CLAIMS_MANAGER_REPORTS: ReportEntry[] = [
   },
   {
     reportKey: "portfolio.dwell_time",
-    label: "Dwell Time Report",
-    description: "Processing time per workflow stage",
+    label: "Claim Elapsed Time by Current Status",
+    description: "Total time from claim creation to latest update, grouped by current status",
     icon: TrendingUp,
     category: "Portfolio",
   },

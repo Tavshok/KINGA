@@ -1626,7 +1626,7 @@ async function generateDwellTimeReport(
   const rows = aggregate.dwellTimeByStatus;
 
     const meta: ReportMeta = {
-      title: "Claims Processing Dwell Time Report",
+      title: "Claim Elapsed Time by Current Status Report",
       subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`,
       reportRef: `RPT-DWELL-${Date.now()}`,
       generatedAt: new Date(),
@@ -1637,7 +1637,8 @@ async function generateDwellTimeReport(
 
     const body = `
       <div class="section">
-        <div class="section-title">1. Elapsed Processing Time by Current Status</div>
+        <div class="section-title">1. Total Claim Elapsed Time by Current Status</div>
+        <p class="small grey">Measured from claim creation to its latest update; this is not time spent in the current workflow status.</p>
         <table>
           <thead><tr>
             <th>Status</th>

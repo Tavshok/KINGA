@@ -52,7 +52,8 @@ describe("resolved platform report collection authority", () => {
       ]);
       expect(claimsSummary).toContain("Claims Portfolio Summary");
       expect(fraudSummary).toContain("Fraud Detection Summary Report");
-      expect(dwellTime).toContain("Elapsed Processing Time by Current Status");
+      expect(dwellTime).toContain("Total Claim Elapsed Time by Current Status");
+      expect(dwellTime).toContain("not time spent in the current workflow status");
       expect(claimsManager).toContain("Claims Manager Portfolio Report");
       expect(riskManager).toContain("Risk Manager Portfolio Report");
       expect(executivePortfolio).toContain("Executive Portfolio Report");

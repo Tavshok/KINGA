@@ -2029,3 +2029,7 @@ which is for corporate fleet operators.
 - [x] Role-based portfolio reports — retired the four superseded executive keys from active access, dispatch, catalogue, workflow readiness, and UI callers after trace; legacy names now appear only in negative access assertions. Focused access tests, server bundle, and Vite build passed.
 
 - [x] Role-based portfolio reports — verified `executive.ml_performance` remains registered only with top-level `admin`; both catalogue filtering and generation use `canAccessReport`, and the executive-role negative assertion passed in the focused 37-test access suite. No production-data or ML-output change was required.
+
+- [ ] Post-P0 label phase — distinguish aggregate total-claim elapsed time from workflow-state-duration metrics in active report catalogue, report-centre, and downloadable dwell-time wording; preserve all calculations and data inputs unchanged.
+
+- [x] Post-P0 label phase — clarified that portfolio elapsed-time metrics measure claim creation through latest update and are grouped by current status, not time spent in a workflow stage. Focused live aggregate regression and server/Vite builds passed; no calculations or inputs changed.
