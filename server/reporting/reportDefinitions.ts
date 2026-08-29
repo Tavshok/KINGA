@@ -46,10 +46,16 @@ import { resolveReportCostIntegrity } from "./costIntegrity";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { classifyRepairToValueRatio } from "../../shared/writeOffPolicy";
+import type { KingaWriteOffRecommendation, KingaWriteOffRecommendationKind } from "../../shared/writeOffRecommendation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
 import { resolveCanonicalClaimReportPresentation } from "./canonicalClaimReportPresentation";
+import { resolveReportRecord, toReportDefinitionRow } from "./resolvedReportRecord";
+import {
+  resolvePlatformReportCollection,
+  type ResolvedPlatformReportAuthority,
+} from "./resolvedPlatformReportCollection";
 import { assessors, fraudIndicators, tenants, users } from "../../drizzle/schema";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct as kFmtPct,
@@ -58,6 +64,69 @@ import {
 
 const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
+
+const KINGA_WRITE_OFF_RECOMMENDATION_KINDS = new Set<KingaWriteOffRecommendationKind>([
+  "economic_write_off_recommended",
+  "technical_write_off_recommended",
+  "economic_and_technical_write_off_recommended",
+  "economic_write_off_warning",
+  "human_review_required",
+  "repair_recommended",
+]);
+
+/**
+ * Validates persisted report JSON before it reaches the typed repairability
+ * presentation boundary. Malformed or legacy-shaped values intentionally render
+ * as absent evidence rather than being coerced into a recommendation.
+ */
+export function parseKingaWriteOffRecommendation(value: unknown): KingaWriteOffRecommendation | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  if (
+    typeof candidate.kind !== "string"
+    || !KINGA_WRITE_OFF_RECOMMENDATION_KINDS.has(candidate.kind as KingaWriteOffRecommendationKind)
+    || typeof candidate.label !== "string"
+    || typeof candidate.detail !== "string"
+    || typeof candidate.writeOffRecommended !== "boolean"
+    || typeof candidate.writeOffWarning !== "boolean"
+    || (candidate.repairToValueRatio !== null && (typeof candidate.repairToValueRatio !== "number" || !Number.isFinite(candidate.repairToValueRatio)))
+    || typeof candidate.economicEvidenceComplete !== "boolean"
+    || typeof candidate.technicalEvidenceComplete !== "boolean"
+  ) return null;
+  return candidate as KingaWriteOffRecommendation;
+}
+
+function requireTenantAggregateAuthority(tenantId: string | undefined): ResolvedPlatformReportAuthority {
+  if (!tenantId?.trim()) throw new Error("Tenant scope is required for aggregate reporting");
+  return { kind: "tenant", tenantId };
+}
+
+function requirePlatformAggregateAuthority(
+  params: Record<string, unknown>,
+  queueTenantId: string | undefined,
+): ResolvedPlatformReportAuthority {
+  const raw = params.platformAggregateAuthority;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("Explicit platform-super-admin aggregate authority is required");
+  }
+  const candidate = raw as Record<string, unknown>;
+  if (
+    candidate.kind !== "platform_global"
+    || typeof candidate.auditTenantId !== "string"
+    || candidate.auditTenantId !== queueTenantId
+    || typeof candidate.actorId !== "number"
+    || !Number.isInteger(candidate.actorId)
+    || (candidate.actorRole !== "admin" && candidate.actorRole !== "platform_super_admin")
+  ) {
+    throw new Error("Invalid platform-super-admin aggregate authority");
+  }
+  return {
+    kind: "platform_global",
+    auditTenantId: candidate.auditTenantId,
+    actorId: candidate.actorId,
+    actorRole: candidate.actorRole,
+  };
+}
 
 // ─── Report Role Access Map ───────────────────────────────────────────────────
 // Each report key maps to the EXACT set of roles that may access it.
@@ -165,7 +234,7 @@ export async function generateReportHtml(
     case "portfolio.panel_beater_performance": return generatePanelBeaterPerformanceReport(params, tenantId);
     case "portfolio.dwell_time":  return generateDwellTimeReport(params, tenantId);
     case "risk_manager_portfolio": return generateFraudSummaryReport(params, tenantId); // alias → fraud/risk portfolio
-    case "executive.platform_dashboard": return generatePlatformDashboardReport(params);
+    case "executive.platform_dashboard": return generatePlatformDashboardReport(params, tenantId);
     case "governance.sar":        return generateSARReport(params, tenantId);
     case "governance.regulatory_compliance": return generateRegulatoryComplianceReport(params, tenantId);
     case "governance.data_retention":         return generateDataRetentionReport(params, tenantId);
@@ -198,33 +267,11 @@ async function generateClaimAssessmentReport(
   tenantId?: string
 ): Promise<string> {
   const claimId = params.claimId as number;
+  if (!tenantId) throw new Error("Tenant scope is required for Claim Assessment reporting");
   const conn = await getConn();
   try {
-    const [claims] = await conn.execute(
-      `SELECT c.id, c.claim_reference, c.incident_type, c.incident_date, c.incident_location,
-              c.lodger_name, c.policy_number, c.vehicle_make, c.vehicle_model, c.vehicle_year,
-              c.vehicle_registration, c.vehicle_market_value, c.insurer_name, c.status,
-              c.workflow_state, c.created_at, c.confidence_score, c.vehicle_vin,
-              c.excess_amount_cents,
-              c.driver_licence_number, c.licence_age_range, c.driver_is_self,
-              c.weather_conditions, c.gps_lat, c.gps_lng,
-              CONCAT(c.vehicle_make,' ',c.vehicle_model,' ',c.vehicle_year) AS vehicle_description,
-              a.fraud_score, a.fraud_risk_level, a.recommendation,
-              a.estimated_cost, a.parts_cost, a.labor_cost,
-              a.damage_description, a.total_loss_indicated, a.repair_to_value_ratio,
-              a.model_version, a.created_at AS assessment_date,
-              a.decision_authority_json, a.physics_analysis, a.physics_truth_json,
-              a.fraud_score_breakdown_json, a.cost_intelligence_json,
-              a.cross_validation_json, a.claim_truth_json,
-              a.enriched_photos_json
-       FROM claims c
-       LEFT JOIN ai_assessments a ON a.claim_id = c.id
-       WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""} ORDER BY a.created_at DESC LIMIT 1`,
-      tenantId ? [claimId, tenantId] : [claimId]
-    ) as [Record<string, unknown>[], unknown];
-
-    const claim = claims[0];
-    if (!claim) throw new Error(`Claim ${claimId} not found`);
+    const record = await resolveReportRecord({ claimId, tenantId, audience: "claim_assessment" });
+    const claim = toReportDefinitionRow(record) as Record<string, any>;
 
     // Shared CL/CI/FR fields must flow through the canonical resolver pair.
     // Report-specific evidence may still be loaded below, but it must not
@@ -260,33 +307,29 @@ async function generateClaimAssessmentReport(
     const severitySpdCA  = cvThreeWayCA?.severityImpliedSpeedLabel ?? null;
     const speedVerdictCA = cvThreeWayCA?.verdict ?? (claimedSpdCA && consensusSpdCA && Math.abs(Number(claimedSpdCA) - Number(consensusSpdCA)) > 5 ? 'DIVERGE' : 'CONSISTENT');
 
-    // Damaged components are stored in damaged_components_json on ai_assessments
-    // (JSON array of DamagedComponent objects from Stage 6 / Stage 8)
-    const [damageRows] = await conn.execute(
-      `SELECT a.damaged_components_json FROM ai_assessments a WHERE a.claim_id=? ORDER BY a.created_at DESC LIMIT 1`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
-    // Load all panel beater quotes and their line items for the §04b comparison table
-    const [quoteRows] = await conn.execute(
-      `SELECT q.id, q.quoted_amount, q.labor_cost, q.parts_cost, q.status, q.quote_type, q.parent_quote_id, q.currency_code,
-              pb.business_name AS panel_beater_name
-       FROM panel_beater_quotes q
-       LEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id
-       WHERE q.claim_id = ?
-       ORDER BY q.quoted_amount ASC`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
-    // Load line items for each quote
-    const quoteLineItemsMap = new Map<number, Record<string, unknown>[]>();
-	for (const q of quoteRows) {
-      const [liRows] = await conn.execute(
-        `SELECT description, category, unit_price, line_total FROM quote_line_items WHERE quote_id = ? ORDER BY id ASC`,
-        [q.id]
-      ) as [Record<string, unknown>[], unknown];
-		quoteLineItemsMap.set(Number(q.id), liRows);
-	}
+    // Source-disambiguated evidence arrives only through resolveReportRecord():
+    // submitted commercial quote items and AI-detected damage must never be conflated.
+    const quoteRows = record.evidence.quoteEvidence.map((quote) => ({
+      id: quote.quoteId,
+      quoted_amount: quote.quotedAmount,
+      labor_cost: quote.labourCost,
+      parts_cost: quote.partsCost,
+      status: quote.status,
+      quote_type: quote.quoteType,
+      parent_quote_id: quote.parentQuoteId,
+      currency_code: quote.currencyCode,
+      panel_beater_name: quote.panelBeaterName,
+    }));
+    const quoteLineItemsMap = new Map<number, Record<string, unknown>[]>(
+      record.evidence.quoteEvidence.map((quote) => [quote.quoteId, quote.lineItems.map((line) => ({
+        description: line.description,
+        category: line.category,
+        unit_price: line.unitPrice,
+        line_total: line.lineTotal,
+      }))]),
+    );
 	const evidenceGovernanceData = await loadEvidenceGovernanceReportData(conn, claimId, tenantId);
-    const rawCompsData = safeJson((damageRows[0] as Record<string,unknown>)?.damaged_components_json);
+    const rawCompsData = record.evidence.aiDetectedDamageComponents;
     const rawComps: Record<string, unknown>[] = Array.isArray(rawCompsData)
       ? (rawCompsData as Record<string,unknown>[])
       : Array.isArray((rawCompsData as Record<string,unknown> | null)?.components)
@@ -353,7 +396,7 @@ async function generateClaimAssessmentReport(
       repairability: {
         totalLossIndicated: Boolean(claim.total_loss_indicated),
         repairToValueRatio: claim.repair_to_value_ratio == null ? null : Number(claim.repair_to_value_ratio),
-        kingaRecommendation: costIntel?.repairabilityDecision ?? null,
+        kingaRecommendation: parseKingaWriteOffRecommendation(costIntel?.repairabilityDecision),
         ...extractExplicitStructuralReviewEvidence(claim.repair_intelligence_json),
       },
     });
@@ -849,27 +892,11 @@ async function generateForensicReport(
   tenantId?: string
 ): Promise<string> {
   const claimId = params.claimId as number;
+  if (!tenantId) throw new Error("Tenant scope is required for Forensic reporting");
   const conn = await getConn();
   try {
-    // All column names verified against live DB 2026-05-04
-    const [claims] = await conn.execute(
-      `SELECT c.*,
-              CONCAT(c.vehicle_make, ' ', c.vehicle_model, ' ', c.vehicle_year) AS vehicle_description,
-              a.fraud_score, a.fraud_risk_level, a.recommendation,
-              a.estimated_cost, a.total_loss_indicated, a.repair_to_value_ratio,
-              a.physics_analysis, a.fraud_score_breakdown_json,
-              a.forensic_audit_validation_json, a.narrative_analysis_json,
-              a.damage_description, a.model_version,
-              a.created_at AS assessment_date, a.ife_result_json,
-              a.decision_authority_json, a.cross_validation_json, a.claim_truth_json
-       FROM claims c
-       LEFT JOIN ai_assessments a ON a.claim_id = c.id
-       WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""} ORDER BY a.created_at DESC LIMIT 1`,
-      tenantId ? [claimId, tenantId] : [claimId]
-    ) as [Record<string, unknown>[], unknown];
-
-    const claim = claims[0];
-    if (!claim) throw new Error(`Claim ${claimId} not found`);
+    const record = await resolveReportRecord({ claimId, tenantId, audience: "forensic" });
+    const claim = toReportDefinitionRow(record) as Record<string, any>;
 
     const parseJson = (val: unknown) => {
       if (!val) return null;
@@ -1040,35 +1067,30 @@ async function generateForensicReport(
 
 async function generateAuditTrailReport(
   params: Record<string, unknown>,
-  _tenantId?: string
+  tenantId?: string
 ): Promise<string> {
   const claimId = params.claimId as number;
+  if (!tenantId) throw new Error("Tenant scope is required for Audit Trail reporting");
   const conn = await getConn();
   try {
-    // c.psm_status → c.status (verified 2026-05-04)
-    const [claims] = await conn.execute(
-      `SELECT c.claim_reference, c.id, c.status, c.workflow_state, c.created_at, c.updated_at,
-              c.insurer_name, c.lodger_name
-       FROM claims c WHERE c.id=? LIMIT 1`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
-    const claim = claims[0];
-    if (!claim) throw new Error(`Claim ${claimId} not found`);
-
-    const [events] = await conn.execute(
-      `SELECT event_type, from_status, to_status, performed_by_name, performed_by_role,
-              notes, created_at
-       FROM claim_workflow_events WHERE claim_id=? ORDER BY created_at ASC`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
-
-    // a.triggered_by_admin → a.triggered_role (verified 2026-05-04)
-    const [assessments] = await conn.execute(
-      `SELECT id, model_version, fraud_score, fraud_risk_level,
-              recommendation, created_at, triggered_role
-       FROM ai_assessments WHERE claim_id=? ORDER BY created_at ASC`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
+    const record = await resolveReportRecord({ claimId, tenantId, audience: "audit" });
+    const claim = toReportDefinitionRow(record) as Record<string, any>;
+    const events = record.history.recordedClaimEvents.map((event) => ({
+      event_type: event.eventType,
+      event_payload: event.eventPayload,
+      user_id: event.userId,
+      user_role: event.userRole,
+      emitted_at: event.emittedAt,
+    }));
+    const assessments = record.history.assessmentHistory.map((assessment) => ({
+      id: assessment.assessmentId,
+      model_version: assessment.modelVersion,
+      fraud_score: assessment.fraudScore,
+      fraud_risk_level: assessment.fraudRiskLevel,
+      recommendation: assessment.recommendation,
+      created_at: assessment.createdAt,
+      triggered_role: assessment.triggeredRole,
+    }));
 
     const meta: ReportMeta = {
       title: "Claim Decision Audit Trail",
@@ -1094,23 +1116,21 @@ async function generateAuditTrailReport(
       </div>
 
       <div class="section">
-        <div class="section-title">2. Workflow Event Log</div>
+        <div class="section-title">2. Recorded Claim Events</div>
         ${(events as Record<string, unknown>[]).length > 0 ? `
         <table>
-          <thead><tr><th>Timestamp</th><th>Event</th><th>From</th><th>To</th><th>Performed By</th><th>Role</th><th>Notes</th></tr></thead>
+          <thead><tr><th>Timestamp</th><th>Recorded Event</th><th>Actor ID</th><th>Role</th><th>Payload</th></tr></thead>
           <tbody>
             ${(events as Record<string, unknown>[]).map((e) => `
               <tr>
-                <td class="mono small">${fmtDateTime(e.created_at as number)}</td>
+                <td class="mono small">${fmtDateTime(e.emitted_at as number)}</td>
                 <td>${escHtml(String(e.event_type ?? ""))}</td>
-                <td class="small">${escHtml(String(e.from_status ?? "—"))}</td>
-                <td class="small">${escHtml(String(e.to_status ?? "—"))}</td>
-                <td>${escHtml(String(e.performed_by_name ?? "System"))}</td>
-                <td class="small">${escHtml(String(e.performed_by_role ?? "—"))}</td>
-                <td class="small grey">${escHtml(String(e.notes ?? ""))}</td>
+                <td>${escHtml(String(e.user_id ?? "System"))}</td>
+                <td class="small">${escHtml(String(e.user_role ?? "—"))}</td>
+                <td class="small grey">${escHtml(JSON.stringify(e.event_payload ?? {}))}</td>
               </tr>`).join("")}
           </tbody>
-        </table>` : `<div class="finding-box info">No workflow events recorded.</div>`}
+        </table>` : `<div class="finding-box info">No recorded claim events are available.</div>`}
       </div>
 
       <div class="section">
@@ -1135,7 +1155,7 @@ async function generateAuditTrailReport(
 
       <div class="section">
         <div class="section-title">Disclaimer</div>
-        <p class="small grey">This audit trail is an immutable record generated by the KINGA Intelligence Platform. It is classified CONFIDENTIAL. The events recorded herein reflect all system and human actions taken on this claim. This document may be used as evidence in legal proceedings, regulatory investigations, or internal compliance reviews.</p>
+        <p class="small grey">This audit report presents recorded claim events available to KINGA at generation time. It does not assert that every historical status transition was emitted or retained. It is classified CONFIDENTIAL and must be reviewed before use in any compliance or legal context.</p>
       </div>
     `;
 
@@ -1147,31 +1167,14 @@ async function generateAuditTrailReport(
 
 async function generateCostComparisonReport(
   params: Record<string, unknown>,
-  _tenantId?: string
+  tenantId?: string
 ): Promise<string> {
   const claimId = params.claimId as number;
+  if (!tenantId) throw new Error("Tenant scope is required for Cost Comparison reporting");
   const conn = await getConn();
   try {
-    // All column names verified 2026-05-04
-    const [claims] = await conn.execute(
-      `SELECT c.claim_reference, c.id, c.insurer_name,
-              CONCAT(c.vehicle_make, ' ', c.vehicle_model, ' ', c.vehicle_year) AS vehicle_description,
-              a.estimated_cost, a.parts_cost, a.labor_cost,
-              a.cost_intelligence_json, a.created_at AS assessment_date
-       FROM claims c
-       LEFT JOIN ai_assessments a ON a.claim_id=c.id
-       WHERE c.id=? ORDER BY a.created_at DESC LIMIT 1`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
-    const claim = claims[0];
-    if (!claim) throw new Error(`Claim ${claimId} not found`);
-
-    const [components] = await conn.execute(
-      `SELECT component_name, damage_severity, repair_or_replace,
-              estimated_cost, quote_price, benchmark_price, labour_hours
-       FROM damaged_components WHERE claim_id=? ORDER BY estimated_cost DESC`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
+    const record = await resolveReportRecord({ claimId, tenantId, audience: "cost_comparison" });
+    const claim = toReportDefinitionRow(record) as Record<string, any>;
 
     const parseJson = (val: unknown) => {
       if (!val) return null;
@@ -1203,37 +1206,36 @@ async function generateCostComparisonReport(
         </div>
       </div>
 
-      ${(components as Record<string, unknown>[]).length > 0 ? `
+      ${record.evidence.quoteEvidence.length > 0 ? `
       <div class="section">
-        <div class="section-title">2. Component-Level Cost Analysis</div>
+        <div class="section-title">2. Submitted Quote Component Evidence</div>
         <table>
           <thead><tr>
-            <th>Component</th><th>Severity</th><th>Decision</th>
-            <th class="text-right">Quote Price</th>
-            <th class="text-right">AI Benchmark</th>
-            <th class="text-right">Variance</th>
+            <th>Repairer</th><th>Component / Operation</th><th>Category</th>
+            <th class="text-right">Unit Price</th><th class="text-right">Line Total</th>
           </tr></thead>
           <tbody>
-            ${(components as Record<string, unknown>[]).map((c) => {
-              const quote = Number(c.quote_price ?? c.estimated_cost ?? 0);
-              const bench = Number(c.benchmark_price ?? 0);
-              const vari = bench > 0 ? ((quote - bench) / bench) * 100 : null;
-              return `<tr>
-                <td>${escHtml(String(c.component_name))}</td>
-                <td>${riskBadge(String(c.damage_severity ?? "medium"))}</td>
-                <td>${escHtml(String(c.repair_or_replace ?? "—"))}</td>
-                <td class="text-right">${fmtCurrency(quote)}</td>
-                <td class="text-right">${bench > 0 ? fmtCurrency(bench) : "—"}</td>
-                <td class="text-right ${vari != null && Math.abs(vari) > 20 ? "bold" : ""}">${vari != null ? `${vari >= 0 ? "+" : ""}${vari.toFixed(1)}%` : "—"}</td>
-              </tr>`;
-            }).join("")}
+            ${record.evidence.quoteEvidence.flatMap((quote) => quote.lineItems.map((line) => `<tr>
+              <td>${escHtml(String(quote.panelBeaterName ?? "Submitted repairer"))}</td>
+              <td>${escHtml(String(line.description ?? "—"))}</td>
+              <td>${escHtml(String(line.category ?? "—"))}</td>
+              <td class="text-right">${line.unitPrice == null ? "—" : fmtCurrency(line.unitPrice)}</td>
+              <td class="text-right">${line.lineTotal == null ? "—" : fmtCurrency(line.lineTotal)}</td>
+            </tr>`)).join("")}
           </tbody>
         </table>
       </div>` : ""}
 
+      ${Array.isArray(record.evidence.aiDetectedDamageComponents) ? `
+      <div class="section">
+        <div class="section-title">3. System-Detected Damage Components</div>
+        <div class="finding-box info">This section reflects AI-detected damage evidence. It is distinct from submitted commercial quotations and does not imply a repair-or-replace decision or benchmark price.</div>
+        <pre class="small">${escHtml(JSON.stringify(record.evidence.aiDetectedDamageComponents, null, 2))}</pre>
+      </div>` : ""}
+
       ${costIntel ? `
       <div class="section">
-        <div class="section-title">3. Cost Intelligence Notes</div>
+        <div class="section-title">4. Cost Intelligence Notes</div>
         <div class="finding-box info">
           ${escHtml(String(costIntel.summary ?? costIntel.notes ?? JSON.stringify(costIntel)))}
         </div>
@@ -1253,26 +1255,14 @@ async function generateCostComparisonReport(
 
 async function generateRepairDecisionReport(
   params: Record<string, unknown>,
-  _tenantId?: string
+  tenantId?: string
 ): Promise<string> {
   const claimId = params.claimId as number;
+  if (!tenantId) throw new Error("Tenant scope is required for Repair Decision reporting");
   const conn = await getConn();
   try {
-    // All column names verified 2026-05-04
-    const [claims] = await conn.execute(
-      `SELECT c.claim_reference, c.id, c.insurer_name,
-              CONCAT(c.vehicle_make, ' ', c.vehicle_model, ' ', c.vehicle_year) AS vehicle_description,
-              c.vehicle_market_value,
-              a.total_loss_indicated, a.repair_to_value_ratio,
-              a.repair_intelligence_json, a.estimated_cost,
-              a.created_at AS assessment_date
-       FROM claims c
-       LEFT JOIN ai_assessments a ON a.claim_id=c.id
-       WHERE c.id=? ORDER BY a.created_at DESC LIMIT 1`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
-    const claim = claims[0];
-    if (!claim) throw new Error(`Claim ${claimId} not found`);
+    const record = await resolveReportRecord({ claimId, tenantId, audience: "repair_decision" });
+    const claim = toReportDefinitionRow(record) as Record<string, any>;
 
     const parseJson = (val: unknown) => {
       if (!val) return null;
@@ -1348,44 +1338,15 @@ async function generateClaimsSummaryReport(
   params: Record<string, unknown>,
   tenantId?: string
 ): Promise<string> {
-  const conn = await getConn();
-  try {
-    const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const toTs = params.toTs as number ?? Date.now();
-    const tid = tenantId ?? params.tenantId as string;
-
-    const whereClause = tid
-      ? `WHERE c.tenant_id=? AND c.created_at BETWEEN ? AND ?`
-      : `WHERE c.created_at BETWEEN ? AND ?`;
-    const whereParams = tid ? [tid, fromTs, toTs] : [fromTs, toTs];
-
-    // c.psm_status → c.status; a.overall_fraud_score → a.fraud_score; a.total_claimed_amount → a.estimated_cost
-    const [summary] = await conn.execute(
-      `SELECT
-        COUNT(*) as total_claims,
-        SUM(CASE WHEN c.status='approved' THEN 1 ELSE 0 END) as approved,
-        SUM(CASE WHEN c.status='rejected' THEN 1 ELSE 0 END) as rejected,
-        SUM(CASE WHEN c.status IN ('in_review','assessment_in_progress','submitted') THEN 1 ELSE 0 END) as in_progress,
-        SUM(CASE WHEN c.status='settled' THEN 1 ELSE 0 END) as settled,
-        AVG(a.fraud_score) as avg_fraud_score,
-        SUM(CASE WHEN a.fraud_risk_level='high' OR a.fraud_risk_level='critical' THEN 1 ELSE 0 END) as high_risk_count,
-        SUM(a.estimated_cost) as total_estimated,
-        AVG(c.confidence_score) as avg_quality_score
-       FROM claims c
-       LEFT JOIN ai_assessments a ON a.claim_id=c.id
-       ${whereClause}`,
-      whereParams
-    ) as [Record<string, unknown>[], unknown];
-
-    const stats = (summary as Record<string, unknown>[])[0] ?? {};
-
-    // c.claim_type → c.incident_type
-    const [byType] = await conn.execute(
-      `SELECT c.incident_type, COUNT(*) as cnt, SUM(a.estimated_cost) as total_value
-       FROM claims c LEFT JOIN ai_assessments a ON a.claim_id=c.id
-       ${whereClause} GROUP BY c.incident_type ORDER BY cnt DESC`,
-      whereParams
-    ) as [Record<string, unknown>[], unknown];
+  const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const toTs = params.toTs as number ?? Date.now();
+  const tid = tenantId ?? params.tenantId as string;
+  const aggregate = await resolvePlatformReportCollection({
+    authority: requireTenantAggregateAuthority(tid),
+    filters: { fromTs, toTs },
+  });
+  const stats = aggregate.portfolio;
+  const byType = stats.incidentTypes;
 
     const meta: ReportMeta = {
       title: "Claims Portfolio Summary",
@@ -1397,9 +1358,9 @@ async function generateClaimsSummaryReport(
       classification: "CONFIDENTIAL",
     };
 
-    const total = Number(stats.total_claims ?? 0);
-    const approved = Number(stats.approved ?? 0);
-    const rejected = Number(stats.rejected ?? 0);
+    const total = stats.totalClaims;
+    const approved = stats.approvedCount;
+    const rejected = stats.rejectedCount;
     const approvalRate = total > 0 ? (approved / total) * 100 : 0;
 
     const body = `
@@ -1409,25 +1370,25 @@ async function generateClaimsSummaryReport(
           <div class="kv-item"><div class="kv-label">Total Claims</div><div class="kv-value bold">${total.toLocaleString()}</div></div>
           <div class="kv-item"><div class="kv-label">Approved</div><div class="kv-value">${approved.toLocaleString()} (${approvalRate.toFixed(1)}%)</div></div>
           <div class="kv-item"><div class="kv-label">Rejected</div><div class="kv-value">${rejected.toLocaleString()}</div></div>
-          <div class="kv-item"><div class="kv-label">In Progress</div><div class="kv-value">${Number(stats.in_progress ?? 0).toLocaleString()}</div></div>
-          <div class="kv-item"><div class="kv-label">Total AI Estimated Value</div><div class="kv-value bold">${fmtCurrency(stats.total_estimated as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">High Risk Claims</div><div class="kv-value">${Number(stats.high_risk_count ?? 0).toLocaleString()}</div></div>
-          <div class="kv-item"><div class="kv-label">Avg Fraud Score</div><div class="kv-value">${scoreBar(Math.round(Number(stats.avg_fraud_score ?? 0)))}</div></div>
-          <div class="kv-item"><div class="kv-label">Avg Confidence Score</div><div class="kv-value">${scoreBar(Math.round(Number(stats.avg_quality_score ?? 0)))}</div></div>
+          <div class="kv-item"><div class="kv-label">In Progress</div><div class="kv-value">${stats.inProgressCount.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Total AI Estimated Value</div><div class="kv-value bold">${fmtCurrency(stats.aiEstimatedValueUsd)}</div></div>
+          <div class="kv-item"><div class="kv-label">High Risk Claims</div><div class="kv-value">${stats.highRiskClaimCount.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Fraud Score</div><div class="kv-value">${scoreBar(Math.round(stats.averageFraudScore ?? 0))}</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Confidence Score</div><div class="kv-value">${scoreBar(Math.round(stats.averageConfidenceScore ?? 0))}</div></div>
         </div>
       </div>
 
-      ${(byType as Record<string, unknown>[]).length > 0 ? `
+      ${byType.length > 0 ? `
       <div class="section">
         <div class="section-title">2. Claims by Incident Type</div>
         <table>
           <thead><tr><th>Incident Type</th><th class="text-right">Count</th><th class="text-right">Total AI Estimated Value</th></tr></thead>
           <tbody>
-            ${(byType as Record<string, unknown>[]).map((r) => `
+            ${byType.map((r) => `
               <tr>
-                <td>${escHtml(String(r.incident_type ?? "Unknown"))}</td>
-                <td class="text-right">${Number(r.cnt).toLocaleString()}</td>
-                <td class="text-right">${fmtCurrency(r.total_value as number)}</td>
+                <td>${escHtml(r.incidentType)}</td>
+                <td class="text-right">${r.claimCount.toLocaleString()}</td>
+                <td class="text-right">${fmtCurrency(r.aiEstimatedValueUsd)}</td>
               </tr>`).join("")}
           </tbody>
         </table>
@@ -1439,32 +1400,21 @@ async function generateClaimsSummaryReport(
       </div>
     `;
 
-    return buildBaseHtml(meta, body);
-  } finally {
-    await conn.end();
-  }
+  return buildBaseHtml(meta, body);
 }
 
 async function generateFraudSummaryReport(
   params: Record<string, unknown>,
   tenantId?: string
 ): Promise<string> {
-  const conn = await getConn();
-  try {
-    const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const toTs = params.toTs as number ?? Date.now();
-    const tid = tenantId ?? params.tenantId as string;
-
-    const whereClause = tid ? `WHERE c.tenant_id=? AND c.created_at BETWEEN ? AND ?` : `WHERE c.created_at BETWEEN ? AND ?`;
-    const whereParams = tid ? [tid, fromTs, toTs] : [fromTs, toTs];
-
-    // a.overall_fraud_score → a.fraud_score (verified 2026-05-04)
-    const [riskDist] = await conn.execute(
-      `SELECT a.fraud_risk_level, COUNT(*) as cnt, AVG(a.fraud_score) as avg_score
-       FROM claims c LEFT JOIN ai_assessments a ON a.claim_id=c.id
-       ${whereClause} GROUP BY a.fraud_risk_level ORDER BY avg_score DESC`,
-      whereParams
-    ) as [Record<string, unknown>[], unknown];
+  const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const toTs = params.toTs as number ?? Date.now();
+  const tid = tenantId ?? params.tenantId as string;
+  const aggregate = await resolvePlatformReportCollection({
+    authority: requireTenantAggregateAuthority(tid),
+    filters: { fromTs, toTs },
+  });
+  const riskDist = aggregate.fraudRiskDistribution;
 
     const meta: ReportMeta = {
       title: "Fraud Detection Summary Report",
@@ -1482,11 +1432,11 @@ async function generateFraudSummaryReport(
         <table>
           <thead><tr><th>Risk Level</th><th class="text-right">Claim Count</th><th>Avg Fraud Score</th></tr></thead>
           <tbody>
-            ${(riskDist as Record<string, unknown>[]).map((r) => `
+            ${riskDist.map((r) => `
               <tr>
-                <td>${riskBadge(String(r.fraud_risk_level ?? "unknown"))}</td>
-                <td class="text-right">${Number(r.cnt).toLocaleString()}</td>
-                <td>${scoreBar(Math.round(Number(r.avg_score ?? 0)))}</td>
+                <td>${riskBadge(r.riskLevel)}</td>
+                <td class="text-right">${r.claimCount.toLocaleString()}</td>
+                <td>${r.averageScore === null ? "—" : scoreBar(Math.round(r.averageScore))}</td>
               </tr>`).join("")}
           </tbody>
         </table>
@@ -1497,10 +1447,7 @@ async function generateFraudSummaryReport(
       </div>
     `;
 
-    return buildBaseHtml(meta, body);
-  } finally {
-    await conn.end();
-  }
+  return buildBaseHtml(meta, body);
 }
 
 async function generateAssessorPerformanceReport(
@@ -1641,25 +1588,14 @@ async function generateDwellTimeReport(
   params: Record<string, unknown>,
   tenantId?: string
 ): Promise<string> {
-  const conn = await getConn();
-  try {
-    const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const toTs = params.toTs as number ?? Date.now();
-    const tid = tenantId ?? params.tenantId as string;
-
-    const whereClause = tid ? `WHERE c.tenant_id=? AND c.created_at BETWEEN ? AND ?` : `WHERE c.created_at BETWEEN ? AND ?`;
-    const whereParams = tid ? [tid, fromTs, toTs] : [fromTs, toTs];
-
-    // c.psm_status → c.status (verified 2026-05-04)
-    const [rows] = await conn.execute(
-      `SELECT c.status,
-              COUNT(*) as cnt,
-              AVG((c.updated_at - c.created_at) / 3600000) as avg_hours_in_state,
-              MAX((c.updated_at - c.created_at) / 3600000) as max_hours_in_state
-       FROM claims c ${whereClause}
-       GROUP BY c.status ORDER BY avg_hours_in_state DESC`,
-      whereParams
-    ) as [Record<string, unknown>[], unknown];
+  const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const toTs = params.toTs as number ?? Date.now();
+  const tid = tenantId ?? params.tenantId as string;
+  const aggregate = await resolvePlatformReportCollection({
+    authority: requireTenantAggregateAuthority(tid),
+    filters: { fromTs, toTs },
+  });
+  const rows = aggregate.dwellTimeByStatus;
 
     const meta: ReportMeta = {
       title: "Claims Processing Dwell Time Report",
@@ -1673,52 +1609,41 @@ async function generateDwellTimeReport(
 
     const body = `
       <div class="section">
-        <div class="section-title">1. Average Dwell Time by Workflow Status</div>
+        <div class="section-title">1. Elapsed Processing Time by Current Status</div>
         <table>
           <thead><tr>
             <th>Status</th>
             <th class="text-right">Claim Count</th>
-            <th class="text-right">Avg Hours in State</th>
-            <th class="text-right">Max Hours in State</th>
+            <th class="text-right">Avg Elapsed Hours</th>
+            <th class="text-right">Max Elapsed Hours</th>
           </tr></thead>
           <tbody>
-            ${(rows as Record<string, unknown>[]).map((r) => `
+            ${rows.map((r) => `
               <tr>
-                <td>${escHtml(String(r.status ?? "—"))}</td>
-                <td class="text-right">${Number(r.cnt).toLocaleString()}</td>
-                <td class="text-right ${Number(r.avg_hours_in_state ?? 0) > 48 ? "bold" : ""}">${Number(r.avg_hours_in_state ?? 0).toFixed(1)}h</td>
-                <td class="text-right">${Number(r.max_hours_in_state ?? 0).toFixed(1)}h</td>
+                <td>${escHtml(r.status)}</td>
+                <td class="text-right">${r.claimCount.toLocaleString()}</td>
+                <td class="text-right ${r.averageElapsedHours > 48 ? "bold" : ""}">${r.averageElapsedHours.toFixed(1)}h</td>
+                <td class="text-right">${r.maximumElapsedHours.toFixed(1)}h</td>
               </tr>`).join("")}
           </tbody>
         </table>
       </div>
     `;
 
-    return buildBaseHtml(meta, body);
-  } finally {
-    await conn.end();
-  }
+  return buildBaseHtml(meta, body);
 }
 
 // ─── Phase 2d: Executive & Governance Reports ─────────────────────────────────
 
 async function generatePlatformDashboardReport(
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  tenantId?: string,
 ): Promise<string> {
-  const conn = await getConn();
-  try {
-    // a.total_claimed_amount → a.estimated_cost; a.overall_fraud_score → a.fraud_score (verified 2026-05-04)
-    const [totals] = await conn.execute(
-      `SELECT COUNT(*) as total_claims,
-              COUNT(DISTINCT c.tenant_id) as active_insurers,
-              SUM(a.estimated_cost) as total_estimated,
-              AVG(a.fraud_score) as avg_fraud_score,
-              SUM(CASE WHEN a.fraud_risk_level IN ('high','critical') THEN 1 ELSE 0 END) as high_risk
-       FROM claims c LEFT JOIN ai_assessments a ON a.claim_id=c.id`,
-      []
-    ) as [Record<string, unknown>[], unknown];
-
-    const stats = (totals as Record<string, unknown>[])[0] ?? {};
+  const aggregate = await resolvePlatformReportCollection({
+    authority: requirePlatformAggregateAuthority(params, tenantId),
+    filters: {},
+  });
+  const stats = aggregate.portfolio;
 
     const meta: ReportMeta = {
       title: "Platform Executive Dashboard",
@@ -1733,11 +1658,11 @@ async function generatePlatformDashboardReport(
       <div class="section">
         <div class="section-title">1. Platform-Wide Summary</div>
         <div class="kv-grid cols-4">
-          <div class="kv-item"><div class="kv-label">Total Claims Processed</div><div class="kv-value bold">${Number(stats.total_claims ?? 0).toLocaleString()}</div></div>
-          <div class="kv-item"><div class="kv-label">Active Insurers</div><div class="kv-value bold">${Number(stats.active_insurers ?? 0)}</div></div>
-          <div class="kv-item"><div class="kv-label">Total AI Estimated Value</div><div class="kv-value bold">${fmtCurrency(stats.total_estimated as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">High Risk Claims</div><div class="kv-value bold">${Number(stats.high_risk ?? 0).toLocaleString()}</div></div>
-          <div class="kv-item"><div class="kv-label">Avg Platform Fraud Score</div><div class="kv-value">${scoreBar(Math.round(Number(stats.avg_fraud_score ?? 0)))}</div></div>
+          <div class="kv-item"><div class="kv-label">Total Claims Processed</div><div class="kv-value bold">${stats.totalClaims.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Active Insurers</div><div class="kv-value bold">${stats.activeInsurerCount}</div></div>
+          <div class="kv-item"><div class="kv-label">Total AI Estimated Value</div><div class="kv-value bold">${fmtCurrency(stats.aiEstimatedValueUsd)}</div></div>
+          <div class="kv-item"><div class="kv-label">High Risk Claims</div><div class="kv-value bold">${stats.highRiskClaimCount.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Platform Fraud Score</div><div class="kv-value">${scoreBar(Math.round(stats.averageFraudScore ?? 0))}</div></div>
         </div>
       </div>
       <div class="section">
@@ -1746,10 +1671,7 @@ async function generatePlatformDashboardReport(
       </div>
     `;
 
-    return buildBaseHtml(meta, body);
-  } finally {
-    await conn.end();
-  }
+  return buildBaseHtml(meta, body);
 }
 
 async function generateSARReport(

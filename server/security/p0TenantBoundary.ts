@@ -11,6 +11,7 @@ import { insurerTenants } from "../../drizzle/schema";
 import { getDb } from "../db";
 import { extractIp } from "../_core/trpc";
 import { insertIsoAuditLog } from "../utils/audit-helpers";
+import { isAdminRole } from "../../shared/role-permissions";
 
 export type P0ScopeContext = {
   user: { id: number; role: string; tenantId?: string | null } | null;
@@ -39,7 +40,7 @@ export function resolveP0TenantScope(
 ): P0TenantScope {
   if (!ctx.user) denied("Authentication is required for this operation.");
   const sessionTenantId = ctx.user.tenantId ?? null;
-  const isPlatformSuperAdmin = ctx.user.role === "platform_super_admin";
+  const isPlatformSuperAdmin = isAdminRole(ctx.user.role);
 
   if (!isPlatformSuperAdmin) {
     if (!sessionTenantId) denied("Tenant context is required for this operation.");
@@ -96,6 +97,35 @@ export async function auditP0CrossTenantAccess(
     resourceType: `p0_cross_tenant_${action}`.slice(0, 50),
     resourceId: resourceId.slice(0, 64),
     afterState: JSON.stringify({ selectedTenantId: scope.tenantId, action, ...metadata }),
+    ipAddress: extractIp(ctx.req as any),
+  });
+}
+
+/**
+ * Platform-global reads are never inferred from a missing tenant ID. The caller
+ * must already have passed an explicit admin-only reporting decision; this
+ * function records that global scope independently of selected-tenant access.
+ */
+export async function auditP0PlatformGlobalAccess(
+  ctx: P0ScopeContext,
+  auditTenantId: string,
+  action: string,
+  resourceId: string,
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  if (!ctx.user || !isAdminRole(ctx.user.role)) {
+    denied("Platform-super-admin authority is required for platform-global access.");
+  }
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+  await insertIsoAuditLog(db as any, {
+    tenantId: auditTenantId,
+    userId: ctx.user.id,
+    userRole: ctx.user.role,
+    actionType: "view",
+    resourceType: `p0_platform_global_${action}`.slice(0, 50),
+    resourceId: resourceId.slice(0, 64),
+    afterState: JSON.stringify({ globalScope: true, auditTenantId, action, ...metadata }),
     ipAddress: extractIp(ctx.req as any),
   });
 }
