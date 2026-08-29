@@ -86,9 +86,6 @@ const REPORT_CATALOGUE = [
   { key: "risk_manager.portfolio_overview",   name: "Risk Manager Portfolio Report",    category: "Risk & Fraud",   description: "Fraud risk, AI-estimated financial exposure, and risk portfolio indicators.",                     requiresClaimId: false },
   // ── Executive ────────────────────────────────────────────────────────────────────────
   { key: "executive.portfolio_overview",       name: "Executive Portfolio Report",       category: "Executive",      description: "Aggregate portfolio, fraud, financial exposure, and operational dwell-time trends.",             requiresClaimId: false },
-  { key: "executive.insurer_summary",         name: "Insurer Executive Summary",        category: "Executive",      description: "High-level KPI dashboard: claims volume, approval rate, fraud savings, and SLA compliance.",       requiresClaimId: false },
-  { key: "executive.claims_trend",            name: "Claims Trend Report",              category: "Executive",      description: "Month-on-month claims volume and value trends with year-over-year comparison.",                  requiresClaimId: false },
-  { key: "executive.financial_exposure",      name: "Financial Exposure Report",        category: "Executive",      description: "Outstanding claims exposure, reserve adequacy, and projected settlement costs.",                 requiresClaimId: false },
   // Platform super-admin only
   { key: "executive.platform_dashboard",      name: "Platform Executive Dashboard",     category: "Platform Admin", description: "Platform-wide summary across all insurers. Restricted to platform super-admins.",                requiresClaimId: false },
   { key: "executive.cross_insurer_fraud",     name: "Cross-Insurer Fraud Intelligence", category: "Platform Admin", description: "Fraud pattern analysis across all insurer tenants on the platform.",                             requiresClaimId: false },
@@ -600,8 +597,8 @@ export const reportingRouter = router({
           "portfolio.claims_summary", "portfolio.dwell_time",
           "portfolio.panel_beater_performance", "portfolio.fraud_summary",
           "portfolio.assessor_performance", "risk_manager_portfolio",
-          "executive.insurer_summary", "executive.claims_trend",
-          "executive.financial_exposure",
+          "claims_manager.portfolio_overview", "risk_manager.portfolio_overview",
+          "executive.portfolio_overview",
         ];
 
         if (state === "ready") {

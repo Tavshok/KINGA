@@ -176,10 +176,6 @@ export const REPORT_ACCESS: Record<string, string[]> = {
   // ── Executive Reports ─────────────────────────────────────────────────────
   // Executives see high-level KPI summaries; managers also get trend data
   "executive.portfolio_overview":       ["insurer_admin", "executive"],
-  "executive.insurer_summary":         ["insurer_admin", "executive"],
-  "executive.full_report":              ["insurer_admin", "executive"],
-  "executive.claims_trend":            ["insurer_admin", "claims_manager", "risk_manager", "executive"],
-  "executive.financial_exposure":      ["insurer_admin", "claims_manager", "risk_manager", "executive"],
 
   // Platform super-admin only — cross-insurer intelligence (no insurer role)
   "executive.platform_dashboard":      ["admin"],
@@ -243,10 +239,6 @@ export async function generateReportHtml(
     case "governance.sar":        return generateSARReport(params, tenantId);
     case "governance.regulatory_compliance": return generateRegulatoryComplianceReport(params, tenantId);
     case "governance.data_retention":         return generateDataRetentionReport(params, tenantId);
-    case "executive.insurer_summary":         return generateExecutiveInsurerSummary(params, tenantId);
-    case "executive.full_report":              return generateExecutiveFullReport(params, tenantId);
-    case "executive.claims_trend":            return generateClaimsTrendReport(params, tenantId);
-    case "executive.financial_exposure":      return generateFinancialExposureReport(params, tenantId);
     case "executive.cross_insurer_fraud":     return generateCrossInsurerFraudReport(params);
     case "executive.ml_performance":          return generateMLPerformanceReport(params);
     case "assessor.my_assignments":           return generateAssessorAssignmentsReport(params, tenantId);

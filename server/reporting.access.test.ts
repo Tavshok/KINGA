@@ -96,9 +96,9 @@ describe("REPORT_ACCESS — role-based access control", () => {
       expect(reports).not.toContain("risk_manager.portfolio_overview");
     });
 
-    it("can access executive trend and financial reports", () => {
-      expect(reports).toContain("executive.claims_trend");
-      expect(reports).toContain("executive.financial_exposure");
+    it("cannot access retired executive reports", () => {
+      expect(reports).not.toContain("executive.claims_trend");
+      expect(reports).not.toContain("executive.financial_exposure");
     });
 
     it("cannot access insurer executive summary (executive only)", () => {
@@ -133,9 +133,9 @@ describe("REPORT_ACCESS — role-based access control", () => {
       expect(reports).not.toContain("claims_manager.portfolio_overview");
     });
 
-    it("can access executive trend and financial exposure", () => {
-      expect(reports).toContain("executive.claims_trend");
-      expect(reports).toContain("executive.financial_exposure");
+    it("cannot access retired executive reports", () => {
+      expect(reports).not.toContain("executive.claims_trend");
+      expect(reports).not.toContain("executive.financial_exposure");
       expect(reports).not.toContain("executive.portfolio_overview");
     });
 
@@ -157,9 +157,9 @@ describe("REPORT_ACCESS — role-based access control", () => {
 
     it("can access executive KPI reports", () => {
       expect(reports).toContain("executive.portfolio_overview");
-      expect(reports).toContain("executive.insurer_summary");
-      expect(reports).toContain("executive.claims_trend");
-      expect(reports).toContain("executive.financial_exposure");
+      expect(reports).not.toContain("executive.insurer_summary");
+      expect(reports).not.toContain("executive.claims_trend");
+      expect(reports).not.toContain("executive.financial_exposure");
     });
 
     it("can access portfolio claims summary", () => {

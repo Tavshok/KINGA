@@ -2023,3 +2023,7 @@ which is for corporate fleet operators.
 - [ ] Role-based portfolio reports — build one canonical executive portfolio report, limited to aggregate portfolio, fraud, financial, and dwell-time trends, then prove shared KPI values match the manager reports without exposing recovery, assessor, action-register, or cross-insurer data.
 
 - [x] Role-based portfolio reports — added canonical `executive.portfolio_overview`; live tenant-owned fixture proves manager/executive shared KPI values and excludes recovery content. Corrected canonical aggregate millisecond-to-datetime filtering, which had suppressed records in all filtered report windows. Focused access/parity tests, server bundle, and Vite build passed.
+
+- [ ] Role-based portfolio reports — retire `executive.insurer_summary`, `executive.claims_trend`, `executive.financial_exposure`, and `executive.full_report` after replacing the two identified UI callers, report catalogue/dispatcher registrations, workflow validation, and access-test expectations with the approved role-specific keys.
+
+- [x] Role-based portfolio reports — retired the four superseded executive keys from active access, dispatch, catalogue, workflow readiness, and UI callers after trace; legacy names now appear only in negative access assertions. Focused access tests, server bundle, and Vite build passed.
