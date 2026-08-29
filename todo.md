@@ -2013,3 +2013,5 @@ which is for corporate fleet operators.
 - [ ] Post-P0 Phase 2 — Assessment PDF server authority: replace the current all-client-supplied report payload with an authorised persisted-claim input, derive report values from the canonical record on the server, provide an honest UI state when no persisted claim exists, and add real-database tampering and foreign-tenant regressions before committing the phase.
 
 - [x] Post-P0 Phase 2 — Assessment PDF server authority: endpoint now accepts only a persisted claim ID and derives template values from the tenant-scoped canonical record; pre-persistence UI is honestly disabled; live-TiDB tampering and foreign-tenant regression passed; builds passed. Evidence: `audit/post-p0-assessment-pdf-server-authority-2026-08-29.md`.
+
+- [ ] Post-P0 Phase 3 — Fast Track exports: remove the placeholder PDF labelled as a PDF and the fabricated zero-value CSV until a tenant-scoped, supported reporting model exists; retain no misleading downloadable output.
