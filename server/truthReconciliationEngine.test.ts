@@ -197,7 +197,7 @@ describe("TRE — runTruthReconciliationEngine", () => {
     expect(cto.workflow.claimAgeDays).toBe(7);
   });
 
-  it("6. logical reconciliation — isEconomicWriteOff flag set when repairToValueRatio ≥ 0.75", () => {
+  it("6. logical reconciliation — isEconomicWriteOff flag set when repairToValueRatio ≥ 0.70", () => {
     // buildVehicle reads marketValueUsd from cr.valuation?.marketValueUsd (Stage 5b).
     // Must provide valuation in claimRecord for the ratio to be non-zero.
     const input = makeMinimalInput({
@@ -207,7 +207,7 @@ describe("TRE — runTruthReconciliationEngine", () => {
       } as any,
       costAnalysis: {
         costDecision: {
-          true_cost_usd: 12000, // 80% of 15000 → ratio=0.80 ≥ 0.75 → write-off
+          true_cost_usd: 12000, // 80% of 15000 → ratio=0.80 ≥ 0.70 → write-off
           recommendation: "REVIEW",
         },
       } as any,

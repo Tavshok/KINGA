@@ -13,11 +13,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const {
   mockGetUserByOpenId,
   mockUpsertUser,
+  mockUpdateUserLastSignedIn,
   mockJwtVerify,
   mockAxiosPost,
 } = vi.hoisted(() => {
   const mockGetUserByOpenId = vi.fn();
   const mockUpsertUser = vi.fn().mockResolvedValue(undefined);
+  const mockUpdateUserLastSignedIn = vi.fn().mockResolvedValue(undefined);
   const mockJwtVerify = vi.fn().mockResolvedValue({
     payload: {
       openId: "non-owner-open-id-456",
@@ -26,12 +28,13 @@ const {
     },
   });
   const mockAxiosPost = vi.fn();
-  return { mockGetUserByOpenId, mockUpsertUser, mockJwtVerify, mockAxiosPost };
+  return { mockGetUserByOpenId, mockUpsertUser, mockUpdateUserLastSignedIn, mockJwtVerify, mockAxiosPost };
 });
 
 vi.mock("./db", () => ({
   getUserByOpenId: mockGetUserByOpenId,
   upsertUser: mockUpsertUser,
+  updateUserLastSignedIn: mockUpdateUserLastSignedIn,
 }));
 
 vi.mock("../shared/const", () => ({
@@ -83,6 +86,7 @@ describe("KINGA-AUTH-01: Fail-closed re-sync guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUpsertUser.mockResolvedValue(undefined);
+    mockUpdateUserLastSignedIn.mockResolvedValue(undefined);
     // Re-setup jwtVerify after clearAllMocks
     mockJwtVerify.mockResolvedValue({
       payload: {
@@ -140,12 +144,16 @@ describe("KINGA-AUTH-01: Fail-closed re-sync guard", () => {
       marketplaceProfileId: null,
       deactivatedAt: null,
     };
-    // First call (lookup) returns the user; second call (upsert lastSignedIn) is mocked
+    // Lookup returns the user; activity update uses the update-only writer.
     mockGetUserByOpenId.mockResolvedValue(activeUser);
 
     const result = await sdk.authenticateRequest(mockReq);
     expect(result.id).toBe(42);
     expect(result.openId).toBe("non-owner-open-id-456");
+    expect(mockUpdateUserLastSignedIn).toHaveBeenCalledWith(
+      "non-owner-open-id-456",
+      expect.any(String),
+    );
   });
 
   it("rejects a deactivated user (isActive=0) even if found in DB", async () => {

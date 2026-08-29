@@ -3,12 +3,23 @@ import {
   type CostDecisionPresentation,
 } from "../../shared/costDecisionPresentation";
 import type { KingaWriteOffRecommendation } from "../../shared/writeOffRecommendation";
+import { classifyRepairToValueRatio } from "../../shared/writeOffPolicy";
 import type { ReportCostIntegrity } from "./costIntegrity";
 
 export type { CostDecisionPresentation } from "../../shared/costDecisionPresentation";
 
 export type RepairabilityVerdict = {
-  label: "Repairable" | "Repairable with conditions" | "Further structural review required" | "Total loss indicated";
+  label:
+    | "Repairable"
+    | "Repairable with conditions"
+    | "Further structural review required"
+    | "Total loss indicated"
+    | "Economic and technical write-off recommended"
+    | "Economic write-off recommended"
+    | "Technical write-off recommended"
+    | "Approaching write-off territory — review required"
+    | "Repairability review required"
+    | "Repair recommended";
   detail: string;
 };
 
@@ -60,6 +71,13 @@ export function resolveRepairabilityVerdict(evidence: RepairabilityEvidence): Re
     if (recommendation.kind === "technical_write_off_recommended") {
       return { label: "Technical write-off recommended", detail: recommendation.detail };
     }
+    // Checked ahead of the `human_review_required` kind: the ratio's warning-band
+    // membership is independent of which narrative "kind" won (e.g. a claim can be
+    // both economically in the warning band and missing technical evidence), so a
+    // true `writeOffWarning` flag must surface here regardless of `kind`.
+    if (recommendation.writeOffWarning) {
+      return { label: "Approaching write-off territory — review required", detail: recommendation.detail };
+    }
     if (recommendation.kind === "human_review_required") {
       return { label: "Repairability review required", detail: recommendation.detail };
     }
@@ -70,6 +88,14 @@ export function resolveRepairabilityVerdict(evidence: RepairabilityEvidence): Re
   }
   if (evidence.structuralReviewRequired) {
     return { label: "Further structural review required", detail: evidence.structuralReviewDetail ?? "Structural condition requires further review before final repairability confirmation." };
+  }
+  // No kingaRecommendation object was recorded (legacy claims that predate this reducer,
+  // or a JSON parse failure upstream) — fall back to classifying the persisted ratio
+  // directly so this never contradicts the scorecard/banner surfaces that already do so.
+  // evidence.repairToValueRatio is a 0-100 percentage (e.g. 67), not a 0-1 fraction.
+  if (typeof evidence.repairToValueRatio === "number" && Number.isFinite(evidence.repairToValueRatio)
+    && classifyRepairToValueRatio(evidence.repairToValueRatio / 100) === "WARNING") {
+    return { label: "Approaching write-off territory — review required", detail: "Repair-versus-replace assessment has reached KINGA's early-warning threshold; no write-off recommendation is made." };
   }
   if (evidence.repairToValueRatio === null || evidence.repairToValueRatio === undefined || !Number.isFinite(evidence.repairToValueRatio)) {
     return { label: "Repairable with conditions", detail: "Repairability is subject to confirmation of the repair-to-value assessment." };

@@ -390,7 +390,7 @@ export function inferCostTier(
     // Ratio path: currency-agnostic — exchange rate not needed here.
     const ratio = repairCost / marketValue;
     // R-E-01: COST_TIER_TOTAL_LOSS_THRESHOLD (0.75) is intentionally higher than
-    // ECONOMIC_WRITE_OFF_THRESHOLD (0.65) — see pipelineCostConstants.ts for rationale.
+    // WRITE_OFF_RECOMMENDATION_THRESHOLD (0.70) — see pipelineCostConstants.ts for rationale.
     if (ratio >= COST_TIER_TOTAL_LOSS_THRESHOLD) return "total_loss";
     if (ratio >= 0.40) return "high";
     if (ratio >= 0.15) return "medium";
