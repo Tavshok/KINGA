@@ -588,14 +588,8 @@ export const analyticsRouter = router({
       startDate: z.string(),
       endDate: z.string(),
     }))
-    .mutation(async ({ input }) => {
-      const csvContent = `Fast Track Analytics Report\nPeriod: ${input.startDate} to ${input.endDate}\nGenerated: ${new Date().toISOString()}`;
-      const buffer = Buffer.from(csvContent, 'utf-8');
-      return {
-        data: buffer.toString('base64'),
-        mimeType: 'application/pdf',
-        filename: `fast-track-report-${input.startDate}-${input.endDate}.pdf`,
-      };
+    .mutation(async () => {
+      throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Fast Track export is unavailable until a verified tenant-scoped reporting dataset is implemented.' });
     }),
 
   exportFastTrackCSV: analyticsRoleProcedure
@@ -604,13 +598,8 @@ export const analyticsRouter = router({
       startDate: z.string(),
       endDate: z.string(),
     }))
-    .mutation(async ({ input }) => {
-      const csvContent = `Date,Claims,FastTrack,AverageTime\n${input.startDate},0,0,0\n${input.endDate},0,0,0`;
-      return {
-        data: csvContent,
-        mimeType: 'text/csv',
-        filename: `fast-track-report-${input.startDate}-${input.endDate}.csv`,
-      };
+    .mutation(async () => {
+      throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Fast Track export is unavailable until a verified tenant-scoped reporting dataset is implemented.' });
     }),
 
   /** Cost savings trends — monthly AI estimate vs approved amount over 6 months */
