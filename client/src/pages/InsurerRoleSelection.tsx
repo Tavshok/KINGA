@@ -20,7 +20,6 @@ import {
   Settings2,
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { useAuth } from "@/_core/hooks/useAuth";
 
 const ROLES = [
   {

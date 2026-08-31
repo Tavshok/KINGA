@@ -1,0 +1,559 @@
+{
+  "recorded": 92,
+  "current": [
+    {
+      "file": "server/pipeline-v2/stage-2-extraction.ts",
+      "line": 76,
+      "value": "300",
+      "context": "textTooShort: boolean;          // rawText < 300 chars (document barely read)"
+    },
+    {
+      "file": "server/pipeline-v2/stage-2-extraction.ts",
+      "line": 77,
+      "value": "40",
+      "context": "criticalFieldsMissing: number;  // count of fields with confidence < 40"
+    },
+    {
+      "file": "server/pipeline-v2/stage-2-extraction.ts",
+      "line": 107,
+      "value": "32",
+      "context": "if (cp < 32 && cp !== 9 && cp !== 10 && cp !== 13) { garbledCount++; continue; }"
+    },
+    {
+      "file": "server/pipeline-v2/stage-2-extraction.ts",
+      "line": 151,
+      "value": "16384",
+      "context": "maxTokens: 16384, // Full PDF extraction can produce 10k+ tokens for dense insurance forms"
+    },
+    {
+      "file": "server/pipeline-v2/stage-2-extraction.ts",
+      "line": 395,
+      "value": "16384",
+      "context": "maxTokens: 16384, // Dense insurance forms can exceed 8k tokens per 4-page chunk"
+    },
+    {
+      "file": "server/pipeline-v2/stage-2-extraction.ts",
+      "line": 613,
+      "value": "16384",
+      "context": "maxTokens: 16384,"
+    },
+    {
+      "file": "server/pipeline-v2/stage-3-structured-extraction.ts",
+      "line": 67,
+      "value": "2024",
+      "context": "policeReportNumber: { type: [\"string\", \"null\"], description: \"Police report/case number. MUST be an alphanumeric code co"
+    },
+    {
+      "file": "server/pipeline-v2/stage-3-structured-extraction.ts",
+      "line": 80,
+      "value": "59133",
+      "context": "quoteTotalCents: { type: [\"integer\", \"null\"], description: \"Total repair quote in cents. SEARCH ALL PAGES — the quotatio"
+    },
+    {
+      "file": "server/pipeline-v2/stage-3-structured-extraction.ts",
+      "line": 132,
+      "value": "3166",
+      "context": "repairCountry: { type: [\"string\", \"null\"], description: \"Country where the vehicle is being repaired. Look for the panel"
+    },
+    {
+      "file": "server/pdf-image-extractor.ts",
+      "line": 236,
+      "value": "10",
+      "context": "if (aspect > 10 || aspect < 0.1) {"
+    },
+    {
+      "file": "server/pipeline-v2/quoteExtractionEngine.ts",
+      "line": 518,
+      "value": "24000",
+      "context": "const MAX_TOTAL = 24000; // total budget sent to detection LLM"
+    },
+    {
+      "file": "server/pipeline-v2/imageIntelligence.ts",
+      "line": 316,
+      "value": "0.5",
+      "context": "features: { textDensity: 0.5, colourVariance: 0.3, edgeDensity: 0.3, blurScore: 0.3, aspectRatio: 1, meanBrightness: 128"
+    },
+    {
+      "file": "server/pipeline-v2/stage-6-damage-analysis.ts",
+      "line": 265,
+      "value": "30000",
+      "context": ">30000   = catastrophic structural crush"
+    },
+    {
+      "file": "server/pipeline-v2/stage-6-damage-analysis.ts",
+      "line": 279,
+      "value": "40",
+      "context": "<40    = poor image quality, high uncertainty"
+    },
+    {
+      "file": "server/pipeline-v2/photoForensicsEngine.ts",
+      "line": 372,
+      "value": "120",
+      "context": "if (!isNaN(parsed) && parsed >= 0 && parsed <= 120) crushDepthCm = parsed;"
+    },
+    {
+      "file": "server/pipeline-v2/speedInferenceEnsemble.ts",
+      "line": 745,
+      "value": "60",
+      "context": "recommendedAction: gapPct >= 60"
+    },
+    {
+      "file": "server/pipeline-v2/stage-8-fraud.ts",
+      "line": 891,
+      "value": "15",
+      "context": "severity: accidentDateCrossCheckResult.fraudScore >= 15 ? 'high' : 'medium',"
+    },
+    {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 53,
+      "value": "48",
+      "context": "| \"minor_gap\"        // Small discrepancy (< 48 h) — likely administrative"
+    },
+    {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 54,
+      "value": "48",
+      "context": "| \"significant_gap\"  // Large discrepancy (> 48 h) or unexplained delay"
+    },
+    {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 101,
+      "value": "90",
+      "context": "/** Whether the vehicle was recently purchased (< 90 days) */"
+    },
+    {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 604,
+      "value": "48",
+      "context": "`A significant gap exists in the incident timeline (> 48 hours unexplained). ` +"
+    },
+    {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 614,
+      "value": "48",
+      "context": "\"Minor timeline gaps (< 48 hours) are common administrative discrepancies and are not fraud signals.\""
+    },
+    {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 810,
+      "value": "90",
+      "context": "`Vehicle was recently purchased (< 90 days) and is now subject to a ${scenario_type.replace(/_/g, \" \")} claim. ` +"
+    },
+    {
+      "file": "server/pipeline-v2/costDecisionEngine.ts",
+      "line": 175,
+      "value": "20",
+      "context": "/** Whether the agreed cost represents an overpayment risk (>20% above optimised) */"
+    },
+    {
+      "file": "server/pipeline-v2/costDecisionEngine.ts",
+      "line": 177,
+      "value": "30",
+      "context": "/** Whether the agreed cost suggests under-repair risk (>30% below optimised) */"
+    },
+    {
+      "file": "server/pipeline-v2/costDecisionEngine.ts",
+      "line": 798,
+      "value": "80",
+      "context": "severity: highestQuoteDeviationPct > 80 ? \"critical\" : \"high\","
+    },
+    {
+      "file": "server/pipeline-v2/stage-5-assembly.ts",
+      "line": 483,
+      "value": "2020",
+      "context": "? `- Zimbabwe uses USD cash transactions for vehicle sales. Prices are NOT discounted vs SA.\\n- Import duties and scarci"
+    },
+    {
+      "file": "server/pipeline-v2/evidenceStrengthScorer.ts",
+      "line": 144,
+      "value": "0.36",
+      "context": "/** Assumption penalty per estimation/fallback assumption (capped at 3× = 0.36) */"
+    },
+    {
+      "file": "server/pipeline-v2/evidenceStrengthScorer.ts",
+      "line": 148,
+      "value": "0.18",
+      "context": "/** Assumption penalty per partial-data assumption (capped at 3× = 0.18) */"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 2401,
+      "value": "30",
+      "context": "(claimRecord as any)?.accidentDetails?.incidentClassification?.confidence <= 30;"
+    }
+  ],
+  "stale_or_changed": [
+    {
+      "file": "server/pipeline-v2/stage-3-structured-extraction.ts",
+      "line": 573,
+      "value": "20",
+      "context": "if (!text.includes(' ') && len > 20 && /[^a-zA-Z0-9\\-\\/\\.]/.test(text)) return true;"
+    },
+    {
+      "file": "server/pdf-image-extractor.ts",
+      "line": 166,
+      "value": "220",
+      "context": "for (let i = 0; i < n; i++) if (pixels[i] > 220) whitePixels++;"
+    },
+    {
+      "file": "server/pdf-image-extractor.ts",
+      "line": 210,
+      "value": "5000",
+      "context": "await new Promise(r => setTimeout(r, 5000 * attempt));"
+    },
+    {
+      "file": "server/pdf-image-extractor.ts",
+      "line": 374,
+      "value": "1.6",
+      "context": "if (ratio > 1.6 && !isLastPage) {"
+    },
+    {
+      "file": "server/pdf-image-extractor.ts",
+      "line": 377,
+      "value": "1.3",
+      "context": "} else if (ratio > 1.3 && ratio <= 1.6) {"
+    },
+    {
+      "file": "server/pdf-image-extractor.ts",
+      "line": 402,
+      "value": "85",
+      "context": "if (fn === 85 || fn === 86) {"
+    },
+    {
+      "file": "server/pipeline-v2/quoteExtractionEngine.ts",
+      "line": 727,
+      "value": "0.6",
+      "context": "if (minLen > 0 && overlap / minLen >= 0.6) return true;"
+    },
+    {
+      "file": "server/pipeline-v2/imageIntelligence.ts",
+      "line": 114,
+      "value": "180",
+      "context": "const isLikelyWhiteBackground = meanBrightness > 180;"
+    },
+    {
+      "file": "server/pipeline-v2/imageIntelligence.ts",
+      "line": 115,
+      "value": "0.25",
+      "context": "const isLowColour = colourVariance < 0.25;"
+    },
+    {
+      "file": "server/pipeline-v2/imageIntelligence.ts",
+      "line": 168,
+      "value": "220",
+      "context": "if (f.meanBrightness > 220 && f.colourVariance < 0.15) {"
+    },
+    {
+      "file": "server/pipeline-v2/imageIntelligence.ts",
+      "line": 342,
+      "value": "80",
+      "context": "const isDark    = features.meanBrightness < 80;"
+    },
+    {
+      "file": "server/pipeline-v2/imageIntelligence.ts",
+      "line": 343,
+      "value": "0.05",
+      "context": "const hasColour = features.colourVariance > 0.05;"
+    },
+    {
+      "file": "server/pipeline-v2/imageIntelligence.ts",
+      "line": 410,
+      "value": "8",
+      "context": "const isDuplicate = seenHashes.some(h => hammingDistance(h, hash) <= 8);"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 165,
+      "value": "0.5",
+      "context": "let score = 0.5; // Start neutral"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 170,
+      "value": "0.35",
+      "context": "score -= 0.35;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 182,
+      "value": "0.10",
+      "context": "score -= 0.10;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 212,
+      "value": "0.15",
+      "context": "score += 0.15;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 218,
+      "value": "0.15",
+      "context": "score -= 0.15;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 224,
+      "value": "0.10",
+      "context": "score += 0.10;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 227,
+      "value": "0.10",
+      "context": "score -= 0.10;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 234,
+      "value": "0.10",
+      "context": "score += 0.10;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 237,
+      "value": "0.15",
+      "context": "score -= 0.15;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 243,
+      "value": "0.15",
+      "context": "score -= 0.15;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 249,
+      "value": "0.25",
+      "context": "score -= 0.25;"
+    },
+    {
+      "file": "server/pipeline-v2/imageClassifier.ts",
+      "line": 699,
+      "value": "0.4",
+      "context": "if (img.confidence < 0.4 && img.category !== 'document_page') {"
+    },
+    {
+      "file": "server/pipeline-v2/stage-6-damage-analysis.ts",
+      "line": 114,
+      "value": "400",
+      "context": "return { accessible: r.status < 400, httpStatus: r.status };"
+    },
+    {
+      "file": "server/pipeline-v2/stage-6-damage-analysis.ts",
+      "line": 1551,
+      "value": "0.85",
+      "context": "confidence: 0.85,"
+    },
+    {
+      "file": "server/pipeline-v2/speedInferenceEnsemble.ts",
+      "line": 102,
+      "value": "40",
+      "context": "/** True if two or more methods diverge by > 40% — warrants adjuster review */"
+    },
+    {
+      "file": "server/pipeline-v2/speedInferenceEnsemble.ts",
+      "line": 372,
+      "value": "30",
+      "context": "? ' Note: FMVSS 208 threshold is calibrated for frontal barrier events. For this incident type, actual deployment thresh"
+    },
+    {
+      "file": "server/pipeline-v2/speedInferenceEnsemble.ts",
+      "line": 383,
+      "value": "0.70",
+      "context": "confidenceWeight: 0.70, // High confidence as a floor for barrier events"
+    },
+    {
+      "file": "server/pipeline-v2/severityConsensusEngine.ts",
+      "line": 91,
+      "value": "25",
+      "context": "if (score < 25) return \"minor\";"
+    },
+    {
+      "file": "server/pipeline-v2/severityConsensusEngine.ts",
+      "line": 92,
+      "value": "55",
+      "context": "if (score < 55) return \"moderate\";"
+    },
+    {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 481,
+      "value": "55",
+      "context": "if (score >= 55) return \"HIGH\";"
+    },
+    {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 482,
+      "value": "25",
+      "context": "if (score >= 25) return \"MEDIUM\";"
+    },
+    {
+      "file": "server/pipeline-v2/scenarioFraudEngine.ts",
+      "line": 536,
+      "value": "30",
+      "context": "profile.police_report_score >= 30 ? \"HIGH\" : \"MEDIUM\","
+    },
+    {
+      "file": "server/pipeline-v2/fraudPatternLearningEngine.ts",
+      "line": 356,
+      "value": "0.3",
+      "context": "if (fpRate < 0.3) continue; // only surface if FP rate >= 30%"
+    },
+    {
+      "file": "server/pipeline-v2/pipelineCostConstants.ts",
+      "line": 34,
+      "value": "0.65",
+      "context": "export const ECONOMIC_WRITE_OFF_THRESHOLD = 0.65; // 65% — insurer-agreed threshold"
+    },
+    {
+      "file": "server/pipeline-v2/quoteOptimisationEngine.ts",
+      "line": 845,
+      "value": "20",
+      "context": "if (cv <= 20) return `Submitted prices are consistent (CV ${cv}%) but failed the credibility gate — benchmark P50 used a"
+    },
+    {
+      "file": "server/pipeline-v2/quoteOptimisationEngine.ts",
+      "line": 848,
+      "value": "20",
+      "context": "if (cv <= 20) return `Submitted prices are consistent across repairers (CV ${cv}%) — lowest submitted price selected wit"
+    },
+    {
+      "file": "server/pipeline-v2/quoteOptimisationEngine.ts",
+      "line": 849,
+      "value": "40",
+      "context": "if (cv <= 40) return `Moderate price variation across repairers (CV ${cv}%) — lowest credible submitted price selected.`"
+    },
+    {
+      "file": "server/pipeline-v2/quoteOptimisationEngine.ts",
+      "line": 903,
+      "value": "50",
+      "context": "if (pct > 50) {"
+    },
+    {
+      "file": "server/pipeline-v2/decisionReadinessEngine.ts",
+      "line": 314,
+      "value": "60",
+      "context": "classification_confidence < 60"
+    },
+    {
+      "file": "server/pipeline-v2/decisionReadinessEngine.ts",
+      "line": 380,
+      "value": "40",
+      "context": "physics_confidence < 40"
+    },
+    {
+      "file": "server/pipeline-v2/decisionReadinessEngine.ts",
+      "line": 437,
+      "value": "50",
+      "context": "cost_confidence < 50"
+    },
+    {
+      "file": "server/pipeline-v2/forensicCDI.ts",
+      "line": 192,
+      "value": "80",
+      "context": "scorePercent >= 80 ? \"HIGH\" :"
+    },
+    {
+      "file": "server/pipeline-v2/forensicCDI.ts",
+      "line": 193,
+      "value": "55",
+      "context": "scorePercent >= 55 ? \"MEDIUM\" :"
+    },
+    {
+      "file": "server/pipeline-v2/forensicCDI.ts",
+      "line": 194,
+      "value": "30",
+      "context": "scorePercent >= 30 ? \"LOW\" :"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 389,
+      "value": "30",
+      "context": "const highImpact = result.assumptions.filter((a: Assumption) => (a.confidence ?? 50) < 30);"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 896,
+      "value": "0.6",
+      "context": "if (minLen > 0 && overlap / minLen >= 0.6) return true;"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 1173,
+      "value": "30",
+      "context": "const isHeuristicSpeed = currentSpeed === 30 || currentSpeed === 45 || currentSpeed === 60;"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 1581,
+      "value": "70",
+      "context": "scenario_fraud_flagged: stage8Data.fraudRiskScore > 70,"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 1788,
+      "value": "40",
+      "context": "if (consensusResult?.consensus_label === \"CONFLICTING\" && (consensusResult?.consensus_score ?? 100) < 40) {"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 1822,
+      "value": "50",
+      "context": "if (reconciliationLog && reconciliationLog.congruencyScore < 50) {"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 2049,
+      "value": "50",
+      "context": "is_plausible: (stage7Data.damageConsistencyScore ?? 0) >= 50,"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 2051,
+      "value": "30",
+      "context": "has_critical_inconsistency: (stage7Data.damageConsistencyScore ?? 100) < 30,"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 2066,
+      "value": "70",
+      "context": "scenario_fraud_flagged: (stage8Data.fraudRiskScore ?? 0) >= 70,"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 2073,
+      "value": "60",
+      "context": "is_within_range: stage9Data.costDecision.confidence >= 60,"
+    },
+    {
+      "file": "server/pipeline-v2/orchestrator.ts",
+      "line": 2075,
+      "value": "50",
+      "context": "has_anomalies: (stage9Data.costDecision.confidence ?? 100) < 50,"
+    },
+    {
+      "file": "server/pipeline-v2/stage-4-validation.ts",
+      "line": 444,
+      "value": "300",
+      "context": "if (!isNaN(speedVal) && speedVal > 0 && speedVal < 300) {"
+    },
+    {
+      "file": "server/pipeline-v2/incidentClassificationEngine.ts",
+      "line": 742,
+      "value": "85",
+      "context": "const llmHighConfidence = (llmResult!.confidence ?? 0) >= 85;"
+    },
+    {
+      "file": "server/pipeline-v2/fieldValidationEngine.ts",
+      "line": 184,
+      "value": "200",
+      "context": "if (speed >= 1 && speed <= 200) {"
+    },
+    {
+      "file": "server/pipeline-v2/extractionQualityScorer.ts",
+      "line": 148,
+      "value": "80",
+      "context": "score >= 80 ? \"HIGH\" : score >= 50 ? \"MEDIUM\" : \"LOW\";"
+    }
+  ]
+}

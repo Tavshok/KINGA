@@ -5,7 +5,7 @@
  */
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { protectedProcedure, insurerDomainProcedure, router } from "../_core/trpc";
+import { protectedProcedure, insurerDomainProcedure, router, superAdminProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import {
   claims, aiAssessments as aiAssessmentsTable, ingestionDocuments,
@@ -34,27 +34,7 @@ import { validateClaimAnalysisResponse } from "../services/apiResponseValidator"
 import { sanitiseReportNarrative, buildBlockError } from "../services/externalReportSanitiser";
 import { logger } from "../logger";
 import { isAdminRole } from "@shared/role-permissions";
-
-async function requireGovernedTenantClaim(claimId: string, tenantId: string | null | undefined) {
-  if (!tenantId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
-  }
-  const numericClaimId = Number(claimId);
-  if (!Number.isInteger(numericClaimId) || numericClaimId <= 0) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
-  }
-  const db = await getDb();
-  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-  const [claim] = await db
-    .select({ id: claims.id, tenantId: claims.tenantId })
-    .from(claims)
-    .where(and(eq(claims.id, numericClaimId), eq(claims.tenantId, tenantId)))
-    .limit(1);
-  if (!claim) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
-  }
-  return { claim, tenantId };
-}
+import { requireGovernedTenantClaim } from "../services/governedClaimAuthority";
 
 export const aiAssessmentsRouter = router({
   byClaim: protectedProcedure
@@ -1371,7 +1351,7 @@ export const aiAssessmentsRouter = router({
     }),
 
   // Get the latest stored observation for a specific user
-  getShadowObservation: protectedProcedure
+  getShadowObservation: superAdminProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ input }) => {
       const { getLatestObservation } = await import('../shadow-override-monitor');
@@ -1379,16 +1359,20 @@ export const aiAssessmentsRouter = router({
     }),
 
   // Get all stored shadow observations (latest per user)
-  getAllShadowObservations: protectedProcedure
+  getAllShadowObservations: superAdminProcedure
     .query(async () => {
       const { getAllObservations } = await import('../shadow-override-monitor');
       return getAllObservations();
     }),
 
-  // ─── Shadow Monitoring Reports (role-based, observation only) ────────────
+  // ─── Shadow Monitoring Reports (platform-wide, observation only) ─────────
+  // These reports aggregate governance and observation rows across tenants.
+  // They are platform-super-admin-only until a separately approved tenant
+  // scoped product contract is implemented. Never substitute client role input
+  // for session authority here.
 
   // Generate a shadow monitoring report for a specific role
-  generateShadowReport: protectedProcedure
+  generateShadowReport: superAdminProcedure
     .input(z.object({
       role: z.enum(["claims_manager", "risk_manager", "executive"]),
       periodDays: z.number().int().min(1).max(90).default(7),
@@ -1399,7 +1383,7 @@ export const aiAssessmentsRouter = router({
     }),
 
   // Generate all three role reports in a single call
-  generateAllShadowReports: protectedProcedure
+  generateAllShadowReports: superAdminProcedure
     .input(z.object({
       periodDays: z.number().int().min(1).max(90).default(7),
     }))

@@ -67,12 +67,19 @@ const BLUR_VARIANCE_THRESHOLD = 20;
 // and excluded from photo forensics. Only truly text-dominated pages (>92% white)
 // should be marked as text-heavy.
 const TEXT_PAGE_WHITE_RATIO = 0.92;
+const TEXT_PAGE_WHITE_LUMINANCE = 220;
 // CALIBRATION: origin unknown, do not change without benchmarking.
 // Colour standard deviation below this value indicates a near-uniform (blank or
 // near-blank) image. Value of 8 was chosen empirically. A lower value would
 // allow more uniform images through; a higher value would reject more images
 // that have subtle colour variation but no useful photographic content.
 const UNIFORM_STDDEV_THRESHOLD = 8;
+const DOWNLOAD_RETRY_BASE_DELAY_MS = 5_000;
+const PDFJS_PAINT_IMAGE_XOBJECT_OP = 85;
+const PDFJS_PAINT_INLINE_IMAGE_XOBJECT_OP = 86;
+// CALIBRATION: page-orientation heuristics; do not change without evaluating scanned PDF rotation accuracy.
+const ROTATE_TO_PORTRAIT_ASPECT_RATIO = 1.6;
+const LANDSCAPE_ASPECT_RATIO = 1.3;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ImageQualityReport {
@@ -179,7 +186,7 @@ async function analyseImageQuality(imageBuffer: Buffer, width: number, height: n
       blurScore = Math.round(Math.abs(lapSumSq / lapCount - lapMean * lapMean));
     }
     let whitePixels = 0;
-    for (let i = 0; i < n; i++) if (pixels[i] > 220) whitePixels++;
+    for (let i = 0; i < n; i++) if (pixels[i] > TEXT_PAGE_WHITE_LUMINANCE) whitePixels++;
     isTextHeavy = whitePixels / n > TEXT_PAGE_WHITE_RATIO;
     let sum = 0, sumSq = 0;
     for (let i = 0; i < n; i++) { sum += pixels[i]; sumSq += pixels[i] * pixels[i]; }
@@ -223,7 +230,7 @@ async function downloadPdfWithRetry(pdfUrl: string): Promise<Buffer> {
       lastError = err;
       if (attempt < DOWNLOAD_RETRIES) {
         console.warn(`[PDF Extractor] Download attempt ${attempt} failed: ${err.message}. Retrying in ${5 * attempt}s...`);
-        await new Promise(r => setTimeout(r, 5000 * attempt));
+        await new Promise(r => setTimeout(r, DOWNLOAD_RETRY_BASE_DELAY_MS * attempt));
       }
     }
   }
@@ -345,10 +352,10 @@ async function applyHeuristicRotation(
     const rh = meta.height ?? 1;
     const ratio = rw / rh;
     const isLastPage = pageNum === pagesToRender;
-    if (ratio > 1.6 && !isLastPage) {
+    if (ratio > ROTATE_TO_PORTRAIT_ASPECT_RATIO && !isLastPage) {
       console.log(`[PDF Extractor] R-A-07: Page ${pageNum}: heuristic rotation applied (ratio=${ratio.toFixed(2)}, rotating 90° CCW to portrait)`);
       return sharpInst(pngBuffer).rotate(90).toBuffer();
-    } else if (ratio > 1.3 && ratio <= 1.6) {
+    } else if (ratio > LANDSCAPE_ASPECT_RATIO && ratio <= ROTATE_TO_PORTRAIT_ASPECT_RATIO) {
       console.log(`[PDF Extractor] R-A-07: Page ${pageNum}: landscape ratio=${ratio.toFixed(2)} below rotation threshold (1.6) — keeping original orientation`);
     }
   } catch (rotErr: any) {
@@ -385,7 +392,7 @@ async function extractEmbeddedImagesFromPage(
     const commonObjs = page.commonObjs;
     for (let i = 0; i < ops.fnArray.length; i++) {
       const fn = ops.fnArray[i];
-      if (fn === 85 || fn === 86) {
+      if (fn === PDFJS_PAINT_IMAGE_XOBJECT_OP || fn === PDFJS_PAINT_INLINE_IMAGE_XOBJECT_OP) {
         const imgName = ops.argsArray[i]?.[0];
         if (!imgName) continue;
         try {
