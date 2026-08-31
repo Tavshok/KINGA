@@ -27,17 +27,6 @@ import {
   TrendingUp, DollarSign, Clock, AlertTriangle,
   RotateCcw, Wrench, TrendingDown, Banknote,
 } from "lucide-react";
-import {
-  DEMO_CLAIMS_VOLUME,
-  DEMO_FRAUD_TRENDS,
-  DEMO_COST_BREAKDOWN,
-  DEMO_PROCESSING_TIME,
-  DEMO_FRAUD_DIST,
-  DEMO_OVERRIDE_RATE,
-  DEMO_OVERRIDDEN_REPAIRERS,
-  DEMO_AI_SAVINGS,
-  DEMO_COST_DELTA,
-} from "@/lib/demoData";
 
 /// ─── Colour palette — KINGA Brand Palette ─────────────────────────────────────────
 
@@ -92,9 +81,11 @@ interface MiniKPIProps {
   icon:     React.ElementType;
   color:    "blue" | "green" | "red" | "amber" | "purple" | "teal";
   loading?: boolean;
+  empty?: boolean;
+  emptyMessage?: string;
 }
 
-function MiniKPI({ title, value, subtitle, icon: Icon, color, loading }: MiniKPIProps) {
+function MiniKPI({ title, value, subtitle, icon: Icon, color, loading, empty, emptyMessage = "No data available" }: MiniKPIProps) {
   const iconStyle: Record<MiniKPIProps["color"], React.CSSProperties> = {
     blue:   { background: 'rgba(72,120,168,0.12)', color: '#4878A8' },
     green:  { background: 'rgba(60,120,68,0.12)',  color: '#3C7844' },
@@ -115,6 +106,8 @@ function MiniKPI({ title, value, subtitle, icon: Icon, color, loading }: MiniKPI
       <CardContent>
         {loading ? (
           <div className="h-8 w-24 animate-pulse rounded bg-muted" />
+        ) : empty ? (
+          <div className="text-sm text-muted-foreground">{emptyMessage}</div>
         ) : (
           <>
             <div className="text-2xl font-bold tracking-tight">{value}</div>
@@ -147,104 +140,79 @@ export default function ExecutiveAnalyticsCharts() {
   const { data: costDeltaData,        isLoading: costDeltaLoading }         = trpc.executive.getAverageCostDeltaOnOverride.useQuery({ days: timeRange });
   const { data: aiSavingsData,        isLoading: aiSavingsLoading }         = trpc.executive.getTotalAISavings.useQuery({ days: timeRange });
 
-  // ── Transform: volume ───────────────────────────────────────────────────────
-  // Demo mode: use fixture data when DB is empty
-  const isChartDemo = !volumeData?.data || (volumeData.data as any[]).length === 0;
-
   const volumeChartData = useMemo(() => {
-    if (isChartDemo) return DEMO_CLAIMS_VOLUME.map(d => ({
-      date: new Date(d.date).toLocaleDateString("en-ZA", { month: "short", day: "numeric" }),
-      total: d.count, fraudDetected: d.fraudDetected,
-    }));
     return (volumeData?.data ?? []).map((d: any) => ({
       date:          new Date(d.date).toLocaleDateString("en-ZA", { month: "short", day: "numeric" }),
       total:         Number(d.count ?? 0),
       fraudDetected: 0,
     }));
-  }, [volumeData, isChartDemo]);
+  }, [volumeData]);
 
   // ── Transform: fraud trends ───────────────────────────────────────────────────────────────────────────────────────────
   const fraudRateData = useMemo(() => {
-    if (isChartDemo) return DEMO_FRAUD_TRENDS.map(d => ({ date: d.week, high: d.high, medium: d.medium, low: d.low }));
     return (fraudTrends?.data ?? []).map((d: any) => ({
       date:   new Date(d.date).toLocaleDateString("en-ZA", { month: "short", day: "numeric" }),
       high:   Number(d.high   ?? 0),
       medium: Number(d.medium ?? 0),
       low:    Number(d.low    ?? 0),
     }));
-  }, [fraudTrends, isChartDemo]);
+  }, [fraudTrends]);
 
   // ── Transform: cost breakdown ───────────────────────────────────────────────────────────────────────────────────────────
   const costData = useMemo(() => {
-    if (isChartDemo) return DEMO_COST_BREAKDOWN.map(d => ({
-      status: (d.status ?? "").replace(/_/g, " ").toUpperCase(),
-      count: d.count, avg_amount: d.avg_amount, total_amount: d.total_amount,
-    }));
     return (costBreakdown?.data ?? []).map((d: any) => ({
       status:        (d.status ?? "").replace(/_/g, " ").toUpperCase(),
       count:         Number(d.count       ?? 0),
       avg_amount:    Number(d.avg_amount  ?? 0),
       total_amount:  Number(d.total_amount ?? 0),
     }));
-  }, [costBreakdown, isChartDemo]);
+  }, [costBreakdown]);
 
   // ── Transform: processing time ───────────────────────────────────────────────────────────────────────────────────────────
   const processingData = useMemo(() => {
-    const avgDays = isChartDemo ? DEMO_PROCESSING_TIME.avg_days : Number((processingTime?.data as any)?.avg_days ?? 0);
+    const avgDays = Number((processingTime?.data as any)?.avg_days ?? 0);
+    if (!processingTime?.data) return [];
     return [
       { stage: "Completed",         days: avgDays,                  fill: COLORS.green  },
-      { stage: "Pending Triage",    days: isChartDemo ? 0.3 : 0,   fill: COLORS.orange },
-      { stage: "Under Assessment",  days: isChartDemo ? 1.8 : 0,   fill: COLORS.blue   },
-      { stage: "Awaiting Approval", days: isChartDemo ? 0.9 : 0,   fill: COLORS.purple },
     ];
-  }, [processingTime, isChartDemo]);
+  }, [processingTime]);
 
   // ── Transform: fraud distribution ───────────────────────────────────────────────────────────────────────────────────────────
   const fraudDistData = useMemo(() => {
-    if (isChartDemo) return [
-      { name: "Low Risk",    value: DEMO_FRAUD_DIST.find(x => x.level === "low")?.count    ?? 29, fill: COLORS.green  },
-      { name: "Medium Risk", value: DEMO_FRAUD_DIST.find(x => x.level === "medium")?.count ?? 13, fill: COLORS.orange },
-      { name: "High Risk",   value: DEMO_FRAUD_DIST.find(x => x.level === "high")?.count   ?? 5,  fill: COLORS.red    },
-    ];
     const d = fraudDistribution?.data ?? [];
+    if (d.length === 0) return [];
     return [
       { name: "Low Risk",    value: Number((d as any[]).find(x => x.level === "low")?.count    ?? 0), fill: COLORS.green  },
       { name: "Medium Risk", value: Number((d as any[]).find(x => x.level === "medium")?.count ?? 0), fill: COLORS.orange },
       { name: "High Risk",   value: Number((d as any[]).find(x => x.level === "high")?.count   ?? 0), fill: COLORS.red    },
     ];
-  }, [fraudDistribution, isChartDemo]);
+  }, [fraudDistribution]);
 
   // ── Transform: most overridden repairers ───────────────────────────────────────────────────────────────────────────────────────────
   const overridedRepairersChart = useMemo(() => {
-    if (isChartDemo) return DEMO_OVERRIDDEN_REPAIRERS.map(r => ({
-      name: r.company_name, overrides: r.total_overrides, recommended: r.total_recommended, override_rate: r.override_rate,
-    }));
     return (overridedRepairers?.data ?? []).map((r: any) => ({
       name:              r.company_name ?? "Unknown",
       overrides:         Number(r.total_overrides   ?? 0),
       recommended:       Number(r.total_recommended ?? 0),
       override_rate:     Number(r.override_rate     ?? 0),
     }));
-  }, [overridedRepairers, isChartDemo]);
+  }, [overridedRepairers]);
 
   // ── Derived KPI values ───────────────────────────────────────────────────────────────────────────────────────────
-  const _overrideRaw = overrideRateData;
-  const effectiveOverride = (!_overrideRaw || (_overrideRaw.total_optimisations ?? 0) === 0) ? DEMO_OVERRIDE_RATE : _overrideRaw;
-  const overridePercent    = effectiveOverride.override_percentage;
-  const totalOptimisations = effectiveOverride.total_optimisations;
-  const totalOverrides     = effectiveOverride.total_overrides;
+  const effectiveOverride = overrideRateData ?? null;
+  const overridePercent    = Number(effectiveOverride?.override_percentage ?? 0);
+  const totalOptimisations = Number(effectiveOverride?.total_optimisations ?? 0);
+  const totalOverrides     = Number(effectiveOverride?.total_overrides ?? 0);
 
-  const _costDeltaRaw = costDeltaData;
-  const effectiveCostDelta = (!_costDeltaRaw || (_costDeltaRaw.override_count ?? 0) === 0) ? DEMO_COST_DELTA : _costDeltaRaw;
-  const avgCostDeltaRands = effectiveCostDelta.avg_cost_delta_rands;
-  const overrideCount     = effectiveCostDelta.override_count;
+  const effectiveCostDelta = costDeltaData ?? null;
+  const avgCostDeltaRands = Number(effectiveCostDelta?.avg_cost_delta_rands ?? 0);
+  const overrideCount     = Number(effectiveCostDelta?.override_count ?? 0);
   const deltaPositive     = avgCostDeltaRands >= 0;
 
-  const _aiSavingsRaw = aiSavingsData;
-  const effectiveAISavings = (!_aiSavingsRaw || (_aiSavingsRaw.accepted_count ?? 0) === 0) ? DEMO_AI_SAVINGS : _aiSavingsRaw;
-  const totalSavingsRands = effectiveAISavings.total_ai_savings_rands;
-  const acceptedCount     = effectiveAISavings.accepted_count;
-  const avgSavingRands    = effectiveAISavings.avg_saving_per_claim_rands;
+  const effectiveAISavings = aiSavingsData ?? null;
+  const totalSavingsRands = Number(effectiveAISavings?.total_ai_savings_rands ?? 0);
+  const acceptedCount     = Number(effectiveAISavings?.accepted_count ?? 0);
+  const avgSavingRands    = Number(effectiveAISavings?.avg_saving_per_claim_rands ?? 0);
 
   return (
     <div className="space-y-8">
@@ -278,6 +246,7 @@ export default function ExecutiveAnalyticsCharts() {
             icon={RotateCcw}
             color={overridePercent > 40 ? "red" : overridePercent > 20 ? "amber" : "green"}
             loading={overrideRateLoading}
+            empty={!overrideRateLoading && !effectiveOverride}
           />
 
           {/* Total KINGA Savings */}
@@ -288,6 +257,7 @@ export default function ExecutiveAnalyticsCharts() {
             icon={Banknote}
             color="green"
             loading={aiSavingsLoading}
+            empty={!aiSavingsLoading && !effectiveAISavings}
           />
 
           {/* Avg Saving Per Claim */}
@@ -298,6 +268,7 @@ export default function ExecutiveAnalyticsCharts() {
             icon={TrendingDown}
             color="teal"
             loading={aiSavingsLoading}
+            empty={!aiSavingsLoading && !effectiveAISavings}
           />
 
           {/* Avg Cost Delta on Override */}
@@ -308,6 +279,7 @@ export default function ExecutiveAnalyticsCharts() {
             icon={deltaPositive ? TrendingUp : TrendingDown}
             color={deltaPositive ? "red" : "green"}
             loading={costDeltaLoading}
+            empty={!costDeltaLoading && !effectiveCostDelta}
           />
         </div>
       </section>
@@ -484,7 +456,7 @@ export default function ExecutiveAnalyticsCharts() {
             </CardHeader>
             <CardContent>
               <div className="h-[280px]">
-                {timeLoading ? <LoadingPlaceholder /> : (
+                {timeLoading ? <LoadingPlaceholder /> : processingData.length === 0 ? <EmptyPlaceholder message="No completed-claim processing-time data available" /> : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={processingData}>
                       <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />

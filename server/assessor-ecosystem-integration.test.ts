@@ -15,8 +15,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { appRouter } from "./routers";
 import { getDb } from "./db";
-import { users, assessors, assessorInsurerRelationships, assessorMarketplaceReviews, claims, auditTrail, assessorEvaluations, assessorReports, aiAssessments, claimEvents } from "../drizzle/schema";
-import { eq, and, like } from "drizzle-orm";
+import { users, assessors, assessorInsurerRelationships, assessorMarketplaceReviews, claims, auditTrail, assessorEvaluations, assessorReports, assessorReportReviews, aiAssessments, claimEvents, claimAssignments } from "../drizzle/schema";
+import { eq, and, like, inArray } from "drizzle-orm";
 
 describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () => {
   // Shared test state
@@ -35,6 +35,8 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
   let testClaimId1: number;
   let testClaimId2: number;
   let testClaimId3: number;
+  const ownedUserIds: number[] = [];
+  const ownedAssessorIds: number[] = [];
 
   beforeAll(async () => {
     db = await getDb();
@@ -133,6 +135,7 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
       emailVerified: 1,
     });
     const [claimantUser] = await db.select().from(users).where(eq(users.openId, claimantOpenId)).limit(1);
+    ownedUserIds.push(insurerUser.id, processorUser.id, externalAssessorUser.id, assessorUser.id, claimantUser.id);
 
     // Claim 1: Minor Damage (Harare)
     const [claim1Result] = await db.insert(claims).values({
@@ -212,6 +215,8 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
 
       internalAssessorId = result.assessorId;
       internalAssessorUserId = result.userId;
+      ownedAssessorIds.push(result.assessorId);
+      ownedUserIds.push(result.userId);
 
       // Verify assessor record in database
       const [assessor] = await db.select().from(assessors).where(eq(assessors.id, internalAssessorId)).limit(1);
@@ -268,6 +273,8 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
 
       expect(result.success).toBe(true);
       expect(result.assessorId).toBeDefined();
+      ownedAssessorIds.push(result.assessorId);
+      if (result.userId) ownedUserIds.push(result.userId);
 
       // Verify assessor record
       const [assessor] = await db.select().from(assessors).where(eq(assessors.id, result.assessorId)).limit(1);
@@ -314,6 +321,7 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
 
       marketplaceAssessorId = result.assessorId;
       marketplaceAssessorUserId = assessorUserContext.user.id;
+      ownedAssessorIds.push(result.assessorId);
 
       // Verify assessor record
       const [assessor] = await db.select().from(assessors).where(eq(assessors.id, marketplaceAssessorId)).limit(1);
@@ -345,13 +353,15 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
       const licenseNumber = `ZIM-ASS-DUP-${Date.now()}`;
 
       // First registration
-      await caller.assessorOnboarding.addInsurerOwnedAssessor({
+      const firstRegistration = await caller.assessorOnboarding.addInsurerOwnedAssessor({
         name: "First Assessor",
         email: `first.${Date.now()}@test.com`,
         professionalLicenseNumber: licenseNumber,
         licenseExpiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
         certificationLevel: "junior",
       });
+      ownedAssessorIds.push(firstRegistration.assessorId);
+      ownedUserIds.push(firstRegistration.userId);
 
       // Second registration with same license should fail
       await expect(
@@ -814,5 +824,53 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
       const evaluations = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, testClaimId1));
       expect(evaluations.at(-1)?.sourceReportId).toBe(secondDraft.reportId);
     });
+  });
+
+  afterAll(async () => {
+    if (!db) return;
+    const ownedClaimIds = [testClaimId1, testClaimId2, testClaimId3].filter((id) => Number.isSafeInteger(id));
+    const reportIds = ownedClaimIds.length > 0
+      ? (await db.select({ id: assessorReports.id }).from(assessorReports).where(inArray(assessorReports.claimId, ownedClaimIds))).map((row: any) => row.id)
+      : [];
+    const [reviewIds, evaluationIds, assignmentIds, marketplaceReviewIds, relationshipIds, auditIds, eventIds, assessmentIds] = await Promise.all([
+      ownedClaimIds.length > 0 ? db.select({ id: assessorReportReviews.id }).from(assessorReportReviews).where(inArray(assessorReportReviews.claimId, ownedClaimIds)) : Promise.resolve([]),
+      ownedClaimIds.length > 0 ? db.select({ id: assessorEvaluations.id }).from(assessorEvaluations).where(inArray(assessorEvaluations.claimId, ownedClaimIds)) : Promise.resolve([]),
+      ownedClaimIds.length > 0 ? db.select({ id: claimAssignments.id }).from(claimAssignments).where(inArray(claimAssignments.claimId, ownedClaimIds)) : Promise.resolve([]),
+      ownedAssessorIds.length > 0 ? db.select({ id: assessorMarketplaceReviews.id }).from(assessorMarketplaceReviews).where(inArray(assessorMarketplaceReviews.assessorId, ownedAssessorIds)) : Promise.resolve([]),
+      ownedAssessorIds.length > 0 ? db.select({ id: assessorInsurerRelationships.id }).from(assessorInsurerRelationships).where(inArray(assessorInsurerRelationships.assessorId, ownedAssessorIds)) : Promise.resolve([]),
+      ownedClaimIds.length > 0 ? db.select({ id: auditTrail.id }).from(auditTrail).where(inArray(auditTrail.claimId, ownedClaimIds)) : Promise.resolve([]),
+      ownedClaimIds.length > 0 ? db.select({ id: claimEvents.id }).from(claimEvents).where(inArray(claimEvents.claimId, ownedClaimIds)) : Promise.resolve([]),
+      ownedClaimIds.length > 0 ? db.select({ id: aiAssessments.id }).from(aiAssessments).where(inArray(aiAssessments.claimId, ownedClaimIds)) : Promise.resolve([]),
+    ]);
+    if (reviewIds.length > 0) await db.delete(assessorReportReviews).where(inArray(assessorReportReviews.id, reviewIds.map((row: any) => row.id)));
+    if (reportIds.length > 0) await db.delete(assessorReports).where(inArray(assessorReports.id, reportIds));
+    if (evaluationIds.length > 0) await db.delete(assessorEvaluations).where(inArray(assessorEvaluations.id, evaluationIds.map((row: any) => row.id)));
+    if (assignmentIds.length > 0) await db.delete(claimAssignments).where(inArray(claimAssignments.id, assignmentIds.map((row: any) => row.id)));
+    if (marketplaceReviewIds.length > 0) await db.delete(assessorMarketplaceReviews).where(inArray(assessorMarketplaceReviews.id, marketplaceReviewIds.map((row: any) => row.id)));
+    if (auditIds.length > 0) await db.delete(auditTrail).where(inArray(auditTrail.id, auditIds.map((row: any) => row.id)));
+    if (eventIds.length > 0) await db.delete(claimEvents).where(inArray(claimEvents.id, eventIds.map((row: any) => row.id)));
+    if (assessmentIds.length > 0) await db.delete(aiAssessments).where(inArray(aiAssessments.id, assessmentIds.map((row: any) => row.id)));
+    if (ownedClaimIds.length > 0) await db.delete(claims).where(inArray(claims.id, ownedClaimIds));
+    if (relationshipIds.length > 0) await db.delete(assessorInsurerRelationships).where(inArray(assessorInsurerRelationships.id, relationshipIds.map((row: any) => row.id)));
+    if (ownedAssessorIds.length > 0) await db.delete(assessors).where(inArray(assessors.id, ownedAssessorIds));
+    if (ownedUserIds.length > 0) await db.delete(users).where(inArray(users.id, ownedUserIds));
+
+    // No-leak proof: each lookup uses a captured child ID or an exact owned parent ID.
+    const [remainingClaims, remainingAssessors, remainingUsers, remainingReports, remainingReviews, remainingEvaluations, remainingAssignments] = await Promise.all([
+      ownedClaimIds.length > 0 ? db.select({ id: claims.id }).from(claims).where(inArray(claims.id, ownedClaimIds)) : Promise.resolve([]),
+      ownedAssessorIds.length > 0 ? db.select({ id: assessors.id }).from(assessors).where(inArray(assessors.id, ownedAssessorIds)) : Promise.resolve([]),
+      ownedUserIds.length > 0 ? db.select({ id: users.id }).from(users).where(inArray(users.id, ownedUserIds)) : Promise.resolve([]),
+      reportIds.length > 0 ? db.select({ id: assessorReports.id }).from(assessorReports).where(inArray(assessorReports.id, reportIds)) : Promise.resolve([]),
+      reviewIds.length > 0 ? db.select({ id: assessorReportReviews.id }).from(assessorReportReviews).where(inArray(assessorReportReviews.id, reviewIds.map((row: any) => row.id))) : Promise.resolve([]),
+      evaluationIds.length > 0 ? db.select({ id: assessorEvaluations.id }).from(assessorEvaluations).where(inArray(assessorEvaluations.id, evaluationIds.map((row: any) => row.id))) : Promise.resolve([]),
+      assignmentIds.length > 0 ? db.select({ id: claimAssignments.id }).from(claimAssignments).where(inArray(claimAssignments.id, assignmentIds.map((row: any) => row.id))) : Promise.resolve([]),
+    ]);
+    expect(remainingClaims).toHaveLength(0);
+    expect(remainingAssessors).toHaveLength(0);
+    expect(remainingUsers).toHaveLength(0);
+    expect(remainingReports).toHaveLength(0);
+    expect(remainingReviews).toHaveLength(0);
+    expect(remainingEvaluations).toHaveLength(0);
+    expect(remainingAssignments).toHaveLength(0);
   });
 });

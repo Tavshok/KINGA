@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Render the Dashboard Layout interaction or visual surface within the KINGA client.
+ * PRIMARY CALLERS: Role-specific pages and dashboard compositions that provide its state and callbacks.
+ * NEVER: Treat client-side presentation state as the source of tenant, role, or workflow authority.
+ */
+
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {

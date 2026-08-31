@@ -39,6 +39,10 @@ const W_LOW_CONF   = 0.06;   // per stage with confidence < LOW_CONF_THRESHOLD
 const W_SKIPPED    = 0.10;   // per critical stage that was skipped entirely
 
 const LOW_CONF_THRESHOLD = 50;  // confidence score below which a stage is "low confidence"
+// CALIBRATION: origin unknown, do not change without benchmarking.
+const HIGH_FCDI_SCORE_PERCENT = 80;
+const MEDIUM_FCDI_SCORE_PERCENT = 55;
+const LOW_FCDI_SCORE_PERCENT = 30;
 
 // Critical stages whose absence carries a higher penalty
 const CRITICAL_STAGE_IDS = new Set([
@@ -189,9 +193,9 @@ export function computeFCDI(input: FCDIInput): FCDIResult {
   const scorePercent = Math.round(score * 100);
 
   const label: FCDILabel =
-    scorePercent >= 80 ? "HIGH" :
-    scorePercent >= 55 ? "MEDIUM" :
-    scorePercent >= 30 ? "LOW" :
+    scorePercent >= HIGH_FCDI_SCORE_PERCENT ? "HIGH" :
+    scorePercent >= MEDIUM_FCDI_SCORE_PERCENT ? "MEDIUM" :
+    scorePercent >= LOW_FCDI_SCORE_PERCENT ? "LOW" :
     "CRITICAL";
 
   const explanation = buildExplanation(label, {

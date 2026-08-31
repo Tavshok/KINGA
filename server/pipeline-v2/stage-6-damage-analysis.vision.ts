@@ -113,6 +113,8 @@ async function withRetry<T>(
 // ── Utility: quick URL accessibility check — returns HTTP status for audit trail ─
 // Returns { accessible, httpStatus }. Falls back to accessible=true on network
 // errors so that a proxy/CORS issue never silently drops a valid URL.
+const HTTP_CLIENT_ERROR_STATUS = 400;
+
 async function checkUrlAccessibility(url: string): Promise<{ accessible: boolean; httpStatus?: number }> {
   try {
     const ctrl = new AbortController();
@@ -122,7 +124,7 @@ async function checkUrlAccessibility(url: string): Promise<{ accessible: boolean
     const r = await fetch(url, { method: "GET", signal: ctrl.signal }).catch(() => null);
     clearTimeout(t);
     if (!r) return { accessible: true }; // network error — assume accessible
-    return { accessible: r.status < 400, httpStatus: r.status };
+    return { accessible: r.status < HTTP_CLIENT_ERROR_STATUS, httpStatus: r.status };
   } catch {
     return { accessible: true }; // non-blocking — assume accessible on error
   }

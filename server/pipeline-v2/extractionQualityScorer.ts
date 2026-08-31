@@ -21,6 +21,10 @@
 
 import type { ExtractedClaimFields } from "./types";
 
+// CALIBRATION: origin unknown, do not change without benchmarking.
+const HIGH_EXTRACTION_QUALITY_SCORE = 80;
+const MEDIUM_EXTRACTION_QUALITY_SCORE = 50;
+
 export interface ExtractionQualityResult {
   score: number;
   tier: "HIGH" | "MEDIUM" | "LOW";
@@ -145,7 +149,7 @@ export function scoreExtraction(fields: ExtractedClaimFields): ExtractionQuality
   }
 
   const tier: "HIGH" | "MEDIUM" | "LOW" =
-    score >= 80 ? "HIGH" : score >= 50 ? "MEDIUM" : "LOW";
+    score >= HIGH_EXTRACTION_QUALITY_SCORE ? "HIGH" : score >= MEDIUM_EXTRACTION_QUALITY_SCORE ? "MEDIUM" : "LOW";
 
   return {
     score: Math.min(100, score),

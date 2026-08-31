@@ -72,6 +72,9 @@ import { readDamageFromPhotos } from './stage-6-damage-analysis.vision';
 import { inferDamageFromDescription } from './stage-6-damage-analysis.fallback';
 import { mergeComponents } from './stage-6-damage-analysis.merge';
 
+// CALIBRATION: high confidence that a direction-filtered component is an LLM vision error.
+const DIRECTION_FILTER_EXCLUSION_CONFIDENCE = 0.85;
+
 export async function runDamageAnalysisStage(
   ctx: PipelineContext,
   claimRecord: ClaimRecord
@@ -348,9 +351,8 @@ export async function runDamageAnalysisStage(
             reason: `Collision direction is '${collisionDirForFilter}'; components in zones [${badZones.join(", ")}] ` +
                     `are physically implausible for this incident type and are likely LLM vision errors.`,
             strategy: "contextual_inference" as const,
-            // CALIBRATION: 0.85 confidence for direction-filter exclusion is engineering-judgment.
-            // This represents "high confidence" that the excluded components are LLM vision errors.
-            confidence: 0.85,
+            // CALIBRATION: this represents high confidence that the excluded components are LLM vision errors.
+            confidence: DIRECTION_FILTER_EXCLUSION_CONFIDENCE,
             stage: "Stage 6 direction filter",
           });
           damagedParts = filtered;
@@ -504,4 +506,3 @@ export async function runDamageAnalysisStage(
     };
   }
 }
-

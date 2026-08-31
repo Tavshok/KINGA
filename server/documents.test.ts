@@ -4,34 +4,38 @@
  * Tests document management across all roles and workflows
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { getDb } from './db';
 import { claims, claimDocuments, users } from '../drizzle/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 describe('Document Management Features', () => {
-  let testClaimId: number;
-  let testUserId: number;
-  let testDocumentId: number;
+  let db: Awaited<ReturnType<typeof getDb>>;
+  let testClaimId: number | undefined;
+  let testUserId: number | undefined;
+  let testDocumentId: number | undefined;
+  const ownedDocumentIds: number[] = [];
+  let fixtureStamp: string | undefined;
 
   beforeAll(async () => {
-    const db = await getDb();
+    db = await getDb();
     if (!db) throw new Error('Database not available');
+    fixtureStamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
     // Create test user
     const userResult = await db.insert(users).values({
-      openId: `test-doc-${Date.now()}`,
-      email: `test-doc-${Date.now()}@test.com`,
+      openId: `fixture-doc-${fixtureStamp}`,
+      email: `fixture-doc-${fixtureStamp}@example.invalid`,
       name: 'Test Document User',
       role: 'insurer',
-      tenantId: 'test-tenant',
+      tenantId: `fixture-doc-tenant-${fixtureStamp}`,
     });
     testUserId = parseInt(String(userResult[0]?.insertId ?? userResult.insertId), 10);
-    if (isNaN(testUserId) || testUserId === 0) testUserId = 1;
+    if (!Number.isSafeInteger(testUserId)) throw new Error('Unable to create owned document fixture user');
 
     // Create test claim
     const claimResult = await db.insert(claims).values({
-      claimNumber: `TEST-DOC-${Date.now()}`,
+      claimNumber: `FIXTURE-DOC-${fixtureStamp}`,
       claimantId: testUserId,
       policyNumber: 'POL-TEST-001',
       claimantName: 'Test Claimant',
@@ -40,15 +44,45 @@ describe('Document Management Features', () => {
       vehicleMake: 'Toyota',
       vehicleModel: 'Camry',
       vehicleYear: 2020,
-      vehicleRegistration: 'TEST-123',
+      vehicleRegistration: `FXDOC-${fixtureStamp.slice(-7).toUpperCase()}`,
       incidentDate: new Date(),
       incidentLocation: 'Test Location',
       incidentDescription: 'Test incident for document upload',
       workflowState: 'created',
-      tenantId: 'test-tenant',
+      tenantId: `fixture-doc-tenant-${fixtureStamp}`,
     });
     testClaimId = parseInt(String(claimResult[0]?.insertId ?? claimResult.insertId), 10);
-    if (isNaN(testClaimId) || testClaimId === 0) testClaimId = 1;
+    if (!Number.isSafeInteger(testClaimId)) throw new Error('Unable to create owned document fixture claim');
+  });
+
+  afterAll(async () => {
+    if (!db) return;
+
+    if (ownedDocumentIds.length > 0) {
+      await db.delete(claimDocuments).where(inArray(claimDocuments.id, ownedDocumentIds));
+    }
+    if (testClaimId !== undefined) {
+      await db.delete(claims).where(eq(claims.id, testClaimId));
+    }
+    if (testUserId !== undefined) {
+      await db.delete(users).where(eq(users.id, testUserId));
+    }
+
+    // No-leak proof: only exact captured document, claim, and user IDs are queried.
+    const [remainingDocuments, remainingClaims, remainingUsers] = await Promise.all([
+      ownedDocumentIds.length > 0
+        ? db.select({ id: claimDocuments.id }).from(claimDocuments).where(inArray(claimDocuments.id, ownedDocumentIds))
+        : Promise.resolve([]),
+      testClaimId !== undefined
+        ? db.select({ id: claims.id }).from(claims).where(eq(claims.id, testClaimId))
+        : Promise.resolve([]),
+      testUserId !== undefined
+        ? db.select({ id: users.id }).from(users).where(eq(users.id, testUserId))
+        : Promise.resolve([]),
+    ]);
+    expect(remainingDocuments).toHaveLength(0);
+    expect(remainingClaims).toHaveLength(0);
+    expect(remainingUsers).toHaveLength(0);
   });
 
   describe('Document Upload', () => {
@@ -75,7 +109,8 @@ describe('Document Management Features', () => {
       });
 
       testDocumentId = parseInt(String(docResult[0]?.insertId ?? docResult.insertId), 10);
-      if (isNaN(testDocumentId) || testDocumentId === 0) testDocumentId = 1;
+      if (!Number.isSafeInteger(testDocumentId)) throw new Error('Unable to create owned document fixture');
+      ownedDocumentIds.push(testDocumentId);
 
       // Verify document was created
       expect(testDocumentId).toBeGreaterThan(0);
@@ -182,6 +217,10 @@ describe('Document Management Features', () => {
           documentCategory: category as any,
           visibleToRoles: JSON.stringify(['insurer']),
         });
+
+        const documentId = parseInt(String(result[0]?.insertId ?? result.insertId), 10);
+        if (!Number.isSafeInteger(documentId)) throw new Error(`Unable to create owned ${category} document fixture`);
+        ownedDocumentIds.push(documentId);
 
         expect(result[0] || result).toBeDefined();
       }

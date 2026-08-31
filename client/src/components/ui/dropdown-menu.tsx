@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Provide the shared dropdown-menu presentation primitive used by KINGA interfaces.
+ * PRIMARY CALLERS: Layouts, pages, and composite components that require this UI primitive.
+ * NEVER: Embed KINGA business rules, data authority, or workflow decisions in this reusable UI layer.
+ */
+
 import * as React from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react";

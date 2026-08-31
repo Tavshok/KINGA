@@ -609,6 +609,9 @@ const NON_LATIN_BLOCK_RE = /[\u0400-\u04FF\u0500-\u052F\u0370-\u03FF\u0600-\u06F
 /** Regex matching OCR garbage: replacement chars, control chars, excessive symbols */
 const OCR_GARBAGE_RE = /[\uFFFD\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g;
 
+// CALIBRATION: origin unknown, do not change without benchmarking.
+const MIN_GARBLED_TEXT_CHARS = 20;
+
 /**
  * Detect whether a string is predominantly garbled.
  * Returns true if the text should be treated as unreadable.
@@ -627,7 +630,7 @@ function isGarbledText(text: string): boolean {
   // Flag as garbled if >10% of characters are OCR garbage
   if (garbageRatio > 0.10) return true;
   // Flag as garbled if the string has no spaces and >20 chars (no word boundaries)
-  if (!text.includes(' ') && len > 20 && /[^a-zA-Z0-9\-\/\.]/.test(text)) return true;
+  if (!text.includes(' ') && len > MIN_GARBLED_TEXT_CHARS && /[^a-zA-Z0-9\-\/\.]/.test(text)) return true;
   return false;
 }
 

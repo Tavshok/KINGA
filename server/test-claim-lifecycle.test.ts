@@ -10,90 +10,152 @@
  * 5. PDF Generation (claim dossier data availability)
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { getDb } from "./db";
 import { 
   claims, 
+  users,
   aiAssessments, 
   claimRoutingDecisions,
   workflowAuditTrail,
   roleAssignmentAudit,
   automationPolicies
 } from "../drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { WorkflowEngine } from "./workflow-engine";
 
 let db: Awaited<ReturnType<typeof getDb>>;
 
 describe("End-to-End Claim Lifecycle", () => {
-  let testTenantId: string;
-  let testClaimId: number;
-  let testUserId: string;
-  let activePolicyId: number;
+  let testTenantId: string | undefined;
+  let testClaimId: number | undefined;
+  let testUserId: number | undefined;
+  let activePolicyId: number | undefined;
+  let ownedAssessmentId: number | undefined;
+  let ownedWorkflowAuditIds: number[] = [];
+  let fixtureStamp: string | undefined;
 
   beforeAll(async () => {
-    // Initialize database connection
     db = await getDb();
-    
-    // Find existing test data from seed
-    const existingClaims = await db
-      .select()
-      .from(claims)
-      .limit(1);
+    fixtureStamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    testTenantId = `fixture-claim-lifecycle-${fixtureStamp}`;
 
-    if (existingClaims.length === 0) {
-      throw new Error("No seeded claims found. Run seed-production-data.ts first.");
+    const userResult = await db.insert(users).values({
+      openId: `fixture-lifecycle-actor-${fixtureStamp}`,
+      name: "Fixture lifecycle actor",
+      email: `fixture-lifecycle-${fixtureStamp}@example.invalid`,
+      role: "insurer",
+      insurerRole: "executive",
+      tenantId: testTenantId,
+      isActive: 1,
+    });
+    testUserId = Number((userResult as any)[0]?.insertId ?? (userResult as any).insertId);
+    if (!Number.isSafeInteger(testUserId)) throw new Error("Unable to create lifecycle fixture actor");
+
+    const claimResult = await db.insert(claims).values({
+      claimantId: testUserId,
+      claimNumber: `FIXTURE-LIFECYCLE-${fixtureStamp}`,
+      tenantId: testTenantId,
+      vehicleMake: "Fixture Motors",
+      vehicleModel: "Lifecycle Test",
+      vehicleYear: 2020,
+      vehicleRegistration: `FX${fixtureStamp.slice(-8).toUpperCase()}`,
+      incidentDate: new Date().toISOString().slice(0, 19).replace("T", " "),
+      incidentDescription: "Owned test collision fixture for workflow lifecycle validation.",
+      incidentLocation: "Fixture test location",
+      policyNumber: `FIXTURE-POLICY-${fixtureStamp}`,
+      status: "intake_pending",
+      workflowState: "created",
+      incidentType: "collision",
+    });
+    testClaimId = Number((claimResult as any)[0]?.insertId ?? (claimResult as any).insertId);
+    if (!Number.isSafeInteger(testClaimId)) throw new Error("Unable to create lifecycle fixture claim");
+
+    const policyResult = await db.insert(automationPolicies).values({
+      tenantId: testTenantId,
+      policyName: `Fixture lifecycle policy ${fixtureStamp}`,
+      isActive: 1,
+      minAutomationConfidence: 85,
+      minHybridConfidence: 60,
+      eligibleClaimTypes: JSON.stringify(["collision", "theft"]),
+      excludedClaimTypes: JSON.stringify([]),
+      maxAiOnlyApprovalAmount: 5000000,
+      maxHybridApprovalAmount: 20000000,
+      maxFraudScoreForAutomation: 30,
+      eligibleVehicleCategories: JSON.stringify(["sedan", "suv"]),
+      excludedVehicleMakes: JSON.stringify([]),
+      minVehicleYear: 2010,
+      maxVehicleAge: 15,
+      requireManagerApprovalAbove: 10000000,
+      allowPolicyOverride: 1,
+      version: 1,
+      fraudSensitivityMultiplier: "1.00",
+      effectiveFrom: new Date().toISOString().slice(0, 19).replace("T", " "),
+    });
+    activePolicyId = Number((policyResult as any)[0]?.insertId ?? (policyResult as any).insertId);
+    if (!Number.isSafeInteger(activePolicyId)) throw new Error("Unable to create lifecycle fixture policy");
+
+    const assessmentResult = await db.insert(aiAssessments).values({
+      claimId: testClaimId,
+      tenantId: testTenantId,
+      confidenceScore: 90,
+      fraudScore: 5,
+      damageDescription: "Owned fixture assessment for lifecycle transition prerequisites.",
+    });
+    ownedAssessmentId = Number((assessmentResult as any)[0]?.insertId ?? (assessmentResult as any).insertId);
+    if (!Number.isSafeInteger(ownedAssessmentId)) throw new Error("Unable to create lifecycle fixture assessment");
+  });
+
+  afterAll(async () => {
+    if (!db) return;
+
+    if (testClaimId !== undefined) {
+      ownedWorkflowAuditIds = (await db
+        .select({ id: workflowAuditTrail.id })
+        .from(workflowAuditTrail)
+        .where(eq(workflowAuditTrail.claimId, testClaimId)))
+        .map((row) => row.id);
     }
 
-    testClaimId = existingClaims[0].id;
-    testTenantId = existingClaims[0].tenantId!;
-    testUserId = existingClaims[0].claimantId ?? 1; // fallback to user id 1 if claimantId is null
-
-    // Find active policy
-    const activePolicy = await db
-      .select()
-      .from(automationPolicies)
-      .where(
-        and(
-          eq(automationPolicies.tenantId, testTenantId),
-          eq(automationPolicies.isActive, true)
-        )
-      )
-      .limit(1);
-
-    if (activePolicy.length === 0) {
-      // Create a test policy for this tenant
-      const result = await db.insert(automationPolicies).values({
-        tenantId: testTenantId,
-        policyName: "Test Policy (auto-created)",
-        isActive: 1,
-        minAutomationConfidence: 85,
-        minHybridConfidence: 60,
-        eligibleClaimTypes: JSON.stringify(["collision", "theft"]),
-        excludedClaimTypes: JSON.stringify([]),
-        maxAiOnlyApprovalAmount: 5000000,
-        maxHybridApprovalAmount: 20000000,
-        maxFraudScoreForAutomation: 30,
-        eligibleVehicleCategories: JSON.stringify(["sedan", "suv"]),
-        excludedVehicleMakes: JSON.stringify([]),
-        minVehicleYear: 2010,
-        maxVehicleAge: 15,
-        requireManagerApprovalAbove: 10000000,
-        allowPolicyOverride: 1,
-        version: 1,
-        fraudSensitivityMultiplier: "1.00",
-        effectiveFrom: new Date().toISOString().slice(0, 19).replace("T", " "),
-      });
-      const insertId = (result as any)[0]?.insertId || (result as any).insertId;
-      const newPolicy = await db
-        .select()
-        .from(automationPolicies)
-        .where(eq(automationPolicies.id, insertId))
-        .limit(1);
-      activePolicyId = newPolicy[0].id;
-    } else {
-      activePolicyId = activePolicy[0].id;
+    if (ownedWorkflowAuditIds.length > 0) {
+      await db.delete(workflowAuditTrail).where(inArray(workflowAuditTrail.id, ownedWorkflowAuditIds));
     }
+    if (ownedAssessmentId !== undefined) {
+      await db.delete(aiAssessments).where(eq(aiAssessments.id, ownedAssessmentId));
+    }
+    if (testClaimId !== undefined) {
+      await db.delete(claims).where(eq(claims.id, testClaimId));
+    }
+    if (activePolicyId !== undefined) {
+      await db.delete(automationPolicies).where(eq(automationPolicies.id, activePolicyId));
+    }
+    if (testUserId !== undefined) {
+      await db.delete(users).where(eq(users.id, testUserId));
+    }
+
+    // Lifecycle no-leak proof: every query uses only this suite's captured IDs.
+    const [remainingAudits, remainingAssessments, remainingClaims, remainingPolicies, remainingUsers] = await Promise.all([
+      ownedWorkflowAuditIds.length > 0
+        ? db.select({ id: workflowAuditTrail.id }).from(workflowAuditTrail).where(inArray(workflowAuditTrail.id, ownedWorkflowAuditIds))
+        : Promise.resolve([]),
+      ownedAssessmentId !== undefined
+        ? db.select({ id: aiAssessments.id }).from(aiAssessments).where(eq(aiAssessments.id, ownedAssessmentId))
+        : Promise.resolve([]),
+      testClaimId !== undefined
+        ? db.select({ id: claims.id }).from(claims).where(eq(claims.id, testClaimId))
+        : Promise.resolve([]),
+      activePolicyId !== undefined
+        ? db.select({ id: automationPolicies.id }).from(automationPolicies).where(eq(automationPolicies.id, activePolicyId))
+        : Promise.resolve([]),
+      testUserId !== undefined
+        ? db.select({ id: users.id }).from(users).where(eq(users.id, testUserId))
+        : Promise.resolve([]),
+    ]);
+    expect(remainingAudits).toHaveLength(0);
+    expect(remainingAssessments).toHaveLength(0);
+    expect(remainingClaims).toHaveLength(0);
+    expect(remainingPolicies).toHaveLength(0);
+    expect(remainingUsers).toHaveLength(0);
   });
 
   describe("1. AI Analysis & Routing", () => {
@@ -112,12 +174,12 @@ describe("End-to-End Claim Lifecycle", () => {
         expect(assessment[0].confidenceScore).toBeLessThanOrEqual(100);
 
         // Verify fraud score present
-        expect(assessment[0].fraudRiskScore).toBeDefined();
-        expect(assessment[0].fraudRiskScore).toBeGreaterThanOrEqual(0);
-        expect(assessment[0].fraudRiskScore).toBeLessThanOrEqual(100);
+        expect(assessment[0].fraudScore).toBeDefined();
+        expect(assessment[0].fraudScore).toBeGreaterThanOrEqual(0);
+        expect(assessment[0].fraudScore).toBeLessThanOrEqual(100);
 
-        // Verify AI summary present
-        expect(assessment[0].aiSummary).toBeDefined();
+        // Verify the persisted AI assessment narrative is available to dossier consumers.
+        expect(assessment[0].damageDescription).toBeDefined();
       }
     });
 
@@ -333,7 +395,7 @@ describe("End-to-End Claim Lifecycle", () => {
         .limit(1);
 
       if (aiAssessment.length > 0) {
-        expect(aiAssessment[0].aiSummary).toBeDefined();
+        expect(aiAssessment[0].damageDescription).toBeDefined();
       }
 
       // Verify routing decision exists
