@@ -7,11 +7,17 @@ const read = (relativePath: string) => readFileSync(resolve(root, relativePath),
 
 describe("R0 cross-report canonical photo evidence presentation", () => {
   it("normalises the same enriched-photo evidence before Claims Ledger, Claims Intelligence, and Forensic rendering", () => {
-    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts", "server/reporting/forensicDecisionReport.ts"]) {
+    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts"]) {
       const source = read(file);
       expect(source).toContain('from "./photoEvidencePresentation"');
       expect(source).toContain("normaliseCanonicalPhotoEvidence");
     }
+    const forensicRenderer = read("server/reporting/forensicDecisionReport.ts");
+    const forensicModel = read("server/reporting/forensicReportModel.ts");
+    expect(forensicRenderer).toContain("resolveForensicReportModel");
+    expect(forensicRenderer).toContain("forensicModel.evidence.photos");
+    expect(forensicModel).toContain('from "./photoEvidencePresentation"');
+    expect(forensicModel).toContain("normaliseCanonicalPhotoEvidence");
   });
 
   it("keeps absence of canonical photo evidence explicit rather than manufacturing visual analysis", () => {
@@ -24,10 +30,15 @@ describe("R0 cross-report canonical photo evidence presentation", () => {
     const panel = read("server/reporting/templates/kingaDesignSystem.ts");
     expect(panel).toContain("Recorded zone:");
     expect(panel).toContain("Zone label requires verification");
-    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts", "server/reporting/forensicDecisionReport.ts"]) {
+    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts"]) {
       const source = read(file);
       expect(source).toContain("directionContradiction");
       expect(source).toContain("photoZonePanel");
     }
+    const forensicRenderer = read("server/reporting/forensicDecisionReport.ts");
+    const forensicModel = read("server/reporting/forensicReportModel.ts");
+    expect(forensicRenderer).toContain("photoZonePanel");
+    expect(forensicRenderer).toContain("resolveForensicReportModel");
+    expect(forensicModel).toContain("normaliseCanonicalPhotoEvidence");
   });
 });

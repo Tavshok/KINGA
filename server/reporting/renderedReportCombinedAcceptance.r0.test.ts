@@ -100,11 +100,18 @@ describe("R0 immutable combined rendered-report acceptance", () => {
   });
 
   it("uses the same shared decision and canonical-photo contracts in CL, CI, and FR", () => {
-    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts", "server/reporting/forensicDecisionReport.ts"]) {
+    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts"]) {
       const source = read(file);
       expect(source).toContain("renderCostDecisionSummaryHtml");
       expect(source).toContain("extractExplicitStructuralReviewEvidence");
       expect(source).toContain("normaliseCanonicalPhotoEvidence");
     }
+    const forensicRenderer = read("server/reporting/forensicDecisionReport.ts");
+    const forensicModel = read("server/reporting/forensicReportModel.ts");
+    expect(forensicRenderer).toContain("resolveForensicReportModel");
+    expect(forensicRenderer).toContain("renderCostDecisionSummaryHtml");
+    expect(forensicRenderer).toContain("extractExplicitStructuralReviewEvidence");
+    expect(forensicRenderer).toContain("photoZonePanel");
+    expect(forensicModel).toContain("normaliseCanonicalPhotoEvidence");
   });
 });

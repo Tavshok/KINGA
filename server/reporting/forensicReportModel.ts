@@ -81,6 +81,14 @@ export interface ForensicPhoto {
   readonly sourcePage: number | null;
 }
 
+export interface ForensicApprovalStage {
+  readonly stage: number;
+  readonly role: string;
+  readonly status: string;
+  readonly officer: string | null;
+  readonly date: string | null;
+}
+
 export interface ForensicReportModel {
   readonly contractVersion: "1";
   readonly provenance: Readonly<{
@@ -319,7 +327,7 @@ export interface ForensicReportModel {
   }>;
   readonly disputes: readonly JsonObject[];
   readonly approval: Readonly<{
-    stages: readonly JsonObject[];
+    stages: readonly ForensicApprovalStage[];
     completedStages: number;
     requiredStages: number;
     source: "forensic_audit" | "audit_log_derivation";
@@ -332,6 +340,12 @@ function object(value: unknown): JsonObject | null {
   return value != null && typeof value === "object" && !Array.isArray(value)
     ? value as JsonObject
     : null;
+}
+
+function scalar(value: unknown): string | number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") return value.trim() ? value : null;
+  return null;
 }
 
 function array(value: unknown): readonly unknown[] {
@@ -578,7 +592,7 @@ export async function resolveForensicReportModel(input: Readonly<{
       directionContradiction: photo.directionContradiction === true,
       semanticType: string(photo.semanticType),
       detectedComponents: strings(photo.detectedComponents),
-      classificationConfidence: number(photo.classificationConfidence ?? photo.semanticConfidence),
+      classificationConfidence: number(photo.classificationConfidence),
       classifier: string(photo.classifier),
       selectionReason: string(photo.selectionReason),
       fallbackWarning: string(photo.fallbackWarning),
@@ -765,7 +779,7 @@ export async function resolveForensicReportModel(input: Readonly<{
         vehicleDescription: reportRecord.vehicle.description,
         vehicleRegistration: string(current.vehicle_registration) ?? string(current.registration_number),
         vehicleVin: string(current.vin) ?? string(current.vehicle_vin),
-        vehicleOdometer: current.odometer ?? current.vehicle_odometer ?? null,
+        vehicleOdometer: scalar(current.odometer) ?? scalar(current.vehicle_odometer),
         vehicleYear,
         dateAnomaly: { present: vehicleYear != null && incidentYear != null && incidentYear < vehicleYear, incidentYear, vehicleYear },
         driverName: string(current.driver_name) ?? string(current.lodger_name),
@@ -955,22 +969,37 @@ function buildL2IntegrityNote(costIntegrity: ReportCostIntegrity, currency: stri
 function buildApprovalStages(forensicAudit: JsonObject | null, auditRows: readonly MutableRecord[]): ForensicReportModel["approval"] {
   const supplied = objects(read(forensicAudit, "approvalWorkflow"));
   const findAudit = (keywords: readonly string[]) => auditRows.find((event) => keywords.some((keyword) => String(event.action ?? "").toLowerCase().includes(keyword)));
-  const stages = supplied.length > 0 ? supplied : [
+  const stages: ForensicApprovalStage[] = supplied.length > 0
+    ? supplied.map((stage, index) => normaliseApprovalStage(stage, index + 1))
+    : [
     stageFromAudit(1, "Claims Processor Review", findAudit(["claim_reviewed", "claim_processed", "claim_submitted", "claim_created"])),
     stageFromAudit(2, "Internal Assessor Assessment", findAudit(["claim_assessed", "assessment_complete", "assigned_to_assessor"])),
     stageFromAudit(3, "Risk Manager Sign-off", findAudit(["risk_signoff", "risk_approved", "risk_review"])),
-    stageFromAudit(4, "Claims Manager Approval", findAudit(["claim_approved", "claim_rejected", "manager_approved", "claims_manager"])),
-    stageFromAudit(5, "Executive / GM Sign-off", findAudit(["executive_approved", "gm_approved", "exec_signoff"])),
+    // KINGA reports decision authority, not payments. A tenant may use either
+    // a claims-manager approval route or an executive/GM route; neither implies
+    // that the other human role must have approved the same claim.
+    stageFromAudit(4, "Claims Manager Approval", findAudit(["claim_approved", "claim_rejected", "manager_approved", "claims_manager", "claim_decision"]), findAudit(["executive_approved", "gm_approved", "exec_signoff"]) ? "Not required" : "Pending"),
+    stageFromAudit(5, "Executive / GM Sign-off", findAudit(["executive_approved", "gm_approved", "exec_signoff"]), findAudit(["claim_approved", "claim_rejected", "manager_approved", "claims_manager", "claim_decision"]) ? "Not required" : "Pending"),
   ];
-  const completed = stages.filter((stage) => String(read(stage, "status") ?? "").toLowerCase() === "complete").length;
-  return { stages, completedStages: completed, requiredStages: stages.filter((stage) => (number(read(stage, "stage")) ?? 0) <= 4).length, source: supplied.length > 0 ? "forensic_audit" : "audit_log_derivation" };
+  const completed = stages.filter((stage) => stage.status.toLowerCase() === "complete").length;
+  return { stages, completedStages: completed, requiredStages: supplied.length > 0 ? stages.length : 4, source: supplied.length > 0 ? "forensic_audit" : "audit_log_derivation" };
 }
 
-function stageFromAudit(stage: number, role: string, event: MutableRecord | undefined): JsonObject {
+function normaliseApprovalStage(stage: JsonObject, fallbackStage: number): ForensicApprovalStage {
+  return {
+    stage: number(read(stage, "stage")) ?? fallbackStage,
+    role: string(read(stage, "role")) ?? "Reviewer stage",
+    status: string(read(stage, "status")) ?? "Pending",
+    officer: string(read(stage, "officer")),
+    date: string(read(stage, "date")),
+  };
+}
+
+function stageFromAudit(stage: number, role: string, event: MutableRecord | undefined, incompleteStatus: string = stage === 1 ? "Awaiting" : "Pending"): ForensicApprovalStage {
   return {
     stage,
     role,
-    status: event ? "Complete" : stage === 1 ? "Awaiting" : "Pending",
+    status: event ? "Complete" : incompleteStatus,
     officer: event ? String(event.user_role ?? "—") : null,
     date: event?.timestamp ? new Date(String(event.timestamp)).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : null,
   };

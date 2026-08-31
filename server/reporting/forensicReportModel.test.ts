@@ -10,7 +10,9 @@ import {
   users,
 } from "../../drizzle/schema";
 import { getDb } from "../db";
+import { generateClaimsIntelligenceReport } from "./claimsIntelligenceReport";
 import { generateForensicDecisionReport } from "./forensicDecisionReport";
+import { generateReportHtml } from "./reportDefinitions";
 import { resolveForensicReportModel } from "./forensicReportModel";
 
 describe("ForensicReportModel", () => {
@@ -95,6 +97,7 @@ describe("ForensicReportModel", () => {
           entity_intelligence: { normScore: 3, budget: 10 },
           photo_forensics: { normScore: 2, budget: 5 },
         },
+        quoteSimilarity: { verdict: "possible", highestPairSimilarity: 0.92 },
       }),
       ifeResultJson: JSON.stringify({
         completenessScore: 88,
@@ -301,6 +304,7 @@ describe("ForensicReportModel", () => {
   it("matches the current generator’s observable output for the same resolved model values", async () => {
     const model = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
     const html = await generateForensicDecisionReport(claimId, tenantId);
+    const processorStage = model.approval.stages[0]! as Record<string, unknown>;
 
     expect(html).toContain("Kinga Forensic Parity 2024");
     expect(html).toContain("47<span");
@@ -310,6 +314,97 @@ describe("ForensicReportModel", () => {
     expect(html).toContain(`${model.technical.speed.consensusRounded}`);
     expect(html).toContain("Third-party rear strike");
     expect(html).toContain("Quote coverage requires review");
+    expect(processorStage).toMatchObject({
+      stage: 1,
+      role: "Claims Processor Review",
+      status: "Complete",
+      officer: "claims_processor",
+    });
+    expect(html).toContain(String(processorStage.role));
+    expect(html).toContain(String(processorStage.status));
+    expect(html).toContain(String(processorStage.officer));
+
+    // The live database does not currently expose claim_disputes. The model must
+    // preserve that fact explicitly and the renderer must not manufacture a
+    // dispute section from a missing source.
+    expect(model.availability.disputes).toMatchObject({
+      state: "source_unavailable",
+      value: null,
+      source: "claim_disputes",
+    });
+    expect(model.disputes).toEqual([]);
+    expect(html).not.toContain("Dispute Record");
+  });
+
+  it("recognises either human final-approval route without inventing a payment stage", async () => {
+    const addApprovalEvent = async (action: string, userRole: string) => {
+      const [insert] = await db.insert(insuranceAuditLogs).values({
+        userId: actorId,
+        userRole,
+        action,
+        entityType: "claim",
+        entityId: claimId,
+        changes: JSON.stringify({ source: "forensic-model-approval-fixture" }),
+        tenantId,
+      } as any);
+      const id = Number((insert as { insertId: number | string }).insertId);
+      auditLogIds.push(id);
+      return id;
+    };
+
+    const claimsManagerLogId = await addApprovalEvent("manager_approved", "claims_manager");
+    const claimsManagerOnly = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
+    expect(claimsManagerOnly.approval).toMatchObject({ completedStages: 2, requiredStages: 4 });
+    expect(claimsManagerOnly.approval.stages[3]).toMatchObject({ stage: 4, role: "Claims Manager Approval", status: "Complete", officer: "claims_manager" });
+    expect(claimsManagerOnly.approval.stages[4]).toMatchObject({ stage: 5, role: "Executive / GM Sign-off", status: "Not required" });
+    const claimsManagerHtml = await generateForensicDecisionReport(claimId, tenantId);
+    expect(claimsManagerHtml).toContain("2 of 4 required stages complete.");
+    expect(claimsManagerHtml).toContain("Claims Manager Approval");
+    expect(claimsManagerHtml).toContain("Executive / GM Sign-off");
+    expect(claimsManagerHtml).not.toContain("Final Payment Authorisation");
+
+    await addApprovalEvent("executive_approved", "executive");
+    const bothApprovers = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
+    expect(bothApprovers.approval).toMatchObject({ completedStages: 3, requiredStages: 4 });
+    expect(bothApprovers.approval.stages[3]).toMatchObject({ status: "Complete" });
+    expect(bothApprovers.approval.stages[4]).toMatchObject({ status: "Complete", officer: "executive" });
+
+    await db.delete(insuranceAuditLogs).where(and(eq(insuranceAuditLogs.id, claimsManagerLogId), eq(insuranceAuditLogs.entityId, claimId), eq(insuranceAuditLogs.tenantId, tenantId)));
+    const executiveOnly = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
+    expect(executiveOnly.approval).toMatchObject({ completedStages: 2, requiredStages: 4 });
+    expect(executiveOnly.approval.stages[3]).toMatchObject({ stage: 4, status: "Not required" });
+    expect(executiveOnly.approval.stages[4]).toMatchObject({ stage: 5, role: "Executive / GM Sign-off", status: "Complete", officer: "executive" });
+  });
+
+  it("renders the Claims Intelligence tier from the same canonical decision, valuation, physics, and quotation evidence", async () => {
+    const model = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
+    const html = await generateClaimsIntelligenceReport(claimId, tenantId);
+
+    expect(html).toContain("Kinga Forensic Parity 2024");
+    expect(html).toContain(`${model.executive.fraud.value}/100`);
+    expect(html).toContain("$30,000.00");
+    expect(html).toContain(`${model.technical.deltaV.value}`);
+    expect(html).toContain("Copy-Quotation — Possible");
+  });
+
+  it("renders CL, CI, and FR from the same claim with identical shared forensic values", async () => {
+    const model = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
+    const [claimsLedgerHtml, claimsIntelligenceHtml, forensicHtml] = await Promise.all([
+      generateReportHtml("claim.assessment", { claimId }, tenantId),
+      generateClaimsIntelligenceReport(claimId, tenantId),
+      generateForensicDecisionReport(claimId, tenantId),
+    ]);
+    const reports = [claimsLedgerHtml, claimsIntelligenceHtml, forensicHtml];
+
+    for (const report of reports) {
+      expect(report).toContain("Kinga Forensic Parity 2024");
+      expect(report).toContain(String(model.executive.fraud.value));
+      expect(report).toContain("$30,000.00");
+      expect(report).toContain(String(model.technical.deltaV.value));
+    }
+
+    const decisionLabel = model.executive.decision.status.replaceAll("_", " ").toLowerCase();
+    for (const report of reports) expect(report.toLowerCase()).toContain(decisionLabel);
   });
 
   it("fails closed when a different tenant requests the same claim", async () => {
