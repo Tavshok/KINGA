@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Define the agency-insurance-service tRPC boundary and its server-side access contract.
+ * PRIMARY CALLERS: Authenticated KINGA web clients through the application router.
+ * NEVER: Authorise records from client input alone; derive and enforce tenant and role scope on the server.
+ */
+
 import { randomUUID } from "crypto";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";

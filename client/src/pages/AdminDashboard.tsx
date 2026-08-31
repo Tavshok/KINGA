@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Render the Admin Dashboard route and coordinate its role-specific KINGA client experience.
+ * PRIMARY CALLERS: The client route registry and authenticated user navigation.
+ * NEVER: Bypass typed tRPC contracts or decide tenant, role, or workflow authority in the browser.
+ */
+
 import { useAuth } from "@/_core/hooks/useAuth";
 import { PendingRegistrationQueue } from "@/components/admin/PendingRegistrationQueue";
 import { Button } from "@/components/ui/button";
@@ -479,7 +485,6 @@ export default function AdminDashboard() {
     </div>
   );
 }
-import { useLocation } from "wouter";
 import { Link } from "wouter";
 
 /** Live intelligence overview — pulls real data from getPipelineHealth */

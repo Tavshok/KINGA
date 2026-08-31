@@ -36,6 +36,9 @@
  */
 
 import { invokeLLM } from "../_core/llm";
+
+// CALIBRATION: origin unknown, do not change without benchmarking.
+const LLM_OVERRIDE_CONFIDENCE_PERCENT = 85;
 // ── Utility: wrap async fn with a hard timeout ────────────────────────────────
 // R-B-02 fix: both LLM calls (llmClassify + detectMultiEventSequence) must be
 // bounded so a hung LLM response cannot freeze the pipeline. On timeout the
@@ -739,7 +742,7 @@ export async function classifyIncident(
       (LLM_EXPECTED_OVERRIDES[llmFinalType] ?? []).some(overridden => (uniqueKeywordTypes as string[]).includes(overridden));
     // Also suppress when LLM is highly confident (≥ 85%) — the LLM has reasoned over the
     // full narrative and its verdict supersedes keyword-level disagreements.
-    const llmHighConfidence = (llmResult!.confidence ?? 0) >= 85;
+    const llmHighConfidence = (llmResult!.confidence ?? 0) >= LLM_OVERRIDE_CONFIDENCE_PERCENT;
     const conflictDetected = uniqueKeywordTypes.length > 1
       && !uniqueKeywordTypes.every(t => t === llmFinalType)
       && !isExpectedLLMOverride

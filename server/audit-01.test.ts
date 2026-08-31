@@ -1,67 +1,31 @@
 /**
  * AUDIT-01 Verification Tests
  *
- * Confirms that each redirected file writes to the correct audit table
- * with the correct field values. These tests require a live DB connection.
- *
- * Run with: pnpm test server/audit-01.test.ts
+ * Confirms redirected code writes to the intended audit table. Each write uses
+ * an exact suite-owned sentinel and is removed by the afterAll lifecycle hook.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { getDb } from "./db";
-import {
-  workflowAuditTrail,
-  isoAuditLogs,
-  auditTrail,
-  superAuditSessions,
-} from "../drizzle/schema";
-import { desc, eq } from "drizzle-orm";
+import { workflowAuditTrail, isoAuditLogs, auditTrail } from "../drizzle/schema";
+import { and, eq } from "drizzle-orm";
 import { SYSTEM_USER_ID, insertIsoAuditLog, insertWorkflowAudit } from "./utils/audit-helpers";
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-async function getLatestWorkflowAudit(db: any) {
-  const [row] = await db
-    .select()
-    .from(workflowAuditTrail)
-    .orderBy(desc(workflowAuditTrail.id))
-    .limit(1);
-  return row;
-}
-
-async function getLatestIsoAuditLog(db: any) {
-  const [row] = await db
-    .select()
-    .from(isoAuditLogs)
-    .orderBy(desc(isoAuditLogs.id))
-    .limit(1);
-  return row;
-}
-
-async function getLatestAuditTrail(db: any) {
-  const [row] = await db
-    .select()
-    .from(auditTrail)
-    .orderBy(desc(auditTrail.id))
-    .limit(1);
-  return row;
-}
-
-// ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("AUDIT-01: Correct audit table routing", () => {
   let db: any;
+  const fixtureStamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const testTenantId = `audit01-fixture-${fixtureStamp}`;
+  const testClaimId = 90000000 + Number(Date.now() % 1000000);
+  const testUserId = 91000000 + Number(Date.now() % 1000000);
+  const testAuditUserId = 92000000 + Number(Date.now() % 1000000);
+  const hashResourceId = `fixture-hash-${fixtureStamp}`;
 
   beforeAll(async () => {
     db = await getDb();
     if (!db) throw new Error("DB unavailable — cannot run AUDIT-01 tests");
   });
 
-  // ── 1. ai-rerun-service.ts → workflowAuditTrail ──────────────────────────
   it("insertWorkflowAudit writes to workflowAuditTrail with correct fields", async () => {
-    const testClaimId = 99999901;
-    const testUserId = 99999901;
-
     await insertWorkflowAudit(db, {
       claimId: testClaimId,
       userId: testUserId,
@@ -72,56 +36,44 @@ describe("AUDIT-01: Correct audit table routing", () => {
       metadata: { test: true, source: "audit-01.test.ts" },
     });
 
-    const row = await getLatestWorkflowAudit(db);
+    const [row] = await db.select().from(workflowAuditTrail).where(and(
+      eq(workflowAuditTrail.claimId, testClaimId),
+      eq(workflowAuditTrail.userId, testUserId),
+      eq(workflowAuditTrail.comments, "AUDIT-01 test entry"),
+      eq(workflowAuditTrail.previousState, "intake_queue"),
+      eq(workflowAuditTrail.newState, "under_assessment"),
+    ));
     expect(row).toBeDefined();
-    expect(row.claimId).toBe(testClaimId);
-    expect(row.userId).toBe(testUserId);
     expect(row.userRole).toBe("claims_processor");
-    expect(row.previousState).toBe("intake_queue");
-    expect(row.newState).toBe("under_assessment");
-    expect(row.comments).toBe("AUDIT-01 test entry");
-    // metadata is stored as JSON string
     const meta = typeof row.metadata === "string" ? JSON.parse(row.metadata) : row.metadata;
-    expect(meta.test).toBe(true);
-    expect(meta.source).toBe("audit-01.test.ts");
+    expect(meta).toMatchObject({ test: true, source: "audit-01.test.ts" });
   });
 
-  // ── 2. intake-escalation-job.ts → isoAuditLogs ───────────────────────────
-  it("insertIsoAuditLog (system actor) writes to isoAuditLogs with integrityHash", async () => {
-    const testTenantId = "AUDIT01-TEST-TENANT";
-
+  it("insertIsoAuditLog (system actor) writes ISO audit data and an integrity hash", async () => {
     await insertIsoAuditLog(db, {
       tenantId: testTenantId,
       userId: SYSTEM_USER_ID,
       userRole: "system",
       actionType: "update",
       resourceType: "claim",
-      resourceId: "99999901",
+      resourceId: String(testClaimId),
       beforeState: null,
       afterState: JSON.stringify({ actionType: "INTAKE_ESCALATION", test: true }),
     });
-
-    const row = await getLatestIsoAuditLog(db);
+    const [row] = await db.select().from(isoAuditLogs).where(and(
+      eq(isoAuditLogs.tenantId, testTenantId),
+      eq(isoAuditLogs.userId, SYSTEM_USER_ID),
+      eq(isoAuditLogs.resourceType, "claim"),
+      eq(isoAuditLogs.resourceId, String(testClaimId)),
+    ));
     expect(row).toBeDefined();
-    expect(row.tenantId).toBe(testTenantId);
-    expect(row.userId).toBe(SYSTEM_USER_ID);
     expect(row.userRole).toBe("system");
-    expect(row.actionType).toBe("update");
-    expect(row.resourceType).toBe("claim");
-    expect(row.resourceId).toBe("99999901");
-    // integrityHash must be present and non-empty
-    expect(row.integrityHash).toBeTruthy();
-    expect(row.integrityHash.length).toBe(64); // SHA-256 hex = 64 chars
-    // afterState must be stored
+    expect(row.integrityHash).toHaveLength(64);
     const after = typeof row.afterState === "string" ? JSON.parse(row.afterState) : row.afterState;
-    expect(after.actionType).toBe("INTAKE_ESCALATION");
+    expect(after).toMatchObject({ actionType: "INTAKE_ESCALATION", test: true });
   });
 
-  // ── 3. routing-policy-version-manager.ts → isoAuditLogs ──────────────────
-  it("insertIsoAuditLog (human actor) writes to isoAuditLogs with correct fields", async () => {
-    const testTenantId = "AUDIT01-TEST-TENANT";
-    const testUserId = 99999902;
-
+  it("insertIsoAuditLog (human actor) writes ISO audit data with exact identity", async () => {
     await insertIsoAuditLog(db, {
       tenantId: testTenantId,
       userId: testUserId,
@@ -132,95 +84,88 @@ describe("AUDIT-01: Correct audit table routing", () => {
       beforeState: null,
       afterState: JSON.stringify({ policyVersion: 2, test: true }),
     });
-
-    const row = await getLatestIsoAuditLog(db);
+    const [row] = await db.select().from(isoAuditLogs).where(and(
+      eq(isoAuditLogs.tenantId, testTenantId),
+      eq(isoAuditLogs.userId, testUserId),
+      eq(isoAuditLogs.resourceType, "routing_policy"),
+      eq(isoAuditLogs.resourceId, "policy-v2-test"),
+    ));
     expect(row).toBeDefined();
-    expect(row.userId).toBe(testUserId);
     expect(row.userRole).toBe("insurer_admin");
     expect(row.actionType).toBe("create");
-    expect(row.resourceType).toBe("routing_policy");
-    expect(row.integrityHash).toBeTruthy();
-    expect(row.integrityHash.length).toBe(64);
+    expect(row.integrityHash).toHaveLength(64);
   });
 
-  // ── 4. super-audit-mode.ts → audit_trail (entityType/entityId) ───────────
-  it("super-audit-mode writes to audit_trail with entityType and entityId", async () => {
-    // Directly insert using the same pattern as super-audit-mode.ts
-    const testUserId = 99999903;
-    const testEntityId = 42;
-
+  it("super-audit-mode writes audit_trail with entityType and entityId", async () => {
     await db.insert(auditTrail).values({
-      userId: testUserId,
+      userId: testAuditUserId,
       action: "SUPER_AUDIT_VIEW_CLAIM",
       entityType: "claim",
-      entityId: testEntityId,
-      changeDescription: JSON.stringify({
-        sessionId: 1,
-        claimId: testEntityId,
-        tenantId: "AUDIT01-TEST-TENANT",
-        test: true,
-      }),
+      entityId: testClaimId,
+      changeDescription: JSON.stringify({ sessionId: 1, claimId: testClaimId, tenantId: testTenantId, test: true }),
       createdAt: new Date().toISOString(),
     });
-
-    const row = await getLatestAuditTrail(db);
+    const [row] = await db.select().from(auditTrail).where(and(
+      eq(auditTrail.userId, testAuditUserId),
+      eq(auditTrail.action, "SUPER_AUDIT_VIEW_CLAIM"),
+      eq(auditTrail.entityType, "claim"),
+      eq(auditTrail.entityId, testClaimId),
+    ));
     expect(row).toBeDefined();
-    expect(row.userId).toBe(testUserId);
-    expect(row.action).toBe("SUPER_AUDIT_VIEW_CLAIM");
-    expect(row.entityType).toBe("claim");
-    expect(row.entityId).toBe(testEntityId);
-    const desc_ = typeof row.changeDescription === "string"
-      ? JSON.parse(row.changeDescription)
-      : row.changeDescription;
-    expect(desc_.test).toBe(true);
-    expect(desc_.tenantId).toBe("AUDIT01-TEST-TENANT");
+    const description = typeof row.changeDescription === "string" ? JSON.parse(row.changeDescription) : row.changeDescription;
+    expect(description).toMatchObject({ tenantId: testTenantId, test: true });
   });
 
-  // ── 5. SYSTEM_USER_ID constant is correct ────────────────────────────────
   it("SYSTEM_USER_ID matches the reserved system user in the DB", async () => {
-    const { users: usersTable } = await import("../drizzle/schema");
-    const [systemUser] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.id, SYSTEM_USER_ID))
-      .limit(1);
-
-    expect(systemUser).toBeDefined();
-    expect(systemUser.openId).toBe("SYSTEM");
-    expect(systemUser.name).toBe("KINGA System");
+    const { users } = await import("../drizzle/schema");
+    const [systemUser] = await db.select().from(users).where(eq(users.id, SYSTEM_USER_ID)).limit(1);
+    expect(systemUser).toMatchObject({ openId: "SYSTEM", name: "KINGA System" });
   });
 
-  // ── 6. integrityHash is consistent with ingestion-review-queue.ts ─────────
-  it("integrityHash matches SHA-256 of JSON.stringify(payload) — same as ingestion-review-queue.ts", async () => {
+  it("integrityHash matches SHA-256 of JSON.stringify(payload)", async () => {
     const crypto = await import("crypto");
-    const testPayload = {
-      tenantId: "TEST",
+    const payload = {
+      tenantId: testTenantId,
       userId: SYSTEM_USER_ID,
       userRole: "system",
       actionType: "update",
       resourceType: "claim",
-      resourceId: "123",
+      resourceId: hashResourceId,
       beforeState: null,
       afterState: '{"test":true}',
     };
-    const expectedHash = crypto
-      .createHash("sha256")
-      .update(JSON.stringify(testPayload))
-      .digest("hex");
-
-    // Insert via helper and read back
-    await insertIsoAuditLog(db, {
-      tenantId: "TEST",
-      userId: SYSTEM_USER_ID,
-      userRole: "system",
-      actionType: "update",
-      resourceType: "claim",
-      resourceId: "123",
-      beforeState: null,
-      afterState: '{"test":true}',
-    });
-
-    const row = await getLatestIsoAuditLog(db);
+    const expectedHash = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    await insertIsoAuditLog(db, payload);
+    const [row] = await db.select().from(isoAuditLogs).where(and(
+      eq(isoAuditLogs.tenantId, testTenantId),
+      eq(isoAuditLogs.userId, SYSTEM_USER_ID),
+      eq(isoAuditLogs.resourceType, "claim"),
+      eq(isoAuditLogs.resourceId, hashResourceId),
+    ));
     expect(row.integrityHash).toBe(expectedHash);
+  });
+
+  afterAll(async () => {
+    if (!db) return;
+
+    // Full, immutable sentinels ensure each delete can match only this suite's rows.
+    await db.delete(workflowAuditTrail).where(and(eq(workflowAuditTrail.claimId, testClaimId), eq(workflowAuditTrail.userId, testUserId), eq(workflowAuditTrail.comments, "AUDIT-01 test entry"), eq(workflowAuditTrail.previousState, "intake_queue"), eq(workflowAuditTrail.newState, "under_assessment")));
+    await db.delete(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, SYSTEM_USER_ID), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, String(testClaimId))));
+    await db.delete(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, testUserId), eq(isoAuditLogs.resourceType, "routing_policy"), eq(isoAuditLogs.resourceId, "policy-v2-test")));
+    await db.delete(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, SYSTEM_USER_ID), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, hashResourceId)));
+    await db.delete(auditTrail).where(and(eq(auditTrail.userId, testAuditUserId), eq(auditTrail.action, "SUPER_AUDIT_VIEW_CLAIM"), eq(auditTrail.entityType, "claim"), eq(auditTrail.entityId, testClaimId)));
+
+    const [workflowRows, escalationRows, policyRows, hashRows, auditRows] = await Promise.all([
+      db.select({ id: workflowAuditTrail.id }).from(workflowAuditTrail).where(and(eq(workflowAuditTrail.claimId, testClaimId), eq(workflowAuditTrail.userId, testUserId), eq(workflowAuditTrail.comments, "AUDIT-01 test entry"), eq(workflowAuditTrail.previousState, "intake_queue"), eq(workflowAuditTrail.newState, "under_assessment"))),
+      db.select({ id: isoAuditLogs.id }).from(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, SYSTEM_USER_ID), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, String(testClaimId)))),
+      db.select({ id: isoAuditLogs.id }).from(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, testUserId), eq(isoAuditLogs.resourceType, "routing_policy"), eq(isoAuditLogs.resourceId, "policy-v2-test"))),
+      db.select({ id: isoAuditLogs.id }).from(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, SYSTEM_USER_ID), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, hashResourceId))),
+      db.select({ id: auditTrail.id }).from(auditTrail).where(and(eq(auditTrail.userId, testAuditUserId), eq(auditTrail.action, "SUPER_AUDIT_VIEW_CLAIM"), eq(auditTrail.entityType, "claim"), eq(auditTrail.entityId, testClaimId))),
+    ]);
+    expect(workflowRows).toHaveLength(0);
+    expect(escalationRows).toHaveLength(0);
+    expect(policyRows).toHaveLength(0);
+    expect(hashRows).toHaveLength(0);
+    expect(auditRows).toHaveLength(0);
   });
 });

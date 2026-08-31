@@ -180,6 +180,12 @@ import { runExplainabilityEngine, type ExplainabilityResult } from "./stage-expl
 import { buildValidationPrediction } from "./stage-validation-loop";
 import { evidencePluginRegistry } from "./evidencePluginRegistry";
 
+// CALIBRATION: engineering-judgment thresholds; do not change without benchmarked decision outcomes.
+const SCENARIO_FRAUD_FLAG_SCORE = 70;
+const PHYSICS_CONSISTENCY_PLAUSIBLE_SCORE = 50;
+const PHYSICS_CONSISTENCY_CRITICAL_SCORE = 30;
+const COST_DECISION_WITHIN_RANGE_CONFIDENCE = 60;
+const COST_DECISION_ANOMALY_CONFIDENCE = 50;
 
 /**
  * Parse a mileage string like "85 000 km", "85000", "85,000 km" → number (km).
@@ -2198,7 +2204,7 @@ export async function runPipelineV2(
           critical_flag_count: stage8Data.indicators?.filter((i: any) => i.severity === 'critical').length ?? 0,
           // CALIBRATION: 70-point threshold for scenario_fraud_flagged in fast-track context
           // is engineering-judgment. The FSS-2026-001 'elevated' band starts at 81.
-          scenario_fraud_flagged: stage8Data.fraudRiskScore > 70,
+          scenario_fraud_flagged: stage8Data.fraudRiskScore > SCENARIO_FRAUD_FLAG_SCORE,
         } : null,
         physics_result: stage7Data ? {
           is_plausible: stage7Data.isPhysicallyPlausible ?? (stage7Data.physicsStatus === 'EXECUTED'),
@@ -2735,9 +2741,9 @@ export async function runPipelineV2(
       scenario_type: claimRecord?.accidentDetails?.incidentType ?? null,
       severity: stage7Data?.accidentSeverity ?? null,
       physics_result: stage7Data ? {
-        is_plausible: (stage7Data.damageConsistencyScore ?? 0) >= 50,
+        is_plausible: (stage7Data.damageConsistencyScore ?? 0) >= PHYSICS_CONSISTENCY_PLAUSIBLE_SCORE,
         confidence: stage7Data.damageConsistencyScore ?? null,
-        has_critical_inconsistency: (stage7Data.damageConsistencyScore ?? 100) < 30,
+        has_critical_inconsistency: (stage7Data.damageConsistencyScore ?? 100) < PHYSICS_CONSISTENCY_CRITICAL_SCORE,
         summary: stage7Data.impactVector?.direction
           ? `Impact from ${stage7Data.impactVector.direction} at ${(stage7Data.impactVector as any).estimatedSpeedKmh ?? 'unknown'} km/h`
           : null,
@@ -2752,16 +2758,16 @@ export async function runPipelineV2(
         fraud_risk_level: stage8Data.fraudRiskLevel ?? null,
         fraud_risk_score: stage8Data.fraudRiskScore ?? null,
         critical_flag_count: stage8Data.indicators?.filter((i: any) => i.severity === 'critical').length ?? 0,
-        scenario_fraud_flagged: (stage8Data.fraudRiskScore ?? 0) >= 70,
+        scenario_fraud_flagged: (stage8Data.fraudRiskScore ?? 0) >= SCENARIO_FRAUD_FLAG_SCORE,
         reasoning: (stage8Data as any).fraudSummary ?? null,
       } : null,
       costDecision: stage9Data?.costDecision ? {
         recommendation: stage9Data.costDecision.recommendation === 'APPROVE' ? 'PROCEED_TO_ASSESSMENT'
           : stage9Data.costDecision.recommendation === 'REJECT' ? 'ESCALATE'
           : 'NEGOTIATE',
-        is_within_range: stage9Data.costDecision.confidence >= 60,
+        is_within_range: stage9Data.costDecision.confidence >= COST_DECISION_WITHIN_RANGE_CONFIDENCE,
         confidence: stage9Data.costDecision.confidence,
-        has_anomalies: (stage9Data.costDecision.confidence ?? 100) < 50,
+        has_anomalies: (stage9Data.costDecision.confidence ?? 100) < COST_DECISION_ANOMALY_CONFIDENCE,
         reasoning: stage9Data.costDecision.reasoning ?? null,
       } : null,
       overall_confidence: overallConfidence,

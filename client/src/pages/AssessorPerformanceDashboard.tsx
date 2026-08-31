@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Render the Assessor Performance Dashboard route and coordinate its role-specific KINGA client experience.
+ * PRIMARY CALLERS: The client route registry and authenticated user navigation.
+ * NEVER: Bypass typed tRPC contracts or decide tenant, role, or workflow authority in the browser.
+ */
+
 import { trpc } from "@/lib/trpc";
 import { KingaReportButton } from "@/components/KingaReportButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
