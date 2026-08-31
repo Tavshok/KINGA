@@ -266,8 +266,6 @@ async function generateClaimAssessmentReport(
 ): Promise<string> {
   const claimId = params.claimId as number;
   if (!tenantId) throw new Error("Tenant scope is required for Claim Assessment reporting");
-  const conn = await getConn();
-  try {
     const record = await resolveReportRecord({ claimId, tenantId, audience: "claim_assessment" });
     const claim = toReportDefinitionRow(record) as Record<string, any>;
 
@@ -326,7 +324,7 @@ async function generateClaimAssessmentReport(
         line_total: line.lineTotal,
       }))]),
     );
-	const evidenceGovernanceData = await loadEvidenceGovernanceReportData(conn, claimId, tenantId);
+	const evidenceGovernanceData = record.evidence.evidenceGovernance;
     const rawCompsData = record.evidence.aiDetectedDamageComponents;
     const rawComps: Record<string, unknown>[] = Array.isArray(rawCompsData)
       ? (rawCompsData as Record<string,unknown>[])
@@ -880,9 +878,6 @@ ${totalPhotosCL > 0 ? `
 </div>`;
 
     return buildKingaHtml(`KINGA Claims Report — ${claim.claim_reference ?? claim.id}`, body);
-  } finally {
-    await conn.end();
-  }
 }
 
 async function generateForensicReport(
@@ -891,8 +886,6 @@ async function generateForensicReport(
 ): Promise<string> {
   const claimId = params.claimId as number;
   if (!tenantId) throw new Error("Tenant scope is required for Forensic reporting");
-  const conn = await getConn();
-  try {
     const record = await resolveReportRecord({ claimId, tenantId, audience: "forensic" });
     const claim = toReportDefinitionRow(record) as Record<string, any>;
 
@@ -1058,9 +1051,6 @@ async function generateForensicReport(
     `;
 
     return buildBaseHtml(meta, body);
-  } finally {
-    await conn.end();
-  }
 }
 
 async function generateAuditTrailReport(

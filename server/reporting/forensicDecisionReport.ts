@@ -11,108 +11,82 @@
  *   Page 4 — §09 Risk & Fraud Assessment · §10 Validation, Decision & Next Steps · §11 Approval Chain · Glossary · Footer
  */
 
-import mysql from "mysql2/promise";
 import {
   buildKingaFdrHtml, esc, fmtUSD, fmtCurrency, fmtD, safeJson, photoZonePanel,
 } from "./templates/kingaDesignSystem";
-import { resolveReportCostIntegrity } from "./costIntegrity";
-import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
-import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
-import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
+import { renderEvidenceGovernancePanel, type EvidenceGovernanceReportData } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
 import type { CGIAvailabilitySummary } from "../pipeline-v2/stage-9-5-cgi";
+import { isKingaWriteOffRecommendation } from "../../shared/writeOffRecommendation";
+import { resolveForensicReportModel, type ForensicApprovalStage, type ForensicReportModel } from "./forensicReportModel";
+import { toReportDefinitionRow } from "./resolvedReportRecord";
 
-const DB_URL = process.env.DATABASE_URL!;
-async function getConn() { return mysql.createConnection(DB_URL); }
+type LegacyRendererInputs = Readonly<{
+  c: Record<string, unknown>;
+  quotes: readonly Record<string, unknown>[];
+  docs: readonly Record<string, unknown>[];
+  preLossCondition: Record<string, unknown> | null;
+  disputes: readonly Record<string, unknown>[];
+  evidenceGovernanceData: EvidenceGovernanceReportData;
+  approvalStages: readonly ForensicApprovalStage[];
+  completedStages: number;
+}>;
+
+/**
+ * Compatibility boundary for the existing forensic HTML template. It maps only
+ * immutable canonical values; it must never query, parse a database row, or
+ * create an alternative cost, decision, audit, or dispute interpretation.
+ */
+function toForensicLegacyRendererInputs(model: ForensicReportModel): LegacyRendererInputs {
+  const claimQualityValue = model.executive.claimQuality.value;
+  const canonicalRow = toReportDefinitionRow(model.reportRecord);
+  return {
+    c: {
+      ...canonicalRow,
+      claim_quality_json: claimQualityValue == null ? null : {
+        overallScore: claimQualityValue,
+        grade: model.executive.claimQuality.band,
+      },
+      kinga_reference: model.identity.kingaReference,
+      driver_name: model.claimAndVehicle.driverName,
+      driver_licence: model.claimAndVehicle.driverLicence,
+      licence_number: model.claimAndVehicle.driverLicence,
+      assessor_name: model.claimAndVehicle.assessorName,
+      vehicle_odometer: model.claimAndVehicle.vehicleOdometer,
+      odometer: model.claimAndVehicle.vehicleOdometer,
+      police_case_number: model.claimAndVehicle.policeCaseNumber,
+      police_reference: model.claimAndVehicle.policeCaseNumber,
+      police_status: model.claimAndVehicle.policeStatus,
+    },
+    quotes: model.financial.quotes,
+    docs: model.evidence.documents,
+    preLossCondition: model.claimAndVehicle.preLossCondition.value as Record<string, unknown> | null,
+    disputes: model.disputes,
+    evidenceGovernanceData: model.evidence.evidenceGovernance as EvidenceGovernanceReportData,
+    approvalStages: model.approval.stages,
+    completedStages: model.approval.completedStages,
+  };
+}
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 export async function generateForensicDecisionReport(
   claimId: number,
   tenantId?: string
 ): Promise<string> {
-  const conn = await getConn();
-  try {
-    // ── 1. Fetch claim + latest assessment ──────────────────────────────────
-    const [claims] = await conn.execute(
-      `SELECT c.*,
-              CONCAT(c.vehicle_make, ' ', c.vehicle_model, ' ', c.vehicle_year) AS vehicle_description,
-              a.fraud_score, a.fraud_risk_level, a.recommendation,
-              a.estimated_cost, a.total_loss_indicated, a.repair_to_value_ratio,
-              a.cost_intelligence_json, a.repair_intelligence_json,
-              a.fraud_score_breakdown_json, a.ife_result_json,
-              a.narrative_analysis_json, a.physics_analysis, a.physics_truth_json,
-              a.forensic_audit_validation_json, a.claim_quality_json,
-              a.created_at AS assessment_date, a.model_version,
-              a.enriched_photos_json, a.cross_validation_json,
-              a.claim_truth_json, a.cgi_result_json, a.interpretation_result_json
-       FROM claims c
-       LEFT JOIN ai_assessments a ON a.claim_id = c.id
-       WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""}
-       ORDER BY a.created_at DESC LIMIT 1`,
-      tenantId ? [claimId, tenantId] : [claimId]
-    ) as [Record<string, unknown>[], unknown];
+  if (!tenantId?.trim()) throw new Error("Tenant scope is required for Forensic reporting");
+  const forensicModel = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic" });
+  const {
+    c,
+    quotes,
+    docs,
+    preLossCondition,
+    disputes,
+    evidenceGovernanceData,
+    approvalStages: resolvedApprovalStages,
+    completedStages: resolvedCompletedStages,
+  } = toForensicLegacyRendererInputs(forensicModel);
 
-    const c = claims[0];
-    if (!c) throw new Error(`Claim ${claimId} not found`);
-
-    // ── 2. Fetch quotes ──────────────────────────────────────────────────────
-    const [quotes] = await conn.execute(
-      `SELECT q.id, q.quoted_amount, q.currency, q.quote_type, q.parent_quote_id, q.status, q.quote_congruency_score,
-              pb.business_name AS panel_beater_name
-       FROM panel_beater_quotes q
-       LEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id
-       WHERE q.claim_id = ?
-       ORDER BY q.quoted_amount ASC`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
-
-    // ── 3. Fetch documents from claim_documents (adjuster-uploaded)
-    const [docs] = await conn.execute(
-      `SELECT document_category, file_name, created_at, file_url
-       FROM claim_documents
-       WHERE claim_id = ?
-       ORDER BY created_at DESC`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
-    const evidenceGovernanceData = await loadEvidenceGovernanceReportData(conn, claimId, tenantId);
-    const reportTenantId = tenantId ?? String(c.tenant_id ?? "");
-    const [preLossConditionRows] = c.vehicle_registry_id && reportTenantId ? await conn.execute(
-      `SELECT vcs.snapshot_version, vcs.snapshot_date, vcs.exterior_condition, vcs.interior_condition,
-              vcs.mechanical_condition, vcs.existing_damage_notes, vcs.odometer_km,
-              asr.request_number, asr.valuation_date
-       FROM vehicle_condition_snapshots vcs
-       JOIN agency_insurance_service_requests asr ON asr.id = vcs.insurance_service_request_id
-       JOIN agency_insurance_service_request_insurers asri ON asri.service_request_id = asr.id
-       WHERE vcs.vehicle_registry_id = ? AND asri.insurer_tenant_id = ?
-         AND asri.status IN ('invited','viewed','responded')
-         AND (c.incident_date IS NULL OR vcs.snapshot_date <= c.incident_date)
-       ORDER BY vcs.snapshot_date DESC LIMIT 1`,
-      [c.vehicle_registry_id, reportTenantId],
-    ) as [Record<string, unknown>[], unknown] : [[], null];
-    const preLossCondition = preLossConditionRows[0] ?? null;
-
-    // ── 3b. Fetch audit events for approval chain ────────────────────────────
-    const [auditEvents] = await conn.execute(
-      `SELECT action, user_role, user_id, timestamp, changes
-       FROM insurance_audit_logs
-       WHERE entity_id = ? AND entity_type = 'claim'
-       ORDER BY timestamp ASC`,
-      [claimId]
-    ) as [Record<string, unknown>[], unknown];
-    // ── 3c. Fetch dispute records ────────────────────────────────────────────
-    // ── 3c. Fetch dispute records (safe fallback if table doesn't exist) ────
-    let disputes: Record<string, unknown>[] = [];
-    try {
-      const [disputeRows] = await conn.execute(
-        `SELECT id, dispute_reason, dispute_status, created_at, resolved_at, resolution_notes
-         FROM claim_disputes
-         WHERE claim_id = ?
-         ORDER BY created_at DESC`,
-        [claimId]
-      ) as [Record<string, unknown>[], unknown];
-      disputes = disputeRows;
-    } catch { /* table may not exist yet */ }
     // ── 4. Parse JSON fields ─────────────────────────────────────────────────
     const costIntel    = safeJson(c.cost_intelligence_json);
     const repairIntel  = safeJson(c.repair_intelligence_json);
@@ -198,27 +172,26 @@ export async function generateForensicDecisionReport(
     const claimTruth    = safeJson(c.claim_truth_json) as any;
     // Bug #1/#12: enriched_photos_json is the canonical photo source (14 photos for VOLTRON)
     // claim_documents may be empty for pipeline-only claims; enriched_photos_json is always populated
-    const photoEvidence = normaliseCanonicalPhotoEvidence(safeJson(c.enriched_photos_json));
+    const photoEvidence = {
+      photos: forensicModel.evidence.photos,
+      totalPhotos: forensicModel.evidence.totalPhotos,
+      usablePhotos: forensicModel.evidence.usablePhotos,
+    };
     const enrichedPhotos = photoEvidence.photos;
 
     // ── 5. Derived values ────────────────────────────────────────────────────
-    const fraudScore  = Number(c.fraud_score ?? 0);
+    const fraudScore = forensicModel.executive.fraud.value ?? 0;
     // repair_to_value_ratio is stored as a percentage integer (e.g. 5 = 5%)
-    const rtvRatio    = Number(c.repair_to_value_ratio ?? 0);
+    const rtvRatio = forensicModel.executive.repairToValueRatioPercent ?? 0;
     // vehicle_market_value is stored in cents — divide by 100 for display
-    const marketValue = Number(c.vehicle_market_value ?? 0) / 100;
+    const marketValue = forensicModel.executive.marketValue ?? 0;
     // ai_assessments.estimated_cost is stored in CENTS — divide by 100.
     // Documented agreed cost is a calibration reference only, never a replacement
     // for L2 or a derived settlement recommendation.
-    const estimatedCostRawFR = Number(c.estimated_cost ?? 0);
-    const estimatedCost = estimatedCostRawFR > 0 ? estimatedCostRawFR / 100 : 0;
+    const estimatedCost = forensicModel.reportRecord.decision.normalised.costs.aiEstimateUsd ?? 0;
 
-    const costIntegrity = resolveReportCostIntegrity(costIntel, quotes as unknown[]);
-    const reportDecision = resolveReportDecisionIntegrity({
-      recommendation: c.recommendation,
-      workflowState: c.workflow_state,
-      costIntegrity,
-    });
+    const costIntegrity = forensicModel.executive.costIntegrity;
+    const reportDecision = forensicModel.executive.decision;
     const quoteArr = costIntegrity.submittedQuotes;
     const comparisonQuoteArr = costIntegrity.activeQuotes;
     const activeQuoteIds = new Set(
@@ -239,7 +212,9 @@ export async function generateForensicDecisionReport(
       repairability: {
         totalLossIndicated: Boolean(c.total_loss_indicated),
         repairToValueRatio: c.repair_to_value_ratio == null ? null : rtvRatio,
-        kingaRecommendation: costIntel?.repairabilityDecision ?? null,
+        kingaRecommendation: isKingaWriteOffRecommendation(costIntel?.repairabilityDecision)
+          ? costIntel.repairabilityDecision
+          : null,
         ...extractExplicitStructuralReviewEvidence(repairIntel),
       },
     });
@@ -497,25 +472,10 @@ export async function generateForensicDecisionReport(
     const auditScore = Number(forensicAudit?.overallScore ?? forensicAudit?.auditScore ?? 61);
     const auditGrade = auditScore >= 80 ? "High" : auditScore >= 60 ? "Medium" : "Low";
 
-    // Approval workflow stages
-    // PHASE3-M: Wire to real insurance_audit_logs data. Map audit events to approval stages.
-    // Prefer forensicAudit.approvalWorkflow if pipeline wrote it; otherwise derive from audit trail.
-    const auditArr = auditEvents as Record<string, unknown>[];
-    const findAudit = (actions: string[]) => auditArr.find(e => actions.some(a => String(e.action ?? '').toLowerCase().includes(a)));
-    const fmtAuditDate = (e: Record<string, unknown> | undefined) => e?.timestamp ? new Date(String(e.timestamp)).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined;
-    const processorEvent = findAudit(['claim_reviewed', 'claim_processed', 'claim_submitted', 'claim_created']);
-    const assessorEvent  = findAudit(['claim_assessed', 'assessment_complete', 'assigned_to_assessor']);
-    const riskEvent      = findAudit(['risk_signoff', 'risk_approved', 'risk_review']);
-    const managerEvent   = findAudit(['claim_approved', 'claim_rejected', 'manager_approved', 'claims_manager']);
-    const execEvent      = findAudit(['executive_approved', 'gm_approved', 'exec_signoff']);
-    const approvalStages = (forensicAudit?.approvalWorkflow as Array<{stage: number; role: string; status: string; officer?: string; date?: string}>) ?? [
-      { stage: 1, role: "Claims Processor Review", status: processorEvent ? "Complete" : "Awaiting", officer: processorEvent ? String(processorEvent.user_role ?? '—') : undefined, date: fmtAuditDate(processorEvent) },
-      { stage: 2, role: "Internal Assessor Assessment", status: assessorEvent ? "Complete" : "Pending", officer: assessorEvent ? String(assessorEvent.user_role ?? '—') : undefined, date: fmtAuditDate(assessorEvent) },
-      { stage: 3, role: "Risk Manager Sign-off", status: riskEvent ? "Complete" : "Pending", officer: riskEvent ? String(riskEvent.user_role ?? '—') : undefined, date: fmtAuditDate(riskEvent) },
-      { stage: 4, role: "Claims Manager Approval", status: managerEvent ? "Complete" : "Pending", officer: managerEvent ? String(managerEvent.user_role ?? '—') : undefined, date: fmtAuditDate(managerEvent) },
-      { stage: 5, role: "Executive / GM Sign-off", status: execEvent ? "Complete" : "Pending", officer: execEvent ? String(execEvent.user_role ?? '—') : undefined, date: fmtAuditDate(execEvent) },
-    ];
-    const completedStages = approvalStages.filter(s => String(s.status).toLowerCase() === "complete").length;
+    // Approval stage mapping belongs to the canonical model, where audit events
+    // are tenant-scoped and pipeline-provided approval workflow takes precedence.
+    const approvalStages = resolvedApprovalStages;
+    const completedStages = resolvedCompletedStages;
 
     // Bug #1: Photo evidence — use enriched_photos_json as primary source (pipeline-populated, always present)
     // claim_documents is only populated for adjuster-uploaded files; pipeline photos live in enriched_photos_json
@@ -1672,7 +1632,7 @@ export async function generateForensicDecisionReport(
     const sections: any[] = interpData.sections ?? [];
     return `
   <div class="section">
-    ${sectionTab('09c', 'Claim Interpretation', overallClass, overallClass === 'NORMAL' ? 'green' : overallClass === 'CRITICAL' ? 'red' : 'amber')}
+    ${sectionTab('09c', 'Claim Interpretation', overallClass, overallClass === 'NORMAL' ? 'ok' : overallClass === 'CRITICAL' ? 'high' : 'mid')}
     <div class="box" style="border-left:4px solid ${classColor};margin-bottom:16px;">
       <h4 style="color:${classColor};">Overall Classification: ${esc(overallClass)}</h4>
       ${interpData.overallNarrative ? `<p style="font-size:13px;line-height:1.6;">${esc(interpData.overallNarrative)}</p>` : ''}
@@ -1775,8 +1735,4 @@ export async function generateForensicDecisionReport(
 
     const body = renderClaimReportReadinessBanner(c) + page1 + page2 + page3 + page4;
     return buildKingaFdrHtml(`KINGA Forensic Claim Decision Report — ${claimRef}`, body);
-
-  } finally {
-    await conn.end();
-  }
 }
