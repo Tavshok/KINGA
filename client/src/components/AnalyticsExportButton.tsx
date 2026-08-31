@@ -125,9 +125,9 @@ export function AnalyticsExportButton({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant={variant} size={size}>
+        <Button variant={variant} size={size} disabled title="Fast Track export is not yet available from a verified reporting dataset.">
           <Download className="mr-2 h-4 w-4" />
-          Export Report
+          Fast Track export unavailable
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">

@@ -376,6 +376,7 @@ describe("exportClaimPDF procedure", () => {
     const { exportClaimPDF: proc } = await import("./claim-pdf-export");
 
     const ctx = {
+      insurerTenantId: TENANT_A,
       user: {
         id: 1,
         role: "insurer",
@@ -431,6 +432,7 @@ describe("exportClaimPDF procedure", () => {
     const { exportClaimPDF: proc } = await import("./claim-pdf-export");
 
     const ctx = {
+      insurerTenantId: TENANT_A,
       user: {
         id: 2,
         role: "insurer",
