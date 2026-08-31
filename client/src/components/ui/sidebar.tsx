@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Provide the shared sidebar presentation primitive used by KINGA interfaces.
+ * PRIMARY CALLERS: Layouts, pages, and composite components that require this UI primitive.
+ * NEVER: Embed KINGA business rules, data authority, or workflow decisions in this reusable UI layer.
+ */
+
 "use client";
 
 import { Button } from "@/components/ui/button";

@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Render the Assign Assessor route and coordinate its role-specific KINGA client experience.
+ * PRIMARY CALLERS: The client route registry and authenticated user navigation.
+ * NEVER: Bypass typed tRPC contracts or decide tenant, role, or workflow authority in the browser.
+ */
+
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { INSURER_CLAIMS_LIST_PATH } from "@/lib/roleRouting";

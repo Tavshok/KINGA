@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Centralise KINGA database access helpers and preserve typed persistence boundaries.
+ * PRIMARY CALLERS: Server routers, pipeline services, and authenticated server-side workflows.
+ * NEVER: Treat a caller-supplied tenant ID as an authority decision; validate tenant scope before accessing records.
+ */
+
 
 import { eq, and, or, desc, inArray, notInArray, sql, like, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";

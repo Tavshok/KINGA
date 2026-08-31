@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Render the Tenant Management route and coordinate its role-specific KINGA client experience.
+ * PRIMARY CALLERS: The client route registry and authenticated user navigation.
+ * NEVER: Bypass typed tRPC contracts or decide tenant, role, or workflow authority in the browser.
+ */
+
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";

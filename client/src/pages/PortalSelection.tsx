@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Render the Portal Selection route and coordinate its role-specific KINGA client experience.
+ * PRIMARY CALLERS: The client route registry and authenticated user navigation.
+ * NEVER: Bypass typed tRPC contracts or decide tenant, role, or workflow authority in the browser.
+ */
+
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

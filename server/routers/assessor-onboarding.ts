@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Define the assessor-onboarding tRPC boundary and its server-side access contract.
+ * PRIMARY CALLERS: Authenticated KINGA web clients through the application router.
+ * NEVER: Authorise records from client input alone; derive and enforce tenant and role scope on the server.
+ */
+
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";

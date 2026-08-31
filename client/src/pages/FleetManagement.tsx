@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Render the Fleet Management route and coordinate its role-specific KINGA client experience.
+ * PRIMARY CALLERS: The client route registry and authenticated user navigation.
+ * NEVER: Bypass typed tRPC contracts or decide tenant, role, or workflow authority in the browser.
+ */
+
 import { useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
