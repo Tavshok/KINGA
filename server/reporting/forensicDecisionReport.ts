@@ -31,6 +31,7 @@ type LegacyRendererInputs = Readonly<{
   evidenceGovernanceData: EvidenceGovernanceReportData;
   approvalStages: readonly ForensicApprovalStage[];
   completedStages: number;
+  requiredStages: number;
 }>;
 
 /**
@@ -66,6 +67,7 @@ function toForensicLegacyRendererInputs(model: ForensicReportModel): LegacyRende
     evidenceGovernanceData: model.evidence.evidenceGovernance as EvidenceGovernanceReportData,
     approvalStages: model.approval.stages,
     completedStages: model.approval.completedStages,
+    requiredStages: model.approval.requiredStages,
   };
 }
 
@@ -85,6 +87,7 @@ export async function generateForensicDecisionReport(
     evidenceGovernanceData,
     approvalStages: resolvedApprovalStages,
     completedStages: resolvedCompletedStages,
+    requiredStages: resolvedRequiredStages,
   } = toForensicLegacyRendererInputs(forensicModel);
 
     // ── 4. Parse JSON fields ─────────────────────────────────────────────────
@@ -476,6 +479,7 @@ export async function generateForensicDecisionReport(
     // are tenant-scoped and pipeline-provided approval workflow takes precedence.
     const approvalStages = resolvedApprovalStages;
     const completedStages = resolvedCompletedStages;
+    const requiredStages = resolvedRequiredStages;
 
     // Bug #1: Photo evidence — use enriched_photos_json as primary source (pipeline-populated, always present)
     // claim_documents is only populated for adjuster-uploaded files; pipeline photos live in enriched_photos_json
@@ -1719,7 +1723,7 @@ export async function generateForensicDecisionReport(
           return `<tr><td>${s.stage}</td><td>${esc(s.role)}${s.stage === 5 ? ` <span class="small">(optional)</span>` : ""}</td><td>${statusPill}</td><td>${esc(String(s.officer ?? "—"))}</td><td>${esc(String(s.date ?? "—"))}</td></tr>`;
         }).join("")}
       </table>
-      <p class="caption">${completedStages} of ${approvalStages.filter(s => s.stage <= 4).length} required stages complete. Structured reviewer notes (findings, verdict, action required) are mandatory at every stage — generic sign-offs are not accepted.</p>
+      <p class="caption">${completedStages} of ${requiredStages} required stages complete. Structured reviewer notes (findings, verdict, action required) are mandatory at every stage — generic sign-offs are not accepted.</p>
     </div>
   </div>
 

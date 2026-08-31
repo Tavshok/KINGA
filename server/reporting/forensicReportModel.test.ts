@@ -336,6 +336,46 @@ describe("ForensicReportModel", () => {
     expect(html).not.toContain("Dispute Record");
   });
 
+  it("recognises either human final-approval route without inventing a payment stage", async () => {
+    const addApprovalEvent = async (action: string, userRole: string) => {
+      const [insert] = await db.insert(insuranceAuditLogs).values({
+        userId: actorId,
+        userRole,
+        action,
+        entityType: "claim",
+        entityId: claimId,
+        changes: JSON.stringify({ source: "forensic-model-approval-fixture" }),
+        tenantId,
+      } as any);
+      const id = Number((insert as { insertId: number | string }).insertId);
+      auditLogIds.push(id);
+      return id;
+    };
+
+    const claimsManagerLogId = await addApprovalEvent("manager_approved", "claims_manager");
+    const claimsManagerOnly = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
+    expect(claimsManagerOnly.approval).toMatchObject({ completedStages: 2, requiredStages: 4 });
+    expect(claimsManagerOnly.approval.stages[3]).toMatchObject({ stage: 4, role: "Claims Manager Approval", status: "Complete", officer: "claims_manager" });
+    expect(claimsManagerOnly.approval.stages[4]).toMatchObject({ stage: 5, role: "Executive / GM Sign-off", status: "Not required" });
+    const claimsManagerHtml = await generateForensicDecisionReport(claimId, tenantId);
+    expect(claimsManagerHtml).toContain("2 of 4 required stages complete.");
+    expect(claimsManagerHtml).toContain("Claims Manager Approval");
+    expect(claimsManagerHtml).toContain("Executive / GM Sign-off");
+    expect(claimsManagerHtml).not.toContain("Final Payment Authorisation");
+
+    await addApprovalEvent("executive_approved", "executive");
+    const bothApprovers = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
+    expect(bothApprovers.approval).toMatchObject({ completedStages: 3, requiredStages: 4 });
+    expect(bothApprovers.approval.stages[3]).toMatchObject({ status: "Complete" });
+    expect(bothApprovers.approval.stages[4]).toMatchObject({ status: "Complete", officer: "executive" });
+
+    await db.delete(insuranceAuditLogs).where(and(eq(insuranceAuditLogs.id, claimsManagerLogId), eq(insuranceAuditLogs.entityId, claimId), eq(insuranceAuditLogs.tenantId, tenantId)));
+    const executiveOnly = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
+    expect(executiveOnly.approval).toMatchObject({ completedStages: 2, requiredStages: 4 });
+    expect(executiveOnly.approval.stages[3]).toMatchObject({ stage: 4, status: "Not required" });
+    expect(executiveOnly.approval.stages[4]).toMatchObject({ stage: 5, role: "Executive / GM Sign-off", status: "Complete", officer: "executive" });
+  });
+
   it("renders the Claims Intelligence tier from the same canonical decision, valuation, physics, and quotation evidence", async () => {
     const model = await resolveForensicReportModel({ claimId, tenantId, audience: "forensic", generatedAt });
     const html = await generateClaimsIntelligenceReport(claimId, tenantId);

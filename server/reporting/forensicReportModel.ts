@@ -975,11 +975,14 @@ function buildApprovalStages(forensicAudit: JsonObject | null, auditRows: readon
     stageFromAudit(1, "Claims Processor Review", findAudit(["claim_reviewed", "claim_processed", "claim_submitted", "claim_created"])),
     stageFromAudit(2, "Internal Assessor Assessment", findAudit(["claim_assessed", "assessment_complete", "assigned_to_assessor"])),
     stageFromAudit(3, "Risk Manager Sign-off", findAudit(["risk_signoff", "risk_approved", "risk_review"])),
-    stageFromAudit(4, "Claims Manager Decision", findAudit(["claim_approved", "claim_rejected", "claim_decision"])),
-    stageFromAudit(5, "Final Payment Authorisation", findAudit(["payment_authorised", "payment_released"])),
+    // KINGA reports decision authority, not payments. A tenant may use either
+    // a claims-manager approval route or an executive/GM route; neither implies
+    // that the other human role must have approved the same claim.
+    stageFromAudit(4, "Claims Manager Approval", findAudit(["claim_approved", "claim_rejected", "manager_approved", "claims_manager", "claim_decision"]), findAudit(["executive_approved", "gm_approved", "exec_signoff"]) ? "Not required" : "Pending"),
+    stageFromAudit(5, "Executive / GM Sign-off", findAudit(["executive_approved", "gm_approved", "exec_signoff"]), findAudit(["claim_approved", "claim_rejected", "manager_approved", "claims_manager", "claim_decision"]) ? "Not required" : "Pending"),
   ];
   const completed = stages.filter((stage) => stage.status.toLowerCase() === "complete").length;
-  return { stages, completedStages: completed, requiredStages: stages.filter((stage) => stage.stage <= 4).length, source: supplied.length > 0 ? "forensic_audit" : "audit_log_derivation" };
+  return { stages, completedStages: completed, requiredStages: supplied.length > 0 ? stages.length : 4, source: supplied.length > 0 ? "forensic_audit" : "audit_log_derivation" };
 }
 
 function normaliseApprovalStage(stage: JsonObject, fallbackStage: number): ForensicApprovalStage {
@@ -992,11 +995,11 @@ function normaliseApprovalStage(stage: JsonObject, fallbackStage: number): Foren
   };
 }
 
-function stageFromAudit(stage: number, role: string, event: MutableRecord | undefined): ForensicApprovalStage {
+function stageFromAudit(stage: number, role: string, event: MutableRecord | undefined, incompleteStatus: string = stage === 1 ? "Awaiting" : "Pending"): ForensicApprovalStage {
   return {
     stage,
     role,
-    status: event ? "Complete" : stage === 1 ? "Awaiting" : "Pending",
+    status: event ? "Complete" : incompleteStatus,
     officer: event ? String(event.user_role ?? "—") : null,
     date: event?.timestamp ? new Date(String(event.timestamp)).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : null,
   };
