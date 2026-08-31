@@ -39,6 +39,9 @@ const CRITICAL_FIELDS: Array<{ field: keyof ExtractedClaimFields; label: string;
   { field: "vehicleRegistration", label: "Vehicle registration", severity: "warning" },
 ];
 
+// CALIBRATION: origin unknown, do not change without benchmarking.
+const MAX_RECOVERABLE_SPEED_KMH = 300;
+
 function mergeExtractions(extractions: ExtractedClaimFields[]): ExtractedClaimFields {
   if (extractions.length === 0) {
     // Self-healing: return empty extraction instead of throwing
@@ -441,7 +444,7 @@ export async function runValidationStage(
         const speedMatch = formFieldSpeed || narrativeSpeed || bareSpeed;
         if (speedMatch) {
           const speedVal = parseFloat(speedMatch[1]);
-          if (!isNaN(speedVal) && speedVal > 0 && speedVal < 300) {
+          if (!isNaN(speedVal) && speedVal > 0 && speedVal < MAX_RECOVERABLE_SPEED_KMH) {
             validatedFields.estimatedSpeedKmh = speedVal;
             const source = formFieldSpeed ? "form field" : narrativeSpeed ? "narrative" : "bare unit value";
             recoveryActions.push({

@@ -50,6 +50,9 @@ const SOURCE_PRIORITY: Record<FieldSource, number> = {
   inferred: 5,
 };
 
+// CALIBRATION: origin unknown, do not change without benchmarking.
+const MAX_PLAUSIBLE_ROAD_SPEED_KMH = 200;
+
 export interface ValidatedFieldValue<T> {
   value: T | null;
   source: FieldSource;
@@ -181,7 +184,7 @@ export function extractSpeedFromText(text: string | null | undefined): number | 
     if (match) {
       const speed = parseInt(match[1], 10);
       // Sanity check: valid road speed range 1–200 km/h
-      if (speed >= 1 && speed <= 200) {
+      if (speed >= 1 && speed <= MAX_PLAUSIBLE_ROAD_SPEED_KMH) {
         return speed;
       }
     }

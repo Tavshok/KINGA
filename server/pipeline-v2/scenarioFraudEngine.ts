@@ -477,9 +477,14 @@ const SCENARIO_PROFILES: Record<ScenarioType, ScenarioProfile> = {
 // SCORING HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
+// CALIBRATION: origin unknown, do not change without benchmarking.
+const HIGH_SCENARIO_FRAUD_RISK_SCORE = 55;
+const MEDIUM_SCENARIO_FRAUD_RISK_SCORE = 25;
+const HIGH_POLICE_REPORT_FRAUD_SCORE = 30;
+
 function scoreToRiskLevel(score: number): "LOW" | "MEDIUM" | "HIGH" {
-  if (score >= 55) return "HIGH";
-  if (score >= 25) return "MEDIUM";
+  if (score >= HIGH_SCENARIO_FRAUD_RISK_SCORE) return "HIGH";
+  if (score >= MEDIUM_SCENARIO_FRAUD_RISK_SCORE) return "MEDIUM";
   return "LOW";
 }
 
@@ -533,7 +538,7 @@ function evaluatePoliceReport(
       flags.push(buildFlag(
         "missing_police_report",
         "documentation",
-        profile.police_report_score >= 30 ? "HIGH" : "MEDIUM",
+        profile.police_report_score >= HIGH_POLICE_REPORT_FRAUD_SCORE ? "HIGH" : "MEDIUM",
         profile.police_report_score,
         `Police report is absent. For ${scenario_type.replace(/_/g, " ")} claims, a police report is ` +
         `required to establish the incident on record. Absence is a material fraud indicator.`,

@@ -852,6 +852,11 @@ export interface CompositeQuoteResult {
 // PRICE VARIANCE HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
+// CALIBRATION: origin unknown, do not change without benchmarking.
+const LOW_PRICE_VARIANCE_PERCENT = 20;
+const MODERATE_PRICE_VARIANCE_PERCENT = 40;
+const MATERIAL_BENCHMARK_OVERPRICE_PERCENT = 50;
+
 /**
  * Coefficient of variation (CV) = stddev / mean × 100.
  * Returns null if fewer than 2 prices are provided.
@@ -874,8 +879,8 @@ function buildVarianceSignal(
   if (priceCount === 0) return 'No submitted prices available.';
   if (priceCount === 1) return 'Single submitted price — no cross-quote comparison available.';
   if (cv === null) return 'Variance not calculable.';
-  if (cv <= 20) return `Submitted prices are consistent across repairers (CV ${cv}%) — lowest submitted price selected with high confidence.`;
-  if (cv <= 40) return `Moderate price variation across repairers (CV ${cv}%) — lowest credible submitted price selected.`;
+  if (cv <= LOW_PRICE_VARIANCE_PERCENT) return `Submitted prices are consistent across repairers (CV ${cv}%) — lowest submitted price selected with high confidence.`;
+  if (cv <= MODERATE_PRICE_VARIANCE_PERCENT) return `Moderate price variation across repairers (CV ${cv}%) — lowest credible submitted price selected.`;
   return `High price variation across repairers (CV ${cv}%) — assessor review of scope alignment recommended.`;
 }
 
@@ -896,7 +901,7 @@ function computeBenchmarkVerdict(
   }
   if (costUsd > p75Usd) {
     const pct = Math.round(((costUsd - p75Usd) / p75Usd) * 100);
-    if (pct > 50) {
+    if (pct > MATERIAL_BENCHMARK_OVERPRICE_PERCENT) {
       return { verdict: 'ABOVE_MARKET', signal: `Pricing materially exceeds benchmark reference ranges (${pct}% above P75). Assessor review recommended.` };
     }
     return { verdict: 'ABOVE_MARKET', signal: 'Potential negotiation opportunity exists based on alternative credible quotations.' };
