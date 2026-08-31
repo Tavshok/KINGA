@@ -9,9 +9,10 @@
  * - Total count accuracy
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { workflowQueriesRouter } from "./workflow-queries";
 import { claims } from "../../drizzle/schema";
+import { inArray } from "drizzle-orm";
 import { extractInsertId } from "../utils/drizzle-helpers";
 import { getDb } from "../db";
 
@@ -50,6 +51,21 @@ describe("Workflow Queries Router", () => {
     });
 
     testClaimIds.crossTenant = extractInsertId(crossTenantResult);
+  });
+
+  afterAll(async () => {
+    const db = await getDb();
+    const ownedClaimIds = Object.values(testClaimIds).filter((id) => Number.isSafeInteger(id));
+    if (!db || ownedClaimIds.length === 0) return;
+
+    await db.delete(claims).where(inArray(claims.id, ownedClaimIds));
+
+    // No-leak proof: query only the exact IDs returned by this suite's inserts.
+    const remainingClaims = await db
+      .select({ id: claims.id })
+      .from(claims)
+      .where(inArray(claims.id, ownedClaimIds));
+    expect(remainingClaims).toHaveLength(0);
   });
 
   describe("getClaimsByState", () => {

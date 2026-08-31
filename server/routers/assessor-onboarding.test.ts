@@ -1,13 +1,15 @@
 // @ts-nocheck
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { appRouter } from "../routers";
-import { users } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { users, assessors, assessorInsurerRelationships } from "../../drizzle/schema";
+import { eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
 
 describe("Assessor Onboarding Router", () => {
   let insurerContext: any;
   let assessorContext: any;
+  const ownedUserIds: number[] = [];
+  const ownedAssessorIds: number[] = [];
 
   beforeAll(async () => {
     const db = await getDb();
@@ -67,6 +69,28 @@ describe("Assessor Onboarding Router", () => {
         tenantId: assessorUser[0].tenantId,
       },
     };
+    ownedUserIds.push(insurerUser[0].id, assessorUser[0].id);
+  });
+
+  afterAll(async () => {
+    const db = await getDb();
+    if (!db) return;
+    const relationshipIds = ownedAssessorIds.length > 0
+      ? (await db.select({ id: assessorInsurerRelationships.id }).from(assessorInsurerRelationships).where(inArray(assessorInsurerRelationships.assessorId, ownedAssessorIds))).map((row) => row.id)
+      : [];
+    if (relationshipIds.length > 0) await db.delete(assessorInsurerRelationships).where(inArray(assessorInsurerRelationships.id, relationshipIds));
+    if (ownedAssessorIds.length > 0) await db.delete(assessors).where(inArray(assessors.id, ownedAssessorIds));
+    if (ownedUserIds.length > 0) await db.delete(users).where(inArray(users.id, ownedUserIds));
+
+    // No-leak proof: lookup filters comprise only exact IDs returned by this suite's writes.
+    const [remainingRelationships, remainingAssessors, remainingUsers] = await Promise.all([
+      relationshipIds.length > 0 ? db.select({ id: assessorInsurerRelationships.id }).from(assessorInsurerRelationships).where(inArray(assessorInsurerRelationships.id, relationshipIds)) : Promise.resolve([]),
+      ownedAssessorIds.length > 0 ? db.select({ id: assessors.id }).from(assessors).where(inArray(assessors.id, ownedAssessorIds)) : Promise.resolve([]),
+      ownedUserIds.length > 0 ? db.select({ id: users.id }).from(users).where(inArray(users.id, ownedUserIds)) : Promise.resolve([]),
+    ]);
+    expect(remainingRelationships).toHaveLength(0);
+    expect(remainingAssessors).toHaveLength(0);
+    expect(remainingUsers).toHaveLength(0);
   });
 
   it("should allow insurer to add insurer-owned assessor", async () => {
@@ -87,6 +111,8 @@ describe("Assessor Onboarding Router", () => {
     expect(result.success).toBe(true);
     expect(result.assessorId).toBeDefined();
     expect(result.userId).toBeDefined();
+    ownedAssessorIds.push(result.assessorId);
+    ownedUserIds.push(result.userId);
   });
 
   it("should allow user to register as marketplace assessor", async () => {
@@ -108,6 +134,7 @@ describe("Assessor Onboarding Router", () => {
 
     expect(result.success).toBe(true);
     expect(result.assessorId).toBeDefined();
+    ownedAssessorIds.push(result.assessorId);
   });
 
   it("should retrieve assessor profile after registration", async () => {
@@ -144,7 +171,7 @@ describe("Assessor Onboarding Router", () => {
     // First register
     const caller = appRouter.createCaller(uniqueContext);
 
-    await caller.assessorOnboarding.registerMarketplaceAssessor({
+    const registration = await caller.assessorOnboarding.registerMarketplaceAssessor({
       professionalLicenseNumber: `LIC-PROF-${Date.now()}`,
       licenseExpiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
       certificationLevel: "master",
@@ -157,6 +184,8 @@ describe("Assessor Onboarding Router", () => {
       marketplaceAvailability: "on_demand",
       insuranceExpiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
     });
+    ownedUserIds.push(uniqueAssessorUser[0].id);
+    ownedAssessorIds.push(registration.assessorId);
 
     // Update context to assessor role
     uniqueContext.user.role = "assessor";
@@ -174,7 +203,7 @@ describe("Assessor Onboarding Router", () => {
     const caller = appRouter.createCaller(insurerContext);
 
     // Add an assessor first
-    await caller.assessorOnboarding.addInsurerOwnedAssessor({
+    const listAssessor = await caller.assessorOnboarding.addInsurerOwnedAssessor({
       name: "Jane Assessor",
       email: `jane_assessor_${Date.now()}@test.com`,
       professionalLicenseNumber: `LIC-LIST-${Date.now()}`,
@@ -185,6 +214,8 @@ describe("Assessor Onboarding Router", () => {
       serviceRegions: ["Eastern Cape"],
       maxTravelDistanceKm: 30,
     });
+    ownedAssessorIds.push(listAssessor.assessorId);
+    ownedUserIds.push(listAssessor.userId);
 
     // List assessors
     const assessors = await caller.assessorOnboarding.listInsurerAssessors();
@@ -199,13 +230,15 @@ describe("Assessor Onboarding Router", () => {
     const licenseNumber = `LIC-DUP-${Date.now()}`;
 
     // Add first assessor
-    await caller.assessorOnboarding.addInsurerOwnedAssessor({
+    const firstAssessor = await caller.assessorOnboarding.addInsurerOwnedAssessor({
       name: "First Assessor",
       email: `first_${Date.now()}@test.com`,
       professionalLicenseNumber: licenseNumber,
       licenseExpiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
       certificationLevel: "senior",
     });
+    ownedAssessorIds.push(firstAssessor.assessorId);
+    ownedUserIds.push(firstAssessor.userId);
 
     // Try to add second with same license
     await expect(
