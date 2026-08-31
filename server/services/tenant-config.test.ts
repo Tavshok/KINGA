@@ -5,7 +5,7 @@
  * Tests for tenant configuration management and default handling
  */
 
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import { 
   createTenant, 
   getTenantConfig, 
@@ -19,11 +19,21 @@ import {
   DEFAULT_DOCUMENT_TEMPLATES
 } from "./tenant-config";
 import { getDb } from "../db";
-import { tenantRoleConfigs } from "../../drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { insurerTenants, tenantRoleConfigs, tenantWorkflowConfigs, documentNamingTemplates } from "../../drizzle/schema";
+import { eq, and, inArray } from "drizzle-orm";
+
+const fixtureStamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+const ownedTenantIds: string[] = [];
+function createOwnedTenantId(label: string) {
+  // createTenant appends "-template-{docType}" when it creates document template IDs.
+  // Keep the parent identifier deliberately short so every exact owned child ID fits live limits.
+  const id = `fx-${label.slice(0, 3)}-${fixtureStamp}-${ownedTenantIds.length}`;
+  ownedTenantIds.push(id);
+  return id;
+}
 
 describe("Tenant Configuration Service", () => {
-  const testTenantId = "test-tenant-" + Date.now();
+  const testTenantId = createOwnedTenantId("primary");
 
   beforeAll(async () => {
     // Create a test tenant
@@ -38,7 +48,7 @@ describe("Tenant Configuration Service", () => {
 
   describe("createTenant", () => {
     it("should create a tenant with default configuration", async () => {
-      const newTenantId = "test-tenant-create-" + Date.now();
+      const newTenantId = createOwnedTenantId("create");
       
       await createTenant({
         id: newTenantId,
@@ -55,7 +65,7 @@ describe("Tenant Configuration Service", () => {
     });
 
     it("should create tenant with custom colors", async () => {
-      const customTenantId = "test-tenant-custom-" + Date.now();
+      const customTenantId = createOwnedTenantId("custom");
       
       await createTenant({
         id: customTenantId,
@@ -98,7 +108,7 @@ describe("Tenant Configuration Service", () => {
     });
 
     it("should return defaults for tenant without custom workflow config", async () => {
-      const newTenantId = "test-tenant-workflow-" + Date.now();
+      const newTenantId = createOwnedTenantId("workflow");
       
       await createTenant({
         id: newTenantId,
@@ -148,7 +158,7 @@ describe("Tenant Configuration Service", () => {
     });
 
     it("should return default template when custom template not found", async () => {
-      const newTenantId = "test-tenant-template-" + Date.now();
+      const newTenantId = createOwnedTenantId("template");
       
       await createTenant({
         id: newTenantId,
@@ -211,24 +221,39 @@ describe("Tenant Configuration Service", () => {
       expect(DEFAULT_DOCUMENT_TEMPLATES.approval).toBeDefined();
     });
   });
+
+  afterAll(async () => {
+    const db = await getDb();
+    if (!db || ownedTenantIds.length === 0) return;
+
+    await db.delete(tenantRoleConfigs).where(inArray(tenantRoleConfigs.tenantId, ownedTenantIds));
+    await db.delete(documentNamingTemplates).where(inArray(documentNamingTemplates.tenantId, ownedTenantIds));
+    await db.delete(tenantWorkflowConfigs).where(inArray(tenantWorkflowConfigs.tenantId, ownedTenantIds));
+    await db.delete(insurerTenants).where(inArray(insurerTenants.id, ownedTenantIds));
+
+    // No-leak proof: every lookup uses the exact fixture tenant IDs only.
+    const [remainingRoles, remainingTemplates, remainingWorkflowConfigs, remainingTenants] = await Promise.all([
+      db.select({ tenantId: tenantRoleConfigs.tenantId }).from(tenantRoleConfigs).where(inArray(tenantRoleConfigs.tenantId, ownedTenantIds)),
+      db.select({ tenantId: documentNamingTemplates.tenantId }).from(documentNamingTemplates).where(inArray(documentNamingTemplates.tenantId, ownedTenantIds)),
+      db.select({ tenantId: tenantWorkflowConfigs.tenantId }).from(tenantWorkflowConfigs).where(inArray(tenantWorkflowConfigs.tenantId, ownedTenantIds)),
+      db.select({ id: insurerTenants.id }).from(insurerTenants).where(inArray(insurerTenants.id, ownedTenantIds)),
+    ]);
+    expect(remainingRoles).toHaveLength(0);
+    expect(remainingTemplates).toHaveLength(0);
+    expect(remainingWorkflowConfigs).toHaveLength(0);
+    expect(remainingTenants).toHaveLength(0);
+  });
 });
 
 
 describe("Tenant Role Configuration - Composite Primary Key", () => {
-  const testTenantId1 = "test-tenant-pk-1";
-  const testTenantId2 = "test-tenant-pk-2";
+  const testTenantId1 = createOwnedTenantId("role-primary-key-a");
+  const testTenantId2 = createOwnedTenantId("role-primary-key-b");
 
   beforeAll(async () => {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
 
-    // Clean up test data
-    await db
-      .delete(tenantRoleConfigs)
-      .where(eq(tenantRoleConfigs.tenantId, testTenantId1));
-    await db
-      .delete(tenantRoleConfigs)
-      .where(eq(tenantRoleConfigs.tenantId, testTenantId2));
   });
 
   describe("Insert Configuration", () => {
@@ -475,5 +500,20 @@ describe("Tenant Role Configuration - Composite Primary Key", () => {
       expect(tenant2Executive!.permissions).toContain("permission3");
       expect(tenant2Executive!.permissions).not.toContain("permission1");
     });
+  });
+
+  afterAll(async () => {
+    const db = await getDb();
+    const ownedRoleTenantIds = [testTenantId1, testTenantId2];
+    if (!db) return;
+
+    await db.delete(tenantRoleConfigs).where(inArray(tenantRoleConfigs.tenantId, ownedRoleTenantIds));
+
+    // No-leak proof: these exact two dynamically generated tenant IDs have no remaining role rows.
+    const remainingRoles = await db
+      .select({ tenantId: tenantRoleConfigs.tenantId })
+      .from(tenantRoleConfigs)
+      .where(inArray(tenantRoleConfigs.tenantId, ownedRoleTenantIds));
+    expect(remainingRoles).toHaveLength(0);
   });
 });

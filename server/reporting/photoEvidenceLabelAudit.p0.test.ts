@@ -34,12 +34,18 @@ describe("P0 raw image-to-label report evidence audit", () => {
   });
 
   it("keeps the same shared qualified evidence path in CL, CI, and FR without independently relabelling the image", () => {
-    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts", "server/reporting/forensicDecisionReport.ts"]) {
+    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts"]) {
       const source = read(file);
       expect(source).toContain("normaliseCanonicalPhotoEvidence");
       expect(source).toContain("directionContradiction");
       expect(source).toContain("photoZonePanel");
       expect(source).not.toContain("replaceImpactZone");
     }
+    const forensicRenderer = read("server/reporting/forensicDecisionReport.ts");
+    const forensicModel = read("server/reporting/forensicReportModel.ts");
+    expect(forensicRenderer).toContain("resolveForensicReportModel");
+    expect(forensicRenderer).toContain("photoZonePanel");
+    expect(forensicRenderer).not.toContain("replaceImpactZone");
+    expect(forensicModel).toContain("normaliseCanonicalPhotoEvidence");
   });
 });

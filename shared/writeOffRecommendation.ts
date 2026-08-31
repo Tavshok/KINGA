@@ -32,6 +32,32 @@ export type KingaWriteOffRecommendation = {
   technicalEvidenceComplete: boolean;
 };
 
+/**
+ * Narrows a persisted JSON payload before a report surface consumes it as a
+ * recommendation. A partial or legacy-shaped value is not a recommendation.
+ */
+export function isKingaWriteOffRecommendation(value: unknown): value is KingaWriteOffRecommendation {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  const validKinds: readonly KingaWriteOffRecommendationKind[] = [
+    "economic_write_off_recommended",
+    "technical_write_off_recommended",
+    "economic_and_technical_write_off_recommended",
+    "economic_write_off_warning",
+    "human_review_required",
+    "repair_recommended",
+  ];
+  return typeof candidate.kind === "string"
+    && validKinds.includes(candidate.kind as KingaWriteOffRecommendationKind)
+    && typeof candidate.label === "string"
+    && typeof candidate.detail === "string"
+    && typeof candidate.writeOffRecommended === "boolean"
+    && typeof candidate.writeOffWarning === "boolean"
+    && (candidate.repairToValueRatio === null || typeof candidate.repairToValueRatio === "number")
+    && typeof candidate.economicEvidenceComplete === "boolean"
+    && typeof candidate.technicalEvidenceComplete === "boolean";
+}
+
 export type KingaWriteOffInput = {
   completeL2CostUsd?: number | null;
   verifiedMarketValueUsd?: number | null;
