@@ -26,21 +26,7 @@ import { ClaimCurrencySelector } from "@/components/ClaimCurrencySelector";
 import { NotificationsInbox } from "@/components/NotificationsInbox";
 import { FleetManagerApprovalsTab } from "@/components/FleetManagerApprovalsTab";
 import { WorkloadDistributionPanel } from "@/components/WorkloadDistributionPanel";
-import {
-  Chart as ChartJS,
-  CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler, Tooltip, Legend,
-} from "chart.js";
-import { Bar } from "react-chartjs-2";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
-import {
-  DEMO_INTAKE_CLAIMS,
-  DEMO_REVIEW_CLAIMS,
-  DEMO_ACTIVE_CLAIMS,
-  DEMO_FRAUD_ALERTS,
-  DEMO_PROCESSED_CLAIMS,
-  DEMO_DASHBOARD_STATS,
-} from "@/lib/demoData";
-ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler, Tooltip, Legend);
 
 // ── Design tokens (mirrors prototype CSS variables) ──────────────────────────
 const G = {
@@ -218,32 +204,32 @@ export default function ClaimsManagerDashboard() {
     }
   }, [selectedClaim, aiAssessment, assessorEval, quotes]);
 
-  const { data: reviewQueueData, isLoading: queueLoading, refetch: refetchQueue } =
+  const { data: reviewQueueData, isLoading: queueLoading, error: reviewQueueError, refetch: refetchQueue } =
     trpc.claims.byStatus.useQuery({ status: "financial_decision" });
   const reviewQueue = reviewQueueData || [];
 
-  const { data: assessedClaims, isLoading: assessedLoading, refetch: refetchAssessed } =
+  const { data: assessedClaims, isLoading: assessedLoading, error: assessedClaimsError, refetch: refetchAssessed } =
     trpc.claims.byStatus.useQuery({ status: "comparison" });
 
-  const { data: managerOverview, isLoading: overviewLoading } =
+  const { data: managerOverview, isLoading: overviewLoading, error: overviewError } =
     trpc.claims.getManagerOverview.useQuery({ from: analyticsFrom, to: analyticsTo });
 
-  const { data: activeClaimsData, isLoading: activeClaimsLoading } =
+  const { data: activeClaimsData, isLoading: activeClaimsLoading, error: activeClaimsError } =
     trpc.claims.getActiveClaims.useQuery({ from: analyticsFrom, to: analyticsTo });
-  const activeClaims = (activeClaimsData || []).length === 0 ? DEMO_ACTIVE_CLAIMS : (activeClaimsData || []);
+  const activeClaims = activeClaimsData ?? [];
 
-  const { data: fraudAlertsData } =
+  const { data: fraudAlertsData, isLoading: fraudAlertsLoading, error: fraudAlertsError } =
     trpc.claims.getFraudAlerts.useQuery({ from: analyticsFrom, to: analyticsTo });
-  const fraudAlerts = (fraudAlertsData || []).length === 0 ? DEMO_FRAUD_ALERTS : (fraudAlertsData || []);
+  const fraudAlerts = fraudAlertsData ?? [];
 
-  const { data: dashboardStatsRaw } =
+  const { data: dashboardStatsRaw, isLoading: dashboardStatsLoading, error: dashboardStatsError } =
     trpc.claims.getDashboardStats.useQuery({ from: analyticsFrom, to: analyticsTo });
-  const dashboardStats: any = (!dashboardStatsRaw || (dashboardStatsRaw as any).total === 0) ? DEMO_DASHBOARD_STATS : dashboardStatsRaw;
+  const dashboardStats: any = dashboardStatsRaw ?? null;
 
-  const { data: completedClaims, isLoading: completedLoading, refetch: refetchCompleted } =
+  const { data: completedClaims, isLoading: completedLoading, error: completedClaimsError, refetch: refetchCompleted } =
     trpc.claims.byStatus.useQuery({ status: "completed" });
-  const { data: closedClaims } = trpc.claims.byStatus.useQuery({ status: "closed" });
-  const { data: rejectedClaims } = trpc.claims.byStatus.useQuery({ status: "rejected" });
+  const { data: closedClaims, error: closedClaimsError } = trpc.claims.byStatus.useQuery({ status: "closed" });
+  const { data: rejectedClaims, error: rejectedClaimsError } = trpc.claims.byStatus.useQuery({ status: "rejected" });
 
   const processedClaims = useMemo(() => {
     const raw = [
@@ -251,13 +237,13 @@ export default function ClaimsManagerDashboard() {
       ...(closedClaims || []),
       ...(rejectedClaims || []),
     ].sort((a: any, b: any) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime());
-    return raw.length === 0 ? DEMO_PROCESSED_CLAIMS : raw;
+    return raw;
   }, [completedClaims, closedClaims, rejectedClaims]);
 
   const allReviewableClaims = useMemo(() => {
     const raw = [...(reviewQueue || []), ...(assessedClaims || [])];
     const unique = raw.filter((c, i, s) => i === s.findIndex(x => x.id === c.id));
-    return unique.length === 0 ? DEMO_REVIEW_CLAIMS : unique;
+    return unique;
   }, [reviewQueue, assessedClaims]);
 
   // ── All claims for the "All Claims" tab ───────────────────────────────────
@@ -270,6 +256,14 @@ export default function ClaimsManagerDashboard() {
     const unique = combined.filter((c, i, s) => i === s.findIndex(x => x.id === c.id));
     return unique;
   }, [activeClaims, allReviewableClaims, processedClaims]);
+
+  const claimsDataLoading = queueLoading || assessedLoading || activeClaimsLoading || completedLoading;
+  const claimsDataUnavailable = Boolean(
+    reviewQueueError || assessedClaimsError || activeClaimsError || completedClaimsError || closedClaimsError || rejectedClaimsError
+  );
+  const summaryLoading = overviewLoading || dashboardStatsLoading;
+  const summaryUnavailable = Boolean(overviewError || dashboardStatsError);
+  const noClaimsYet = !claimsDataLoading && !claimsDataUnavailable && allClaims.length === 0;
 
   // ── Tab-filtered claims ───────────────────────────────────────────────────
   const tabClaims = useMemo(() => {
@@ -391,33 +385,20 @@ export default function ClaimsManagerDashboard() {
   };
 
   // ── KPI values ────────────────────────────────────────────────────────────
-  const kpiActive = overviewLoading ? '…' : (managerOverview?.kpis?.activeClaims?.value ?? dashboardStats?.activeClaims ?? 247);
-  const kpiPending = overviewLoading ? '…' : (dashboardStats?.pendingIntake ?? DEMO_INTAKE_CLAIMS.length ?? 34);
-  const kpiAvgDays = overviewLoading ? '…' : `${(dashboardStats?.avgProcessingDays ?? 4.2).toFixed(1)}d`;
-  const kpiFraud = overviewLoading ? '…' : `${(dashboardStats?.fraudRate ?? 94)}%`;
-  const kpiCompleted = overviewLoading ? '…' : (managerOverview?.kpis?.completedClaims?.value ?? dashboardStats?.completedThisMonth ?? 89);
-  const kpiSLA = overviewLoading ? '…' : `${dashboardStats?.slaCompliance ?? 91}%`;
-
-  // ── Weekly intake chart data ───────────────────────────────────────────────
-  const weeklyIntakeData = {
-    labels: ['W19', 'W20', 'W21', 'W22', 'W23', 'W24', 'W25', 'W26'],
-    datasets: [
-      {
-        label: 'New Claims',
-        data: [28, 34, 31, 42, 38, 29, 36, 41],
-        backgroundColor: 'rgba(44,133,87,0.75)',
-        borderRadius: 4,
-        borderSkipped: false,
-      },
-      {
-        label: 'Resolved',
-        data: [24, 30, 28, 35, 40, 27, 32, 38],
-        backgroundColor: 'rgba(44,133,87,0.2)',
-        borderRadius: 4,
-        borderSkipped: false,
-      },
-    ],
-  };
+  const kpiUnavailable = summaryUnavailable ? 'Unavailable' : undefined;
+  const kpiActive = summaryLoading ? '…' : (kpiUnavailable ?? managerOverview?.kpis?.activeClaims?.value ?? dashboardStats?.activeClaims ?? 0);
+  const kpiPending = summaryLoading ? '…' : (kpiUnavailable ?? dashboardStats?.pendingIntake ?? 0);
+  const kpiAvgDays = summaryLoading ? '…' : (kpiUnavailable ?? `${Number(dashboardStats?.avgProcessingDays ?? 0).toFixed(1)}d`);
+  const kpiFraud = summaryLoading ? '…' : (kpiUnavailable ?? `${Number(dashboardStats?.fraudRate ?? 0)}%`);
+  const kpiCompleted = summaryLoading ? '…' : (kpiUnavailable ?? managerOverview?.kpis?.completedClaims?.value ?? dashboardStats?.completedThisMonth ?? 0);
+  const kpiSLA = summaryLoading ? '…' : (kpiUnavailable ?? `${Number(dashboardStats?.slaCompliance ?? 0)}%`);
+  const summaryStateLabel = summaryUnavailable
+    ? 'Data unavailable'
+    : summaryLoading || claimsDataLoading
+      ? 'Loading tenant data…'
+      : noClaimsYet
+        ? 'No claims yet'
+        : 'Live tenant data';
 
   const fraudFlagCount = fraudAlerts.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70 || c.fraudRiskLevel === 'high' || c.fraudRiskLevel === 'critical').length;
   const slaBreachCount = allClaims.filter((c: any) => {
@@ -468,7 +449,7 @@ export default function ClaimsManagerDashboard() {
               Claims Overview
             </div>
             <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '3px' }}>
-              Last refreshed: just now · {allClaims.length} total claims
+              {summaryStateLabel}{!summaryUnavailable && !summaryLoading && ` · ${allClaims.length} total claims`}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
@@ -504,12 +485,12 @@ export default function ClaimsManagerDashboard() {
           overflow: 'hidden', marginTop: '4px',
         }}>
           {[
-            { label: 'Active Claims', value: kpiActive, delta: '+12 this week', deltaUp: true, headline: true },
-            { label: 'Pending Intake', value: kpiPending, delta: '34 awaiting', deltaUp: false },
-            { label: 'Under Review', value: allReviewableClaims.length, delta: `${allReviewableClaims.length} claims`, deltaUp: null },
-            { label: 'Avg Resolution', value: kpiAvgDays, delta: '−0.8d vs last month', deltaUp: true },
-            { label: 'Fraud Detection', value: kpiFraud, delta: '+2pp vs target', deltaUp: true },
-            { label: 'SLA Compliance', value: kpiSLA, delta: 'On track', deltaUp: true },
+            { label: 'Active Claims', value: kpiActive, delta: summaryStateLabel, deltaUp: null, headline: true },
+            { label: 'Pending Intake', value: kpiPending, delta: summaryStateLabel, deltaUp: null },
+            { label: 'Under Review', value: summaryUnavailable ? 'Unavailable' : allReviewableClaims.length, delta: summaryStateLabel, deltaUp: null },
+            { label: 'Avg Resolution', value: kpiAvgDays, delta: summaryStateLabel, deltaUp: null },
+            { label: 'Fraud Detection', value: kpiFraud, delta: summaryStateLabel, deltaUp: null },
+            { label: 'SLA Compliance', value: kpiSLA, delta: summaryStateLabel, deltaUp: null },
           ].map((kpi, i) => (
             <div key={i} style={{
               padding: '14px 16px 16px',
@@ -693,10 +674,12 @@ export default function ClaimsManagerDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(queueLoading || assessedLoading || activeClaimsLoading) ? (
+                    {claimsDataLoading ? (
                       <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: G.muted, fontSize: '13px' }}>Loading claims…</td></tr>
+                    ) : claimsDataUnavailable ? (
+                      <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: G.red, fontSize: '13px' }}>Claims data is unavailable. Please retry or contact support.</td></tr>
                     ) : paginatedClaims.length === 0 ? (
-                      <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: G.muted, fontSize: '13px' }}>No claims found</td></tr>
+                      <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: G.muted, fontSize: '13px' }}>{noClaimsYet ? 'No claims yet' : 'No claims match the selected filters'}</td></tr>
                     ) : paginatedClaims.map((claim: any) => (
                       <tr
                         key={claim.id}
@@ -831,8 +814,12 @@ export default function ClaimsManagerDashboard() {
                   </li>
                 );
               })}
-              {fraudAlerts.length === 0 && (
-                <li style={{ padding: '16px', textAlign: 'center', color: G.muted2, fontSize: '12px' }}>No alerts at this time</li>
+              {fraudAlertsLoading ? (
+                <li style={{ padding: '16px', textAlign: 'center', color: G.muted2, fontSize: '12px' }}>Loading fraud alerts…</li>
+              ) : fraudAlertsError ? (
+                <li style={{ padding: '16px', textAlign: 'center', color: G.red, fontSize: '12px' }}>Fraud alert data is unavailable</li>
+              ) : fraudAlerts.length === 0 && (
+                <li style={{ padding: '16px', textAlign: 'center', color: G.muted2, fontSize: '12px' }}>No fraud alerts for this tenant</li>
               )}
             </ul>
           </div>
@@ -848,21 +835,8 @@ export default function ClaimsManagerDashboard() {
               </div>
               <span style={{ fontSize: '11px', color: G.muted }}>Last 8 weeks</span>
             </div>
-            <div style={{ padding: '12px 16px 16px', height: '160px' }}>
-              <Bar
-                data={weeklyIntakeData}
-                options={{
-                  responsive: true, maintainAspectRatio: false,
-                  plugins: {
-                    legend: { display: true, position: 'bottom', labels: { font: { family: 'Inter', size: 10 }, color: G.muted, boxWidth: 10, boxHeight: 10, padding: 8, usePointStyle: true, pointStyle: 'rect' } },
-                    tooltip: { backgroundColor: G.g900, titleFont: { family: 'Inter', size: 11 }, bodyFont: { family: 'Inter', size: 11 }, padding: 8, cornerRadius: 6 },
-                  },
-                  scales: {
-                    x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 10 }, color: G.muted2 }, border: { display: false } },
-                    y: { grid: { color: G.line }, ticks: { font: { family: 'Inter', size: 10 }, color: G.muted2, maxTicksLimit: 5 }, border: { display: false } },
-                  },
-                }}
-              />
+            <div style={{ padding: '12px 16px 16px', height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: G.muted, fontSize: '12px' }}>
+              Weekly intake history is not available for this tenant yet.
             </div>
           </div>
 
@@ -874,22 +848,28 @@ export default function ClaimsManagerDashboard() {
               </div>
               SLA Performance
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-              {[
-                { label: 'On Time', value: kpiSLA, sub: `${Math.round(allClaims.length * 0.91)} of ${allClaims.length}`, color: G.g600 },
-                { label: 'Breached', value: slaBreachCount, sub: `${allClaims.length > 0 ? ((slaBreachCount / allClaims.length) * 100).toFixed(1) : 0}% of active`, color: G.red },
-                { label: 'At Risk', value: Math.round(allClaims.length * 0.06), sub: 'Next 24 hrs', color: G.amber },
-                { label: 'Avg. Days', value: kpiAvgDays, sub: 'Target: 5.0d', color: G.ink },
-              ].map((tile, i) => (
-                <div key={i} style={{ padding: '12px 16px', borderRight: i % 2 === 0 ? `1px solid ${G.line}` : 'none', borderBottom: i < 2 ? `1px solid ${G.line}` : 'none' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 500, color: G.muted2, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>{tile.label}</div>
-                  <div style={{ fontSize: '20px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: tile.color }}>{tile.value}</div>
-                  <div style={{ fontSize: '10.5px', color: G.muted, marginTop: '2px' }}>{tile.sub}</div>
-                </div>
-              ))}
+            {dashboardStats ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                {[
+                  { label: 'On Time', value: kpiSLA, sub: 'Reported SLA compliance', color: G.g600 },
+                  { label: 'Breached', value: slaBreachCount, sub: `${allClaims.length > 0 ? ((slaBreachCount / allClaims.length) * 100).toFixed(1) : 0}% of active claims`, color: G.red },
+                  { label: 'At Risk', value: '—', sub: 'No verified forecast available', color: G.amber },
+                  { label: 'Avg. Days', value: kpiAvgDays, sub: 'Reported processing average', color: G.ink },
+                ].map((tile, i) => (
+                  <div key={i} style={{ padding: '12px 16px', borderRight: i % 2 === 0 ? `1px solid ${G.line}` : 'none', borderBottom: i < 2 ? `1px solid ${G.line}` : 'none' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 500, color: G.muted2, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>{tile.label}</div>
+                    <div style={{ fontSize: '20px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: tile.color }}>{tile.value}</div>
+                    <div style={{ fontSize: '10.5px', color: G.muted, marginTop: '2px' }}>{tile.sub}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: '22px 16px', textAlign: 'center', color: summaryUnavailable ? G.red : G.muted, fontSize: '12px' }}>
+                {summaryUnavailable ? 'SLA data is unavailable' : summaryLoading ? 'Loading SLA data…' : 'No SLA data available'}
+              </div>
+            )}
             </div>
           </div>
-        </div>
       </main>
 
       {/* ═══════════════════════════════════════════════════════
