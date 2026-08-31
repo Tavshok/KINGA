@@ -77,6 +77,18 @@ An error must be derived from the current router source—not assumed from a pro
 | `runAiAnalysis` / `approveAiAnalysis` | Analysis takes positive inspection ID; approval takes ID, boolean and optional notes. | Both require target inspection access. | Analysis reads evidence, invokes a strict JSON-schema response, records analysis and moves to review; approval records approved flag and changes status to physics reconciliation or back to AI analysis. | Retain structured schema, parse-error visibility, and separate human approval. |
 | `runPhysicsReconciliation` | Positive ID plus optional structured measurement map. Returns converted count and flags. | Target inspection access first. | Reads physical measurements, compares through `reconcileEngineerMeasurements`, stores reconciliation state/note, moves to report generation. | The source notes a >15% deviation threshold. Treat calibration/threshold changes as architecture review. |
 
+## 3.4 Worked tenant-isolation procedure walkthrough: `notifications`
+
+`server/routers/notifications.ts` demonstrates a narrower self-service pattern. Every procedure uses `restrictedCommunicationProcedure`, which adds an agency-assisted communication capability check to the protected procedure. `requireNotificationTenant` returns the session tenant or throws `FORBIDDEN` before the tenant-scoped data path runs.
+
+| Procedure | Exact input/output orientation | Scope and data effects | Failure / regression expectation |
+|---|---|---|---|
+| `getAll` | Filter (`all`/`unread`/`archived`), optional module, limit 1–200, non-negative offset; returns matching rows. `unreadOnly` is legacy compatibility input. | Requires both `notifications.user_id = ctx.user.id` and `notifications.tenant_id = session tenant`, then adds archive/read/module filters. | Throws `INTERNAL_SERVER_ERROR` if DB is unavailable; tenantless session is `FORBIDDEN`. |
+| `getUnreadCount` | Returns `{ count }`. | Counts only current user/current tenant rows that are unread and unarchived. | DB absence returns `{ count: 0 }`; do not change that degradation behaviour without review. |
+| `markAsRead` / `archive` | Positive integer notification ID; returns success. | Update predicate includes notification ID, current user ID and session tenant. Archive writes both archived/read timestamps. | A foreign notification must not be modified; retain denial/no-cross-tenant regression coverage. |
+| `markAllAsRead` / `archiveAll` | No input; returns success. | Bulk update is constrained to current user plus session tenant and appropriate read/archive state. | Never broaden the bulk predicate across a tenant/user boundary. |
+| `getPreferences` / `updatePreference` | Gets default-expanded modules; update accepts only known module enum, booleans and priority enum. | Reads/writes preference rows with current user ID and session tenant; updates use duplicate-key upsert. | Preserve tenant/user keys through any schema or preference refactor. |
+
 ## 4. REST and non-tRPC routes
 
 The runtime also contains Express route handling. Search `server/_core/index.ts` and server modules for `.get`, `.post`, `.put`, `.patch`, and `.delete` before changing transport or export behaviour. REST paths must enforce the same session-derived tenant/object authority as tRPC. A route must not be called “internal” as a substitute for authorisation.

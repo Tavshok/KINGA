@@ -50,6 +50,10 @@ The following categories must be documented as **SECURITY FINDING — REVIEW REQ
 - An export/download/notification or background path that loses tenant context.
 - A report or dashboard presenting cross-tenant values without explicit platform authority.
 
+## 4.1 Concrete notification-boundary reference
+
+Use `server/routers/notifications.ts` and `server/routers/notificationsTenantAuthority.p0.test.ts` as the reference for a current-user tenant-scoped collection. The router obtains the tenant only from `ctx.user`, rejects absent tenant context, and combines both `notifications.userId = ctx.user.id` and `notifications.tenantId = tenantId` in list/count/update predicates. Single-row actions bind the row ID, user ID and tenant ID together; bulk actions still bind user and tenant. This is the expected shape when a row belongs to an individual within a tenant.
+
 ## 5. Safe change procedure
 
 Read the complete procedure, direct services, schema declarations, and nearest security regression before editing. Add a test that proves same-tenant authorised behaviour remains available and a test that proves a foreign-tenant, tenantless, unassigned, or otherwise unauthorised call is denied without an unintended write. Use test-owned IDs/stamps and precise cleanup. See [KINGA_ENGINEERING_CHANGE_GUIDE.md](./KINGA_ENGINEERING_CHANGE_GUIDE.md).
