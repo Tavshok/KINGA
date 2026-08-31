@@ -163,12 +163,17 @@ const requireCustomer = t.middleware(({ ctx, next }) => {
 
 export const customerDomainProcedure = t.procedure.use(requireCustomer);
 
-// ─── /engineering → engineer roles only (Epic 3) ────────────────────────────
+// ─── /engineering → engineer roles plus a required tenant scope (Epic 3) ────
 
 const requireEngineer = t.middleware(({ ctx, next }) => {
   if (!ctx.user) unauthorized();
   if (!ENGINEER_ROLES.includes(ctx.user.role as typeof ENGINEER_ROLES[number])) {
     forbidden(`Access denied. /engineering requires engineer role. Current role: ${ctx.user.role}`);
+  }
+  // Tenant-scoped inspections and engineer profiles must never substitute a
+  // synthetic/default tenant for an otherwise role-permitted user.
+  if (!ctx.user.tenantId) {
+    forbidden("Access denied. Engineering users must be associated with a tenant.");
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
 });

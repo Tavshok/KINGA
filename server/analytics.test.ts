@@ -60,4 +60,13 @@ describe('Analytics Endpoints', () => {
       await expect(caller.analytics.getKPIs({})).rejects.toThrow();
     });
   });
+
+  describe('Fast Track exports', () => {
+    it('rejects PDF and CSV exports until a verified tenant-scoped dataset exists', async () => {
+      const caller = appRouter.createCaller(createMockContext(1));
+      const input = { startDate: '2025-01-01', endDate: '2025-01-31' };
+      await expect(caller.analytics.exportFastTrackPDF(input)).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+      await expect(caller.analytics.exportFastTrackCSV(input)).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+    });
+  });
 });
