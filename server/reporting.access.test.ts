@@ -92,15 +92,18 @@ describe("REPORT_ACCESS — role-based access control", () => {
       expect(reports).toContain("portfolio.fraud_summary");
       expect(reports).toContain("portfolio.assessor_performance");
       expect(reports).toContain("risk_manager_portfolio");
+      expect(reports).toContain("claims_manager.portfolio_overview");
+      expect(reports).not.toContain("risk_manager.portfolio_overview");
     });
 
-    it("can access executive trend and financial reports", () => {
-      expect(reports).toContain("executive.claims_trend");
-      expect(reports).toContain("executive.financial_exposure");
+    it("cannot access retired executive reports", () => {
+      expect(reports).not.toContain("executive.claims_trend");
+      expect(reports).not.toContain("executive.financial_exposure");
     });
 
     it("cannot access insurer executive summary (executive only)", () => {
       expect(reports).not.toContain("executive.insurer_summary");
+      expect(reports).not.toContain("executive.portfolio_overview");
     });
 
     it("cannot access platform admin reports", () => {
@@ -126,11 +129,14 @@ describe("REPORT_ACCESS — role-based access control", () => {
       expect(reports).toContain("portfolio.fraud_summary");
       expect(reports).toContain("portfolio.assessor_performance");
       expect(reports).toContain("risk_manager_portfolio");
+      expect(reports).toContain("risk_manager.portfolio_overview");
+      expect(reports).not.toContain("claims_manager.portfolio_overview");
     });
 
-    it("can access executive trend and financial exposure", () => {
-      expect(reports).toContain("executive.claims_trend");
-      expect(reports).toContain("executive.financial_exposure");
+    it("cannot access retired executive reports", () => {
+      expect(reports).not.toContain("executive.claims_trend");
+      expect(reports).not.toContain("executive.financial_exposure");
+      expect(reports).not.toContain("executive.portfolio_overview");
     });
 
     it("cannot access individual claim working documents (cost comparison, repair decision)", () => {
@@ -150,13 +156,16 @@ describe("REPORT_ACCESS — role-based access control", () => {
     const reports = reportsFor("insurer", "executive");
 
     it("can access executive KPI reports", () => {
-      expect(reports).toContain("executive.insurer_summary");
-      expect(reports).toContain("executive.claims_trend");
-      expect(reports).toContain("executive.financial_exposure");
+      expect(reports).toContain("executive.portfolio_overview");
+      expect(reports).not.toContain("executive.insurer_summary");
+      expect(reports).not.toContain("executive.claims_trend");
+      expect(reports).not.toContain("executive.financial_exposure");
     });
 
     it("can access portfolio claims summary", () => {
       expect(reports).toContain("portfolio.claims_summary");
+      expect(reports).not.toContain("claims_manager.portfolio_overview");
+      expect(reports).not.toContain("risk_manager.portfolio_overview");
     });
 
     it("can access regulatory compliance", () => {
