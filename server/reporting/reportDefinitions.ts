@@ -50,6 +50,7 @@ import type { KingaWriteOffRecommendation, KingaWriteOffRecommendationKind } fro
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
+import { resolveCanonicalClaimReportPresentation } from "./canonicalClaimReportPresentation";
 import { resolveReportRecord, toReportDefinitionRow } from "./resolvedReportRecord";
 import {
   resolvePlatformReportCollection,
@@ -164,19 +165,18 @@ export const REPORT_ACCESS: Record<string, string[]> = {
   "portfolio.claims_summary":          ["insurer_admin", "claims_manager", "risk_manager", "executive"],
   "portfolio.dwell_time":              ["insurer_admin", "claims_manager", "risk_manager"],
   "portfolio.panel_beater_performance":["insurer_admin", "claims_manager", "risk_manager"],
+  "claims_manager.portfolio_overview": ["insurer_admin", "claims_manager"],
 
   // ── Risk & Fraud Reports ──────────────────────────────────────────────────
   "portfolio.fraud_summary":           ["insurer_admin", "claims_manager", "risk_manager", "fraud_manager"],
   // Assessor performance: processor can export/view; managers own it
   "portfolio.assessor_performance":    ["insurer_admin", "claims_processor", "claims_manager", "risk_manager"],
   "risk_manager_portfolio":            ["insurer_admin", "claims_manager", "risk_manager"],
+  "risk_manager.portfolio_overview":   ["insurer_admin", "risk_manager"],
 
   // ── Executive Reports ─────────────────────────────────────────────────────
   // Executives see high-level KPI summaries; managers also get trend data
-  "executive.insurer_summary":         ["insurer_admin", "executive"],
-  "executive.full_report":              ["insurer_admin", "executive"],
-  "executive.claims_trend":            ["insurer_admin", "claims_manager", "risk_manager", "executive"],
-  "executive.financial_exposure":      ["insurer_admin", "claims_manager", "risk_manager", "executive"],
+  "executive.portfolio_overview":       ["insurer_admin", "executive"],
 
   // Platform super-admin only — cross-insurer intelligence (no insurer role)
   "executive.platform_dashboard":      ["admin"],
@@ -232,15 +232,14 @@ export async function generateReportHtml(
     case "portfolio.assessor_performance": return generateAssessorPerformanceReport(params, tenantId);
     case "portfolio.panel_beater_performance": return generatePanelBeaterPerformanceReport(params, tenantId);
     case "portfolio.dwell_time":  return generateDwellTimeReport(params, tenantId);
+    case "claims_manager.portfolio_overview": return generateClaimsManagerPortfolioReport(params, tenantId);
     case "risk_manager_portfolio": return generateFraudSummaryReport(params, tenantId); // alias → fraud/risk portfolio
+    case "risk_manager.portfolio_overview": return generateRiskManagerPortfolioReport(params, tenantId);
+    case "executive.portfolio_overview": return generateExecutivePortfolioReport(params, tenantId);
     case "executive.platform_dashboard": return generatePlatformDashboardReport(params, tenantId);
     case "governance.sar":        return generateSARReport(params, tenantId);
     case "governance.regulatory_compliance": return generateRegulatoryComplianceReport(params, tenantId);
     case "governance.data_retention":         return generateDataRetentionReport(params, tenantId);
-    case "executive.insurer_summary":         return generateExecutiveInsurerSummary(params, tenantId);
-    case "executive.full_report":              return generateExecutiveFullReport(params, tenantId);
-    case "executive.claims_trend":            return generateClaimsTrendReport(params, tenantId);
-    case "executive.financial_exposure":      return generateFinancialExposureReport(params, tenantId);
     case "executive.cross_insurer_fraud":     return generateCrossInsurerFraudReport(params);
     case "executive.ml_performance":          return generateMLPerformanceReport(params);
     case "assessor.my_assignments":           return generateAssessorAssignmentsReport(params, tenantId);
@@ -269,6 +268,12 @@ async function generateClaimAssessmentReport(
   if (!tenantId) throw new Error("Tenant scope is required for Claim Assessment reporting");
     const record = await resolveReportRecord({ claimId, tenantId, audience: "claim_assessment" });
     const claim = toReportDefinitionRow(record) as Record<string, any>;
+
+    // Shared CL/CI/FR fields must flow through the canonical resolver pair.
+    // Report-specific evidence may still be loaded below, but it must not
+    // independently select fraud, cost, or decision values for presentation.
+    const canonicalPresentation = resolveCanonicalClaimReportPresentation(claim);
+    const canonicalReport = canonicalPresentation.report;
 
     const physics = safeJson(claim.physics_analysis);
     // ARCH-02: Parse physics_truth_json (PTL) as primary source; fall back to legacy physics_analysis
@@ -367,22 +372,16 @@ async function generateClaimAssessmentReport(
       };
     }).sort((a, b) => b.estimated_cost - a.estimated_cost);
 
-    // FRAUD-RECONCILE: Use fraud_score_breakdown_json.overallScore as canonical when available.
-    // This ensures the header scorecard and the Appendix A fraud section show the same number.
-    // a.fraud_score (the stored column) may differ if it was set by a different pipeline stage.
+    // The normalisation contract owns fraud-score priority and contradiction handling.
     const fraudScoreRaw = Number(claim.fraud_score ?? 0);
     const fraudBreakOverall = (fraud as any)?.overallScore ?? (fraud as any)?.compositeScore ?? null;
-    const fraudScore = fraudBreakOverall != null ? Number(fraudBreakOverall) : fraudScoreRaw;
-    const fraudScoreMismatch = fraudBreakOverall != null && Math.abs(Number(fraudBreakOverall) - fraudScoreRaw) >= 5;
+    const fraudScore = canonicalReport.fraud.score;
+    const fraudScoreMismatch = fraudBreakOverall != null && Math.abs(Number(fraudBreakOverall) - fraudScore) >= 5;
     const confidenceScore = Number(claim.confidence_score ?? 0);
-    // estimatedCost: ai_assessments.estimated_cost is stored in CENTS — divide by 100.
-    // Documented agreed cost is calibration evidence only; it is not an L2 or
-    // settlement fallback for this report.
-    const estimatedCostRaw = Number(claim.estimated_cost ?? 0);
-    const estimatedCost = estimatedCostRaw > 0 ? estimatedCostRaw / 100 : 0;
+    const estimatedCost = canonicalReport.costs.aiEstimateUsd ?? 0;
     const costIntegrity = resolveReportCostIntegrity(costIntel, quoteRows as unknown[]);
     const reportDecision = resolveReportDecisionIntegrity({
-      recommendation: claim.recommendation,
+      recommendation: canonicalReport.verdict.verdict,
       workflowState: claim.workflow_state ?? claim.status,
       costIntegrity,
     });
@@ -1439,6 +1438,38 @@ async function generateFraudSummaryReport(
   return buildBaseHtml(meta, body);
 }
 
+async function generateClaimsManagerPortfolioReport(params: Record<string, unknown>, tenantId?: string): Promise<string> {
+  const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const toTs = params.toTs as number ?? Date.now();
+  const tid = tenantId ?? params.tenantId as string;
+  const aggregate = await resolvePlatformReportCollection({ authority: requireTenantAggregateAuthority(tid), filters: { fromTs, toTs } });
+  const p = aggregate.portfolio;
+  const approvalRate = p.totalClaims ? (p.approvedCount / p.totalClaims * 100).toFixed(1) : "0.0";
+  const body = `<div class="section"><div class="section-title">Claims Portfolio & Processing</div><div class="kv-grid cols-4"><div class="kv-item"><div class="kv-label">Total Claims</div><div class="kv-value bold">${p.totalClaims}</div></div><div class="kv-item"><div class="kv-label">In Progress</div><div class="kv-value">${p.inProgressCount}</div></div><div class="kv-item"><div class="kv-label">Approved</div><div class="kv-value">${p.approvedCount}</div></div><div class="kv-item"><div class="kv-label">Approval Rate</div><div class="kv-value">${approvalRate}%</div></div><div class="kv-item"><div class="kv-label">AI Estimated Portfolio Value</div><div class="kv-value">${fmtCurrency(p.aiEstimatedValueUsd)}</div></div></div></div><div class="section"><div class="section-title">Operational Ageing</div><table><thead><tr><th>Status</th><th>Claims</th><th>Average elapsed time</th><th>Maximum elapsed time</th></tr></thead><tbody>${aggregate.dwellTimeByStatus.map(r => `<tr><td>${escHtml(r.status)}</td><td>${r.claimCount}</td><td>${r.averageElapsedHours.toFixed(1)} hours</td><td>${r.maximumElapsedHours.toFixed(1)} hours</td></tr>`).join("") || "<tr><td colspan='4'>No data for selected period</td></tr>"}</tbody></table></div>`;
+  return buildBaseHtml({ title: "Claims Manager Portfolio Report", subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`, reportRef: `RPT-CM-${Date.now()}`, generatedAt: new Date(), generatedBy: "KINGA Intelligence Platform", tenantName: tid, classification: "CONFIDENTIAL" }, body);
+}
+
+async function generateRiskManagerPortfolioReport(params: Record<string, unknown>, tenantId?: string): Promise<string> {
+  const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const toTs = params.toTs as number ?? Date.now();
+  const tid = tenantId ?? params.tenantId as string;
+  const aggregate = await resolvePlatformReportCollection({ authority: requireTenantAggregateAuthority(tid), filters: { fromTs, toTs } });
+  const p = aggregate.portfolio;
+  const body = `<div class="section"><div class="section-title">Risk & Financial Exposure</div><div class="kv-grid cols-4"><div class="kv-item"><div class="kv-label">High-Risk Claims</div><div class="kv-value bold">${p.highRiskClaimCount}</div></div><div class="kv-item"><div class="kv-label">Average Fraud Score</div><div class="kv-value">${p.averageFraudScore?.toFixed(1) ?? "—"}</div></div><div class="kv-item"><div class="kv-label">Assessed Claims</div><div class="kv-value">${p.assessedClaimCount}</div></div><div class="kv-item"><div class="kv-label">AI Estimated Financial Exposure</div><div class="kv-value">${fmtCurrency(p.aiEstimatedValueUsd)}</div></div></div></div><div class="section"><div class="section-title">Fraud Risk Distribution</div><table><thead><tr><th>Risk level</th><th>Claims</th><th>Average score</th></tr></thead><tbody>${aggregate.fraudRiskDistribution.map(r => `<tr><td>${riskBadge(r.riskLevel)}</td><td>${r.claimCount}</td><td>${r.averageScore?.toFixed(1) ?? "—"}</td></tr>`).join("")}</tbody></table></div>`;
+  return buildBaseHtml({ title: "Risk Manager Portfolio Report", subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`, reportRef: `RPT-RM-${Date.now()}`, generatedAt: new Date(), generatedBy: "KINGA Intelligence Platform", tenantName: tid, classification: "CONFIDENTIAL" }, body);
+}
+
+async function generateExecutivePortfolioReport(params: Record<string, unknown>, tenantId?: string): Promise<string> {
+  const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const toTs = params.toTs as number ?? Date.now();
+  const tid = tenantId ?? params.tenantId as string;
+  const aggregate = await resolvePlatformReportCollection({ authority: requireTenantAggregateAuthority(tid), filters: { fromTs, toTs } });
+  const p = aggregate.portfolio;
+  const approvalRate = p.totalClaims ? (p.approvedCount / p.totalClaims * 100).toFixed(1) : "0.0";
+  const body = `<div class="section"><div class="section-title">Portfolio & Financial Overview</div><div class="kv-grid cols-4"><div class="kv-item"><div class="kv-label">Total Claims</div><div class="kv-value bold">${p.totalClaims}</div></div><div class="kv-item"><div class="kv-label">Approval Rate</div><div class="kv-value">${approvalRate}%</div></div><div class="kv-item"><div class="kv-label">High-Risk Claims</div><div class="kv-value">${p.highRiskClaimCount}</div></div><div class="kv-item"><div class="kv-label">AI Estimated Portfolio Value</div><div class="kv-value">${fmtCurrency(p.aiEstimatedValueUsd)}</div></div></div></div><div class="section"><div class="section-title">Fraud & Operational Trends</div><table><thead><tr><th>Risk or processing status</th><th>Claims</th><th>Average score / elapsed time</th></tr></thead><tbody>${aggregate.fraudRiskDistribution.map(r => `<tr><td>${riskBadge(r.riskLevel)}</td><td>${r.claimCount}</td><td>${r.averageScore?.toFixed(1) ?? "—"}</td></tr>`).join("")}${aggregate.dwellTimeByStatus.map(r => `<tr><td>${escHtml(r.status)}</td><td>${r.claimCount}</td><td>${r.averageElapsedHours.toFixed(1)} hours</td></tr>`).join("")}</tbody></table></div>`;
+  return buildBaseHtml({ title: "Executive Portfolio Report", subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`, reportRef: `RPT-EXEC-PORTFOLIO-${Date.now()}`, generatedAt: new Date(), generatedBy: "KINGA Intelligence Platform", tenantName: tid, classification: "CONFIDENTIAL" }, body);
+}
+
 async function generateAssessorPerformanceReport(
   params: Record<string, unknown>,
   tenantId?: string
@@ -1587,7 +1618,7 @@ async function generateDwellTimeReport(
   const rows = aggregate.dwellTimeByStatus;
 
     const meta: ReportMeta = {
-      title: "Claims Processing Dwell Time Report",
+      title: "Claim Elapsed Time by Current Status Report",
       subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`,
       reportRef: `RPT-DWELL-${Date.now()}`,
       generatedAt: new Date(),
@@ -1598,7 +1629,8 @@ async function generateDwellTimeReport(
 
     const body = `
       <div class="section">
-        <div class="section-title">1. Elapsed Processing Time by Current Status</div>
+        <div class="section-title">1. Total Claim Elapsed Time by Current Status</div>
+        <p class="small grey">Measured from claim creation to its latest update; this is not time spent in the current workflow status.</p>
         <table>
           <thead><tr>
             <th>Status</th>

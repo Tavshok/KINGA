@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
 import { appRouter } from "../routers";
-import { engineerProfiles, inspections, physicalMeasurements, users } from "../../drizzle/schema";
+import { accessDenialLog, engineerProfiles, inspections, physicalMeasurements, users } from "../../drizzle/schema";
 
 describe("AUD-P0 engineering inspection authority", () => {
   let db: NonNullable<Awaited<ReturnType<typeof getDb>>>;
@@ -14,7 +14,10 @@ describe("AUD-P0 engineering inspection authority", () => {
   let inspectionAId = 0;
   let inspectionBId = 0;
 
-  const contextFor = (id: number, role: "engineer" | "admin", tenantId: string) => ({
+  let accessDenialLogId = 0;
+  let auditRoute = "";
+
+  const contextFor = (id: number, role: "engineer" | "admin", tenantId: string | null) => ({
     user: { id, role, tenantId, openId: `inspection-authority-${id}`, name: "Inspection authority fixture" },
     db,
     req: {} as any,
@@ -65,12 +68,17 @@ describe("AUD-P0 engineering inspection authority", () => {
   });
 
   afterAll(async () => {
-    if (!db || !tenantA || !tenantB) return;
-    const tenantIds = [tenantA, tenantB];
-    await db.delete(physicalMeasurements).where(inArray(physicalMeasurements.tenantId, tenantIds));
-    await db.delete(inspections).where(inArray(inspections.tenantId, tenantIds));
-    await db.delete(engineerProfiles).where(inArray(engineerProfiles.tenantId, tenantIds));
-    await db.delete(users).where(inArray(users.tenantId, tenantIds));
+    if (!db) return;
+    if (accessDenialLogId) {
+      await db.delete(accessDenialLog).where(eq(accessDenialLog.id, accessDenialLogId));
+    }
+    if (tenantA && tenantB) {
+      const tenantIds = [tenantA, tenantB];
+      await db.delete(physicalMeasurements).where(inArray(physicalMeasurements.tenantId, tenantIds));
+      await db.delete(inspections).where(inArray(inspections.tenantId, tenantIds));
+      await db.delete(engineerProfiles).where(inArray(engineerProfiles.tenantId, tenantIds));
+      await db.delete(users).where(inArray(users.tenantId, tenantIds));
+    }
   });
 
   it("returns only the authenticated engineer's tenant and assigned inspection", async () => {
@@ -99,12 +107,58 @@ describe("AUD-P0 engineering inspection authority", () => {
   });
 
   it("denies list, assign, and linkToClaim for a session with no tenant scope", async () => {
-    const tenantlessEngineer = appRouter.createCaller(contextFor(engineerAId, "engineer", undefined as unknown as string));
-    const tenantlessAdmin = appRouter.createCaller(contextFor(adminAId, "admin", undefined as unknown as string));
+    const tenantlessEngineer = appRouter.createCaller(contextFor(engineerAId, "engineer", null));
+    const tenantlessAdmin = appRouter.createCaller(contextFor(adminAId, "admin", null));
 
     await expect(tenantlessEngineer.inspections.list({})).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(tenantlessAdmin.inspections.assign({ inspectionId: inspectionAId, engineerUserId: engineerAId })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(tenantlessEngineer.inspections.linkToClaim({ inspectionId: inspectionAId, claimId: null })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("rejects tenantless sessions before all affected inspection writes and project reads", async () => {
+    const tenantlessEngineer = appRouter.createCaller(contextFor(engineerAId, "engineer", null));
+
+    await expect(tenantlessEngineer.inspections.create({
+      inspectionType: "engineering",
+      assetType: "vehicle",
+    })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(tenantlessEngineer.inspections.upsertMyProfile({ skills: ["structural"] }))
+      .rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(tenantlessEngineer.inspections.createProject({ projectName: "Tenantless rejection fixture" }))
+      .rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(tenantlessEngineer.inspections.listProjects({}))
+      .rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("rejects tenantless access-denial logging and records the session tenant rather than a supplied tenant", async () => {
+    const tenantlessEngineer = appRouter.createCaller(contextFor(engineerAId, "engineer", null));
+    await expect(tenantlessEngineer.audit.logAccessDenial({
+      attemptedRoute: "/engineer/tenantless-fixture",
+      userRole: "engineer",
+      insurerRole: null,
+      denialReason: "tenantless_session_regression",
+    })).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    auditRoute = `/engineer/audit-tenant-provenance-${Date.now()}`;
+    const tenantScopedEngineer = appRouter.createCaller(contextFor(engineerAId, "engineer", tenantA));
+    await expect(tenantScopedEngineer.audit.logAccessDenial({
+      attemptedRoute: auditRoute,
+      userRole: "engineer",
+      insurerRole: null,
+      denialReason: "session_tenant_regression",
+      tenantId: tenantB,
+    } as any)).resolves.toEqual({ success: true });
+
+    const [record] = await db.select({ id: accessDenialLog.id, tenantId: accessDenialLog.tenantId })
+      .from(accessDenialLog)
+      .where(and(
+        eq(accessDenialLog.userId, engineerAId),
+        eq(accessDenialLog.attemptedRoute, auditRoute),
+        eq(accessDenialLog.denialReason, "session_tenant_regression"),
+      ));
+    expect(record?.tenantId).toBe(tenantA);
+    accessDenialLogId = record?.id ?? 0;
+    expect(accessDenialLogId).toBeGreaterThan(0);
   });
 
   it("ignores a caller-supplied tenantId and keeps list results scoped to the session tenant", async () => {

@@ -44,6 +44,7 @@ export interface ResolvedReportRecord {
     tenantId: string;
     claimId: number;
     claimReference: string | null;
+    claimNumber: string | null;
   }>;
   claim: Readonly<{
     status: string | null;
@@ -58,17 +59,20 @@ export interface ResolvedReportRecord {
     tenantName: string | null;
     currencyCode: string | null;
     excessAmountCents: number | null;
-    coverType: string | null;
-    policyType: string | null;
-    sumInsured: number | null;
-    policyExcess: number | null;
-    deductible: number | null;
+    /**
+     * Claim PDF repair-allocation inputs. Policy and forensic JSON fields are
+     * intentionally omitted pending a verified ResolvedReportRecord consumer.
+     */
+    panelBeaterChoice1: string | null;
+    panelBeaterChoice2: string | null;
+    panelBeaterChoice3: string | null;
+    assignedPanelBeaterId: number | null;
   }>;
   incident: Readonly<{
     type: string | null;
+    description: string | null;
     date: Date | string | null;
     location: string | null;
-    description: string | null;
     weatherConditions: string | null;
     roadSurface: string | null;
     gpsLatitude: number | null;
@@ -105,6 +109,10 @@ export interface ResolvedReportRecord {
     modelVersion: string | null;
     triggeredRole: string | null;
     damageDescription: string | null;
+    estimatedCost: number | null;
+    fraudRiskLevel: string | null;
+    confidenceScore: number | null;
+    causalVerdict: JsonValue;
   }>;
   evidence: Readonly<{
     physicsAnalysis: JsonValue;
@@ -121,8 +129,6 @@ export interface ResolvedReportRecord {
     fraudScoreBreakdown: JsonValue;
     costIntelligence: JsonValue;
     narrativeAnalysis: JsonValue;
-    contactGeometry: JsonValue;
-    interpretation: JsonValue;
     documents: readonly ClaimDocumentEvidence[];
     evidenceGovernance: EvidenceGovernanceReportData;
   }>;
@@ -462,11 +468,6 @@ export function toReportDefinitionRow(record: ResolvedReportRecord): Record<stri
     tenant_name: claim.tenantName,
     currency_code: claim.currencyCode,
     excess_amount_cents: claim.excessAmountCents,
-    cover_type: claim.coverType,
-    policy_type: claim.policyType,
-    sum_insured: claim.sumInsured,
-    policy_excess: claim.policyExcess,
-    deductible: claim.deductible,
     incident_type: incident.type,
     incident_date: incident.date,
     incident_location: incident.location,
@@ -516,8 +517,6 @@ export function toReportDefinitionRow(record: ResolvedReportRecord): Record<stri
     fraud_score_breakdown_json: evidence.fraudScoreBreakdown,
     cost_intelligence_json: evidence.costIntelligence,
     narrative_analysis_json: evidence.narrativeAnalysis,
-    cgi_result_json: evidence.contactGeometry,
-    interpretation_result_json: evidence.interpretation,
   };
 }
 
@@ -566,7 +565,12 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
   });
 
   return {
-    scope: { tenantId, claimId: Number(row.id), claimReference: row.claim_reference as string | null },
+    scope: {
+      tenantId,
+      claimId: Number(row.id),
+      claimReference: row.claim_reference as string | null,
+      claimNumber: (row.claim_number ?? row.claim_reference) as string | null,
+    },
     claim: {
       status: row.status as string | null,
       workflowState: row.workflow_state as string | null,
@@ -580,14 +584,14 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
       tenantName: row.tenant_name as string | null,
       currencyCode: resolved.currencyCode,
       excessAmountCents: asNumber(row.excess_amount_cents),
-      coverType: asString(row.cover_type),
-      policyType: asString(row.policy_type),
-      sumInsured: asNumber(row.sum_insured),
-      policyExcess: asNumber(row.policy_excess),
-      deductible: asNumber(row.deductible),
+      panelBeaterChoice1: row.panel_beater_choice_1 as string | null,
+      panelBeaterChoice2: row.panel_beater_choice_2 as string | null,
+      panelBeaterChoice3: row.panel_beater_choice_3 as string | null,
+      assignedPanelBeaterId: asNumber(row.assigned_panel_beater_id),
     },
     incident: {
       type: resolved.incidentType,
+      description: row.incident_description as string | null,
       date: resolved.accidentDate,
       location: resolved.accidentLocation,
       description: asString(row.incident_description),
@@ -627,6 +631,10 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
       modelVersion: row.model_version as string | null,
       triggeredRole: row.triggered_role as string | null,
       damageDescription: row.damage_description as string | null,
+      estimatedCost: asNumber(row.estimated_cost),
+      fraudRiskLevel: row.fraud_risk_level as string | null,
+      confidenceScore: asNumber(row.assessment_confidence_score),
+      causalVerdict: parseJson(row.causal_verdict_json),
     },
     evidence: {
       physicsAnalysis: parseJson(row.physics_analysis),
@@ -641,8 +649,6 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
       fraudScoreBreakdown: parseJson(row.fraud_score_breakdown_json),
       costIntelligence: parseJson(row.cost_intelligence_json),
       narrativeAnalysis: parseJson(row.narrative_analysis_json),
-      contactGeometry: parseJson(row.cgi_result_json),
-      interpretation: parseJson(row.interpretation_result_json),
       documents: children.documents,
       evidenceGovernance: children.evidenceGovernance,
     },
@@ -670,6 +676,7 @@ const ASSESSMENT_COLUMNS = `
          a.created_at AS assessment_created_at,
          a.model_version,
          a.triggered_role,
+         a.confidence_score AS assessment_confidence_score,
          a.fraud_score,
          a.fraud_risk_level,
          a.recommendation,
@@ -694,8 +701,10 @@ const ASSESSMENT_COLUMNS = `
          a.narrative_analysis_json,
          a.forensic_audit_validation_json,
          a.ife_result_json,
-         a.cgi_result_json,
-         a.interpretation_result_json`;
+         /* Intentionally omit cgi_result_json and interpretation_result_json:
+          * no active ResolvedReportRecord consumer exists. Reintroduce only
+          * alongside an audited renderer consumer, not as latent contract data. */
+         a.causal_verdict_json`;
 
 async function loadLatestAssessment(
   conn: mysql.Connection,

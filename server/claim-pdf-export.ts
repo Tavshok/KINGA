@@ -32,10 +32,9 @@ import { eq, and, inArray } from "drizzle-orm";
 import { insurerDomainProcedure } from "./_core/trpc";
 import { getDb } from "./db";
 import { storagePut } from "./storage";
+import { resolveReportRecord, type ResolvedReportRecord } from "./reporting/resolvedReportRecord";
 import {
-  claims,
   panelBeaterQuotes,
-  aiAssessments,
   quoteOptimisationResults,
   marketplaceProfiles,
   insurerMarketplaceRelationships,
@@ -167,9 +166,36 @@ const RANK_ICONS: Record<1 | 2 | 3, string> = {
 
 // ─── HTML Generator ──────────────────────────────────────────────────────────
 
+interface ClaimPdfClaimView {
+  claimNumber: string | null;
+  status: string | null;
+  currencyCode: string | null;
+  vehicleMake: string | null;
+  vehicleModel: string | null;
+  vehicleYear: number | null;
+  vehicleRegistration: string | null;
+  policyNumber: string | null;
+  incidentDate: Date | string | null;
+  incidentLocation: string | null;
+  incidentDescription: string | null;
+  incidentType: string | null;
+  panelBeaterChoice1: string | null;
+  panelBeaterChoice2: string | null;
+  panelBeaterChoice3: string | null;
+  assignedPanelBeaterId: number | null;
+}
+
+interface ClaimPdfAssessmentView {
+  estimatedCost: number | null;
+  fraudRiskLevel: string | null;
+  confidenceScore: number | null;
+  damageDescription: string | null;
+  causalVerdictJson: unknown;
+}
+
 interface ClaimPDFData {
-  claim: typeof claims.$inferSelect;
-  aiAssessment: typeof aiAssessments.$inferSelect | null;
+  claim: ClaimPdfClaimView;
+  aiAssessment: ClaimPdfAssessmentView | null;
   quotes: (typeof panelBeaterQuotes.$inferSelect)[];
   optimisation: typeof quoteOptimisationResults.$inferSelect | null;
   decisionUser: { name: string | null } | null;
@@ -179,7 +205,39 @@ interface ClaimPDFData {
   currencySymbol?: string;
 }
 
-function generateClaimPDFHTML(data: ClaimPDFData): string {
+/** Presentation-only legacy-PDF adapter. The canonical record owns assessment selection. */
+export function toClaimPdfCanonicalInput(record: ResolvedReportRecord): Pick<ClaimPDFData, "claim" | "aiAssessment" | "currencySymbol"> {
+  return {
+    claim: {
+      claimNumber: record.scope.claimNumber,
+      status: record.claim.status,
+      currencyCode: record.claim.currencyCode,
+      vehicleMake: record.vehicle.make,
+      vehicleModel: record.vehicle.model,
+      vehicleYear: record.vehicle.year,
+      vehicleRegistration: record.vehicle.registration,
+      policyNumber: record.claim.policyNumber,
+      incidentDate: record.incident.date,
+      incidentLocation: record.incident.location,
+      incidentDescription: record.incident.description,
+      incidentType: record.incident.type,
+      panelBeaterChoice1: record.claim.panelBeaterChoice1,
+      panelBeaterChoice2: record.claim.panelBeaterChoice2,
+      panelBeaterChoice3: record.claim.panelBeaterChoice3,
+      assignedPanelBeaterId: record.claim.assignedPanelBeaterId,
+    },
+    aiAssessment: record.assessment.assessmentId == null ? null : {
+      estimatedCost: record.assessment.estimatedCost,
+      fraudRiskLevel: record.assessment.fraudRiskLevel,
+      confidenceScore: record.assessment.confidenceScore,
+      damageDescription: record.assessment.damageDescription,
+      causalVerdictJson: record.assessment.causalVerdict,
+    },
+    currencySymbol: resolveCurrencySymbol(record.claim.currencyCode),
+  };
+}
+
+export function generateClaimPDFHTML(data: ClaimPDFData): string {
   const {
     claim,
     aiAssessment,
@@ -877,42 +935,45 @@ export const exportClaimPDF = insurerDomainProcedure
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
-    const tenantId = ctx.insurerTenantId; // guaranteed non-null by insurerDomainProcedure
-
-    // ── 1. Fetch claim — hard-filtered by tenant ───────────────────────────
-    const claimRows = await db
-      .select()
-      .from(claims)
-      .where(
-        and(
-          eq(claims.id, input.claimId),
-          eq(claims.tenantId, tenantId)
-        )
-      )
-      .limit(1);
-
-    const claim = claimRows[0];
-    if (!claim) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+    const tenantId = ctx.insurerTenantId;
+    if (!tenantId) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped insurer session is required" });
     }
 
-    // ── 2. Fetch KINGA assessment ─────────────────────────────────────────────
-    const aiRows = await db
-      .select()
-      .from(aiAssessments)
-      .where(eq(aiAssessments.claimId, input.claimId))
-      .orderBy(aiAssessments.id)
-      .limit(1);
-    const aiAssessment = aiRows[0] ?? null;
+    // ── 1. Resolve canonical claim and deterministic latest assessment ─────
+    // The insurer procedure supplies the tenant scope. Canonical resolution
+    // rejects missing or foreign claims before ancillary evidence is queried.
+    let canonicalRecord: ResolvedReportRecord;
+    try {
+      canonicalRecord = await resolveReportRecord({
+        claimId: input.claimId,
+        tenantId,
+        audience: "audit",
+      });
+    } catch (error) {
+      // Preserve the legacy public response without exposing tenant scope, but
+      // do not disguise an unavailable database or resolver defect as absence.
+      if (error instanceof Error && /not found in the current tenant scope/i.test(error.message)) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+      }
+      throw error;
+    }
+    const canonicalInput = toClaimPdfCanonicalInput(canonicalRecord);
+    const { claim, aiAssessment } = canonicalInput;
 
-    // ── 3. Fetch panel beater quotes ──────────────────────────────────────
+    // ── 2. Fetch panel beater quotes for the authorized claim ──────────────
     const quotes = await db
       .select()
       .from(panelBeaterQuotes)
-      .where(eq(panelBeaterQuotes.claimId, input.claimId))
+      .where(
+        and(
+          eq(panelBeaterQuotes.claimId, input.claimId),
+          eq(panelBeaterQuotes.tenantId, tenantId),
+        )
+      )
       .orderBy(panelBeaterQuotes.id);
 
-    // ── 4. Fetch latest completed optimisation result ─────────────────────
+    // ── 3. Fetch completed optimisation for the authorized claim ──────────
     const optRows = await db
       .select()
       .from(quoteOptimisationResults)
@@ -932,7 +993,12 @@ export const exportClaimPDF = insurerDomainProcedure
       const userRows = await db
         .select({ name: users.name })
         .from(users)
-        .where(eq(users.id, optimisation.insurerDecisionBy))
+        .where(
+          and(
+            eq(users.id, optimisation.insurerDecisionBy),
+            eq(users.tenantId, tenantId),
+          )
+        )
         .limit(1);
       decisionUser = userRows[0] ?? null;
     }
@@ -1022,8 +1088,7 @@ export const exportClaimPDF = insurerDomainProcedure
 
     // ── 8. Generate HTML ──────────────────────────────────────────────────
     const htmlContent = generateClaimPDFHTML({
-      claim,
-      aiAssessment,
+      ...canonicalInput,
       quotes,
       optimisation,
       decisionUser,

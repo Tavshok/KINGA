@@ -23,19 +23,26 @@ export const auditRouter = router({
       attemptedRoute: z.string(),
       userRole: z.string(),
       insurerRole: z.string().nullable(),
-      tenantId: z.string().nullable(),
       denialReason: z.string(),
     }))
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      // Log the access denial attempt
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "A tenant-scoped session is required for access-denial audit logging.",
+        });
+      }
+      // Audit attribution is derived solely from the authenticated session.
+      // Callers cannot choose or spoof the tenant recorded for their denial.
       await db.insert(accessDenialLog).values({
         userId: ctx.user.id,
         attemptedRoute: input.attemptedRoute,
         userRole: input.userRole,
         insurerRole: input.insurerRole,
-        tenantId: input.tenantId,
+        tenantId,
         denialReason: input.denialReason,
         // Note: IP address and user agent would need to be extracted from request headers
         ipAddress: null,

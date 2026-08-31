@@ -624,41 +624,6 @@ export default function AssessmentResults() {
   const handleSaveEdits = () => { setExtractedData(editedData); setIsEditing(false); toast.success("Changes saved"); if (editedData.damageDescription) parseDamageDescription(editedData.damageDescription); };
   const handleCancelEdit = () => { setEditedData(extractedData || {}); setIsEditing(false); };
 
-  const exportPDF = trpc.insurers.exportAssessmentPDF.useMutation();
-  const handleExportReport = async () => {
-    if (!extractedData) { toast.error("No data to export"); return; }
-    try {
-      toast.info("Generating PDF...");
-      const result = await exportPDF.mutateAsync({
-        vehicleMake: extractedData.vehicleMake,
-        vehicleModel: extractedData.vehicleModel,
-        vehicleYear: extractedData.vehicleYear,
-        vehicleRegistration: extractedData.vehicleRegistration || extractedData.registration,
-        damageDescription: extractedData.damageDescription,
-        estimatedCost: extractedData.estimatedCost,
-        originalQuote: extractedData.originalQuote,
-        agreedCost: extractedData.agreedCost,
-        savings: extractedData.savings,
-        physicsAnalysis: extractedData.physicsAnalysis,
-        fraudAnalysis: extractedData.fraudAnalysis,
-        damagePhotos: extractedData.damagePhotos,
-        damagedComponents: damagedComponents,
-        crossValidation: extractedData.crossValidation,
-        normalizedComponents: extractedData.normalizedComponents,
-        componentRecommendations: extractedData.componentRecommendations,
-        itemizedCosts: extractedData.itemizedCosts,
-        accidentType: extractedData.accidentType,
-        accidentDate: extractedData.accidentDate,
-        accidentDescription: extractedData.accidentDescription,
-        assessorName: extractedData.assessorName,
-        repairerName: extractedData.repairerName,
-        claimantName: extractedData.claimantName,
-        claimNumber: extractedData.claimNumber,
-      });
-      if (result.success && result.pdfUrl) { window.open(result.pdfUrl, '_blank'); toast.success("PDF Generated!"); }
-    } catch (error: any) { toast.error("Export Failed", { description: error.message }); }
-  };
-
   // ─── Normalize physics data ──────────────────────────────────────────
   const rawPhysics = extractedData?.physicsAnalysis || {};
   const physicsData = {
@@ -774,8 +739,8 @@ export default function AssessmentResults() {
                 <Button onClick={handleCancelEdit} variant="outline" size="sm" className="gap-2"><X className="w-4 h-4" /> Cancel</Button>
               </>
             )}
-            <Button onClick={handleExportReport} variant="outline" size="sm" className="gap-2" disabled={exportPDF.isPending}>
-              {exportPDF.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><FileDown className="w-4 h-4" /> Export PDF</>}
+            <Button variant="outline" size="sm" className="gap-2" disabled title="Create the claim first to generate a server-verified PDF.">
+              <FileDown className="w-4 h-4" /> Create claim to export verified PDF
             </Button>
           </div>
         </div>
