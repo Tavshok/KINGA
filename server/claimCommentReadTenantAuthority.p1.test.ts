@@ -11,7 +11,8 @@ describe("claim comment read tenant authority", () => {
     expect((routerSource.match(/A tenant-scoped session is required/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(routerSource).not.toContain("const tenantId = user.tenantId ?? \"\"");
     expect(helperSource).toContain("userEmail: string,\n  tenantId: string");
-    expect(helperSource).toContain("AND cc.tenant_id = ?\n         AND c.tenantId = ?");
-    expect(helperSource).toContain("WHERE cc.parent_comment_id = ? AND cc.tenant_id = ?");
+    expect(helperSource).toContain("AND cc.tenant_id = ?\n         AND c.tenant_id = ?");
+    expect(helperSource).not.toContain("c.tenantId");
+    expect(helperSource).toContain("INNER JOIN claims c ON c.id = cc.claimId");
   });
 });

@@ -151,7 +151,8 @@ export const inspectionsRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const ref = generateInspectionRef();
-      const tenantId = ctx.user!.tenantId ?? "platform";
+      // Guaranteed by engineerDomainProcedure; no synthetic tenant fallback.
+      const tenantId = ctx.user!.tenantId!;
 
       let assignedEngineerId: number | null = null;
       let assignedAt: Date | null = null;
@@ -887,7 +888,8 @@ export const inspectionsRouter = router({
       availabilityNotes: z.string().max(500).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.user!.tenantId ?? "platform";
+      // Guaranteed by engineerDomainProcedure; no synthetic tenant fallback.
+      const tenantId = ctx.user!.tenantId!;
 
       const [existing] = await ctx.db
         .select({ id: engineerProfiles.id })
@@ -965,7 +967,8 @@ export const inspectionsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const projectRef = `PROJ-${Date.now().toString(36).toUpperCase()}`;
       const [result] = await ctx.db.insert(inspectionProjects).values({
-        tenantId: ctx.user!.tenantId ?? null,
+        // Guaranteed by engineerDomainProcedure; no null-tenant project rows.
+        tenantId: ctx.user!.tenantId!,
         projectRef,
         projectName: input.projectName,
         clientName: input.clientName,
@@ -984,9 +987,9 @@ export const inspectionsRouter = router({
       offset: z.number().int().min(0).default(0),
     }))
     .query(async ({ ctx, input }) => {
-      const conditions: any[] = ctx.user!.tenantId
-        ? [eq(inspectionProjects.tenantId, ctx.user!.tenantId)]
-        : [eq(inspectionProjects.createdBy, ctx.user!.id)];
+      // Guaranteed by engineerDomainProcedure; no owner-only tenantless fallback.
+      const tenantId = ctx.user!.tenantId!;
+      const conditions: any[] = [eq(inspectionProjects.tenantId, tenantId)];
       if (input.status !== 'all') conditions.push(eq(inspectionProjects.status, input.status as any));
       const rows = await ctx.db.select().from(inspectionProjects)
         .where(and(...conditions))

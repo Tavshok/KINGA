@@ -10,13 +10,51 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomBytes } from "crypto";
 import { storagePut } from "./storage";
-import { protectedProcedure } from "./_core/trpc";
+import { insurerDomainProcedure } from "./_core/trpc";
+import { resolveReportRecord, type ResolvedReportRecord } from "./reporting/resolvedReportRecord";
 import puppeteer from "puppeteer-core";
+
+function asDisplayList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => typeof item === "string"
+    ? item
+    : typeof item === "object" && item != null
+      ? String((item as Record<string, unknown>).name ?? (item as Record<string, unknown>).component ?? "")
+      : "").filter(Boolean);
+}
+
+/**
+ * Maps only the authoritative canonical report record into the legacy template.
+ * No caller-supplied visual, monetary, fraud, or decision value can influence
+ * the exported assessment PDF.
+ */
+export function toAssessmentPdfCanonicalInput(record: ResolvedReportRecord) {
+  return {
+    vehicleMake: record.vehicle.make,
+    vehicleModel: record.vehicle.model,
+    vehicleYear: record.vehicle.year,
+    vehicleRegistration: record.vehicle.registration,
+    damageDescription: record.assessment.damageDescription,
+    estimatedCost: record.assessment.estimatedCost,
+    physicsAnalysis: record.evidence.physicsAnalysis,
+    fraudAnalysis: {
+      risk_level: record.assessment.fraudRiskLevel,
+      fraud_probability: record.decision.normalised.fraud.score / 100,
+    },
+    damagedComponents: asDisplayList(record.evidence.aiDetectedDamageComponents),
+    crossValidation: record.evidence.crossValidation,
+    accidentType: record.incident.type,
+    accidentDate: record.incident.date,
+    accidentDescription: record.incident.description,
+    claimantName: record.claim.lodgerName,
+    claimNumber: record.scope.claimNumber,
+  };
+}
 
 /**
  * Generate HTML content for the PDF report
  */
-function generateReportHTML(data: any): string {
+export function generateAssessmentReportHTML(data: any): string {
   const {
     vehicleMake,
     vehicleModel,
@@ -661,39 +699,28 @@ function generateReportHTML(data: any): string {
 /**
  * Export assessment report as PDF
  */
-export const exportAssessmentPDF = protectedProcedure
-  .input(
-    z.object({
-      vehicleMake: z.string().optional(),
-      vehicleModel: z.string().optional(),
-      vehicleYear: z.number().optional(),
-      vehicleRegistration: z.string().optional(),
-      damageDescription: z.string().optional(),
-      estimatedCost: z.number().optional(),
-      originalQuote: z.number().optional(),
-      agreedCost: z.number().optional(),
-      savings: z.number().optional(),
-      physicsAnalysis: z.any().optional(),
-      fraudAnalysis: z.any().optional(),
-      damagePhotos: z.array(z.string()).optional(),
-      damagedComponents: z.array(z.string()).optional(),
-      crossValidation: z.any().optional(),
-      normalizedComponents: z.any().optional(),
-      componentRecommendations: z.any().optional(),
-      itemizedCosts: z.any().optional(),
-      accidentType: z.string().optional(),
-      accidentDate: z.string().optional(),
-      accidentDescription: z.string().optional(),
-      assessorName: z.string().optional(),
-      repairerName: z.string().optional(),
-      claimantName: z.string().optional(),
-      claimNumber: z.string().optional(),
-    })
-  )
-  .mutation(async ({ input }: { input: any }) => {
+export const assessmentPdfExportInputSchema = z.object({
+  claimId: z.number().int().positive(),
+});
+
+export const exportAssessmentPDF = insurerDomainProcedure
+  .input(assessmentPdfExportInputSchema)
+  .mutation(async ({ ctx, input }: { ctx: any; input: { claimId: number } }) => {
     try {
+      const tenantId = ctx.insurerTenantId;
+      if (!tenantId) throw new Error("A tenant-scoped insurer session is required");
+      let record: ResolvedReportRecord;
+      try {
+        record = await resolveReportRecord({ claimId: input.claimId, tenantId, audience: "claim_assessment" });
+      } catch (error) {
+        if (error instanceof Error && /not found in the current tenant scope/i.test(error.message)) {
+          throw new Error("Claim not found or access denied");
+        }
+        throw error;
+      }
+      const data = toAssessmentPdfCanonicalInput(record);
       // Generate HTML content
-      const htmlContent = generateReportHTML(input);
+      const htmlContent = generateAssessmentReportHTML(data);
 
       // Create temporary files
       const tempId = randomBytes(16).toString('hex');
@@ -724,7 +751,7 @@ export const exportAssessmentPDF = protectedProcedure
       }
 
       // Upload to S3
-      const fileName = `assessment-report-${input.vehicleRegistration || tempId}-${Date.now()}.pdf`;
+      const fileName = `assessment-report-${data.vehicleRegistration || tempId}-${Date.now()}.pdf`;
       const { url } = await storagePut(
         `reports/${fileName}`,
         pdfBuffer,
