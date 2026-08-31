@@ -114,19 +114,18 @@ describe("R-INF-04: stage-7b LLM retry", () => {
 
 // ── R-INF-05: stage-6 PDF passes wrapped in withRetry ────────────────────────
 describe("R-INF-05: stage-6 PDF pass retry", () => {
-  const stage6 = readFile("server/pipeline-v2/stage-6-damage-analysis.ts");
+  const visionStage = readFile("server/pipeline-v2/stage-6-damage-analysis.vision.ts");
 
-  it("PDF pass-1 is wrapped in withRetry", () => {
-    expect(stage6).toMatch(/withRetry.*stage-6.*PDF.*pass-1/s);
+  it("vision PDF pass-1 is wrapped in the vision retry helper", () => {
+    expect(visionStage).toMatch(/withRetry.*stage-6.*PDF.*pass-1/s);
   });
 
-  it("PDF pass-2 is wrapped in withRetry", () => {
-    expect(stage6).toMatch(/withRetry.*stage-6.*PDF.*pass-2/s);
+  it("vision PDF pass-2 is wrapped in the vision retry helper", () => {
+    expect(visionStage).toMatch(/withRetry.*stage-6.*PDF.*pass-2/s);
   });
 
-  it("per-image vision calls still use the local withRetry (not the imported one)", () => {
-    // stage-6 has its own local withRetry definition — should still be present
-    expect(stage6).toMatch(/async function withRetry/);
+  it("vision concern retains its local retry helper for per-image calls", () => {
+    expect(visionStage).toMatch(/async function withRetry/);
   });
 });
 
