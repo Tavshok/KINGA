@@ -3,9 +3,10 @@
 > **Start here for engineer enrolment.** This package documents the implementation baseline at `f100e65a1f01d71f461e6bd42d6f15944af41eca` and distinguishes verified facts from **[NOT VERIFIED IN CODEBASE]** items.
 
 1. **Start here:** [System Overview](./KINGA_SYSTEM_OVERVIEW.md), [Engineer Onboarding](./KINGA_ENGINEER_ONBOARDING.md), [Quick Reference](./KINGA_ENGINEERING_QUICK_REFERENCE.md)
-2. **Architecture:** [Architecture Manual](./KINGA_ARCHITECTURE.md)
-3. **Repository evidence map:** [Repository Reconnaissance Register](./KINGA_REPOSITORY_RECONNAISSANCE.md)
-4. **Codebase:** [Codebase Guide](./KINGA_CODEBASE_GUIDE.md)
+2. **Technical key:** [Engineering System Manual](./KINGA_ENGINEERING_SYSTEM_MANUAL.md)
+3. **Architecture:** [Architecture Manual](./KINGA_ARCHITECTURE.md)
+4. **Repository evidence map:** [Repository Reconnaissance Register](./KINGA_REPOSITORY_RECONNAISSANCE.md)
+5. **Codebase:** [Codebase Guide](./KINGA_CODEBASE_GUIDE.md)
 4. **Database:** [Database Manual](./KINGA_DATABASE_MANUAL.md)
 5. **APIs:** [API Reference](./KINGA_API_REFERENCE.md)
 6. **Security:** [Security Manual](./KINGA_SECURITY_MANUAL.md)

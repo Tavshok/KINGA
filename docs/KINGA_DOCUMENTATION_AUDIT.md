@@ -36,6 +36,7 @@ Engineers must not assume a page is wired to an authorised procedure, a package 
 | New manual | Primary repository evidence reviewed | Explicit boundary recorded |
 |---|---|---|
 | `KINGA_SYSTEM_OVERVIEW.md` | `client/src`, `server/routers.ts`, `server/_core/index.ts`, `drizzle/schema.ts` | Product labels do not prove every channel/workflow/provider is live. |
+| `KINGA_ENGINEERING_SYSTEM_MANUAL.md` | core runtime, router assembly, Pipeline V2 orchestrator/stages, reporting resolvers/models, authority procedures and regressions | It is a trace key; optional stage/provider activation is determined by the actual caller/condition. |
 | `KINGA_ARCHITECTURE.md` | runtime/core, router assembly, reporting/pipeline directory structure, Docker/CI artefacts | Deployment topology and active infrastructure are not inferred from artefacts. |
 | `KINGA_CODEBASE_GUIDE.md` | client page inventory, server/router and shared/database layout | Page presence is not proof of authorisation or complete functionality. |
 | `KINGA_REPOSITORY_RECONNAISSANCE.md` | source directories, router/module inventories, schema, test/configuration artefacts | It directs full-code tracing for a change; it is not a procedure-body substitute. |
