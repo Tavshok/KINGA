@@ -594,7 +594,6 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
       description: row.incident_description as string | null,
       date: resolved.accidentDate,
       location: resolved.accidentLocation,
-      description: asString(row.incident_description),
       weatherConditions: row.weather_conditions as string | null,
       roadSurface: row.road_surface as string | null,
       gpsLatitude: asNumber(row.gps_lat),
