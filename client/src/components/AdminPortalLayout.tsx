@@ -54,7 +54,7 @@ import {
   ScrollText,
   UserCheck,
 } from "lucide-react";
-import { Clock, PlusCircle, Network } from "lucide-react";
+import { Clock, PlusCircle } from "lucide-react";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
 

@@ -319,19 +319,10 @@ describe("claimsIntelligenceReport.ts — HTML structure", () => {
     expect(cirSource).toMatch(/timeline|incident.*date|submission.*date|days.*submit/i);
   });
 
-  it("queries claims table with correct column names", () => {
-    expect(cirSource).toContain("c.incident_date");
-    expect(cirSource).toContain("c.lodger_name");
-    expect(cirSource).toContain("a.fraud_score");
-    expect(cirSource).toContain("a.estimated_cost");
-  });
-
-  it("uses mysql2 for DB connection", () => {
-    expect(cirSource).toContain("mysql2/promise");
-  });
-
-  it("closes DB connection in finally block", () => {
-    expect(cirSource).toContain("conn.end()");
+  it("reads claim data only through the canonical resolved report record", () => {
+    expect(cirSource).toContain("resolveReportRecord({ claimId, tenantId");
+    expect(cirSource).toContain("toReportDefinitionRow(record)");
+    expect(cirSource).not.toMatch(/mysql2\/promise|createConnection|conn\.(execute|query)|\bSELECT\b/);
   });
 });
 
@@ -404,19 +395,10 @@ describe("forensicDecisionReport.ts — HTML structure", () => {
     expect(fdrSource).toMatch(/§B|Definitions|Glossary|KINGA.*term/i);
   });
 
-  it("queries claims table with correct column names", () => {
-    expect(fdrSource).toContain("c.incident_date");
-    expect(fdrSource).toContain("c.lodger_name");
-    expect(fdrSource).toContain("a.fraud_score");
-    expect(fdrSource).toContain("a.estimated_cost");
-  });
-
-  it("uses mysql2 for DB connection", () => {
-    expect(fdrSource).toContain("mysql2/promise");
-  });
-
-  it("closes DB connection in finally block", () => {
-    expect(fdrSource).toContain("conn.end()");
+  it("reads forensic report data only through the tenant-scoped forensic model", () => {
+    expect(fdrSource).toContain("resolveForensicReportModel({ claimId, tenantId, audience: \"forensic\" })");
+    expect(fdrSource).toContain("toForensicLegacyRendererInputs(forensicModel)");
+    expect(fdrSource).not.toMatch(/mysql2\/promise|createConnection|conn\.(execute|query)|\bSELECT\b/);
   });
 });
 
