@@ -8,7 +8,6 @@ import { Separator } from "@/components/ui/separator";
 import { Car, AlertTriangle, Wrench, FileText, Bell, LogOut, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import KingaLogo from "@/components/KingaLogo";
-import { trpc } from "@/lib/trpc";
 
 export default function FleetDriverDashboard() {
   const { user, logout } = useAuth();
