@@ -13,6 +13,7 @@ import { eq, and, desc, sql, gte } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { parsePhysicsAnalysis } from '../../shared/physics-types';
 import PDFDocument from 'pdfkit';
+import { canAccessReport } from './reporting';
 
 /**
  * Helper function to safely convert any value to number
@@ -45,6 +46,12 @@ function requireReportTenant(sessionTenantId: string | null | undefined, request
     throw new TRPCError({ code: "FORBIDDEN", message: "Requested tenant does not match the authenticated tenant" });
   }
   return sessionTenantId;
+}
+
+function requireAlternateReportAccess(ctx: { user: { role: string; insurerRole?: string | null } }, reportKey: string): void {
+  if (!canAccessReport(reportKey, ctx.user.role, ctx.user.insurerRole ?? null)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this report type." });
+  }
 }
 
 /**
@@ -130,14 +137,15 @@ export const reportsRouter = router({
    * Comprehensive overview of claims processing, KPIs, and performance metrics.
    */
   generateExecutiveReport: protectedProcedure
-    .input(
-      z.object({
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-        tenantId: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
+   .input(
+     z.object({
+       startDate: z.string().optional(),
+       endDate: z.string().optional(),
+       tenantId: z.string().optional(),
+     })
+   )
+   .mutation(async ({ ctx, input }) => {
+      requireAlternateReportAccess(ctx, "executive.portfolio_overview");
       assertRestrictedAgencyAssistedCapability(ctx.user, "report_access");
       const startTime = Date.now();
       const db = await getDb();
@@ -232,14 +240,15 @@ export const reportsRouter = router({
    * Detailed financial analysis of claims, approvals, and value distributions.
    */
   generateFinancialSummary: protectedProcedure
-    .input(
-      z.object({
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-        tenantId: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
+   .input(
+     z.object({
+       startDate: z.string().optional(),
+       endDate: z.string().optional(),
+       tenantId: z.string().optional(),
+     })
+   )
+   .mutation(async ({ ctx, input }) => {
+      requireAlternateReportAccess(ctx, "executive.portfolio_overview");
       assertRestrictedAgencyAssistedCapability(ctx.user, "report_access");
       const startTime = Date.now();
       const db = await getDb();
@@ -341,14 +350,15 @@ export const reportsRouter = router({
    * Comprehensive audit trail of workflow events, overrides, and role changes.
    */
   generateAuditTrailReport: protectedProcedure
-    .input(
-      z.object({
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-        tenantId: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
+   .input(
+     z.object({
+       startDate: z.string().optional(),
+       endDate: z.string().optional(),
+       tenantId: z.string().optional(),
+     })
+   )
+   .mutation(async ({ ctx, input }) => {
+      requireAlternateReportAccess(ctx, "claim.audit_trail");
       assertRestrictedAgencyAssistedCapability(ctx.user, "report_access");
       const startTime = Date.now();
       const db = await getDb();

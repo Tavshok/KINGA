@@ -76,16 +76,16 @@ const REPORT_CATALOGUE = [
   { key: "claim.forensic",                    name: "Forensic Claim Decision Report",         category: "Claim Reports",  description: "Physics analysis, fraud indicators, narrative consistency, and forensic audit validation.",        requiresClaimId: true  },
   { key: "claim.audit_trail",                 name: "Claim Decision Audit Trail",       category: "Claim Reports",  description: "Immutable log of all workflow events and KINGA assessment history for a single claim.",              requiresClaimId: true  },
   { key: "portfolio.claims_summary",          name: "Claims Portfolio Summary",         category: "Portfolio",      description: "Aggregate claims statistics, approval rates, and total value summary for a selected period.",     requiresClaimId: false },
-  { key: "portfolio.dwell_time",              name: "Processing Dwell Time Report",     category: "Portfolio",      description: "Average and maximum time claims spend in each workflow stage, highlighting bottlenecks.",        requiresClaimId: false },
+  { key: "portfolio.dwell_time",              name: "Claim Elapsed Time by Current Status", category: "Portfolio",   description: "Average and maximum total elapsed time from claim creation to latest update, grouped by current status; not time spent within a workflow stage.", requiresClaimId: false },
   { key: "portfolio.panel_beater_performance",name: "Panel Beater Performance Report",  category: "Portfolio",      description: "Panel beater quote accuracy, structural gap rates, and anomaly scores across the network.",       requiresClaimId: false },
+  { key: "claims_manager.portfolio_overview", name: "Claims Manager Portfolio Report",   category: "Portfolio",      description: "Claims totals, processing state, value, and operational portfolio indicators.",                   requiresClaimId: false },
   // ── Risk Manager ──────────────────────────────────────────────────────────────────
   { key: "portfolio.fraud_summary",           name: "Fraud Detection Summary",          category: "Risk & Fraud",   description: "Fraud risk distribution, high-risk claim breakdown, physics-based violation counts, and savings.", requiresClaimId: false },
   { key: "portfolio.assessor_performance",    name: "Assessor Performance Report",      category: "Risk & Fraud",   description: "Assessor routing patterns, cost reduction rates, variance scores, and anomaly flags.",            requiresClaimId: false },
   { key: "risk_manager_portfolio",            name: "Risk Portfolio Overview",          category: "Risk & Fraud",   description: "Combined fraud and risk exposure summary for the insurer portfolio.",                             requiresClaimId: false },
+  { key: "risk_manager.portfolio_overview",   name: "Risk Manager Portfolio Report",    category: "Risk & Fraud",   description: "Fraud risk, AI-estimated financial exposure, and risk portfolio indicators.",                     requiresClaimId: false },
   // ── Executive ────────────────────────────────────────────────────────────────────────
-  { key: "executive.insurer_summary",         name: "Insurer Executive Summary",        category: "Executive",      description: "High-level KPI dashboard: claims volume, approval rate, fraud savings, and SLA compliance.",       requiresClaimId: false },
-  { key: "executive.claims_trend",            name: "Claims Trend Report",              category: "Executive",      description: "Month-on-month claims volume and value trends with year-over-year comparison.",                  requiresClaimId: false },
-  { key: "executive.financial_exposure",      name: "Financial Exposure Report",        category: "Executive",      description: "Outstanding claims exposure, reserve adequacy, and projected settlement costs.",                 requiresClaimId: false },
+  { key: "executive.portfolio_overview",       name: "Executive Portfolio Report",       category: "Executive",      description: "Aggregate portfolio, fraud, financial exposure, and operational dwell-time trends.",             requiresClaimId: false },
   // Platform super-admin only
   { key: "executive.platform_dashboard",      name: "Platform Executive Dashboard",     category: "Platform Admin", description: "Platform-wide summary across all insurers. Restricted to platform super-admins.",                requiresClaimId: false },
   { key: "executive.cross_insurer_fraud",     name: "Cross-Insurer Fraud Intelligence", category: "Platform Admin", description: "Fraud pattern analysis across all insurer tenants on the platform.",                             requiresClaimId: false },
@@ -597,8 +597,8 @@ export const reportingRouter = router({
           "portfolio.claims_summary", "portfolio.dwell_time",
           "portfolio.panel_beater_performance", "portfolio.fraud_summary",
           "portfolio.assessor_performance", "risk_manager_portfolio",
-          "executive.insurer_summary", "executive.claims_trend",
-          "executive.financial_exposure",
+          "claims_manager.portfolio_overview", "risk_manager.portfolio_overview",
+          "executive.portfolio_overview",
         ];
 
         if (state === "ready") {
