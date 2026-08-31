@@ -308,7 +308,10 @@ export const claimCommentsRouter = router({
   markRead: protectedProcedure
     .input(z.object({ commentId: z.number().int().positive() }))
     .mutation(async ({ input, ctx }) => {
-      await markCommentRead(input.commentId, ctx.user.id);
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+      const marked = await markCommentRead(input.commentId, ctx.user.id, tenantId);
+      if (!marked) throw new TRPCError({ code: "NOT_FOUND", message: "Comment not found in your tenant" });
       return { ok: true };
     }),
 
@@ -332,7 +335,10 @@ export const claimCommentsRouter = router({
   resolve: protectedProcedure
     .input(z.object({ commentId: z.number().int().positive() }))
     .mutation(async ({ input, ctx }) => {
-      await resolveCommentThread(input.commentId, ctx.user.id);
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+      const resolved = await resolveCommentThread(input.commentId, ctx.user.id, tenantId);
+      if (!resolved) throw new TRPCError({ code: "NOT_FOUND", message: "Comment not found in your tenant" });
       return { ok: true };
     }),
 
