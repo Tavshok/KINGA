@@ -73,8 +73,8 @@ const CLAIMS_MANAGER_REPORTS: ReportEntry[] = [
   },
   {
     reportKey: "portfolio.dwell_time",
-    label: "Dwell Time Report",
-    description: "Processing time per workflow stage",
+    label: "Claim Elapsed Time by Current Status",
+    description: "Total time from claim creation to latest update, grouped by current status",
     icon: TrendingUp,
     category: "Portfolio",
   },
@@ -99,19 +99,12 @@ const CLAIMS_MANAGER_REPORTS: ReportEntry[] = [
     icon: Users,
     category: "Portfolio",
   },
-  // Executive / trend reports
+  // Claims-management portfolio report
   {
-    reportKey: "executive.claims_trend",
-    label: "Claims Trend",
-    description: "Monthly claim volume and value trends",
+    reportKey: "claims_manager.portfolio_overview",
+    label: "Claims Manager Portfolio",
+    description: "Claims totals, processing status, value, and operational ageing",
     icon: TrendingUp,
-    category: "Trend",
-  },
-  {
-    reportKey: "executive.financial_exposure",
-    label: "Financial Exposure",
-    description: "Outstanding liability and reserve analysis",
-    icon: BarChart2,
     category: "Trend",
   },
   // Recovery

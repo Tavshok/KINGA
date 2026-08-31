@@ -2004,3 +2004,55 @@ which is for corporate fleet operators.
 - [x] User-approved PR #18 merge: corrected the PR-specific reportDefinitions TypeScript failure, re-validated focused live-TiDB authority/report-contract tests and both production builds, classified remaining CI failures against main as baseline-only, merged PR #18, and confirmed main commit `b0832c513108dc56ffa4016f3f31f33eff0d5409`.
 - [x] Approved aggregate report migration: added scoped `ResolvedPlatformReportCollection` named helpers; migrated the Platform Executive Dashboard plus portfolio, fraud, and dwell-time reports; retained SAR/privacy unchanged; validated live-TiDB authority and renderer coverage plus server/Vite builds; opened review-only PR #19.
 - [x] Maintained named-constant batch: classified all 92 preserved scan candidates; extracted 45 verified executable references into named constants without changing effective values; excluded 47 already-named, prompt/example, stale, low-level, or separately grouped values with rationale in `audit/maintained-constant-classification-2026-08-23.md`; retained the isolated branch without a PR or merge pending GitHub merge-control remediation.
+
+- [x] Approved six-phase post-P0 report remediation: (1) migrate legacy Claim PDF to canonical latest assessment data; (2) server-verify caller-supplied Assessment PDF values; (3) disable or implement Fast Track placeholder exports based on verified feature support; (4) canonicalize executive/portfolio per-claim inputs before aggregation; (5) disambiguate metric labels without changing calculations; and (6) apply `REPORT_ACCESS` to the alternate reports router or safely retire it. Validated per phase and at final held-branch baseline comparison; no PR or merge. Exclusions retained: CL/CI/FR, audit export, Shadow, SAR, forensic structural split, legal policy, schema, and migrations.
+
+- [x] Approved role-based portfolio report consolidation: replaced the former executive/portfolio phase with an inventory and content map for `executive.insurer_summary`, `executive.claims_trend`, `executive.financial_exposure`, and `executive.full_report`; created canonical claims-manager and risk-manager reports plus one aggregate-only executive report; proved shared-KPI parity; traced callers and retired the four superseded keys; and verified executive denial for `executive.ml_performance`. Platform dashboard and cross-insurer fraud remain platform-admin-only; excluded report areas were not changed.
+
+- [x] Post-P0 Phase 1 — legacy Claim PDF canonicalisation: replaced the export-local claim and oldest-assessment reads with a tenant-scoped `resolveReportRecord()` and typed presentation adapter; made the selected assessment confidence explicit; retained output structure; added live-TiDB canonical latest-row, rendered-value, foreign-tenant-denial, and exact cleanup coverage; passed focused suites and builds; completed parent-baseline fresh-worker failure comparison. Evidence: `audit/post-p0-claim-pdf-canonicalisation-2026-08-29.md`.
+
+- [x] Post-P0 Phase 2 — Assessment PDF server authority: completed; see the succeeding implementation and evidence entry.
+
+- [x] Post-P0 Phase 2 — Assessment PDF server authority: endpoint now accepts only a persisted claim ID and derives template values from the tenant-scoped canonical record; pre-persistence UI is honestly disabled; live-TiDB tampering and foreign-tenant regression passed; builds passed. Evidence: `audit/post-p0-assessment-pdf-server-authority-2026-08-29.md`.
+
+- [x] Post-P0 Phase 3 — Fast Track exports: completed; placeholders were disabled with an honest unavailable state.
+
+- [x] Role-based portfolio reports — completed; see the succeeding implementation and evidence entry.
+
+- [x] Role-based portfolio reports — added canonical `claims_manager.portfolio_overview` and `risk_manager.portfolio_overview`, each tenant-scoped through `resolvePlatformReportCollection`; reports omit recovery/cross-insurer data and have mutual/executive denial assertions. Focused access tests, server bundle, and Vite build passed. Executive parity and retirement remain separate phases.
+
+- [x] Role-based portfolio reports — completed; see the succeeding implementation and evidence entry.
+
+- [x] Role-based portfolio reports — added canonical `executive.portfolio_overview`; live tenant-owned fixture proves manager/executive shared KPI values and excludes recovery content. Corrected canonical aggregate millisecond-to-datetime filtering, which had suppressed records in all filtered report windows. Focused access/parity tests, server bundle, and Vite build passed.
+
+- [x] Role-based portfolio reports — completed; see the succeeding retirement entry.
+
+- [x] Role-based portfolio reports — retired the four superseded executive keys from active access, dispatch, catalogue, workflow readiness, and UI callers after trace; legacy names now appear only in negative access assertions. Focused access tests, server bundle, and Vite build passed.
+
+- [x] Role-based portfolio reports — verified `executive.ml_performance` remains registered only with top-level `admin`; both catalogue filtering and generation use `canAccessReport`, and the executive-role negative assertion passed in the focused 37-test access suite. No production-data or ML-output change was required.
+
+- [x] Post-P0 label phase — completed; see the succeeding clarification entry.
+
+- [x] Post-P0 label phase — clarified that portfolio elapsed-time metrics measure claim creation through latest update and are grouped by current status, not time spent in a workflow stage. Focused live aggregate regression and server/Vite builds passed; no calculations or inputs changed.
+
+- [x] Post-P0 access phase — completed; see the succeeding enforcement and integration-test entries.
+
+- [x] Post-P0 access phase — alternate executive, financial, and aggregate audit PDF procedures now invoke the standard report access function before database access, retaining session-tenant checks. Focused tenant/access regression passed 39/39; server bundle and Vite build passed.
+
+- [x] Post-P0 access phase follow-up — aligned the alternate report integration fixture with the legitimate `insurer_admin` role required by the enforced matrix. Direct router/tenant/access validation passed 52/52, with server and Vite builds passing.
+
+- [x] Post-P0 remediation final validation — fresh-worker suite completed 42 shards and was compared with the immutable baseline; no substantive branch-only failure identifier was found. Controlled TypeScript comparison showed zero branch-only diagnostics. Final evidence: `audit/post-p0-downloadable-report-remediation-final-2026-08-29.md`.
+
+- [ ] Verification-only — generate same-tenant, same-period executive and role-specific reports; compare at least fraud rate, claims volume or approval rate, and financial exposure where present; trace canonical per-claim aggregation paths; report any exact displayed-value mismatch without changing application logic.
+
+- [x] Verification-only — generated a temporary owned same-tenant, same-period non-zero fixture, compared executive/role displayed claims volume, high-risk count, and AI-estimated exposure, traced canonical aggregation, and confirmed cleanup. Fraud rate is absent from both relevant output contracts, so it remains unverifiable rather than assumed.
+
+- [ ] Correct portfolio `approvedCount` and derived Approval Rate after tracing the actual approved-decision semantics; search every invalid claim-status comparison, add an owned multi-status regression, prove a non-zero executive/claims-manager same-period parity result, and commit the single held correction without touching unrelated report tiers.
+
+- [x] Correct portfolio `approvedCount` and derived Approval Rate: live enum and authorised workflow trace establish `completed` as the approved claim outcome; canonical aggregate now counts it via a named mapping; live multi-status regression and same-period Executive/Claims Manager non-zero 33.3% parity passed. Evidence: `audit/approval-rate-status-mismatch-correction-2026-08-29.md`.
+
+- [x] Approved P0 engineer-domain tenant authority correction: required a non-null session tenant in `engineerDomainProcedure`, removed unreachable inspection `platform`/`null`/owner-fallback substitutes, derived audit denial tenant attribution from session only, and proved tenantless role-permitted sessions are rejected before data access against live TiDB. Held on `fix/p0-engineer-tenant-authority` without a PR or merge. Evidence: `audit/engineer-domain-tenant-authority-correction-2026-08-27.md`.
+
+- [x] PR #17 updated-base resolution: merged current `main` into `fix/claim-comment-tenant-authority`; the sole conflict was an append-only `todo.md` collision resolved by retaining both histories. Comment tenant-authority regression passed 15/15; server and Vite builds passed; fresh-worker full suite produced the exact same 45 failed identifiers as the immutable current-main baseline.
+
+- [x] Open-PR updated-base sweep: inventoried all open PRs; resolved actual security/tenant-authority, report, and documentation conflicts by preserving non-competing changes; ran focused live-TiDB suites, fresh-worker baseline comparisons, and production builds for each changed branch; did not merge any PR. PRs #9 and #11 were confirmed mergeable rather than conflicted and were not unnecessarily rewritten.

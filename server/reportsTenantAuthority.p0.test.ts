@@ -13,4 +13,18 @@ describe("generated reports tenant authority", () => {
       expect(block).toContain("requireReportTenant(ctx.user.tenantId, input.tenantId)");
     }
   });
+
+  it("applies the standard report access matrix to each alternate PDF route before database access", () => {
+    expect(source).toContain('import { canAccessReport } from \'./reporting\'');
+    const expectations = [
+      ["generateExecutiveReport:", "executive.portfolio_overview"],
+      ["generateFinancialSummary:", "executive.portfolio_overview"],
+      ["generateAuditTrailReport:", "claim.audit_trail"],
+    ] as const;
+    for (const [name, reportKey] of expectations) {
+      const block = source.slice(source.indexOf(name), source.indexOf("}),", source.indexOf(name)) + 3);
+      expect(block).toContain(`requireAlternateReportAccess(ctx, "${reportKey}")`);
+      expect(block.indexOf(`requireAlternateReportAccess(ctx, "${reportKey}")`)).toBeLessThan(block.indexOf("await getDb()"));
+    }
+  });
 });
