@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Render the Historical Claims Pipeline route and coordinate its role-specific KINGA client experience.
+ * PRIMARY CALLERS: The client route registry and authenticated user navigation.
+ * NEVER: Bypass typed tRPC contracts or decide tenant, role, or workflow authority in the browser.
+ */
+
 import { useState, useCallback, useMemo } from "react";
 import { useDropzone } from "react-dropzone";
 import { trpc } from "@/lib/trpc";

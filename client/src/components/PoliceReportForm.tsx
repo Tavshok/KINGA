@@ -1,3 +1,9 @@
+/**
+ * PURPOSE: Render the Police Report Form interaction or visual surface within the KINGA client.
+ * PRIMARY CALLERS: Role-specific pages and dashboard compositions that provide its state and callbacks.
+ * NEVER: Treat client-side presentation state as the source of tenant, role, or workflow authority.
+ */
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

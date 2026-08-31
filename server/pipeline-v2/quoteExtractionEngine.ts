@@ -729,6 +729,8 @@ Do NOT extract prices, line items, or any other data — only company names.`,
       .replace(/[^a-z0-9\s]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
+  // CALIBRATION: origin unknown, do not change without evaluating repairer-name matching precision and recall.
+  const FUZZY_REPAIRER_NAME_OVERLAP_RATIO = 0.6;
   const fuzzyMatch = (a: string, b: string): boolean => {
     const na = normName(a);
     const nb = normName(b);
@@ -739,7 +741,7 @@ Do NOT extract prices, line items, or any other data — only company names.`,
     const tb = nb.split(' ').filter(t => t.length > 1);
     const overlap = ta.filter(t => tb.includes(t)).length;
     const minLen = Math.min(ta.length, tb.length);
-    if (minLen > 0 && overlap / minLen >= 0.6) return true;
+    if (minLen > 0 && overlap / minLen >= FUZZY_REPAIRER_NAME_OVERLAP_RATIO) return true;
     // T/A suffix prefix check — handles LLM truncation of the trading name.
     // e.g. LLM extracts "KINGFISHER T/A GRAND AUT" (truncated) instead of
     // "KINGFISHER T/A GRAND AUTO PREMIER". The suffix "grand aut" is a prefix

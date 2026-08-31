@@ -263,6 +263,8 @@ function checkPhotosProcessed(input: PhotosProcessedInput): ReadinessCheck {
  * FAIL  — incident_type is null, empty, or "unknown"
  */
 function checkIncidentConfirmed(input: IncidentConfirmedInput): ReadinessCheck {
+  // CALIBRATION: engineering-judgment threshold; do not change without benchmarking.
+  const LOW_INCIDENT_CLASSIFICATION_CONFIDENCE_PERCENT = 60;
   const { classification_confidence, conflict_detected } = input;
   // Normalise collision sub-types (rear_end, head_on, etc.) to canonical vehicle_collision
   const incident_type = canonicaliseIncidentType(input.incident_type);
@@ -311,7 +313,7 @@ function checkIncidentConfirmed(input: IncidentConfirmedInput): ReadinessCheck {
     classification_confidence !== undefined &&
     // CALIBRATION: 60% low-confidence threshold for incident classification WARN
     // is engineering-judgment.
-    classification_confidence < 60
+    classification_confidence < LOW_INCIDENT_CLASSIFICATION_CONFIDENCE_PERCENT
   ) {
     return {
       check_id: "INCIDENT_CONFIRMED",
@@ -345,6 +347,8 @@ function checkIncidentConfirmed(input: IncidentConfirmedInput): ReadinessCheck {
  * FAIL  — physics was explicitly marked as physically invalid
  */
 function checkPhysicsValid(input: PhysicsValidInput): ReadinessCheck {
+  // CALIBRATION: engineering-judgment threshold; do not change without benchmarking.
+  const VERY_LOW_PHYSICS_CONFIDENCE_PERCENT = 40;
   const {
     physics_ran_successfully,
     physics_marked_invalid,
@@ -377,7 +381,7 @@ function checkPhysicsValid(input: PhysicsValidInput): ReadinessCheck {
     physics_confidence !== null &&
     physics_confidence !== undefined &&
     // CALIBRATION: 40% very-low-confidence threshold for physics WARN is engineering-judgment.
-    physics_confidence < 40
+    physics_confidence < VERY_LOW_PHYSICS_CONFIDENCE_PERCENT
   ) {
     return {
       check_id: "PHYSICS_VALID",
@@ -410,6 +414,8 @@ function checkPhysicsValid(input: PhysicsValidInput): ReadinessCheck {
  * FAIL  — true_cost_usd is null, undefined, or zero
  */
 function checkCostAvailable(input: CostAvailableInput): ReadinessCheck {
+  // CALIBRATION: engineering-judgment threshold; do not change without benchmarking.
+  const LOW_SYSTEM_OPTIMISED_COST_CONFIDENCE_PERCENT = 50;
   const { true_cost_usd, cost_basis, cost_confidence } = input;
 
   if (
@@ -434,7 +440,7 @@ function checkCostAvailable(input: CostAvailableInput): ReadinessCheck {
     cost_confidence !== undefined &&
     // CALIBRATION: 50% low-confidence threshold for system_optimised cost WARN
     // is engineering-judgment.
-    cost_confidence < 50
+    cost_confidence < LOW_SYSTEM_OPTIMISED_COST_CONFIDENCE_PERCENT
   ) {
     return {
       check_id: "COST_AVAILABLE",

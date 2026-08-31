@@ -23,7 +23,7 @@ describe("individual report canonical record contract", () => {
     }
   });
 
-  it("routes the approved platform and aggregate renderers through the named aggregate contract while leaving SAR untouched", () => {
+  it("routes the approved platform and aggregate renderers through the named aggregate contract and keeps SAR tenant-bound", () => {
     const claimsSummary = block("async function generateClaimsSummaryReport", "async function generateFraudSummaryReport");
     const fraudSummary = block("async function generateFraudSummaryReport", "async function generateAssessorPerformanceReport");
     const dwellTime = block("async function generateDwellTimeReport", "async function generatePlatformDashboardReport");
@@ -37,6 +37,9 @@ describe("individual report canonical record contract", () => {
     }
     expect(platform).toContain("requirePlatformAggregateAuthority");
     expect(sar).toMatch(/FROM\s+claims\b/i);
+    expect(sar).toContain("c.tenant_id=?");
+    expect(sar).toContain("A tenant-scoped SAR request is required");
+    expect(sar).not.toContain("_tenantId");
     expect(sar).not.toContain("resolvePlatformReportCollection");
     expect(fs.existsSync(path.resolve(process.cwd(), "audit/deferred-report-contract-scoping-2026-08-22.md"))).toBe(true);
   });

@@ -341,6 +341,9 @@ function identifyHighRiskIndicators(
 /**
  * Identify false positive patterns: flags with high FP rate.
  */
+// CALIBRATION: origin unknown, do not change without reviewing labelled fraud outcomes.
+const MIN_FALSE_POSITIVE_RATE_FOR_PATTERN = 0.3;
+
 function identifyFalsePositivePatterns(
   flagStats: ReturnType<typeof computeFlagStats>,
   minFrequency: number
@@ -353,7 +356,7 @@ function identifyFalsePositivePatterns(
     if (stats.false_positives === 0) continue;
 
     const fpRate = stats.false_positives / resolved;
-    if (fpRate < 0.3) continue; // only surface if FP rate >= 30%
+    if (fpRate < MIN_FALSE_POSITIVE_RATE_FOR_PATTERN) continue; // only surface if FP rate >= 30%
 
     // Find problematic scenarios
     const problematicScenarios: string[] = [];
