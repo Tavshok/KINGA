@@ -56,6 +56,7 @@ import { sdk } from "./sdk";
 import { ENV } from "./env";
 import { initWhatsAppProvider } from "../whatsapp/engine";
 import { whatsappWebhookVerify, whatsappWebhookReceive, whatsappTestEndpoint } from "../whatsapp/webhook";
+import { registerAuditExportRoute } from "../audit-export-route";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -180,39 +181,7 @@ async function startServer() {
   // Multipart document upload endpoint — bypasses Cloud Run 30s JSON body timeout
   app.use("/api", uploadDocumentsRouter);
   
-  // Audit Export REST download endpoint
-  // GET /api/claims/:claimId/audit-export.json
-  // Returns the full tamper-evident audit export as a downloadable JSON file.
-  app.get("/api/claims/:claimId/audit-export.json", async (req: express.Request, res: express.Response) => {
-    try {
-      const { claimId } = req.params;
-      if (!claimId || typeof claimId !== 'string') {
-        return res.status(400).json({ error: 'Missing claimId' });
-      }
-      const { generateAuditExport, AuditExportBlockedError } = await import('../audit-export');
-      try {
-        const exportData = await generateAuditExport(claimId);
-        const filename = `audit-export-${claimId}-${Date.now()}.json`;
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.setHeader('X-Payload-Hash', exportData.payload_hash);
-        res.status(200).send(JSON.stringify(exportData, null, 2));
-      } catch (err) {
-        if (err instanceof AuditExportBlockedError) {
-          // Spec-required blocked response — 422 Unprocessable Entity
-          return res.status(422).json({
-            export_allowed: false,
-            reason: 'Missing or inconsistent audit data',
-            checks: err.checks,
-          });
-        }
-        throw err; // re-throw to outer catch
-      }
-    } catch (err) {
-      console.error('[AuditExport] Error generating export:', err);
-      res.status(500).json({ error: 'Failed to generate audit export' });
-    }
-  });
+  registerAuditExportRoute(app);
 
   // ── Scheduled task endpoint: recovery deadline sweep ────────────────────
   // Called daily by the Manus scheduled task agent:
