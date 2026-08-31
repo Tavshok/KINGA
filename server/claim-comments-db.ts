@@ -92,13 +92,13 @@ export async function getClaimComments(
   try {
     // Get root comments visible to this user
     const [rows] = await conn.execute(
-      `SELECT cc.*, u.name as authorName, c.claimNumber
+      `SELECT cc.*, u.name as authorName, c.claim_number AS claimNumber
        FROM claim_comments cc
        LEFT JOIN users u ON u.id = cc.author_user_id
-       LEFT JOIN claims c ON c.id = cc.claimId
+       INNER JOIN claims c ON c.id = cc.claimId
        WHERE cc.claimId = ?
          AND cc.tenant_id = ?
-         AND c.tenantId = ?
+         AND c.tenant_id = ?
          AND cc.parent_comment_id IS NULL
          AND cc.deletedAt IS NULL
          AND (
@@ -119,9 +119,13 @@ export async function getClaimComments(
         `SELECT cc.*, u.name as authorName
          FROM claim_comments cc
          LEFT JOIN users u ON u.id = cc.author_user_id
-         WHERE cc.parent_comment_id = ? AND cc.tenant_id = ? AND cc.deletedAt IS NULL
+         INNER JOIN claims c ON c.id = cc.claimId
+         WHERE cc.parent_comment_id = ?
+           AND cc.tenant_id = ?
+           AND c.tenant_id = ?
+           AND cc.deletedAt IS NULL
          ORDER BY cc.createdAt ASC`,
-        [comment.id, tenantId]
+        [comment.id, tenantId, tenantId]
       );
       comment.replies = (replyRows as any[]).map(parseComment);
     }
@@ -170,12 +174,13 @@ export async function getMyNotifications(
     }
 
     const [rows] = await conn.execute(
-      `SELECT cc.*, u.name as authorName, c.claimNumber,
+      `SELECT cc.*, u.name as authorName, c.claim_number AS claimNumber,
               EXISTS(SELECT 1 FROM claim_comment_reads ccr WHERE ccr.comment_id = cc.id AND ccr.user_id = ?) as isRead
        FROM claim_comments cc
        LEFT JOIN users u ON u.id = cc.author_user_id
-       LEFT JOIN claims c ON c.id = cc.claimId
+       INNER JOIN claims c ON c.id = cc.claimId
        WHERE cc.tenant_id = ?
+         AND c.tenant_id = ?
          AND cc.deletedAt IS NULL
          AND cc.author_user_id != ?
          AND (
@@ -186,7 +191,7 @@ export async function getMyNotifications(
          ${filterClause}
        ORDER BY cc.createdAt DESC
        LIMIT 100`,
-      [userId, tenantId, userId, userRole, userId, userEmail]
+      [userId, tenantId, tenantId, userId, userRole, userId, userEmail]
     );
 
     return (rows as any[]).map(r => ({ ...parseComment(r), isRead: !!r.isRead }));
@@ -209,7 +214,9 @@ export async function getUnreadCommentCount(
     const [rows] = await conn.execute(
       `SELECT COUNT(*) as cnt
        FROM claim_comments cc
+       INNER JOIN claims c ON c.id = cc.claimId
        WHERE cc.tenant_id = ?
+         AND c.tenant_id = ?
          AND cc.deletedAt IS NULL
          AND cc.author_user_id != ?
          AND (
@@ -220,7 +227,7 @@ export async function getUnreadCommentCount(
          AND NOT EXISTS (
            SELECT 1 FROM claim_comment_reads ccr WHERE ccr.comment_id = cc.id AND ccr.user_id = ?
          )`,
-      [tenantId, userId, userRole, userId, userEmail, userId]
+      [tenantId, tenantId, userId, userRole, userId, userEmail, userId]
     );
     return (rows as any[])[0]?.cnt ?? 0;
   } finally {
@@ -285,16 +292,23 @@ export async function createClaimComment(data: {
  */
 export async function resolveCommentThread(
   commentId: number,
-  resolvedByUserId: number
-): Promise<void> {
+  resolvedByUserId: number,
+  tenantId: string,
+): Promise<boolean> {
   const conn = await pool.getConnection();
   try {
     const now = new Date().toISOString();
-    await conn.execute(
-      `UPDATE claim_comments SET is_resolved = 1, resolved_by_user_id = ?, resolved_at = ?
-       WHERE id = ? OR parent_comment_id = ?`,
-      [resolvedByUserId, now, commentId, commentId]
+    const [result] = await conn.execute(
+      `UPDATE claim_comments cc
+       INNER JOIN claims c ON c.id = cc.claimId
+       SET cc.is_resolved = 1, cc.resolved_by_user_id = ?, cc.resolved_at = ?
+       WHERE (cc.id = ? OR cc.parent_comment_id = ?)
+         AND cc.tenant_id = ?
+         AND c.tenant_id = ?
+         AND cc.deletedAt IS NULL`,
+      [resolvedByUserId, now, commentId, commentId, tenantId, tenantId]
     );
+    return Number((result as any).affectedRows ?? 0) > 0;
   } finally {
     conn.release();
   }
@@ -305,15 +319,24 @@ export async function resolveCommentThread(
  */
 export async function markCommentRead(
   commentId: number,
-  userId: number
-): Promise<void> {
+  userId: number,
+  tenantId: string,
+): Promise<boolean> {
   const conn = await pool.getConnection();
   try {
     const now = new Date().toISOString();
-    await conn.execute(
-      `INSERT IGNORE INTO claim_comment_reads (comment_id, user_id, read_at) VALUES (?, ?, ?)`,
-      [commentId, userId, now]
+    const [result] = await conn.execute(
+      `INSERT IGNORE INTO claim_comment_reads (comment_id, user_id, read_at)
+       SELECT cc.id, ?, ?
+       FROM claim_comments cc
+       INNER JOIN claims c ON c.id = cc.claimId
+       WHERE cc.id = ?
+         AND cc.tenant_id = ?
+         AND c.tenant_id = ?
+         AND cc.deletedAt IS NULL`,
+      [userId, now, commentId, tenantId, tenantId]
     );
+    return Number((result as any).affectedRows ?? 0) > 0;
   } finally {
     conn.release();
   }
@@ -333,7 +356,9 @@ export async function markAllNotificationsRead(
     // Get all unread comment IDs for this user
     const [rows] = await conn.execute(
       `SELECT cc.id FROM claim_comments cc
+       INNER JOIN claims c ON c.id = cc.claimId
        WHERE cc.tenant_id = ?
+         AND c.tenant_id = ?
          AND cc.author_user_id != ?
          AND (
            JSON_CONTAINS(cc.to_roles, JSON_QUOTE(?))
@@ -343,7 +368,7 @@ export async function markAllNotificationsRead(
          AND NOT EXISTS (
            SELECT 1 FROM claim_comment_reads ccr WHERE ccr.comment_id = cc.id AND ccr.user_id = ?
          )`,
-      [tenantId, userId, userRole, userId, userEmail, userId]
+      [tenantId, tenantId, userId, userRole, userId, userEmail, userId]
     );
     const ids = (rows as any[]).map(r => r.id);
     if (ids.length === 0) return;
