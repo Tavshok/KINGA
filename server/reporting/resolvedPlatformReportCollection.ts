@@ -27,6 +27,9 @@ import { normaliseReportData, type NormalisedReportData } from "../report-normal
 const DB_URL = process.env.DATABASE_URL!;
 const IN_PROGRESS_STATUSES = new Set(["in_review", "assessment_in_progress", "submitted"]);
 const HIGH_RISK_LEVELS = new Set<FraudRiskLevel>(["high", "elevated"]);
+// `claims.status` has no `approved` value. A claim becomes `completed` only
+// after the authorised settlement acceptance transition closes the workflow.
+const APPROVED_OUTCOME_STATUSES = new Set(["completed"]);
 
 export type ResolvedPlatformReportAuthority =
   | Readonly<{ kind: "tenant"; tenantId: string }>
@@ -150,8 +153,10 @@ function whereClause(authority: ResolvedPlatformReportAuthority, filters: Platfo
     clauses.push("c.tenant_id = ?");
     values.push(authority.tenantId);
   }
-  if (filters.fromTs !== undefined) { clauses.push("c.created_at >= ?"); values.push(filters.fromTs); }
-  if (filters.toTs !== undefined) { clauses.push("c.created_at <= ?"); values.push(filters.toTs); }
+  // Report callers supply UTC milliseconds; claims.created_at is a physical
+  // datetime column, so compare against an explicit SQL datetime conversion.
+  if (filters.fromTs !== undefined) { clauses.push("c.created_at >= FROM_UNIXTIME(? / 1000)"); values.push(filters.fromTs); }
+  if (filters.toTs !== undefined) { clauses.push("c.created_at <= FROM_UNIXTIME(? / 1000)"); values.push(filters.toTs); }
   return { sql: clauses.join(" AND "), values };
 }
 
@@ -212,7 +217,7 @@ function summarisePortfolio(records: readonly AggregateRecord[]): PortfolioAggre
 
   for (const record of records) {
     activeTenants.add(record.tenantId);
-    if (record.status === "approved") approvedCount += 1;
+    if (APPROVED_OUTCOME_STATUSES.has(record.status)) approvedCount += 1;
     if (record.status === "rejected") rejectedCount += 1;
     if (record.status === "settled") settledCount += 1;
     if (IN_PROGRESS_STATUSES.has(record.status)) inProgressCount += 1;
