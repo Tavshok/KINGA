@@ -40,6 +40,7 @@ export interface ResolvedReportRecord {
     tenantId: string;
     claimId: number;
     claimReference: string | null;
+    claimNumber: string | null;
   }>;
   claim: Readonly<{
     status: string | null;
@@ -52,9 +53,14 @@ export interface ResolvedReportRecord {
     insurerName: string | null;
     currencyCode: string | null;
     excessAmountCents: number | null;
+    panelBeaterChoice1: string | null;
+    panelBeaterChoice2: string | null;
+    panelBeaterChoice3: string | null;
+    assignedPanelBeaterId: number | null;
   }>;
   incident: Readonly<{
     type: string | null;
+    description: string | null;
     date: Date | string | null;
     location: string | null;
     weatherConditions: string | null;
@@ -90,6 +96,10 @@ export interface ResolvedReportRecord {
     modelVersion: string | null;
     triggeredRole: string | null;
     damageDescription: string | null;
+    estimatedCost: number | null;
+    fraudRiskLevel: string | null;
+    confidenceScore: number | null;
+    causalVerdict: JsonValue;
   }>;
   evidence: Readonly<{
     physicsAnalysis: JsonValue;
@@ -421,7 +431,12 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
   });
 
   return {
-    scope: { tenantId, claimId: Number(row.id), claimReference: row.claim_reference as string | null },
+    scope: {
+      tenantId,
+      claimId: Number(row.id),
+      claimReference: row.claim_reference as string | null,
+      claimNumber: (row.claim_number ?? row.claim_reference) as string | null,
+    },
     claim: {
       status: row.status as string | null,
       workflowState: row.workflow_state as string | null,
@@ -433,9 +448,14 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
       insurerName: resolved.insurer,
       currencyCode: resolved.currencyCode,
       excessAmountCents: asNumber(row.excess_amount_cents),
+      panelBeaterChoice1: row.panel_beater_choice_1 as string | null,
+      panelBeaterChoice2: row.panel_beater_choice_2 as string | null,
+      panelBeaterChoice3: row.panel_beater_choice_3 as string | null,
+      assignedPanelBeaterId: asNumber(row.assigned_panel_beater_id),
     },
     incident: {
       type: resolved.incidentType,
+      description: row.incident_description as string | null,
       date: resolved.accidentDate,
       location: resolved.accidentLocation,
       weatherConditions: row.weather_conditions as string | null,
@@ -471,6 +491,10 @@ function toResolvedRecord(row: Record<string, unknown>, tenantId: string, childr
       modelVersion: row.model_version as string | null,
       triggeredRole: row.triggered_role as string | null,
       damageDescription: row.damage_description as string | null,
+      estimatedCost: asNumber(row.estimated_cost),
+      fraudRiskLevel: row.fraud_risk_level as string | null,
+      confidenceScore: asNumber(row.assessment_confidence_score),
+      causalVerdict: parseJson(row.causal_verdict_json),
     },
     evidence: {
       physicsAnalysis: parseJson(row.physics_analysis),
@@ -505,6 +529,7 @@ const ASSESSMENT_COLUMNS = `
          a.created_at AS assessment_created_at,
          a.model_version,
          a.triggered_role,
+         a.confidence_score AS assessment_confidence_score,
          a.fraud_score,
          a.fraud_risk_level,
          a.recommendation,
@@ -528,7 +553,8 @@ const ASSESSMENT_COLUMNS = `
          a.repair_intelligence_json,
          a.narrative_analysis_json,
          a.forensic_audit_validation_json,
-         a.ife_result_json`;
+         a.ife_result_json,
+         a.causal_verdict_json`;
 
 async function loadLatestAssessment(
   conn: mysql.Connection,

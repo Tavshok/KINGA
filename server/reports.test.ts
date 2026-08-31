@@ -21,7 +21,8 @@ describe('Reports Router', () => {
       user: {
         id: 'test-user-id',
         tenantId: 'test-tenant-id',
-        role: 'insurer_staff',
+        role: 'user',
+        insurerRole: 'insurer_admin',
         email: 'test@example.com',
         name: 'Test User',
       },

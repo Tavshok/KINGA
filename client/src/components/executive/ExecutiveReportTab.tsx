@@ -24,13 +24,13 @@ export function ExecutiveReportTab() {
   const [toDate, setToDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [generating, setGenerating] = useState(false);
 
-  // Use existing getMyJobs filtered to executive.full_report
+  // Filter jobs to the sole approved executive portfolio report.
   const { data: myJobs, isLoading: loadingJobs } = trpc.reportingEngine.getMyJobs.useQuery(undefined, {
     refetchInterval: 8_000,
   });
 
   const recentReports = myJobs
-    ?.filter((j: Record<string, unknown>) => j.report_key === "executive.full_report")
+    ?.filter((j: Record<string, unknown>) => j.report_key === "executive.portfolio_overview")
     .slice(0, 5) ?? [];
 
   const generateMutation = trpc.reportingEngine.generate.useMutation({
@@ -48,7 +48,7 @@ export function ExecutiveReportTab() {
 
   function handleGenerate() {
     generateMutation.mutate({
-      reportKey: "executive.full_report",
+      reportKey: "executive.portfolio_overview",
       fromTs: new Date(fromDate).getTime(),
       toTs: new Date(toDate + "T23:59:59").getTime(),
       outputFormat: "pdf",
