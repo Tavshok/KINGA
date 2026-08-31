@@ -1707,10 +1707,16 @@ async function generatePlatformDashboardReport(
 
 async function generateSARReport(
   params: Record<string, unknown>,
-  _tenantId?: string
+  tenantId?: string
 ): Promise<string> {
   const subjectId = params.subjectId as number;
   const subjectType = params.subjectType as string ?? "claimant";
+  // SAR tenant isolation invariant: `tenantId` is resolved and validated from
+  // the authenticated request by reportingRouter before this generator runs.
+  // Never fall back to a global subject lookup when this scope is absent.
+  if (!tenantId) {
+    throw new Error("A tenant-scoped SAR request is required");
+  }
   const conn = await getConn();
   try {
     // c.psm_status → c.status; c.claim_type → c.incident_type; c.policyholder_id → c.claimant_id (verified 2026-05-04)
@@ -1720,9 +1726,9 @@ async function generateSARReport(
               a.fraud_score, a.fraud_risk_level, a.recommendation
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id=c.id
-       WHERE c.claimant_id=?
+       WHERE c.claimant_id=? AND c.tenant_id=?
        ORDER BY c.created_at DESC`,
-      [subjectId]
+      [subjectId, tenantId]
     ) as [Record<string, unknown>[], unknown];
 
     const meta: ReportMeta = {
