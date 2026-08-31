@@ -4,7 +4,8 @@
 
 1. **Start here:** [System Overview](./KINGA_SYSTEM_OVERVIEW.md), [Engineer Onboarding](./KINGA_ENGINEER_ONBOARDING.md), [Quick Reference](./KINGA_ENGINEERING_QUICK_REFERENCE.md)
 2. **Architecture:** [Architecture Manual](./KINGA_ARCHITECTURE.md)
-3. **Codebase:** [Codebase Guide](./KINGA_CODEBASE_GUIDE.md)
+3. **Repository evidence map:** [Repository Reconnaissance Register](./KINGA_REPOSITORY_RECONNAISSANCE.md)
+4. **Codebase:** [Codebase Guide](./KINGA_CODEBASE_GUIDE.md)
 4. **Database:** [Database Manual](./KINGA_DATABASE_MANUAL.md)
 5. **APIs:** [API Reference](./KINGA_API_REFERENCE.md)
 6. **Security:** [Security Manual](./KINGA_SECURITY_MANUAL.md)

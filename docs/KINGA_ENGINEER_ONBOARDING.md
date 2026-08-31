@@ -41,6 +41,8 @@ Start in `client/src/App.tsx` and identify the page route. Locate the relevant `
 
 Stop and classify it as a security finding. Trace `createContext` → selected tRPC/domain procedure → target record lookup → related queries and side effects. Use `server/routers/inspections.ts` plus `server/engineer/inspectionAuthority.p0.test.ts` as the pattern. Add/inspect tests for a tenantless session, a same-role foreign tenant and the absence of a prohibited write. Do not attempt to patch only the visible page.
 
+For a concrete orientation, first trace `inspections.list`: its input restricts page size to 100, it requires a session tenant, and it combines tenant, role, status and type conditions before selecting/counting. Then trace `inspections.get`: `requireInspectionAccess` deliberately returns `NOT_FOUND` for both a missing and foreign-tenant inspection before it loads measurements or observations. Finally trace `addMeasurement`: supplied evidence document IDs are re-validated through a claim tenant join before the measurement/document writes. These three procedures show the expected sequence: validate input, establish session scope, authorise target, constrain data, then perform a side effect.
+
 ### C. “A report disagrees with another report”
 
 Identify both procedure/renderer paths and compare the canonical record fields used. Shared facts must not be independently derived from raw `claims` or `ai_assessments` reads. Start with report consistency tests under `server/reporting/`; if the field is absent from a canonical contract, stop for data-contract design review rather than reintroducing a raw-SQL fallback.

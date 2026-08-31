@@ -48,7 +48,7 @@ The diagram is a domain orientation map. Exact foreign keys, nullability, indexe
 | `tenant_workflow_configs` | `tenant_id`, approval thresholds, fraud threshold, internal-assessment requirement, timestamps. | tenant/workflow/approval paths | Monetary/fraud threshold changes are policy/business changes and require explicit approval. |
 | `claim_events` | Declared as a claim-core event entity. | workflow/report/audit history paths | Event completeness for every lifecycle transition must be proven from emitters; do not label it a complete history by assumption. |
 | `claim_documents` / ingestion tables | Claim/document/batch records supporting submitted and processed material. | document ingestion, pipeline, reporting | Authorise the parent claim/tenant before reading a document or storage URL. |
-| `ai_assessments` | Declared as an assessment entity; canonical resolvers/reports consume its output. | AI assessment, pipeline, reporting | Latest-record selection, source fields and tenant parent scope must be explicit in the resolver being changed. |
+| `ai_assessments` | `claim_id` references `claims.id` with cascade delete/update; includes cost/damage/fraud/recommendation fields, `tenant_id`, reanalysis lineage (`is_reanalysis`, `previous_assessment_id`, `version_number`), pipeline health/photograph fields, structured decision/report fields, confidence/provenance/degradation fields, and canonical truth/physics JSON. | AI assessment, pipeline, reporting | Latest-record selection, source fields and tenant parent scope must be explicit in the resolver being changed. JSON field presence must not be mistaken for a human-approved decision. |
 | Quote/line-item tables | `insurance_quotes`, `service_quotes`, `supplier_quotes`, `supplier_quote_line_items`, quote optimisation results. | quotes, panel-beater, reports/decision paths | Quote input, chosen/approved value and AI-extracted interpretation must remain distinct. |
 | Audit/workflow tables | `audit_logs`, `audit_trail`, `workflow_audit_trail`, `report_access_audit`, `final_approval_records`. | audit/workflow/report access paths | These are sensitive and can be tenant/platform scoped; audit records do not themselves grant access. |
 | Fleet/vehicle tables | fleets, fleet vehicles/drivers/documents/incidents/risk; vehicle condition/history/market valuation/mileage. | fleet/vehicle/engineering paths | Establish fleet/vehicle/claim tenant relationship before traversal. |
@@ -58,6 +58,18 @@ The diagram is a domain orientation map. Exact foreign keys, nullability, indexe
 The source `claims.status` enumeration covers submitted/triage/assessment/quote/comparison/repair/completed/rejected lifecycle states and document reliability states including `document_validating`, `document_ready`, `analysis_running`, `analysis_complete`, `document_failed`, `recovery_attempted`, and `human_review_required`. Its source comment says a failed document must never reach `analysis_complete`. `workflow_state` is separate and includes values such as `created`, `intake_queue`, `under_assessment`, `internal_review`, `technical_approval`, `financial_decision`, `payment_authorized`, `closed`, `disputed`, and manual/AI assessment states.
 
 These enums are a schema fact, not evidence that every state is reachable, consistently emitted or appropriate for every tenant. Changes require workflow, report, UI and audit consumer review.
+
+## 3.3 AI assessment field and versioning ledger
+
+`ai_assessments` is a high-fan-out contract. Its `claim_id` is a foreign key to the parent claim with cascade rules declared in the source schema. It includes `tenant_id`, `created_at`, `updated_at`, `model_version`, `version_number`, `is_reanalysis`, `previous_assessment_id`, `triggered_by`, `triggered_role`, and `reanalysis_reason`. A resolver selecting an assessment for a claim must explicitly determine the latest/appropriate row; it must not rely on a table scan returning an accidental row order.
+
+| Field group | Confirmed fields | Consumer safety rule |
+|---|---|---|
+| Damage/cost/fraud | `estimated_cost`, damage description/type fields, confidence, fraud fields/score/breakdown, vehicle value, repair/value ratio, parts/labour cost, `recommendation` | A stored recommendation/fraud signal is analytical input, not a human approval. Preserve currency and unit semantics. |
+| Pipeline output | hidden damage, repair intelligence, parts reconciliation, cost intelligence, enriched photographs, image success/failure counts/rate, run summary, unresolved parts, inconsistencies | Missing, failed or degraded processing must stay visible; do not replace it with a default successful result. |
+| Evidence/provenance | evidence bundle, forensic execution ledger, assumption registry, FCDI score, IFE result, image/photo classification and evidence registry fields | Evidence source, assumptions, failures and confidence must travel with a conclusion where the consumer needs them. |
+| Truth/physics | `claim_truth_json`, `claim_truth_object_json`, `physics_truth_json`, causal/consistency/coherence/realism/benchmark/consensus data | Downstream reports, APIs and dashboards should use the canonical truth/physics source selected by the owning resolver rather than legacy independent derivation. |
+| Decision/report readiness | decision authority, contradiction gate, report readiness, explanation, route/trace, report signals, human override fields | AI/engine data and a human override are separate facts. Preserve actor/time/reason/audit semantics. |
 
 ## 4. Tenant and deletion safety
 
