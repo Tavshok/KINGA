@@ -1,0 +1,39 @@
+name: External Staging Foundation
+
+on:
+  pull_request:
+    paths:
+      - "server/_core/runtime-readiness.ts"
+      - "server/_core/runtime-readiness.test.ts"
+      - "server/_core/runtime-listen.ts"
+      - "server/_core/runtime-listen.test.ts"
+      - "server/_core/index.ts"
+      - "Dockerfile"
+      - "apt.txt"
+      - ".github/workflows/external-staging-readiness.yml"
+      - "docs/KINGA_EXTERNAL_STAGING_FOUNDATION.md"
+  workflow_dispatch:
+
+jobs:
+  runtime-contract:
+    name: Runtime and external-staging contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Enable the pinned pnpm version
+        run: corepack enable
+      - name: Install lockfile-pinned dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check unresolved conflict markers
+        run: pnpm run check:conflicts
+      - name: Check provider-neutral runtime contracts
+        run: pnpm exec vitest run server/_core/runtime-readiness.test.ts server/_core/runtime-listen.test.ts
+      - name: Bundle the server entry point
+        run: pnpm run check:server
+
+# This workflow is deliberately non-deploying. It has no cloud credentials, no
+# database connection, no provider credentials, and no production environment.

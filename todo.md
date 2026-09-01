@@ -1,6 +1,12 @@
 # KINGA Platform — Active Todo List
 # Audited: June 2026 | Replaced 12,469-line accumulation with clean active list
 
+- [x] Added a provider-neutral runtime-mode/readiness contract that preserves current managed defaults and exposes no secret values; focused contract tests pass 5/5.
+- [x] Added non-sensitive liveness and configuration-readiness endpoints suitable for external staging probes without treating them as database or tenant-authority proof.
+- [x] Documented the external runtime dependency inventory, readiness contract, deferred identity/storage/provider choices, and worker/scheduler boundary in `docs/KINGA_EXTERNAL_STAGING_FOUNDATION.md`.
+- [x] Added review-only CI and staging verification handoff assets without connecting infrastructure or embedding credentials; reviewed the existing Dockerfile and retained it without speculative container changes.
+- [x] Ran focused runtime contract and probe tests (11/11), isolated tenant-boundary regressions (7/7), server bundle, and constrained Vite production build (passed). Fresh-worker full-suite comparison is exact with current main: 45 inherited failing identifiers on each side and no foundation-file failure. TypeScript retains the same 1,013 inherited diagnostics with no touched-file error. The live inspection-authority fixture suite exceeded the five-minute database-setup budget and is recorded as inconclusive, not passing.
+
 ---
 
 ## Systematic Error Audit, Correction & Re-Verification Protocol — August 2026
