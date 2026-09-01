@@ -5,6 +5,7 @@
 1. **Start here:** [System Overview](./KINGA_SYSTEM_OVERVIEW.md), [Engineer Onboarding](./KINGA_ENGINEER_ONBOARDING.md), [Quick Reference](./KINGA_ENGINEERING_QUICK_REFERENCE.md)
 2. **Technical key:** [Engineering System Manual](./KINGA_ENGINEERING_SYSTEM_MANUAL.md)
 3. **External production roadmap:** [External Production Migration Plan](./KINGA_EXTERNAL_PRODUCTION_MIGRATION_PLAN.md)
+4. **External production delivery sprints:** [External Production Migration Sprint Plan](./KINGA_EXTERNAL_PRODUCTION_SPRINT_PLAN.md)
 4. **Architecture:** [Architecture Manual](./KINGA_ARCHITECTURE.md)
 5. **Repository evidence map:** [Repository Reconnaissance Register](./KINGA_REPOSITORY_RECONNAISSANCE.md)
 6. **Codebase:** [Codebase Guide](./KINGA_CODEBASE_GUIDE.md)
