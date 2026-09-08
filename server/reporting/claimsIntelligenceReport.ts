@@ -19,6 +19,7 @@ import {
 } from "./templates/kingaDesignSystem";
 import { resolveReportCostIntegrity, resolveReportQuoteEvidencePresentation } from "./costIntegrity";
 import { renderSharedQuoteEvidencePresentation } from "./sharedQuoteEvidencePresentation";
+import { renderCostEvidenceStateHtml } from "./costEvidenceStatePresentation";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
@@ -595,7 +596,7 @@ ${(() => {
     ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This historical assessor figure is displayed for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
     <div class="callout" style="margin-top:8px;border-left-color:#2d5f8b;background:#f3f7fb;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
     ${renderEvidenceGovernancePanel(evidenceGovernanceData, activeQuoteIds)}
-    <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">Active quote amounts</td><td class="v">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td class="k">Quote scope status</td><td class="v">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">${l2LedgerLabel}</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
+    ${renderCostEvidenceStateHtml({ costIntegrity, formatAmount: fmtUSD, escapeHtml: esc })}
   </div>
 
   ${totalExclusions > 0 || exclusions.length > 0 ? `
