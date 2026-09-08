@@ -1483,8 +1483,12 @@ If any value is not found, use null or 0. Line items category must be one of: pa
     // Get police report by claim ID
     byClaim: protectedProcedure
       .input(z.object({ claimId: z.number() }))
-      .query(async ({ input }) => {
-        return await getPoliceReportByClaimId(input.claimId);
+      .query(async ({ ctx, input }) => {
+        const tenantId = ctx.user?.tenantId;
+        if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+        return await getPoliceReportByClaimId(input.claimId, tenantId);
       }),
 
     // Extract physics data from police report PDF using OCR
@@ -1499,6 +1503,13 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           throw new Error("Not authorized");
         }
 
+        const tenantId = ctx.user.tenantId;
+        if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+        const report = await getPoliceReportByClaimId(input.claimId, tenantId);
+        if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Police report not found for claim" });
+
         // Import OCR service
         const { extractPhysicsDataFromPoliceReport } = await import("./policeReportOCR");
 
@@ -1506,7 +1517,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         const extractedData = await extractPhysicsDataFromPoliceReport(input.reportDocumentUrl);
 
         // Update police report with extracted data
-        await updatePoliceReport(input.claimId, {
+        await updatePoliceReport(report.id, {
           roadSurface: extractedData.roadSurface,
           vehicle1Mass: extractedData.vehicle1Mass,
           vehicle2Mass: extractedData.vehicle2Mass,
