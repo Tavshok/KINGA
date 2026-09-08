@@ -36,17 +36,20 @@ function installLegacyHistoryConnection() {
 describe("AUD-P1-001 executed legacy-history report surfaces", () => {
   beforeEach(() => { vi.clearAllMocks(); installLegacyHistoryConnection(); });
 
-  it("renders persisted supersession and unknown legacy rows as qualified history across CL, CI, and FR", async () => {
+  it("renders identical shared legacy evidence, without an active comparison matrix, across CL, CI, and FR", async () => {
     const [ci, fr, cl] = await Promise.all([
       generateClaimsIntelligenceReport(9911, "tenant-legacy"),
       generateForensicDecisionReport(9911, "tenant-legacy"),
       generateReportHtml("claim.assessment", { claimId: 9911 }, "tenant-legacy"),
     ]);
-    for (const html of [cl, ci, fr]) {
-      expect(html).toContain("Legacy quotation history");
-      expect(html).toContain("not active comparison evidence");
-      expect(html).toContain("Alpha: $1,350.00");
-      expect(html).not.toContain("Alpha: $1,250.00");
+    const sharedSections = [cl, ci, fr].map((html) => html.match(/<section data-shared-quote-evidence="legacy-history-only"[\s\S]*?<\/section>/)?.[0]);
+    for (const section of sharedSections) {
+      expect(section).toContain("Historical quotation evidence — not a comparison.");
+      expect(section).toContain("Alpha");
+      expect(section).toContain("$1,350.00");
+      expect(section).not.toContain('data-shared-quote-evidence-matrix="active"');
     }
+    expect(sharedSections[0]).toBe(sharedSections[1]);
+    expect(sharedSections[1]).toBe(sharedSections[2]);
   });
 });

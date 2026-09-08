@@ -169,10 +169,18 @@ function knownEvidenceBlockers(costIntegrity: ReportCostIntegrity): string[] {
 
 function legacyHistoryPresentation(
   costIntegrity: ReportCostIntegrity,
+  quoteEvidence: readonly QuoteEvidence[],
   quotePresentation: ReportQuoteEvidencePresentation,
   escapeHtml: (value: unknown) => string,
 ): string {
-  const visibleQuotes = quotePresentation.visibleQuotes;
+  const supersededQuoteIds = new Set(
+    quoteEvidence
+      .filter((quote) => quote.quoteType === "revised" && quote.parentQuoteId !== null)
+      .map((quote) => String(quote.parentQuoteId)),
+  );
+  const visibleQuotes = quotePresentation.visibleQuotes.filter((quote) =>
+    quote.sourceReference === null || !supersededQuoteIds.has(quote.sourceReference),
+  );
   const blockers = knownEvidenceBlockers(costIntegrity);
   return `
 <section data-shared-quote-evidence="legacy-history-only" style="margin-top:10px;page-break-inside:avoid;">
@@ -206,7 +214,7 @@ export function renderSharedQuoteEvidencePresentation({
   const activeQuotes = buildActiveQuotes(quotePresentation, quoteEvidence);
   if (activeQuotes.length === 0) {
     return quotePresentation.state === "legacy_history_only"
-      ? legacyHistoryPresentation(costIntegrity, quotePresentation, escapeHtml)
+      ? legacyHistoryPresentation(costIntegrity, quoteEvidence, quotePresentation, escapeHtml)
       : noQuotePresentation();
   }
 
