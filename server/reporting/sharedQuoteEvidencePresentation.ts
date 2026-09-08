@@ -22,7 +22,7 @@ type ActiveQuote = {
   repairer: string;
   amount: number | null;
   currency: string;
-  lineItems: readonly QuoteEvidence["lineItems"];
+  lineItems: QuoteEvidence["lineItems"];
 };
 
 type MatrixRow = {

@@ -188,8 +188,8 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
   const l2Status = persistedL2Status === "complete" || persistedL2Status === "evidence_qualified" || persistedL2Status === "incomplete_scope" || persistedL2Status === "reconciliation_required"
     ? persistedL2Status
     : l2 !== null ? "complete" : quoteReceiptStatus === "quotes_received" ? "incomplete_scope" : "unavailable";
-  const quoteReconciliations = Array.isArray(composite.quoteReconciliations)
-    ? composite.quoteReconciliations.map(record).map((quote) => {
+  const quoteReconciliations: ReportCostIntegrity["quoteReconciliations"] = Array.isArray(composite.quoteReconciliations)
+    ? composite.quoteReconciliations.map(record).map((quote): ReportCostIntegrity["quoteReconciliations"][number] => {
       const rawStatus = String(quote.status ?? "");
       const status = rawStatus === "reconciled" || rawStatus === "reconciliation_required" || rawStatus === "total_only" || rawStatus === "line_items_only"
         ? rawStatus
