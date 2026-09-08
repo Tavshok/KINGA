@@ -1,6 +1,17 @@
 # KINGA Platform — Active Todo List
 # Audited: June 2026 | Replaced 12,469-line accumulation with clean active list
 
+- [ ] Diagnose the current KINGA publication failure, distinguish Manus deployment from GitHub review/merge state, and report the exact non-destructive supported next action.
+- [ ] Confirm the exact disabled Manus Publish-button cause from managed publish/checkpoint eligibility evidence. Confirmed facts: the workspace is stale at `cb59e135`, has pending local metadata/backlog changes, retains the previously fixed duplicate `Network` import compile blocker, and has no active deployment; GitHub PR state is separate.
+- [ ] With user approval, test whether a managed workspace synchronisation/checkpoint re-enables Publish; record the exact outcome and do not claim eligibility until verified.
+
+- [ ] Create a review-only external staging foundation branch from current main; do not connect cloud accounts, move data, alter DNS, configure production credentials, or deploy traffic.
+- [ ] Audit and document every Manus-coupled deployment, identity, storage, provider, scheduler, and long-running job dependency with a provider-neutral external replacement boundary.
+- [ ] Add provider-neutral external runtime configuration validation, health/readiness contracts, and non-secret environment templates without changing the current managed runtime path.
+- [ ] Add reproducible external build, containerisation, CI, staging verification, rollback, and background-work handoff assets without selecting or activating external infrastructure.
+- [ ] Run targeted portability, authority, and baseline-aware build/test validation; publish all changes only as a review-only pull request with unresolved ownership decisions listed explicitly.
+- [x] Created and published a review-only external-production migration sprint plan with bounded sprints, role ownership, dependencies, acceptance criteria, risk controls, cadence, decision gates, and production stop conditions; no infrastructure or production changes were made.
+
 ---
 
 ## Systematic Error Audit, Correction & Re-Verification Protocol — August 2026
