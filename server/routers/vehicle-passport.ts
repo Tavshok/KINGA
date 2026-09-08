@@ -40,6 +40,7 @@ import {
   sum,
   max,
   isNotNull,
+  inArray,
 } from "drizzle-orm";
 import {
   aggregateVehiclePassport,
