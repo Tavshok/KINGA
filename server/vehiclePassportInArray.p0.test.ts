@@ -44,9 +44,13 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
   let db: NonNullable<Awaited<ReturnType<typeof getDb>>>;
   let agencyTenantId = "";
   let insurerTenantId = "";
+  let unrelatedTenantId = "";
   let agencyUserId = 0;
   let insurerUserId = 0;
+  let unrelatedUserId = 0;
   let vehicleRegistryId = 0;
+  let tenantlessVehicleRegistryId = 0;
+  let tenantlessRegistrationNumber = "";
   let claimId = 0;
   const serviceRequestIds: number[] = [];
   const insurerLinkIds: number[] = [];
@@ -55,7 +59,7 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
   const expectedObservations: string[] = [];
   let cacheWriteSpy: ReturnType<typeof vi.spyOn> | undefined;
 
-  const contextFor = (id: number, tenantId: string) => ({
+  const contextFor = (id: number, tenantId: string | null) => ({
     user: {
       id,
       role: "insurer",
@@ -87,8 +91,10 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
     const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     agencyTenantId = `test-vp-agency-${stamp}`;
     insurerTenantId = `test-vp-insurer-${stamp}`;
+    unrelatedTenantId = `test-vp-unrelated-${stamp}`;
     const agencyOpenId = `vp-agency-${stamp}`;
     const insurerOpenId = `vp-insurer-${stamp}`;
+    const unrelatedOpenId = `vp-unrelated-${stamp}`;
     const registrationNumber = `VP${Date.now().toString(36).toUpperCase()}${stamp.slice(-2).toUpperCase()}`.slice(0, 30);
 
     await db.insert(users).values({
@@ -117,6 +123,19 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
       "insurer user",
     );
 
+    await db.insert(users).values({
+      openId: unrelatedOpenId,
+      email: `${unrelatedOpenId}@invalid.example`,
+      name: "Vehicle Passport unrelated fixture",
+      role: "insurer",
+      tenantId: unrelatedTenantId,
+      emailVerified: 1,
+    });
+    unrelatedUserId = await resolveRequiredId(
+      db.select({ id: users.id }).from(users).where(eq(users.openId, unrelatedOpenId)),
+      "unrelated insurer user",
+    );
+
     await db.insert(vehicleRegistry).values({
       registrationNumber,
       make: "Fixture",
@@ -130,6 +149,21 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
         eq(vehicleRegistry.tenantId, agencyTenantId),
       )),
       "vehicle registry",
+    );
+
+    tenantlessRegistrationNumber = `VPTL${stamp.replace(/[^a-z0-9]/gi, "").slice(-20).toUpperCase()}`.slice(0, 30);
+    await db.insert(vehicleRegistry).values({
+      registrationNumber: tenantlessRegistrationNumber,
+      make: "Fixture",
+      model: "Tenantless Passport",
+      year: 2024,
+      tenantId: null,
+    });
+    tenantlessVehicleRegistryId = await resolveRequiredId(
+      db.select({ id: vehicleRegistry.id }).from(vehicleRegistry).where(and(
+        eq(vehicleRegistry.registrationNumber, tenantlessRegistrationNumber),
+      )),
+      "tenantless vehicle registry",
     );
 
     await db.insert(claims).values({
@@ -224,7 +258,9 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
       if (insurerLinkIds.length) await db.delete(agencyInsuranceServiceRequestInsurers).where(inArray(agencyInsuranceServiceRequestInsurers.id, insurerLinkIds));
       if (serviceRequestIds.length) await db.delete(agencyInsuranceServiceRequests).where(inArray(agencyInsuranceServiceRequests.id, serviceRequestIds));
       if (claimId) await db.delete(claims).where(eq(claims.id, claimId));
+      if (tenantlessVehicleRegistryId) await db.delete(vehicleRegistry).where(eq(vehicleRegistry.id, tenantlessVehicleRegistryId));
       if (vehicleRegistryId) await db.delete(vehicleRegistry).where(eq(vehicleRegistry.id, vehicleRegistryId));
+      if (unrelatedUserId) await db.delete(users).where(eq(users.id, unrelatedUserId));
       if (insurerUserId) await db.delete(users).where(eq(users.id, insurerUserId));
       if (agencyUserId) await db.delete(users).where(eq(users.id, agencyUserId));
 
@@ -239,7 +275,9 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
           ? db.select({ id: agencyInsuranceServiceRequests.id }).from(agencyInsuranceServiceRequests).where(inArray(agencyInsuranceServiceRequests.id, serviceRequestIds))
           : [],
         claimId ? db.select({ id: claims.id }).from(claims).where(eq(claims.id, claimId)) : [],
+        tenantlessVehicleRegistryId ? db.select({ id: vehicleRegistry.id }).from(vehicleRegistry).where(eq(vehicleRegistry.id, tenantlessVehicleRegistryId)) : [],
         vehicleRegistryId ? db.select({ id: vehicleRegistry.id }).from(vehicleRegistry).where(eq(vehicleRegistry.id, vehicleRegistryId)) : [],
+        unrelatedUserId ? db.select({ id: users.id }).from(users).where(eq(users.id, unrelatedUserId)) : [],
         insurerUserId ? db.select({ id: users.id }).from(users).where(eq(users.id, insurerUserId)) : [],
         agencyUserId ? db.select({ id: users.id }).from(users).where(eq(users.id, agencyUserId)) : [],
       ]);
@@ -272,5 +310,32 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
     expect(html).toContain("Intelligence Summary");
     expect(html).not.toContain("Vehicle passport unavailable.");
     expect(html).not.toContain("inArray is not defined");
+  });
+
+  it("denies a tenantless vehicle to a valid but unrelated tenant on all three previously permissive endpoints", async () => {
+    const caller = appRouter.createCaller(contextFor(unrelatedUserId, unrelatedTenantId));
+
+    for (const request of [
+      () => caller.vehiclePassport.getTimeline({ vehicleRegistryId: tenantlessVehicleRegistryId }),
+      () => caller.vehiclePassport.getClaimHistory({ vehicleRegistryId: tenantlessVehicleRegistryId }),
+      () => caller.vehiclePassport.getFraudSignals({ vehicleRegistryId: tenantlessVehicleRegistryId }),
+    ]) {
+      await expect(request()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    }
+  });
+
+  it("denies a tenantless vehicle before data access when the authenticated session has no tenant", async () => {
+    const caller = appRouter.createCaller(contextFor(unrelatedUserId, null) as any);
+
+    for (const request of [
+      () => caller.vehiclePassport.getTimeline({ vehicleRegistryId: tenantlessVehicleRegistryId }),
+      () => caller.vehiclePassport.getClaimHistory({ vehicleRegistryId: tenantlessVehicleRegistryId }),
+      () => caller.vehiclePassport.getFraudSignals({ vehicleRegistryId: tenantlessVehicleRegistryId }),
+    ]) {
+      await expect(request()).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message: "A tenant-scoped session is required",
+      });
+    }
   });
 });
