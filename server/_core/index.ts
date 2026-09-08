@@ -54,6 +54,9 @@ import { runStuckAssessmentRecoveryJob, startStuckAssessmentRecoveryJob } from "
 import { checkRecoveryDeadlines } from "../recovery/recoveryDeadlineAlerts";
 import { sdk } from "./sdk";
 import { ENV } from "./env";
+import { getRuntimeReadiness } from "./runtime-readiness";
+import { resolveListenPort } from "./runtime-listen";
+import { registerRuntimeProbes } from "./runtime-probes";
 import { initWhatsAppProvider } from "../whatsapp/engine";
 import { whatsappWebhookVerify, whatsappWebhookReceive, whatsappTestEndpoint } from "../whatsapp/webhook";
 import { registerAuditExportRoute } from "../audit-export-route";
@@ -100,6 +103,8 @@ async function startServer() {
   
   // Trust proxy for rate limiting (required for X-Forwarded-For)
   app.set('trust proxy', 1);
+
+  registerRuntimeProbes(app);
 
   // ── Security headers (Phase 4.95) ────────────────────────────────────────
   // helmet sets X-Content-Type-Options, X-Frame-Options, X-XSS-Protection,
@@ -329,8 +334,13 @@ async function startServer() {
     next(err);
   });
 
+  const runtimeReadiness = getRuntimeReadiness();
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  const port = await resolveListenPort(
+    runtimeReadiness.runtimeMode,
+    process.env,
+    isPortAvailable,
+  );
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
