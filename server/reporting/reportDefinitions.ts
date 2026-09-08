@@ -44,6 +44,7 @@ import { generateEngineerInspectionReport } from "./engineerInspectionReport";
 import { generateRiskSurveyReport } from "./riskSurveyReport";
 import { resolveReportCostIntegrity, resolveReportQuoteEvidencePresentation } from "./costIntegrity";
 import { renderSharedQuoteEvidencePresentation } from "./sharedQuoteEvidencePresentation";
+import { renderCostEvidenceStateHtml } from "./costEvidenceStatePresentation";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { classifyRepairToValueRatio } from "../../shared/writeOffPolicy";
@@ -772,13 +773,14 @@ ${totalPhotosCL > 0 ? `
   ${kingaOptimised !== null
     ? `<p style="font-size:10px;color:#4a4a4a;margin-top:8px;">KINGA Optimised recommendation: <strong>${l2Display}</strong> — all-in L2 composite pricing across ${compositeLineItemsCL.length} priced rows. ${esc(l2IntegrityNote)}</p>`
     : `<div style="margin-top:8px;padding:6px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#7a4c00;"><b>Cost recommendation withheld.</b> ${esc(l2IntegrityNote)}</div>`}
-		${costIntegrity.assessorCalibrationCostUsd !== null ? `<div style="margin-top:8px;padding:6px 10px;background:#f5f5f5;border-left:3px solid #8a8a8a;font-size:10px;color:#4a4a4a;"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This prior assessor figure is retained for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
-		<div style="margin-top:8px;padding:6px 10px;background:#f3f7fb;border-left:3px solid #2d5f8b;font-size:10px;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
-		${renderEvidenceGovernancePanel(evidenceGovernanceData, activeQuoteIds)}
-		${sharedQuoteEvidenceHtml}
-    <!-- Local quote rendering below is superseded by the shared canonical presentation above. -->
-    <div style="display:none" aria-hidden="true">
-  <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px"><tr style="background:#f5f5f5"><td style="padding:4px 6px;font-weight:600">Submitted quotation ledger</td><td style="padding:4px 6px">${activeQuoteRows.length} active quote${activeQuoteRows.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td><td style="padding:4px 6px;font-weight:600">L1 — lowest active submitted quote</td><td style="padding:4px 6px">${l1Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">Active quote amounts</td><td colspan="3" style="padding:4px 6px">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td style="padding:4px 6px;font-weight:600">Quote scope status</td><td style="padding:4px 6px">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td><td style="padding:4px 6px;font-weight:600">${l2LedgerLabel}</td><td style="padding:4px 6px">${l2Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">L3 — benchmark reference</td><td colspan="3" style="padding:4px 6px">${l3Display}</td></tr></table>
+			${costIntegrity.assessorCalibrationCostUsd !== null ? `<div style="margin-top:8px;padding:6px 10px;background:#f5f5f5;border-left:3px solid #8a8a8a;font-size:10px;color:#4a4a4a;"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This prior assessor figure is retained for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
+			<div style="margin-top:8px;padding:6px 10px;background:#f3f7fb;border-left:3px solid #2d5f8b;font-size:10px;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
+			${renderEvidenceGovernancePanel(evidenceGovernanceData, activeQuoteIds)}
+			${renderCostEvidenceStateHtml({ costIntegrity, formatAmount: fmtUSD, escapeHtml: esc })}
+			${sharedQuoteEvidenceHtml}
+	    <!-- Local quote rendering below is superseded by the shared canonical presentation above. -->
+	    <div style="display:none" aria-hidden="true">
+	  <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px"><tr style="background:#f5f5f5"><td style="padding:4px 6px;font-weight:600">Submitted quotation ledger</td><td style="padding:4px 6px">${activeQuoteRows.length} active quote${activeQuoteRows.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td><td style="padding:4px 6px;font-weight:600">L1 — lowest active submitted quote</td><td style="padding:4px 6px">${l1Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">Active quote amounts</td><td colspan="3" style="padding:4px 6px">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td style="padding:4px 6px;font-weight:600">Quote scope status</td><td style="padding:4px 6px">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td><td style="padding:4px 6px;font-weight:600">${l2LedgerLabel}</td><td style="padding:4px 6px">${l2Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">L3 — benchmark reference</td><td colspan="3" style="padding:4px 6px">${l3Display}</td></tr></table>
   ${activeQuoteRows.length > 0 ? (() => {
     // Build a union of all line item descriptions across all quotes
     const allDescs = new Set<string>();

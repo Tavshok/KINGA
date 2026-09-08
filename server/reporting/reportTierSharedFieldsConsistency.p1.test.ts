@@ -71,6 +71,10 @@ function extractSharedFields(html: string) {
   return { decision, fraud, market };
 }
 
+function extractCostState(html: string) {
+  return html.match(/<table class="kv cost-evidence-state"><tbody>[\s\S]*?<\/table>/)?.[0];
+}
+
 describe("report tier shared-field consistency", () => {
   beforeEach(() => {
     execute.mockReset();
@@ -100,6 +104,26 @@ describe("report tier shared-field consistency", () => {
     }
     expect(actual[0]).toEqual(actual[1]);
     expect(actual[1]).toEqual(actual[2]);
-    expect(end).toHaveBeenCalledTimes(3);
+    // Claim Assessment and Claims Intelligence each resolve one canonical
+    // report record. The Forensic tier resolves its own ForensicReportModel
+    // connection in addition to its canonical report record: four scoped
+    // connections in total. Package C's pure presenter opens none.
+    expect(end).toHaveBeenCalledTimes(4);
+  });
+
+  it.each([
+    ["unavailable", { isComplete: false, l2Status: "incomplete_scope", canonicalQuoteLedger: [] }, "Unavailable — reconciliation required."],
+    ["partial evidence", { isComplete: false, l2Status: "evidence_qualified", l2EvidenceQualifiedComparisonUsd: 90, canonicalQuoteLedger: [{ panelBeater: "Repairer A", totalCostUsd: 100, currency: "USD", status: "active" }] }, "Partial evidence comparison"],
+    ["final L2", { isComplete: true, l2Status: "complete", l1LowestSubmittedCostUsd: 100, l2CompositeOptimisedCostUsd: 90, canonicalQuoteLedger: [{ panelBeater: "Repairer A", totalCostUsd: 100, currency: "USD", status: "active" }] }, "Final L2"],
+  ])("renders an identical canonical cost state across all tiers: %s", async (_name, composite, expected) => {
+    claim.cost_intelligence_json = JSON.stringify({ compositeOptimisation: composite });
+    const outputs = await Promise.all([
+      generateReportHtml("claim.assessment", { claimId }, tenantId),
+      generateClaimsIntelligenceReport(claimId, tenantId),
+      generateForensicDecisionReport(claimId, tenantId),
+    ]);
+    const states = outputs.map(extractCostState);
+    expect(states.every((state) => state === states[0])).toBe(true);
+    expect(states[0]).toContain(expected);
   });
 });
