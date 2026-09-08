@@ -60,6 +60,19 @@ const governanceDashboardProcedure = protectedProcedure.use(({ ctx, next }) => {
 });
 
 /**
+ * Governance exports must never present placeholder metrics as operational data.
+ * Until a single, tenant-scoped export aggregation contract is implemented and
+ * validated, callers receive an explicit unavailable response rather than a
+ * plausible-looking zero-value PDF, CSV, or legacy payload.
+ */
+export function throwGovernanceExportUnavailable(): never {
+  throw new TRPCError({
+    code: "PRECONDITION_FAILED",
+    message: "Governance export is unavailable until verified tenant-scoped aggregation is implemented. No report has been generated.",
+  });
+}
+
+/**
  * Calculate composite governance risk score (0-100)
  * Based on: override frequency, violation attempts, role volatility, fast-track anomalies
  */
@@ -1156,41 +1169,8 @@ export const governanceDashboardRouter = router({
    * 
    * Aggregates all governance data and generates PDF report
    */
-  exportGovernancePDF: governanceDashboardProcedure.mutation(async ({ ctx }) => {
-    const { generateGovernancePDF } = await import("../governance-export");
-    
-    // Note: In production, this would call all the above procedures to aggregate data
-    // For now, returning placeholder to maintain frontend contract
-    const exportData = {
-      reportMetadata: {
-        generatedAt: new Date().toISOString(),
-        tenantId: ctx.user.tenantId!,
-        generatedBy: ctx.user.name || "Unknown",
-        period: "Last 30 days",
-      },
-      summary: {
-        totalOverrides: 0,
-        overrideRate: 0,
-        segregationViolations: 0,
-        roleChanges: 0,
-        governanceRiskScore: 0,
-      },
-      overridesByUser: [],
-      overridesByValue: [],
-      segregationViolations: [],
-      roleChanges: [],
-    };
-
-    const pdfBuffer = await generateGovernancePDF(exportData);
-    
-    return {
-      success: true,
-      data: {
-        filename: `governance-report-${new Date().toISOString().split('T')[0]}.pdf`,
-        contentType: "application/pdf",
-        content: pdfBuffer.toString("base64"),
-      },
-    };
+  exportGovernancePDF: governanceDashboardProcedure.mutation(async () => {
+    throwGovernanceExportUnavailable();
   }),
 
   /**
@@ -1198,68 +1178,14 @@ export const governanceDashboardRouter = router({
    * 
    * Aggregates all governance data and generates CSV export
    */
-  exportGovernanceCSV: governanceDashboardProcedure.mutation(async ({ ctx }) => {
-    const { generateGovernanceCSV } = await import("../governance-export");
-    
-    // Note: In production, this would call all the above procedures to aggregate data
-    // For now, returning placeholder to maintain frontend contract
-    const exportData = {
-      reportMetadata: {
-        generatedAt: new Date().toISOString(),
-        tenantId: ctx.user.tenantId!,
-        generatedBy: ctx.user.name || "Unknown",
-        period: "Last 30 days",
-      },
-      summary: {
-        totalOverrides: 0,
-        overrideRate: 0,
-        segregationViolations: 0,
-        roleChanges: 0,
-        governanceRiskScore: 0,
-      },
-      overridesByUser: [],
-      overridesByValue: [],
-      segregationViolations: [],
-      roleChanges: [],
-    };
-
-    const csvContent = generateGovernanceCSV(exportData);
-    
-    return {
-      success: true,
-      data: {
-        filename: `governance-data-${new Date().toISOString().split('T')[0]}.csv`,
-        contentType: "text/csv",
-        content: csvContent,
-      },
-    };
+  exportGovernanceCSV: governanceDashboardProcedure.mutation(async () => {
+    throwGovernanceExportUnavailable();
   }),
   
   /**
    * Get comprehensive governance data for export (legacy - kept for compatibility)
    */
-  getGovernanceExportData: governanceDashboardProcedure.query(async ({ ctx }) => {
-    return {
-      success: true,
-      data: {
-        reportMetadata: {
-          generatedAt: new Date().toISOString(),
-          tenantId: ctx.user.tenantId,
-          generatedBy: ctx.user.name,
-          period: "Last 30 days",
-        },
-        summary: {
-          totalOverrides: 0,
-          overrideRate: 0,
-          segregationViolations: 0,
-          roleChanges: 0,
-          governanceRiskScore: 0,
-        },
-        overridesByUser: [],
-        overridesByValue: [],
-        segregationViolations: [],
-        roleChanges: [],
-      },
-    };
+  getGovernanceExportData: governanceDashboardProcedure.query(async () => {
+    throwGovernanceExportUnavailable();
   }),
 });
