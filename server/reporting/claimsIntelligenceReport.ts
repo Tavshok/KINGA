@@ -18,6 +18,7 @@ import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct, safeJson, scoreColour, chip, badge, photoZonePanel,
 } from "./templates/kingaDesignSystem";
 import { resolveReportCostIntegrity, resolveReportQuoteEvidencePresentation } from "./costIntegrity";
+import { renderSharedQuoteEvidencePresentation } from "./sharedQuoteEvidencePresentation";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
@@ -148,6 +149,12 @@ export async function generateClaimsIntelligenceReport(
       },
     });
     const quoteEvidence = resolveReportQuoteEvidencePresentation(costIntegrity);
+    const sharedQuoteEvidenceHtml = renderSharedQuoteEvidencePresentation({
+      costIntegrity,
+      quoteEvidence: record.evidence.quoteEvidence,
+      quotePresentation: quoteEvidence,
+      escapeHtml: esc,
+    });
     const quoteArr = quoteEvidence.visibleQuotes;
     const comparisonQuoteArr = quoteEvidence.activeComparisonQuotes;
     const { visibleQuoteCount, activeQuoteCount, reportedQuoteCount, state: quoteEvidenceState } = quoteEvidence;
@@ -679,12 +686,12 @@ ${(() => {
 <div class="section">
   <div class="section-tab sans"><span class="num">02</span> Cost Intelligence</div>
   <p class="small" style="margin:0 0 8px 0;">${esc(quoteEvidenceNarrative)}${costIntegrity.duplicateQuotesExcluded > 0 ? ` after excluding ${costIntegrity.duplicateQuotesExcluded} duplicate submission${costIntegrity.duplicateQuotesExcluded === 1 ? "" : "s"}` : ""} for the ${vehicleDesc}. ${kingaOptimised === null ? `<strong>${esc(l2IntegrityNote)}</strong>` : `The all-in optimised estimate of <strong>${l2Display}</strong> represents a saving of <strong>${fmtUSD(savings)} (${fmtPct(savingsPct)})</strong> against the highest active submitted quote.`} ${criticalStructural.length > 0 ? `<strong>${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} identified in the damage scope do not appear in any submitted quote</strong> — an independent structural assessment is required before the cost can be finalised.` : "All major components are included in the submitted quotes."}</p>
-  <div class="cols-2">
-    <div class="box">
-      <h4>Quote Comparison — ${visibleQuoteCount} visible record${visibleQuoteCount === 1 ? "" : "s"}; ${activeQuoteCount} active comparison quote${activeQuoteCount === 1 ? "" : "s"}</h4>
-      ${quoteCardHtml}
-    </div>
+  <div class="box">
+    <h4>Quotation Evidence</h4>
+    ${sharedQuoteEvidenceHtml}
+  </div>
 
+  <div class="cols-2" style="margin-top:10px;">
     <div class="box">
       <h4>Repair Economics &amp; Verdict</h4>
       <table class="kv">
@@ -697,15 +704,6 @@ ${(() => {
       <div class="callout green" style="margin-top:8px;"><span class="pill green">${rtvRatio >= 70 ? "Total Loss — above write-off threshold" : "Repair — well below write-off threshold"}</span></div>
     </div>
   </div>
-
-  ${topItems.length > 0 ? `
-  <div class="section" style="margin-top:10px;">
-    <div class="section-tab sans" style="background:var(--ink-soft);"><span class="num">Line Item Comparison</span></div>
-    <table class="grid-t">
-      <tr><th>Component</th><th>Type</th><th>Submitted</th><th>KINGA Benchmark</th><th>Status</th></tr>
-      ${compTableRows}
-    </table>
-  </div>` : ""}
 
   ${criticalStructural.length > 0 ? `
   <div class="callout red" style="margin-top:8px;"><b>Structural Gap — ${criticalStructural.length} critical component${criticalStructural.length !== 1 ? "s" : ""} not quoted.</b> ${criticalStructural.map(g => esc(g.component)).join(", ")}. An independent structural assessment is required before the repair scope and cost can be finalised. Settlement must not be authorised until this assessment is complete.</div>` : ""}

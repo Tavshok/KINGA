@@ -75,11 +75,13 @@ describe("AUD-P1-007 executed Claims Intelligence quote-state rendering", () => 
 
     expect(html).toContain("The Dent Doctor");
     expect(html).toContain("Dynamic Africa Trading");
-    expect(html).toContain("Legacy submitted history — not active comparison evidence");
-    expect(html).toContain("Quote Comparison — 2 visible records; 0 active comparison quotes");
-    expect(html).toContain("Highest active submitted quote</td><td class=\"v\">Not available — no active comparison quote");
+    expect(html).toContain('data-shared-quote-evidence="legacy-history-only"');
+    expect(html).toContain("Historical quotation evidence — not a comparison.");
+    expect(html).toContain("L1 — lowest eligible submitted quote");
+    expect(html).toContain("L2 — KINGA Optimised");
+    expect(html).toContain("Not available");
     expect(html).not.toContain("Active market quote");
-    expect(html).not.toContain("Highest submitted quote</td><td class=\"v\">$0.00");
+    expect(html).not.toContain('data-shared-quote-evidence-matrix="active"');
     expect(end).toHaveBeenCalledOnce();
   });
 });
