@@ -21,6 +21,7 @@ import { eq, or, and, sql } from "drizzle-orm";
 import { vehicleRegistry, claims } from "../drizzle/schema";
 import type { VehicleRegistry, InsertVehicleRegistry } from "../drizzle/schema";
 import { getDb } from "./db";
+import { emitClaimEvent } from "./db/intelligence-db";
 
 // ─── Normalisation helpers ────────────────────────────────────────────────────
 
@@ -200,6 +201,30 @@ export async function upsertVehicleRegistry(
         .where(eq(vehicleRegistry.registrationNumber, normReg))
         .limit(1);
       if (rows.length > 0) existing = rows[0];
+    }
+
+    // A registry identity is tenant-owned. Never fold a new tenant's claim into an
+    // existing row merely because a VIN or registration matches; portability requires
+    // a future explicit, governed transfer workflow rather than an ingestion side effect.
+    if (existing && (!input.tenantId || !existing.tenantId || existing.tenantId !== input.tenantId)) {
+      const matchedBy = normVin && existing.vin === normVin ? "vin" : "registration_number";
+      console.warn(
+        `[VehicleRegistry] Contained cross-tenant ${matchedBy} match for claim ${input.claimId}; existing vehicle ${existing.id} was not mutated`,
+      );
+      await emitClaimEvent({
+        claimId: input.claimId,
+        eventType: "vehicle_registry_cross_tenant_match_contained",
+        userRole: "system",
+        tenantId: input.tenantId ?? undefined,
+        eventPayload: {
+          matchedBy,
+          existingVehicleRegistryId: existing.id,
+          existingTenantId: existing.tenantId,
+          incomingTenantId: input.tenantId ?? null,
+          action: "claim_retained_without_registry_attachment",
+        },
+      });
+      return null;
     }
 
     // ── Step 2: Compute updated aggregates ───────────────────────────────────
