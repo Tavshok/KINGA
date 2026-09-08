@@ -149,9 +149,53 @@ function activeComparisonTable(
   }).join("");
 }
 
+function knownEvidenceBlockers(costIntegrity: ReportCostIntegrity): string[] {
+  const blockers: string[] = [];
+  for (const reconciliation of costIntegrity.quoteReconciliations) {
+    if (reconciliation.status === "reconciled") continue;
+    const residual = reconciliation.unexplainedResidualUsd === null
+      ? ""
+      : ` Recorded unexplained residual: ${formattedUsd(reconciliation.unexplainedResidualUsd)}.`;
+    blockers.push(`${reconciliation.repairer}: ${reconciliation.status.replaceAll("_", " ")}.${residual}`);
+  }
+  if (costIntegrity.missingRequiredComponents.length > 0) {
+    blockers.push(`Missing traceable submitted prices: ${costIntegrity.missingRequiredComponents.join(", ")}.`);
+  }
+  for (const issue of costIntegrity.quoteQualityIssues) {
+    if (issue.summary.trim()) blockers.push(issue.summary.trim());
+  }
+  return Array.from(new Set(blockers));
+}
+
+function legacyHistoryPresentation(
+  costIntegrity: ReportCostIntegrity,
+  quotePresentation: ReportQuoteEvidencePresentation,
+  escapeHtml: (value: unknown) => string,
+): string {
+  const visibleQuotes = quotePresentation.visibleQuotes;
+  const blockers = knownEvidenceBlockers(costIntegrity);
+  return `
+<section data-shared-quote-evidence="legacy-history-only" style="margin-top:10px;page-break-inside:avoid;">
+  <div style="padding:7px 10px;background:#fff8e1;border-left:3px solid #b8720b;font-size:10px;color:#6b4f00;"><b>Historical quotation evidence — not a comparison.</b> ${visibleQuotes.length} submitted quotation record${visibleQuotes.length === 1 ? "" : "s"} remain visible for audit. KINGA does not rank these records, derive savings, or publish L1/L2 from this evidence state.</div>
+  <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px;table-layout:fixed;">
+    <thead><tr style="background:#f5f5f5;border-bottom:2px solid #d9d9d9;"><th style="width:26%;padding:5px 7px;text-align:left;font-size:9px;color:#4a4a4a;">Repairer</th><th style="width:18%;padding:5px 7px;text-align:right;font-size:9px;color:#4a4a4a;">Recorded total</th><th style="width:14%;padding:5px 7px;text-align:left;font-size:9px;color:#4a4a4a;">Currency</th><th style="width:42%;padding:5px 7px;text-align:left;font-size:9px;color:#4a4a4a;">Evidence status</th></tr></thead>
+    <tbody>
+      ${visibleQuotes.map((quote) => `<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:5px 7px;font-weight:600;">${escapeHtml(quote.repairer || "Unnamed repairer")}</td><td style="padding:5px 7px;text-align:right;font-family:monospace;">${formattedRecordedAmount(quote.amountUsd, quote.currency)}</td><td style="padding:5px 7px;">${escapeHtml(quote.currency.toUpperCase())}</td><td style="padding:5px 7px;color:#6b7280;">${escapeHtml(quote.statusReason || quote.evidenceEligibilityReason || "Historical submission; review required before it can support comparison.")}</td></tr>`).join("")}
+    </tbody>
+  </table>
+  <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px;">
+    <tr style="background:#fafafa;border-top:1px solid #d1d5db;"><td style="padding:5px 7px;font-weight:700;">L1 — lowest eligible submitted quote</td><td style="padding:5px 7px;text-align:right;color:#6b7280;">Not available</td><td style="padding:5px 7px;font-weight:700;">L2 — KINGA Optimised</td><td style="padding:5px 7px;text-align:right;color:#6b7280;">Not available</td></tr>
+  </table>
+  ${blockers.length > 0 ? `<div style="margin-top:8px;padding:7px 10px;background:#fff8e1;border-left:3px solid #b8720b;font-size:10px;color:#6b4f00;"><b>Evidence review required.</b><ul style="margin:4px 0 0;padding-left:16px;">${blockers.map((blocker) => `<li>${escapeHtml(blocker)}</li>`).join("")}</ul></div>` : '<p style="font-size:9px;color:#6b7280;margin:6px 0 0;">No comparison evidence is available. Preserve the submitted documents and obtain traceable, scope-equivalent pricing before comparison.</p>'}
+</section>`;
+}
+
+function noQuotePresentation(): string {
+  return `<section data-shared-quote-evidence="no-quotes" style="margin-top:10px;padding:8px 10px;background:#f5f5f5;border-left:3px solid #8a8a8a;font-size:10px;color:#4a4a4a;"><b>No submitted repair quotation is available.</b> No comparison, savings, L1, or L2 value has been created.</section>`;
+}
+
 /**
- * Renders the active-comparison matrix from canonical inputs only.  Legacy-only
- * and incomplete-evidence handling is added in the following Package B commit.
+ * Renders active and historical quote evidence from canonical inputs only.
  */
 export function renderSharedQuoteEvidencePresentation({
   costIntegrity,
@@ -160,7 +204,11 @@ export function renderSharedQuoteEvidencePresentation({
   escapeHtml,
 }: SharedQuoteEvidencePresentationInput): string {
   const activeQuotes = buildActiveQuotes(quotePresentation, quoteEvidence);
-  if (activeQuotes.length === 0) return "";
+  if (activeQuotes.length === 0) {
+    return quotePresentation.state === "legacy_history_only"
+      ? legacyHistoryPresentation(costIntegrity, quotePresentation, escapeHtml)
+      : noQuotePresentation();
+  }
 
   const currencies = new Set(activeQuotes.map((quote) => quote.currency.toUpperCase()));
   if (currencies.size !== 1) {
