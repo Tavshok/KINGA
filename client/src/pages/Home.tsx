@@ -1,5 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import React from "react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
 import PortalSelection from "./PortalSelection";
 
 export default function Home() {

@@ -2,8 +2,12 @@
 # Audited: June 2026 | Replaced 12,469-line accumulation with clean active list
 
 - [ ] Diagnose the current KINGA publication failure, distinguish Manus deployment from GitHub review/merge state, and report the exact non-destructive supported next action.
-- [ ] Confirm the exact disabled Manus Publish-button cause from managed publish/checkpoint eligibility evidence. Confirmed facts: the workspace is stale at `cb59e135`, has pending local metadata/backlog changes, retains the previously fixed duplicate `Network` import compile blocker, and has no active deployment; GitHub PR state is separate.
-- [ ] With user approval, test whether a managed workspace synchronisation/checkpoint re-enables Publish; record the exact outcome and do not claim eligibility until verified.
+- [x] Confirmed the disabled Manus Publish-button evidence: the workspace had been stale at `cb59e135`, with pending local metadata/backlog changes and the previously fixed duplicate `Network` import compile blocker; GitHub PR state is separate. The managed checkpoint synchronised the workspace to current GitHub main.
+- [x] Ran the user-approved managed workspace synchronisation/checkpoint test successfully: checkpoint `b0aea16f` was created, current GitHub main `f100e65a` is an ancestor of the managed head, the duplicate `Network` import is absent, and the server restarted with the database pool initialised. Publication itself was not triggered.
+- [ ] Diagnose and correct the published KINGA domain’s page-not-found response by tracing the live deployment route, server/static entry point, and production logs; do not change production data, credentials, or unrelated behaviour.
+- [x] Corrected and verified the root-route `Home` component’s shared `useAuth` module import, which could leave the public React root unable to render after assets load.
+- [x] Added and ran a focused regression that imports the public `Home` component with a mocked unauthenticated auth context, proving the root route module evaluates and creates its portal-selection view.
+- [x] Restored the explicit React runtime import in `Home`, allowing its JSX to evaluate under the configured Vitest transform as well as the published application bundle.
 
 - [ ] Create a review-only external staging foundation branch from current main; do not connect cloud accounts, move data, alter DNS, configure production credentials, or deploy traffic.
 - [ ] Audit and document every Manus-coupled deployment, identity, storage, provider, scheduler, and long-running job dependency with a provider-neutral external replacement boundary.
