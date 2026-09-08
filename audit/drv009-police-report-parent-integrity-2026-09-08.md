@@ -1,7 +1,7 @@
 # DRV-009 — Police-Report Parent Integrity Investigation
 
-**Date:** 8 September 2026  
-**Scope:** Read-only source, schema-metadata, and aggregate integrity review.  
+**Date:** 8 September 2026
+**Scope:** Read-only source, schema-metadata, and aggregate integrity review.
 **Out of scope:** Police-report content, officer/claimant identities, data correction, deletion, re-parenting, schema/DDL, migration, and production mutation.
 
 ## Conclusion
