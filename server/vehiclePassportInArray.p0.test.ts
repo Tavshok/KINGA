@@ -5,11 +5,17 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "./db";
 import { appRouter } from "./routers";
+import { aggregateVehiclePassport } from "./services/epic4-aggregation";
 import {
   agencyInsuranceServiceRequestInsurers,
   agencyInsuranceServiceRequests,
+  claimConfidenceScores,
   claims,
+  crossClaimSignals,
+  fraudAlerts,
+  inspections,
   users,
+  vehicleDamageHistory,
   vehicleConditionSnapshots,
   vehicleRegistry,
 } from "../drizzle/schema";
@@ -52,6 +58,17 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
   let tenantlessVehicleRegistryId = 0;
   let tenantlessRegistrationNumber = "";
   let claimId = 0;
+  let ownerDamageHistoryId = 0;
+  let ownerInspectionId = 0;
+  let ownerConfidenceScoreId = 0;
+  let ownerSignalId = 0;
+  let ownerFraudAlertId = 0;
+  let foreignClaimId = 0;
+  let foreignDamageHistoryId = 0;
+  let foreignInspectionId = 0;
+  let foreignConfidenceScoreId = 0;
+  let foreignSignalId = 0;
+  let foreignFraudAlertId = 0;
   const serviceRequestIds: number[] = [];
   const insurerLinkIds: number[] = [];
   const snapshotIds: number[] = [];
@@ -183,6 +200,163 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
       "claim",
     );
 
+    await db.insert(vehicleDamageHistory).values({
+      vehicleId: vehicleRegistryId,
+      claimId,
+      vehicleRegistration: registrationNumber,
+      damageZone: "front",
+      severity: "minor",
+      repairCostEstimateCents: 2000,
+      tenantId: agencyTenantId,
+    });
+    ownerDamageHistoryId = await resolveRequiredId(
+      db.select({ id: vehicleDamageHistory.id }).from(vehicleDamageHistory)
+        .where(eq(vehicleDamageHistory.claimId, claimId)),
+      "owning tenant damage history",
+    );
+
+    await db.insert(inspections).values({
+      tenantId: agencyTenantId,
+      inspectionRef: `VP-INSPECTION-OWNER-${stamp}`,
+      inspectionType: "vehicle",
+      assetType: "vehicle",
+      vehicleRegistration: registrationNumber,
+      claimId,
+      createdBy: agencyUserId,
+    });
+    ownerInspectionId = await resolveRequiredId(
+      db.select({ id: inspections.id }).from(inspections).where(eq(inspections.claimId, claimId)),
+      "owning tenant inspection",
+    );
+
+    await db.insert(claimConfidenceScores).values({
+      claimId,
+      tenantId: agencyTenantId,
+      damageCertainty: "80.00",
+      physicsStrength: "81.00",
+      fraudConfidence: "82.00",
+      historicalAccuracy: "83.00",
+      dataCompleteness: "84.00",
+      vehicleRiskIntelligence: "85.00",
+      compositeConfidenceScore: "86.00",
+    });
+    ownerConfidenceScoreId = await resolveRequiredId(
+      db.select({ id: claimConfidenceScores.id }).from(claimConfidenceScores)
+        .where(eq(claimConfidenceScores.claimId, claimId)),
+      "owning tenant confidence score",
+    );
+
+    await db.insert(crossClaimSignals).values({
+      claimId,
+      signalType: "vehicle_high_claim_frequency",
+      signalLabel: "Owned tenant fixture signal",
+      tenantId: agencyTenantId,
+    });
+    ownerSignalId = await resolveRequiredId(
+      db.select({ id: crossClaimSignals.id }).from(crossClaimSignals)
+        .where(eq(crossClaimSignals.claimId, claimId)),
+      "owning tenant fraud signal",
+    );
+
+    await db.insert(fraudAlerts).values({
+      claimId,
+      alertType: "fixture_alert",
+      alertSeverity: "low",
+      alertTitle: "Owned tenant fixture alert",
+      alertDescription: "Must not be visible to another tenant.",
+    });
+    ownerFraudAlertId = await resolveRequiredId(
+      db.select({ id: fraudAlerts.id }).from(fraudAlerts).where(eq(fraudAlerts.claimId, claimId)),
+      "owning tenant fraud alert",
+    );
+
+    await db.insert(claims).values({
+      claimantId: unrelatedUserId,
+      claimNumber: `VP-FOREIGN-CLAIM-${stamp}`,
+      tenantId: unrelatedTenantId,
+      vehicleRegistration: registrationNumber,
+      incidentType: "collision",
+      claimSource: "agency",
+      status: "intake_pending",
+    });
+    foreignClaimId = await resolveRequiredId(
+      db.select({ id: claims.id }).from(claims).where(and(
+        eq(claims.claimantId, unrelatedUserId),
+        eq(claims.tenantId, unrelatedTenantId),
+      )),
+      "foreign tenant claim",
+    );
+
+    await db.insert(vehicleDamageHistory).values({
+      vehicleId: vehicleRegistryId,
+      claimId: foreignClaimId,
+      vehicleRegistration: registrationNumber,
+      damageZone: "rear",
+      severity: "severe",
+      repairCostEstimateCents: 9000,
+      tenantId: unrelatedTenantId,
+    });
+    foreignDamageHistoryId = await resolveRequiredId(
+      db.select({ id: vehicleDamageHistory.id }).from(vehicleDamageHistory)
+        .where(eq(vehicleDamageHistory.claimId, foreignClaimId)),
+      "foreign tenant damage history",
+    );
+
+    await db.insert(inspections).values({
+      tenantId: unrelatedTenantId,
+      inspectionRef: `VP-INSPECTION-FOREIGN-${stamp}`,
+      inspectionType: "vehicle",
+      assetType: "vehicle",
+      vehicleRegistration: registrationNumber,
+      claimId: foreignClaimId,
+      createdBy: unrelatedUserId,
+    });
+    foreignInspectionId = await resolveRequiredId(
+      db.select({ id: inspections.id }).from(inspections).where(eq(inspections.claimId, foreignClaimId)),
+      "foreign tenant inspection",
+    );
+
+    await db.insert(claimConfidenceScores).values({
+      claimId: foreignClaimId,
+      tenantId: unrelatedTenantId,
+      damageCertainty: "60.00",
+      physicsStrength: "61.00",
+      fraudConfidence: "62.00",
+      historicalAccuracy: "63.00",
+      dataCompleteness: "64.00",
+      vehicleRiskIntelligence: "65.00",
+      compositeConfidenceScore: "66.00",
+    });
+    foreignConfidenceScoreId = await resolveRequiredId(
+      db.select({ id: claimConfidenceScores.id }).from(claimConfidenceScores)
+        .where(eq(claimConfidenceScores.claimId, foreignClaimId)),
+      "foreign tenant confidence score",
+    );
+
+    await db.insert(crossClaimSignals).values({
+      claimId: foreignClaimId,
+      signalType: "repairer_repeat_pattern_signal",
+      signalLabel: "Foreign tenant fixture signal",
+      tenantId: unrelatedTenantId,
+    });
+    foreignSignalId = await resolveRequiredId(
+      db.select({ id: crossClaimSignals.id }).from(crossClaimSignals)
+        .where(eq(crossClaimSignals.claimId, foreignClaimId)),
+      "foreign tenant fraud signal",
+    );
+
+    await db.insert(fraudAlerts).values({
+      claimId: foreignClaimId,
+      alertType: "foreign_fixture_alert",
+      alertSeverity: "high",
+      alertTitle: "Foreign tenant fixture alert",
+      alertDescription: "Must not be visible to the owning agency tenant.",
+    });
+    foreignFraudAlertId = await resolveRequiredId(
+      db.select({ id: fraudAlerts.id }).from(fraudAlerts).where(eq(fraudAlerts.claimId, foreignClaimId)),
+      "foreign tenant fraud alert",
+    );
+
     for (const [index, status] of ["invited", "viewed", "responded", "withdrawn"].entries()) {
       const requestNumber = `VP-REQUEST-${status.toUpperCase()}-${stamp}`;
       if (status !== "withdrawn") expectedRequestNumbers.push(requestNumber);
@@ -257,6 +431,17 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
       if (snapshotIds.length) await db.delete(vehicleConditionSnapshots).where(inArray(vehicleConditionSnapshots.id, snapshotIds));
       if (insurerLinkIds.length) await db.delete(agencyInsuranceServiceRequestInsurers).where(inArray(agencyInsuranceServiceRequestInsurers.id, insurerLinkIds));
       if (serviceRequestIds.length) await db.delete(agencyInsuranceServiceRequests).where(inArray(agencyInsuranceServiceRequests.id, serviceRequestIds));
+      if (ownerFraudAlertId) await db.delete(fraudAlerts).where(eq(fraudAlerts.id, ownerFraudAlertId));
+      if (foreignFraudAlertId) await db.delete(fraudAlerts).where(eq(fraudAlerts.id, foreignFraudAlertId));
+      if (ownerSignalId) await db.delete(crossClaimSignals).where(eq(crossClaimSignals.id, ownerSignalId));
+      if (foreignSignalId) await db.delete(crossClaimSignals).where(eq(crossClaimSignals.id, foreignSignalId));
+      if (ownerConfidenceScoreId) await db.delete(claimConfidenceScores).where(eq(claimConfidenceScores.id, ownerConfidenceScoreId));
+      if (foreignConfidenceScoreId) await db.delete(claimConfidenceScores).where(eq(claimConfidenceScores.id, foreignConfidenceScoreId));
+      if (ownerInspectionId) await db.delete(inspections).where(eq(inspections.id, ownerInspectionId));
+      if (foreignInspectionId) await db.delete(inspections).where(eq(inspections.id, foreignInspectionId));
+      if (ownerDamageHistoryId) await db.delete(vehicleDamageHistory).where(eq(vehicleDamageHistory.id, ownerDamageHistoryId));
+      if (foreignDamageHistoryId) await db.delete(vehicleDamageHistory).where(eq(vehicleDamageHistory.id, foreignDamageHistoryId));
+      if (foreignClaimId) await db.delete(claims).where(eq(claims.id, foreignClaimId));
       if (claimId) await db.delete(claims).where(eq(claims.id, claimId));
       if (tenantlessVehicleRegistryId) await db.delete(vehicleRegistry).where(eq(vehicleRegistry.id, tenantlessVehicleRegistryId));
       if (vehicleRegistryId) await db.delete(vehicleRegistry).where(eq(vehicleRegistry.id, vehicleRegistryId));
@@ -275,6 +460,17 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
           ? db.select({ id: agencyInsuranceServiceRequests.id }).from(agencyInsuranceServiceRequests).where(inArray(agencyInsuranceServiceRequests.id, serviceRequestIds))
           : [],
         claimId ? db.select({ id: claims.id }).from(claims).where(eq(claims.id, claimId)) : [],
+        foreignClaimId ? db.select({ id: claims.id }).from(claims).where(eq(claims.id, foreignClaimId)) : [],
+        ownerDamageHistoryId ? db.select({ id: vehicleDamageHistory.id }).from(vehicleDamageHistory).where(eq(vehicleDamageHistory.id, ownerDamageHistoryId)) : [],
+        foreignDamageHistoryId ? db.select({ id: vehicleDamageHistory.id }).from(vehicleDamageHistory).where(eq(vehicleDamageHistory.id, foreignDamageHistoryId)) : [],
+        ownerInspectionId ? db.select({ id: inspections.id }).from(inspections).where(eq(inspections.id, ownerInspectionId)) : [],
+        foreignInspectionId ? db.select({ id: inspections.id }).from(inspections).where(eq(inspections.id, foreignInspectionId)) : [],
+        ownerConfidenceScoreId ? db.select({ id: claimConfidenceScores.id }).from(claimConfidenceScores).where(eq(claimConfidenceScores.id, ownerConfidenceScoreId)) : [],
+        foreignConfidenceScoreId ? db.select({ id: claimConfidenceScores.id }).from(claimConfidenceScores).where(eq(claimConfidenceScores.id, foreignConfidenceScoreId)) : [],
+        ownerSignalId ? db.select({ id: crossClaimSignals.id }).from(crossClaimSignals).where(eq(crossClaimSignals.id, ownerSignalId)) : [],
+        foreignSignalId ? db.select({ id: crossClaimSignals.id }).from(crossClaimSignals).where(eq(crossClaimSignals.id, foreignSignalId)) : [],
+        ownerFraudAlertId ? db.select({ id: fraudAlerts.id }).from(fraudAlerts).where(eq(fraudAlerts.id, ownerFraudAlertId)) : [],
+        foreignFraudAlertId ? db.select({ id: fraudAlerts.id }).from(fraudAlerts).where(eq(fraudAlerts.id, foreignFraudAlertId)) : [],
         tenantlessVehicleRegistryId ? db.select({ id: vehicleRegistry.id }).from(vehicleRegistry).where(eq(vehicleRegistry.id, tenantlessVehicleRegistryId)) : [],
         vehicleRegistryId ? db.select({ id: vehicleRegistry.id }).from(vehicleRegistry).where(eq(vehicleRegistry.id, vehicleRegistryId)) : [],
         unrelatedUserId ? db.select({ id: users.id }).from(users).where(eq(users.id, unrelatedUserId)) : [],
@@ -292,12 +488,68 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
     const result = await caller.vehiclePassport.getPassport({ vehicleRegistryId });
 
     expect(result.vehicle.id).toBe(vehicleRegistryId);
-    expect(result.intelligence.totalClaims).toBe(1);
+    expect(result.intelligence.totalClaims).toBe(0);
+    expect(result.intelligence.totalDamageEvents).toBe(0);
+    expect(result.intelligence.totalFraudSignals).toBe(0);
+    expect(result.intelligence.totalInspections).toBe(0);
+    expect(result.intelligence.fraudAlertCount).toBe(0);
     expect(result.preLossConditionSnapshots).toHaveLength(3);
     expect(result.preLossConditionSnapshots.map((snapshot) => snapshot.requestNumber).sort()).toEqual(expectedRequestNumbers.sort());
     expect(result.preLossConditionSnapshots.map((snapshot) => snapshot.observations).sort()).toEqual(expectedObservations.sort());
 
     panelState.passport = result;
+  });
+
+  it("returns only bounded pre-loss evidence to a legitimately invited insurer", async () => {
+    const caller = appRouter.createCaller(contextFor(insurerUserId, insurerTenantId));
+    const timeline = await caller.vehiclePassport.getTimeline({ vehicleRegistryId });
+
+    expect(timeline.events).toHaveLength(3);
+    expect(timeline.events.map((event) => event.sourceTable)).toEqual([
+      "vehicle_condition_snapshots",
+      "vehicle_condition_snapshots",
+      "vehicle_condition_snapshots",
+    ]);
+  });
+
+  it("keeps all Passport aggregate, timeline, claim-history, and fraud-signal sources within the requesting tenant", async () => {
+    const aggregate = await aggregateVehiclePassport(vehicleRegistryId, agencyTenantId);
+    expect(aggregate).toMatchObject({
+      totalClaims: 1,
+      totalDamageEvents: 1,
+      totalFraudSignals: 1,
+      totalInspections: 1,
+      fraudAlertCount: 1,
+    });
+
+    const caller = appRouter.createCaller(contextFor(agencyUserId, agencyTenantId));
+    const [timeline, claimHistory, fraudSignals] = await Promise.all([
+      caller.vehiclePassport.getTimeline({ vehicleRegistryId }),
+      caller.vehiclePassport.getClaimHistory({ vehicleRegistryId }),
+      caller.vehiclePassport.getFraudSignals({ vehicleRegistryId }),
+    ]);
+    expect(timeline.events.map((event) => event.sourceId)).toContain(ownerDamageHistoryId);
+    expect(timeline.events.map((event) => event.sourceId)).toContain(ownerInspectionId);
+    expect(timeline.events.map((event) => event.sourceId)).toContain(ownerFraudAlertId);
+    expect(timeline.events.map((event) => event.sourceId)).not.toContain(foreignDamageHistoryId);
+    expect(timeline.events.map((event) => event.sourceId)).not.toContain(foreignInspectionId);
+    expect(timeline.events.map((event) => event.sourceId)).not.toContain(foreignFraudAlertId);
+    expect(claimHistory.claims.map((claim) => claim.claimId)).toEqual([claimId]);
+    expect(fraudSignals.signals.map((signal) => signal.id)).toEqual([ownerSignalId]);
+    expect(fraudSignals.alerts.map((alert) => alert.id)).toEqual([ownerFraudAlertId]);
+  });
+
+  it("denies an unrelated tenant without an agency invitation across every sensitive Passport endpoint", async () => {
+    const caller = appRouter.createCaller(contextFor(unrelatedUserId, unrelatedTenantId));
+
+    for (const request of [
+      () => caller.vehiclePassport.getPassport({ vehicleRegistryId }),
+      () => caller.vehiclePassport.getTimeline({ vehicleRegistryId }),
+      () => caller.vehiclePassport.getClaimHistory({ vehicleRegistryId }),
+      () => caller.vehiclePassport.getFraudSignals({ vehicleRegistryId }),
+    ]) {
+      await expect(request()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    }
   });
 
   it("renders the populated report-facing panel from the real procedure result without the unavailable fallback", () => {

@@ -269,7 +269,10 @@ export const vehiclePassportRouter = router({
           currencyCode: claims.currencyCode,
         })
         .from(claims)
-        .where(eq(claims.vehicleRegistration, regNum))
+        .where(and(
+          eq(claims.vehicleRegistration, regNum),
+          eq(claims.tenantId, tenantId),
+        ))
         .orderBy(desc(claims.createdAt))
         .limit(input.limit);
 
@@ -292,17 +295,20 @@ export const vehiclePassportRouter = router({
       // 2. Damage history (canonical: vehicle_damage_history table)
       const damageEvents = await db
         .select({
-          id: vehicleDamageHistory.id,
-          createdAt: vehicleDamageHistory.createdAt,
-          damageZone: vehicleDamageHistory.damageZone,
-          severity: vehicleDamageHistory.severity,
-          isRepeatZone: vehicleDamageHistory.isRepeatZone,
-          repairCostEstimateCents: vehicleDamageHistory.repairCostEstimateCents,
-          actualRepairCostCents: vehicleDamageHistory.actualRepairCostCents,
-        })
-        .from(vehicleDamageHistory)
-        .where(eq(vehicleDamageHistory.vehicleId, input.vehicleRegistryId))
-        .orderBy(desc(vehicleDamageHistory.createdAt))
+         id: vehicleDamageHistory.id,
+         createdAt: vehicleDamageHistory.createdAt,
+         damageZone: vehicleDamageHistory.damageZone,
+         severity: vehicleDamageHistory.severity,
+         isRepeatZone: vehicleDamageHistory.isRepeatZone,
+         repairCostEstimateCents: vehicleDamageHistory.repairCostEstimateCents,
+         actualRepairCostCents: vehicleDamageHistory.actualRepairCostCents,
+       })
+       .from(vehicleDamageHistory)
+        .where(and(
+          eq(vehicleDamageHistory.vehicleId, input.vehicleRegistryId),
+          eq(vehicleDamageHistory.tenantId, tenantId),
+        ))
+       .orderBy(desc(vehicleDamageHistory.createdAt))
         .limit(input.limit);
 
       for (const d of damageEvents) {
@@ -333,7 +339,10 @@ export const vehiclePassportRouter = router({
           physicsReconciled: inspections.physicsReconciled,
         })
         .from(inspections)
-        .where(eq(inspections.vehicleRegistration, regNum))
+        .where(and(
+          eq(inspections.vehicleRegistration, regNum),
+          eq(inspections.tenantId, tenantId),
+        ))
         .orderBy(desc(inspections.completedAt))
         .limit(input.limit);
 
@@ -383,7 +392,10 @@ export const vehiclePassportRouter = router({
         })
         .from(fraudAlerts)
         .innerJoin(claims, eq(claims.id, fraudAlerts.claimId))
-        .where(eq(claims.vehicleRegistration, regNum))
+        .where(and(
+          eq(claims.vehicleRegistration, regNum),
+          eq(claims.tenantId, tenantId),
+        ))
         .orderBy(desc(fraudAlerts.createdAt))
         .limit(input.limit);
 
@@ -467,7 +479,10 @@ export const vehiclePassportRouter = router({
         })
         .from(claims)
         .leftJoin(aiAssessments, eq(aiAssessments.claimId, claims.id))
-        .where(eq(claims.vehicleRegistration, regNum))
+        .where(and(
+          eq(claims.vehicleRegistration, regNum),
+          eq(claims.tenantId, tenantId),
+        ))
         .orderBy(desc(claims.createdAt))
         .limit(input.limit);
 
@@ -522,7 +537,11 @@ export const vehiclePassportRouter = router({
         })
         .from(crossClaimSignals)
         .innerJoin(claims, eq(claims.id, crossClaimSignals.claimId))
-        .where(eq(claims.vehicleRegistration, regNum))
+        .where(and(
+          eq(claims.vehicleRegistration, regNum),
+          eq(claims.tenantId, tenantId),
+          eq(crossClaimSignals.tenantId, tenantId),
+        ))
         .orderBy(desc(crossClaimSignals.createdAt));
 
       // Fraud alerts (canonical: fraud_alerts)
@@ -537,7 +556,10 @@ export const vehiclePassportRouter = router({
         })
         .from(fraudAlerts)
         .innerJoin(claims, eq(claims.id, fraudAlerts.claimId))
-        .where(eq(claims.vehicleRegistration, regNum))
+        .where(and(
+          eq(claims.vehicleRegistration, regNum),
+          eq(claims.tenantId, tenantId),
+        ))
         .orderBy(desc(fraudAlerts.createdAt));
 
       return {

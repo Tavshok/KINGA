@@ -100,7 +100,7 @@ export interface PredictiveRiskFactors {
  */
 export async function aggregateVehiclePassport(
   vehicleRegistryId: number,
-  tenantId?: string
+  tenantId: string
 ): Promise<VehiclePassportIntelligence | null> {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
@@ -127,7 +127,10 @@ export async function aggregateVehiclePassport(
       lastClaimDate: max(claims.createdAt),
     })
     .from(claims)
-    .where(eq(claims.vehicleRegistration, regNum));
+    .where(and(
+      eq(claims.vehicleRegistration, regNum),
+      eq(claims.tenantId, tenantId),
+    ));
 
   // 3. Damage history (canonical: vehicle_damage_history table)
   const [damageSummary] = await db
@@ -137,7 +140,10 @@ export async function aggregateVehiclePassport(
       distinctDamageZones: sql<number>`COUNT(DISTINCT ${vehicleDamageHistory.damageZone})`,
     })
     .from(vehicleDamageHistory)
-    .where(eq(vehicleDamageHistory.vehicleId, vehicleRegistryId));
+    .where(and(
+      eq(vehicleDamageHistory.vehicleId, vehicleRegistryId),
+      eq(vehicleDamageHistory.tenantId, tenantId),
+    ));
 
   // 4. Fraud signals (canonical: cross_claim_signals via claims)
   const [fraudSummary] = await db
@@ -149,7 +155,11 @@ export async function aggregateVehiclePassport(
     })
     .from(crossClaimSignals)
     .innerJoin(claims, eq(claims.id, crossClaimSignals.claimId))
-    .where(eq(claims.vehicleRegistration, regNum));
+    .where(and(
+      eq(claims.vehicleRegistration, regNum),
+      eq(claims.tenantId, tenantId),
+      eq(crossClaimSignals.tenantId, tenantId),
+    ));
 
   // 5. Inspection history (canonical: inspections table)
   const [inspectionSummary] = await db
@@ -158,7 +168,10 @@ export async function aggregateVehiclePassport(
       lastInspectionDate: max(inspections.completedAt),
     })
     .from(inspections)
-    .where(eq(inspections.vehicleRegistration, regNum));
+    .where(and(
+      eq(inspections.vehicleRegistration, regNum),
+      eq(inspections.tenantId, tenantId),
+    ));
 
   // 6. Confidence scores (canonical: claim_confidence_scores table)
   const [confidenceSummary] = await db
@@ -167,14 +180,21 @@ export async function aggregateVehiclePassport(
     })
     .from(claimConfidenceScores)
     .innerJoin(claims, eq(claims.id, claimConfidenceScores.claimId))
-    .where(eq(claims.vehicleRegistration, regNum));
+    .where(and(
+      eq(claims.vehicleRegistration, regNum),
+      eq(claims.tenantId, tenantId),
+      eq(claimConfidenceScores.tenantId, tenantId),
+    ));
 
   // 7. Fraud alerts (canonical: fraud_alerts table)
   const [fraudAlertSummary] = await db
     .select({ fraudAlertCount: count(fraudAlerts.id) })
     .from(fraudAlerts)
     .innerJoin(claims, eq(claims.id, fraudAlerts.claimId))
-    .where(eq(claims.vehicleRegistration, regNum));
+    .where(and(
+      eq(claims.vehicleRegistration, regNum),
+      eq(claims.tenantId, tenantId),
+    ));
 
   // Compute risk level from canonical signals
   const totalSignals = Number(fraudSummary?.totalFraudSignals ?? 0);
@@ -230,7 +250,7 @@ export async function aggregateVehiclePassport(
       await db.insert(vehiclePassportSnapshots).values({
         vehicleRegistryId,
         registrationNumber: regNum,
-        tenantId: tenantId ?? vehicle.tenantId ?? null,
+        tenantId,
         totalClaims: intelligence.totalClaims,
         completedClaims: intelligence.completedClaims,
         openClaims: intelligence.openClaims,
@@ -384,7 +404,7 @@ export async function aggregateFleetIntelligence(
 export async function computeVehicleRenewalRisk(
   vehicleRegistryId: number,
   registrationNumber: string,
-  tenantId?: string
+  tenantId: string
 ): Promise<{
   scoreValue: number;
   scoreLabel: "very_low" | "low" | "medium" | "high" | "very_high" | "critical";
@@ -401,7 +421,10 @@ export async function computeVehicleRenewalRisk(
       avgSettlement: sql<number>`AVG(CAST(${claims.finalApprovedAmount} AS DECIMAL(15,2)))`,
     })
     .from(claims)
-    .where(eq(claims.vehicleRegistration, registrationNumber));
+    .where(and(
+      eq(claims.vehicleRegistration, registrationNumber),
+      eq(claims.tenantId, tenantId),
+    ));
 
   const [damageStats] = await db
     .select({
@@ -409,13 +432,20 @@ export async function computeVehicleRenewalRisk(
       totalEvents: count(vehicleDamageHistory.id),
     })
     .from(vehicleDamageHistory)
-    .where(eq(vehicleDamageHistory.vehicleId, vehicleRegistryId));
+    .where(and(
+      eq(vehicleDamageHistory.vehicleId, vehicleRegistryId),
+      eq(vehicleDamageHistory.tenantId, tenantId),
+    ));
 
   const [fraudStats] = await db
     .select({ totalSignals: count(crossClaimSignals.id) })
     .from(crossClaimSignals)
     .innerJoin(claims, eq(claims.id, crossClaimSignals.claimId))
-    .where(eq(claims.vehicleRegistration, registrationNumber));
+    .where(and(
+      eq(claims.vehicleRegistration, registrationNumber),
+      eq(claims.tenantId, tenantId),
+      eq(crossClaimSignals.tenantId, tenantId),
+    ));
 
   const totalC = Number(claimStats?.totalClaims ?? 0);
   const totalEvents = Number(damageStats?.totalEvents ?? 0);
@@ -460,7 +490,7 @@ export async function computeVehicleRenewalRisk(
       await db.insert(predictiveRiskScores).values({
         entityType: "vehicle",
         entityId: String(vehicleRegistryId),
-        tenantId: tenantId ?? null,
+        tenantId,
         scoreType: "vehicle_renewal_risk",
         scoreValue: String(scoreValue),
         scoreLabel,
