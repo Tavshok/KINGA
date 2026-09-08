@@ -52,4 +52,42 @@ describe("AUD-P1-001 executed legacy-history report surfaces", () => {
     expect(sharedSections[0]).toBe(sharedSections[1]);
     expect(sharedSections[1]).toBe(sharedSections[2]);
   });
+
+  it("renders an identical shared active canonical quotation section across CL, CI, and FR", async () => {
+    const activeClaim = {
+      ...claim,
+      id: 9912,
+      cost_intelligence_json: JSON.stringify({ compositeOptimisation: {
+        canonicalQuoteLedger: [
+          { quoteId: 11, panelBeater: "Active Alpha", totalCostUsd: 1000, currency: "USD", status: "active", evidenceEligibility: "final_l2_eligible" },
+          { quoteId: 12, panelBeater: "Active Beta", totalCostUsd: 1200, currency: "USD", status: "active", evidenceEligibility: "final_l2_eligible" },
+        ],
+        l1SubmittedCostUsd: 1000, l2CompositeOptimisedCostUsd: 950, isComplete: true, sourceQuotesReceived: 2,
+      }}),
+    };
+    mocks.execute.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM claims c")) return [[activeClaim], []];
+      if (sql.includes("FROM panel_beater_quotes")) return [[
+        { id: 11, quoted_amount: 100000, currency_code: "USD", status: "submitted", panel_beater_name: "Active Alpha" },
+        { id: 12, quoted_amount: 120000, currency_code: "USD", status: "submitted", panel_beater_name: "Active Beta" },
+      ], []];
+      return [[], []];
+    });
+    mocks.createConnection.mockResolvedValue({ execute: mocks.execute, end: mocks.end });
+
+    const [ci, fr, cl] = await Promise.all([
+      generateClaimsIntelligenceReport(9912, "tenant-legacy"),
+      generateForensicDecisionReport(9912, "tenant-legacy"),
+      generateReportHtml("claim.assessment", { claimId: 9912 }, "tenant-legacy"),
+    ]);
+    const sections = [cl, ci, fr].map((html) => html.match(/<section data-shared-quote-evidence="active-comparison"[\s\S]*?<\/section>/)?.[0]);
+    for (const section of sections) {
+      expect(section).toContain("Active Alpha");
+      expect(section).toContain("Active Beta");
+      expect(section).toContain("$1,000.00");
+      expect(section).toContain("$950.00");
+    }
+    expect(sections[0]).toBe(sections[1]);
+    expect(sections[1]).toBe(sections[2]);
+  });
 });

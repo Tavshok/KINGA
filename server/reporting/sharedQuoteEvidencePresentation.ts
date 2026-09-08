@@ -128,14 +128,14 @@ function activeComparisonTable(
       </tr>
     </thead>
     <tbody>
-      ${rows.map((row) => `<tr style="border-bottom:1px solid #e5e7eb;">
+      ${rows.length > 0 ? rows.map((row) => `<tr style="border-bottom:1px solid #e5e7eb;">
         <td style="padding:4px 7px;font-weight:600;vertical-align:top;">${escapeHtml(row.component)}</td>
         ${quoteGroup.map((quote) => {
           const amount = row.amounts.get(quote.id) ?? null;
           return `<td style="padding:4px 7px;text-align:right;font-family:monospace;vertical-align:top;${amount === null ? "color:#6b7280;font-style:italic;" : ""}">${amount === null ? "Not quoted" : formattedRecordedAmount(amount, quote.currency)}</td>`;
         }).join("")}
         ${includeL2Evidence ? `<td style="padding:4px 7px;text-align:right;font-family:monospace;vertical-align:top;background:#f5fbf6;color:${row.l2Amount === null ? "#6b7280" : "#17603a"};">${row.l2Amount === null ? "Not available" : formattedUsd(row.l2Amount)}${row.l2Method ? `<br><span style="font-family:inherit;font-size:8px;color:#6b7280;">${escapeHtml(row.l2Method.replaceAll("_", " ").toLowerCase())}</span>` : ""}</td>` : ""}
-      </tr>`).join("")}
+      </tr>`).join("") : `<tr><td colspan="${quoteGroup.length + (includeL2Evidence ? 2 : 1)}" style="padding:5px 7px;color:#6b7280;font-style:italic;">No explicit canonical component price rows are available for this eligible quotation group. No values have been inferred.</td></tr>`}
     </tbody>
     <tfoot>
       <tr style="border-top:2px solid #d1d5db;background:#fafafa;font-weight:700;">
@@ -230,9 +230,7 @@ export function renderSharedQuoteEvidencePresentation({
   return `
 <section data-shared-quote-evidence="active-comparison" style="margin-top:10px;page-break-inside:avoid;">
   <div style="padding:7px 10px;background:#edf4ed;border-left:3px solid #3c7844;font-size:10px;color:#1f5130;"><b>Active comparison evidence.</b> ${activeQuotes.length} eligible repair quotation${activeQuotes.length === 1 ? "" : "s"} with a shared ${escapeHtml(Array.from(currencies)[0])} basis. Values below are presented from the canonical quote ledger; missing prices are explicitly marked, not treated as zero.</div>
-  ${rows.length > 0
-    ? activeComparisonTable(activeQuotes, rows, includeL2Evidence, escapeHtml)
-    : '<div style="margin-top:8px;padding:8px 10px;border-left:3px solid #a16207;background:#fffbeb;font-size:10px;color:#713f12;"><b>Line-item comparison unavailable.</b> The active quotation ledger contains no explicit component price rows; no component values have been inferred.</div>'}
+  ${activeComparisonTable(activeQuotes, rows, includeL2Evidence, escapeHtml)}
   <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px;">
     <tr style="background:#fafafa;border-top:1px solid #d1d5db;"><td style="padding:5px 7px;font-weight:700;">L1 — lowest eligible submitted quote</td><td style="padding:5px 7px;text-align:right;font-family:monospace;">${formattedUsd(costIntegrity.l1SubmittedCostUsd)}</td><td style="padding:5px 7px;font-weight:700;">L2 — KINGA Optimised</td><td style="padding:5px 7px;text-align:right;font-family:monospace;color:${l2Total === null ? "#6b7280" : "#17603a"};">${formattedUsd(l2Total)}</td></tr>
   </table>
