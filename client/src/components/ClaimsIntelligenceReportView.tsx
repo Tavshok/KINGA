@@ -11,7 +11,7 @@
 
 import { useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, Printer } from "lucide-react";
 
 interface ClaimsIntelligenceReportViewProps {
   claimId: number;
@@ -19,6 +19,7 @@ interface ClaimsIntelligenceReportViewProps {
 
 export function ClaimsIntelligenceReportView({ claimId }: ClaimsIntelligenceReportViewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const printReport = () => iframeRef.current?.contentWindow?.print();
 
   const { data, isLoading, error } = trpc.reportingEngine.previewHtml.useQuery(
     { reportKey: "claim.intelligence", claimId },
@@ -80,6 +81,11 @@ export function ClaimsIntelligenceReportView({ claimId }: ClaimsIntelligenceRepo
 
   return (
     <div style={{ width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 12px', borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
+        <button type="button" onClick={printReport} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', color: '#0f172a', cursor: 'pointer' }}>
+          <Printer style={{ width: 14, height: 14 }} /> Print full report
+        </button>
+      </div>
       <iframe
         ref={iframeRef}
         title="KINGA Claims Intelligence Report"
