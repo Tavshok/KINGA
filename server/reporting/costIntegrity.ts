@@ -39,6 +39,8 @@ export interface ReportCostIntegrity {
   l2Status: "complete" | "evidence_qualified" | "incomplete_scope" | "reconciliation_required" | "unavailable";
   duplicateQuotesExcluded: number;
   supersededQuotesExcluded: number;
+  /** Raw same-currency submitted-document minimum; never decision evidence by itself. */
+  lowestSubmittedDocumentTotalUsd: number | null;
   l1SubmittedCostUsd: number | null;
   l2OptimisedCostUsd: number | null;
   l2EvidenceQualifiedComparisonUsd: number | null;
@@ -172,6 +174,13 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
     .map((quote) => quote.amountUsd)
     .filter((amount): amount is number => amount !== null)
     .sort((a, b) => a - b)[0] ?? null;
+  const submittedAmounts = submittedQuotes
+    .map((quote) => quote.amountUsd)
+    .filter((amount): amount is number => amount !== null && amount > 0);
+  const submittedCurrencies = new Set(submittedQuotes.filter((quote) => quote.amountUsd !== null).map((quote) => quote.currency));
+  const lowestSubmittedDocumentTotalUsd = submittedCurrencies.size <= 1
+    ? submittedAmounts.sort((a, b) => a - b)[0] ?? null
+    : null;
 
   const complete = composite.isComplete === true;
   const l2 = complete ? finitePositive(composite.l2CompositeOptimisedCostUsd) : null;
@@ -188,8 +197,8 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
   const l2Status = persistedL2Status === "complete" || persistedL2Status === "evidence_qualified" || persistedL2Status === "incomplete_scope" || persistedL2Status === "reconciliation_required"
     ? persistedL2Status
     : l2 !== null ? "complete" : quoteReceiptStatus === "quotes_received" ? "incomplete_scope" : "unavailable";
-  const quoteReconciliations = Array.isArray(composite.quoteReconciliations)
-    ? composite.quoteReconciliations.map(record).map((quote) => {
+  const quoteReconciliations: ReportCostIntegrity["quoteReconciliations"] = Array.isArray(composite.quoteReconciliations)
+    ? composite.quoteReconciliations.map(record).map((quote): ReportCostIntegrity["quoteReconciliations"][number] => {
       const rawStatus = String(quote.status ?? "");
       const status = rawStatus === "reconciled" || rawStatus === "reconciliation_required" || rawStatus === "total_only" || rawStatus === "line_items_only"
         ? rawStatus
@@ -236,6 +245,7 @@ export function resolveReportCostIntegrity(costIntel: unknown, dbQuotes: unknown
     l2Status,
     duplicateQuotesExcluded: Number(composite.duplicateQuotesExcluded ?? ledgerRows.filter((row) => row.status === "duplicate").length) || 0,
     supersededQuotesExcluded: Number(composite.supersededQuotesExcluded ?? ledgerRows.filter((row) => row.status === "superseded").length) || 0,
+    lowestSubmittedDocumentTotalUsd,
     l1SubmittedCostUsd: finitePositive(composite.l1LowestSubmittedCostUsd)
       ?? finitePositive(composite.l1SubmittedCostUsd)
       ?? lowestActiveQuoteUsd,

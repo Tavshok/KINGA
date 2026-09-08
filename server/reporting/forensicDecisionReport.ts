@@ -15,12 +15,15 @@ import {
   buildKingaFdrHtml, esc, fmtUSD, fmtCurrency, fmtD, safeJson, photoZonePanel,
 } from "./templates/kingaDesignSystem";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { resolveReportQuoteEvidencePresentation } from "./costIntegrity";
 import { renderEvidenceGovernancePanel, type EvidenceGovernanceReportData } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
+import { renderCostEvidenceStateHtml } from "./costEvidenceStatePresentation";
 import type { CGIAvailabilitySummary } from "../pipeline-v2/stage-9-5-cgi";
 import { isKingaWriteOffRecommendation } from "../../shared/writeOffRecommendation";
 import { resolveForensicReportModel, type ForensicApprovalStage, type ForensicReportModel } from "./forensicReportModel";
 import { toReportDefinitionRow } from "./resolvedReportRecord";
+import { renderSharedQuoteEvidencePresentation } from "./sharedQuoteEvidencePresentation";
 
 type LegacyRendererInputs = Readonly<{
   c: Record<string, unknown>;
@@ -200,6 +203,12 @@ export async function generateForensicDecisionReport(
     const activeQuoteIds = new Set(
       comparisonQuoteArr.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
     );
+    const sharedQuoteEvidenceHtml = renderSharedQuoteEvidencePresentation({
+      costIntegrity,
+      quoteEvidence: forensicModel.reportRecord.evidence.quoteEvidence,
+      quotePresentation: resolveReportQuoteEvidencePresentation(costIntegrity),
+      escapeHtml: esc,
+    });
 
     // Bug #8: derive currency from cost intel or quotes (not hardcoded USD)
     const claimCurrency: string = String(
@@ -763,7 +772,7 @@ export async function generateForensicDecisionReport(
   ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout amber" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtCurrency(costIntegrity.assessorCalibrationCostUsd, claimCurrency)}. This prior assessor figure is retained for comparison with KINGA costing; it is not a submitted quote, L2 value, settlement agreement, or payment authority.</div>` : ""}
   <div class="callout" style="margin-top:8px;border-left-color:#2d5f8b;background:#f3f7fb;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
   ${renderEvidenceGovernancePanel(evidenceGovernanceData, activeQuoteIds)}
-  <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">Active quote amounts</td><td class="v">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td class="k">Quote scope status</td><td class="v">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">${l2LedgerLabel}</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
+  ${renderCostEvidenceStateHtml({ costIntegrity, formatAmount: (amount) => fmtCurrency(amount, claimCurrency), escapeHtml: esc })}
 
   <!-- §01 EXECUTIVE SUMMARY -->
   <div class="section">
@@ -1353,12 +1362,8 @@ export async function generateForensicDecisionReport(
     ${sectionTab("06", "Financial Validation", hasSavings ? "Savings opportunity" : "Review", hasSavings ? "ok" : "high")}
     <div class="cols-2">
       <div class="box">
-        <h4>Quote Comparison</h4>
-        ${quoteBars}
-        ${kingaOptimised === null
-          ? co(`<b>L2 integrity hold —</b> ${esc(l2IntegrityNote)}`, "amber")
-          : `<div class="qbar-row sans"><div class="name" style="font-weight:700;">KINGA Optimised (L2)</div><div class="track"><div class="fill" style="width:${kingaPct}%; background:var(--green);"></div></div><div class="amt" style="color:var(--green-dark);">${l2Display}</div></div>`}
-        ${hasSavings ? co(`<b>Savings opportunity —</b> ${fmtUSD(savings)} (${savingsPct.toFixed(1)}%) below lowest submitted quote, based on best price per component.`, "green") : ""}
+        <h4>Quotation Evidence</h4>
+        ${sharedQuoteEvidenceHtml}
       </div>
       <div class="box">
         <h4>Cost Intelligence &amp; Settlement</h4>

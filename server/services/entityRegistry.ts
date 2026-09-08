@@ -346,15 +346,15 @@ async function upsertClaimant(input: EntityRegistryInput): Promise<number | unde
 
 async function upsertOfficer(input: EntityRegistryInput): Promise<number | undefined> {
   const { officerName, officerBadgeNumber, tenantId, claimId } = input;
-  if (!officerName && !officerBadgeNumber) return undefined;
+  if (!tenantId || (!officerName && !officerBadgeNumber)) return undefined;
 
   const now = nowIso();
 
   let existing: Record<string, unknown> | undefined;
   if (officerBadgeNumber) {
     const rows = await querySql(
-      "SELECT id, total_claims, claim_ids_json, assessor_co_occurrences FROM police_officer_registry WHERE badge_number = ? LIMIT 1",
-      [officerBadgeNumber]
+      "SELECT id, total_claims, claim_ids_json, assessor_co_occurrences FROM police_officer_registry WHERE badge_number = ? AND tenant_id = ? LIMIT 1",
+      [officerBadgeNumber, tenantId]
     );
     existing = rows[0];
   }
@@ -368,11 +368,17 @@ async function upsertOfficer(input: EntityRegistryInput): Promise<number | undef
 
   if (existing) {
     const id = existing.id as number;
-    const claimIds: number[] = JSON.parse((existing.claim_ids_json as string) || "[]");
+    const rawClaimIds = existing.claim_ids_json;
+    const claimIds: number[] = Array.isArray(rawClaimIds)
+      ? rawClaimIds as number[]
+      : JSON.parse((rawClaimIds as string) || "[]");
     if (!claimIds.includes(claimId)) claimIds.push(claimId);
 
     // Track assessor co-occurrences
-    const coOccurrences: Record<string, number> = JSON.parse((existing.assessor_co_occurrences as string) || "{}");
+    const rawCoOccurrences = existing.assessor_co_occurrences;
+    const coOccurrences: Record<string, number> = typeof rawCoOccurrences === "object" && rawCoOccurrences !== null
+      ? rawCoOccurrences as Record<string, number>
+      : JSON.parse((rawCoOccurrences as string) || "{}");
     if (input.assessorName) {
       const key = normaliseName(input.assessorName);
       coOccurrences[key] = (coOccurrences[key] || 0) + 1;
@@ -384,8 +390,8 @@ async function upsertOfficer(input: EntityRegistryInput): Promise<number | undef
         claim_ids_json = ?,
         assessor_co_occurrences = ?,
         updated_at = ?
-      WHERE id = ?`,
-      [JSON.stringify(claimIds), JSON.stringify(coOccurrences), now, id]
+      WHERE id = ? AND tenant_id = ?`,
+      [JSON.stringify(claimIds), JSON.stringify(coOccurrences), now, id, tenantId]
     );
     return id;
   } else {
@@ -777,13 +783,13 @@ export async function checkOfficerConcentration(
   officerBadgeNumber?: string,
   tenantId?: string
 ): Promise<OfficerConcentrationResult | null> {
-  if (!officerName && !officerBadgeNumber) return null;
+  if (!tenantId || (!officerName && !officerBadgeNumber)) return null;
 
   let rows: Record<string, unknown>[];
   if (officerBadgeNumber) {
     rows = await querySql(
-      "SELECT * FROM police_officer_registry WHERE badge_number = ? LIMIT 1",
-      [officerBadgeNumber]
+      "SELECT * FROM police_officer_registry WHERE badge_number = ? AND tenant_id = ? LIMIT 1",
+      [officerBadgeNumber, tenantId]
     );
   } else {
     rows = await querySql(
@@ -796,7 +802,10 @@ export async function checkOfficerConcentration(
 
   const officer = rows[0];
   const totalClaims = (officer.total_claims as number) || 0;
-  const coOccurrences: Record<string, number> = JSON.parse((officer.assessor_co_occurrences as string) || "{}");
+  const rawCoOccurrences = officer.assessor_co_occurrences;
+  const coOccurrences: Record<string, number> = typeof rawCoOccurrences === "object" && rawCoOccurrences !== null
+    ? rawCoOccurrences as Record<string, number>
+    : JSON.parse((rawCoOccurrences as string) || "{}");
   const topAssessorCount = Math.max(...Object.values(coOccurrences), 0);
   const collusionWebDetected = topAssessorCount >= 3;
 

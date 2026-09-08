@@ -18,6 +18,8 @@ import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct, safeJson, scoreColour, chip, badge, photoZonePanel,
 } from "./templates/kingaDesignSystem";
 import { resolveReportCostIntegrity, resolveReportQuoteEvidencePresentation } from "./costIntegrity";
+import { renderSharedQuoteEvidencePresentation } from "./sharedQuoteEvidencePresentation";
+import { renderCostEvidenceStateHtml } from "./costEvidenceStatePresentation";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
@@ -148,6 +150,12 @@ export async function generateClaimsIntelligenceReport(
       },
     });
     const quoteEvidence = resolveReportQuoteEvidencePresentation(costIntegrity);
+    const sharedQuoteEvidenceHtml = renderSharedQuoteEvidencePresentation({
+      costIntegrity,
+      quoteEvidence: record.evidence.quoteEvidence,
+      quotePresentation: quoteEvidence,
+      escapeHtml: esc,
+    });
     const quoteArr = quoteEvidence.visibleQuotes;
     const comparisonQuoteArr = quoteEvidence.activeComparisonQuotes;
     const { visibleQuoteCount, activeQuoteCount, reportedQuoteCount, state: quoteEvidenceState } = quoteEvidence;
@@ -355,7 +363,7 @@ ${(() => {
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>KINGA AI · Confidential Claims Intelligence Report</div>
-    <div>${docRef} · Page 1 of 2</div>
+    <div>${docRef} · Report overview</div>
   </div>
 `;
 
@@ -511,7 +519,7 @@ ${(() => {
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>KINGA AI · Confidential Claims Intelligence Report</div>
-    <div>${docRef} · Page 1 of 2</div>
+    <div>${docRef} · Section 01 · Claim Identity &amp; Policy</div>
   </div>
 </div>`;
 
@@ -588,7 +596,7 @@ ${(() => {
     ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This historical assessor figure is displayed for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
     <div class="callout" style="margin-top:8px;border-left-color:#2d5f8b;background:#f3f7fb;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
     ${renderEvidenceGovernancePanel(evidenceGovernanceData, activeQuoteIds)}
-    <table class="kv" style="margin-top:8px"><tr><td class="k">Submitted quotation ledger</td><td class="v">${quoteArr.length} active quote${quoteArr.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td></tr><tr><td class="k">Active quote amounts</td><td class="v">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td class="k">Quote scope status</td><td class="v">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td></tr><tr><td class="k">L1 — lowest active submitted quote</td><td class="v">${l1Display}</td></tr><tr><td class="k">${l2LedgerLabel}</td><td class="v">${l2Display}</td></tr><tr><td class="k">L3 — benchmark reference</td><td class="v">${l3Display}</td></tr></table>
+    ${renderCostEvidenceStateHtml({ costIntegrity, formatAmount: fmtUSD, escapeHtml: esc })}
   </div>
 
   ${totalExclusions > 0 || exclusions.length > 0 ? `
@@ -612,7 +620,7 @@ ${(() => {
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>KINGA AI · Confidential Claims Intelligence Report</div>
-    <div>${docRef} · Page 2 of 2</div>
+    <div>${docRef} · Section P · Policy &amp; Coverage Check</div>
   </div>
 </div>`;
 
@@ -679,12 +687,12 @@ ${(() => {
 <div class="section">
   <div class="section-tab sans"><span class="num">02</span> Cost Intelligence</div>
   <p class="small" style="margin:0 0 8px 0;">${esc(quoteEvidenceNarrative)}${costIntegrity.duplicateQuotesExcluded > 0 ? ` after excluding ${costIntegrity.duplicateQuotesExcluded} duplicate submission${costIntegrity.duplicateQuotesExcluded === 1 ? "" : "s"}` : ""} for the ${vehicleDesc}. ${kingaOptimised === null ? `<strong>${esc(l2IntegrityNote)}</strong>` : `The all-in optimised estimate of <strong>${l2Display}</strong> represents a saving of <strong>${fmtUSD(savings)} (${fmtPct(savingsPct)})</strong> against the highest active submitted quote.`} ${criticalStructural.length > 0 ? `<strong>${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} identified in the damage scope do not appear in any submitted quote</strong> — an independent structural assessment is required before the cost can be finalised.` : "All major components are included in the submitted quotes."}</p>
-  <div class="cols-2">
-    <div class="box">
-      <h4>Quote Comparison — ${visibleQuoteCount} visible record${visibleQuoteCount === 1 ? "" : "s"}; ${activeQuoteCount} active comparison quote${activeQuoteCount === 1 ? "" : "s"}</h4>
-      ${quoteCardHtml}
-    </div>
+  <div class="box">
+    <h4>Quotation Evidence</h4>
+    ${sharedQuoteEvidenceHtml}
+  </div>
 
+  <div class="cols-2" style="margin-top:10px;">
     <div class="box">
       <h4>Repair Economics &amp; Verdict</h4>
       <table class="kv">
@@ -698,21 +706,12 @@ ${(() => {
     </div>
   </div>
 
-  ${topItems.length > 0 ? `
-  <div class="section" style="margin-top:10px;">
-    <div class="section-tab sans" style="background:var(--ink-soft);"><span class="num">Line Item Comparison</span></div>
-    <table class="grid-t">
-      <tr><th>Component</th><th>Type</th><th>Submitted</th><th>KINGA Benchmark</th><th>Status</th></tr>
-      ${compTableRows}
-    </table>
-  </div>` : ""}
-
   ${criticalStructural.length > 0 ? `
   <div class="callout red" style="margin-top:8px;"><b>Structural Gap — ${criticalStructural.length} critical component${criticalStructural.length !== 1 ? "s" : ""} not quoted.</b> ${criticalStructural.map(g => esc(g.component)).join(", ")}. An independent structural assessment is required before the repair scope and cost can be finalised. Settlement must not be authorised until this assessment is complete.</div>` : ""}
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>KINGA AI · Confidential Claims Intelligence Report</div>
-    <div>${docRef} · Page 2 of 2</div>
+    <div>${docRef} · Section 02 · Cost Intelligence</div>
   </div>
 </div>`;
 
@@ -802,7 +801,7 @@ ${(() => {
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>KINGA AI · Confidential Claims Intelligence Report</div>
-    <div>${docRef} · Page 2 of 2</div>
+    <div>${docRef} · Section 03 · Risk Indicators</div>
   </div>
 </div>`;
 
@@ -907,7 +906,7 @@ ${(() => {
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>KINGA AI · Confidential Claims Intelligence Report</div>
-    <div>${docRef} · Page 2 of 2</div>
+    <div>${docRef} · Section 04 · Evidence Snapshot</div>
   </div>
 </div>`;
 
@@ -975,7 +974,7 @@ ${(() => {
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>CONFIDENTIAL — For authorised insurer use only · Generated by KINGA Intelligence · Requires adjuster sign-off. Not legal advice.</div>
-    <div>${docRef} · Page 2 of 2</div>
+    <div>${docRef} · Section 05 · Decision &amp; Next Steps</div>
   </div>
 </div>`;
 
