@@ -88,19 +88,56 @@ const assistedClaimInput = z.object({
   attachments: z.array(assistedAttachment).max(50), repairerPreferences: z.array(z.string().max(255)).max(50).default([]),
 });
 
-async function resolveServiceVehicle(input: z.infer<typeof createInsuranceServiceRequestInput>, tenantId: string) {
+/**
+ * Resolves an agency-owned vehicle for decision-support evidence only.
+ * It must never reuse or transfer another tenant's vehicle record: the current
+ * registry has a global VIN uniqueness constraint but no governed portability
+ * contract or ownership-history model.
+ */
+export async function resolveServiceVehicle(input: z.infer<typeof createInsuranceServiceRequestInput>, tenantId: string) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable." });
   const registrationNumber = normaliseVehicleRegistration(input.vehicleRegistration);
+  if (!registrationNumber) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "A valid vehicle registration is required." });
+  }
   const vin = input.vehicleVin?.trim().toUpperCase().replace(/\s+/g, "") || null;
   let vehicle = vin ? (await db.select().from(vehicleRegistry).where(and(eq(vehicleRegistry.vin, vin), eq(vehicleRegistry.tenantId, tenantId))).limit(1))[0] : undefined;
   if (!vehicle && registrationNumber) vehicle = (await db.select().from(vehicleRegistry).where(and(eq(vehicleRegistry.registrationNumber, registrationNumber), eq(vehicleRegistry.tenantId, tenantId))).limit(1))[0];
   if (vehicle) return vehicle;
-  const [created] = await db.insert(vehicleRegistry).values({
-    vin, registrationNumber, make: input.vehicleMake, model: input.vehicleModel, year: input.vehicleYear, tenantId,
-    totalClaimsCount: 0, totalRepairCostCents: 0, hasSuspiciousDamagePattern: 0, isRepeatClaimer: 0, isSalvageTitle: 0, isStolen: 0, isWrittenOff: 0, vehicleRiskScore: 0,
-  }).$returningId() as { id: number }[];
-  return { id: created.id, registrationNumber, vin, make: input.vehicleMake, model: input.vehicleModel, year: input.vehicleYear };
+
+  if (vin) {
+    const [existingVin] = await db.select({ id: vehicleRegistry.id }).from(vehicleRegistry).where(eq(vehicleRegistry.vin, vin)).limit(1);
+    if (existingVin) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "This vehicle cannot be registered for an agency service request. Agency vehicle reuse across ownership scopes is not supported.",
+      });
+    }
+  }
+
+  try {
+    await db.insert(vehicleRegistry).values({
+      vin, registrationNumber, make: input.vehicleMake, model: input.vehicleModel, year: input.vehicleYear, tenantId,
+      totalClaimsCount: 0, totalRepairCostCents: 0, hasSuspiciousDamagePattern: 0, isRepeatClaimer: 0, isSalvageTitle: 0, isStolen: 0, isWrittenOff: 0, vehicleRiskScore: 0,
+    });
+    const [created] = await db.select().from(vehicleRegistry).where(and(
+      eq(vehicleRegistry.tenantId, tenantId),
+      vin ? eq(vehicleRegistry.vin, vin) : eq(vehicleRegistry.registrationNumber, registrationNumber),
+    )).limit(1);
+    if (!created) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Agency vehicle registration could not be confirmed." });
+    }
+    return created;
+  } catch (error: any) {
+    if (vin && (error?.code === "ER_DUP_ENTRY" || error?.cause?.code === "ER_DUP_ENTRY")) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "This vehicle cannot be registered for an agency service request. Agency vehicle reuse across ownership scopes is not supported.",
+      });
+    }
+    throw error;
+  }
 }
 
 function marketValuationProvenance(result: Awaited<ReturnType<typeof valuateVehicle>>, vehicle: { make: string; model: string; year: number; mileage?: number; condition?: string }) {
