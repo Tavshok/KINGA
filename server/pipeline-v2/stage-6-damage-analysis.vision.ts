@@ -57,6 +57,7 @@ import type {
 } from "./types";
 import { TIMEOUT_VISION_MS } from "./pipelineContractRegistry";
 import { normaliseVisionComponentNames } from "../services/visionTermNormaliser";
+import { normaliseSeverity } from "./stage-6-damage-analysis.helpers";
 // R-B-06 fix: import TIMEOUT_VISION_MS from pipelineContractRegistry so the
 // stage-level budget is a single source of truth (currently 200_000 ms / 200 s).
 // The orchestrator enforces this via runWithTimeout("6_damage_analysis", ...).
@@ -128,39 +129,6 @@ async function checkUrlAccessibility(url: string): Promise<{ accessible: boolean
   } catch {
     return { accessible: true }; // non-blocking — assume accessible on error
   }
-}
-
-function normaliseSeverity(raw: string): AccidentSeverity {
-  const s = (raw || "").toLowerCase().trim();
-  if (s === "catastrophic") return "catastrophic";
-  if (s === "severe" || s === "major") return "severe";
-  if (s === "moderate" || s === "medium") return "moderate";
-  if (s === "minor" || s === "light" || s === "slight") return "minor";
-  if (s === "cosmetic" || s === "superficial") return "cosmetic";
-  return "moderate";
-}
-
-function inferZone(location: string): string {
-  const loc = (location || "").toLowerCase();
-  if (/front|bumper front|hood|bonnet|headl|grille|radiator|fender front|wing front/.test(loc)) return "front";
-  if (/rear|bumper rear|tail|trunk|boot|boot.?lid|loadbox|fender rear|wing rear/.test(loc)) return "rear";
-  if (/left|driver|lh|l\/h/.test(loc)) return "left_side";
-  if (/right|passenger|rh|r\/h/.test(loc)) return "right_side";
-  if (/roof|top|overhead|canopy|roof.?lin/.test(loc)) return "roof";
-  if (/sill|rocker/.test(loc)) return "left_side";
-  if (/under|bottom|chassis|subframe/.test(loc)) return "undercarriage";
-  return "general";
-}
-
-function calculateOverallSeverity(components: DamageAnalysisComponent[]): number {
-  if (components.length === 0) return 0;
-  const severityWeights: Record<AccidentSeverity, number> = {
-    none: 0, cosmetic: 10, minor: 25, moderate: 50, severe: 75, catastrophic: 100,
-  };
-  const total = components.reduce((sum, c) => sum + (severityWeights[c.severity] || 50), 0);
-  const avg = total / components.length;
-  const countBoost = Math.min(20, components.length * 2);
-  return Math.min(100, Math.round(avg + countBoost));
 }
 
 // ── JSON schema shared by primary and fallback vision prompts ─────────────────
@@ -888,7 +856,7 @@ export async function readDamageFromPhotos(
  *   - ctx.pdfPageImageUrls is empty (Stage 1 page rendering failed or produced 0 pages)
  *   - ctx.pdfUrl is set (the raw S3 URL for LLM file_url proxy calls)
  */
-async function readDamageFromPdf(
+export async function readDamageFromPdf(
   pdfUrl: string,
   claimRecord: ClaimRecord,
   ctx: PipelineContext,

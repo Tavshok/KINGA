@@ -68,7 +68,15 @@ import { normaliseVisionComponentNames } from "../services/visionTermNormaliser"
 //   At typical LLM speed (~5–10 s/image): 20 photos ≈ 160 s ✓ within budget.
 //   At worst-case (all retries hit timeout): budget exhausted after ~4 photos.
 //   PER_RUN_VISION_BUDGET should satisfy: budget × VISION_TIMEOUT_MS << TIMEOUT_VISION_MS.
-import { readDamageFromPhotos } from './stage-6-damage-analysis.vision';
+import {
+  readDamageFromPdf,
+  readDamageFromPhotos,
+} from './stage-6-damage-analysis.vision';
+import {
+  calculateOverallSeverity,
+  inferZone,
+  normaliseSeverity,
+} from './stage-6-damage-analysis.helpers';
 import { inferDamageFromDescription } from './stage-6-damage-analysis.fallback';
 import { mergeComponents } from './stage-6-damage-analysis.merge';
 
