@@ -10,8 +10,9 @@
  * All future report design changes should be made in:
  *   server/reporting/forensicDecisionReport.ts
  */
-import React, { useEffect, useRef, useState } from "react";
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { printIframeReport } from "@/lib/reportDocumentPrinting";
 import { Loader2, AlertTriangle } from "lucide-react";
 
 interface ForensicAuditReportProps {
@@ -20,10 +21,21 @@ interface ForensicAuditReportProps {
   [key: string]: unknown;
 }
 
-export function ForensicAuditReport({ claimId }: ForensicAuditReportProps) {
+export interface ForensicAuditReportPrintHandle {
+  printReport(): boolean;
+}
+
+export const ForensicAuditReport = forwardRef<ForensicAuditReportPrintHandle, ForensicAuditReportProps>(function ForensicAuditReport({ claimId }, ref) {
   const numericClaimId = Number(claimId);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState(1200);
+  const syncIframeHeight = () => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc?.body) return;
+    setIframeHeight(Math.max(doc.body.scrollHeight, doc.documentElement?.scrollHeight ?? 0, 1200));
+  };
+  const printReport = () => printIframeReport(iframeRef.current, syncIframeHeight);
+  useImperativeHandle(ref, () => ({ printReport }), []);
 
   const { data, isLoading, error } = trpc.reportingEngine.previewHtml.useQuery(
     { reportKey: "claim.forensic", claimId: numericClaimId },
@@ -41,13 +53,7 @@ export function ForensicAuditReport({ claimId }: ForensicAuditReportProps) {
     doc.open();
     doc.write(data.html);
     doc.close();
-    const resize = () => {
-      try {
-        const body = iframeRef.current?.contentDocument?.body;
-        if (body) setIframeHeight(Math.max(body.scrollHeight + 40, 1200));
-      } catch { /* cross-origin guard */ }
-    };
-    const t = setTimeout(resize, 400);
+    const t = setTimeout(syncIframeHeight, 400);
     return () => clearTimeout(t);
   }, [data?.html]);
 
@@ -95,6 +101,6 @@ export function ForensicAuditReport({ claimId }: ForensicAuditReportProps) {
       />
     </div>
   );
-}
+});
 
 export default ForensicAuditReport;
