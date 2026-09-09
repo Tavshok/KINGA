@@ -103,6 +103,7 @@ interface ReportPageHeaderProps {
   onReRun?: () => void;
   reRunPending?: boolean;
   isPolling?: boolean;
+  onPrint?: () => void;
 }
 
 export function ReportPageHeader({
@@ -113,6 +114,7 @@ export function ReportPageHeader({
   onReRun,
   reRunPending = false,
   isPolling = false,
+  onPrint,
 }: ReportPageHeaderProps) {
   const vehicleTitle = [claim?.vehicleMake, claim?.vehicleModel, claim?.vehicleYear]
     .filter(Boolean)
@@ -160,7 +162,7 @@ export function ReportPageHeader({
     ? `${window.location.origin}/verify?hash=${shortHash}&claim=${encodeURIComponent(claimRef)}`
     : null;
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => onPrint?.() ?? window.print();
 
   return (
     <div
