@@ -1,7 +1,7 @@
 # Orphan Workflow Discovery — DRV-009 and DRV-015
 
-**Date:** 8 September 2026  
-**Scope:** Read-only tracing of the creation, deletion, retry, migration, test-fixture, audit, and live aggregate metadata paths relevant to orphan police-report and agency service-request rows.  
+**Date:** 8 September 2026
+**Scope:** Read-only tracing of the creation, deletion, retry, migration, test-fixture, audit, and live aggregate metadata paths relevant to orphan police-report and agency service-request rows.
 **Out of scope:** Data repair, deletion, re-parenting, schema changes, foreign-key addition, workflow/status changes, claim replay, and disposition decisions.
 
 ## Executive conclusion
