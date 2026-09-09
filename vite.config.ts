@@ -170,6 +170,14 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
+        // The published portal has many lazy page imports. Content-hashed JavaScript
+        // chunk paths leave already-open browser tabs pointing at modules replaced by
+        // the next deployment. Keep module names stable across releases so older HTML
+        // can load the compatible current graph; keep non-JavaScript assets content
+        // hashed to avoid filename collisions and preserve normal cache invalidation.
+        entryFileNames: "assets/[name].js",
+        chunkFileNames: "assets/[name].js",
+        assetFileNames: "assets/[name]-[hash][extname]",
         // TECH-06: Split bundle by portal domain and vendor libraries.
         // Reduces initial load from ~6MB to ~400-600KB per portal entry point.
         manualChunks(id) {
