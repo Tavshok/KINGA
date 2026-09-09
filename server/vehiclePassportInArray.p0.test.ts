@@ -6,8 +6,10 @@ import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "./db";
 import { appRouter } from "./routers";
 import { aggregateVehiclePassport } from "./services/epic4-aggregation";
+import { cleanupOwnedFixture } from "./test-helpers/owned-fixture-cleanup";
 import {
-  agencyInsuranceServiceRequestInsurers,
+	agencyClients,
+	agencyInsuranceServiceRequestInsurers,
   agencyInsuranceServiceRequests,
   claimConfidenceScores,
   claims,
@@ -51,7 +53,8 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
   let agencyTenantId = "";
   let insurerTenantId = "";
   let unrelatedTenantId = "";
-  let agencyUserId = 0;
+	let agencyUserId = 0;
+	let agencyClientId = 0;
   let insurerUserId = 0;
   let unrelatedUserId = 0;
   let vehicleRegistryId = 0;
@@ -74,7 +77,7 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
   const snapshotIds: number[] = [];
   const expectedRequestNumbers: string[] = [];
   const expectedObservations: string[] = [];
-  let cacheWriteSpy: ReturnType<typeof vi.spyOn> | undefined;
+	let cacheWriteSpy: ReturnType<typeof vi.spyOn> | undefined;
 
   const contextFor = (id: number, tenantId: string | null) => ({
     user: {
@@ -122,10 +125,27 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
       tenantId: agencyTenantId,
       emailVerified: 1,
     });
-    agencyUserId = await resolveRequiredId(
+	agencyUserId = await resolveRequiredId(
       db.select({ id: users.id }).from(users).where(eq(users.openId, agencyOpenId)),
-      "agency user",
-    );
+		"agency user",
+	);
+
+	await db.insert(agencyClients).values({
+		agencyTenantId,
+		fullName: "Vehicle Passport owned fixture client",
+		vehicleRegistration: registrationNumber,
+		vehicleMake: "Fixture",
+		vehicleModel: "Passport",
+		vehicleYear: 2024,
+		createdBy: agencyUserId,
+	});
+	agencyClientId = await resolveRequiredId(
+		db.select({ id: agencyClients.id }).from(agencyClients).where(and(
+			eq(agencyClients.agencyTenantId, agencyTenantId),
+			eq(agencyClients.createdBy, agencyUserId),
+		)),
+		"agency client",
+	);
 
     await db.insert(users).values({
       openId: insurerOpenId,
@@ -363,7 +383,7 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
       await db.insert(agencyInsuranceServiceRequests).values({
         requestNumber,
         agencyTenantId,
-        agencyClientId: agencyUserId,
+		agencyClientId,
         vehicleRegistryId,
         coverType: "comprehensive",
         status: "ready_for_insurer_review",
@@ -424,41 +444,35 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
     }
   });
 
-  afterAll(async () => {
-    try {
-      if (!db) return;
-      // Every predicate below is anchored to IDs allocated for this test only.
-      if (snapshotIds.length) await db.delete(vehicleConditionSnapshots).where(inArray(vehicleConditionSnapshots.id, snapshotIds));
-      if (insurerLinkIds.length) await db.delete(agencyInsuranceServiceRequestInsurers).where(inArray(agencyInsuranceServiceRequestInsurers.id, insurerLinkIds));
-      if (serviceRequestIds.length) await db.delete(agencyInsuranceServiceRequests).where(inArray(agencyInsuranceServiceRequests.id, serviceRequestIds));
-      if (ownerFraudAlertId) await db.delete(fraudAlerts).where(eq(fraudAlerts.id, ownerFraudAlertId));
-      if (foreignFraudAlertId) await db.delete(fraudAlerts).where(eq(fraudAlerts.id, foreignFraudAlertId));
-      if (ownerSignalId) await db.delete(crossClaimSignals).where(eq(crossClaimSignals.id, ownerSignalId));
-      if (foreignSignalId) await db.delete(crossClaimSignals).where(eq(crossClaimSignals.id, foreignSignalId));
-      if (ownerConfidenceScoreId) await db.delete(claimConfidenceScores).where(eq(claimConfidenceScores.id, ownerConfidenceScoreId));
-      if (foreignConfidenceScoreId) await db.delete(claimConfidenceScores).where(eq(claimConfidenceScores.id, foreignConfidenceScoreId));
-      if (ownerInspectionId) await db.delete(inspections).where(eq(inspections.id, ownerInspectionId));
-      if (foreignInspectionId) await db.delete(inspections).where(eq(inspections.id, foreignInspectionId));
-      if (ownerDamageHistoryId) await db.delete(vehicleDamageHistory).where(eq(vehicleDamageHistory.id, ownerDamageHistoryId));
-      if (foreignDamageHistoryId) await db.delete(vehicleDamageHistory).where(eq(vehicleDamageHistory.id, foreignDamageHistoryId));
-      if (foreignClaimId) await db.delete(claims).where(eq(claims.id, foreignClaimId));
-      if (claimId) await db.delete(claims).where(eq(claims.id, claimId));
-      if (tenantlessVehicleRegistryId) await db.delete(vehicleRegistry).where(eq(vehicleRegistry.id, tenantlessVehicleRegistryId));
-      if (vehicleRegistryId) await db.delete(vehicleRegistry).where(eq(vehicleRegistry.id, vehicleRegistryId));
-      if (unrelatedUserId) await db.delete(users).where(eq(users.id, unrelatedUserId));
-      if (insurerUserId) await db.delete(users).where(eq(users.id, insurerUserId));
-      if (agencyUserId) await db.delete(users).where(eq(users.id, agencyUserId));
-
-      const remaining = await Promise.all([
+	afterAll(async () => {
+		try {
+			if (!db) return;
+			// Every predicate is anchored to an ID allocated by this fixture only.
+			await cleanupOwnedFixture([
+				{ id: "snapshots", remove: async () => { if (snapshotIds.length) await db.delete(vehicleConditionSnapshots).where(inArray(vehicleConditionSnapshots.id, snapshotIds)); } },
+				{ id: "insurer-links", remove: async () => { if (insurerLinkIds.length) await db.delete(agencyInsuranceServiceRequestInsurers).where(inArray(agencyInsuranceServiceRequestInsurers.id, insurerLinkIds)); } },
+				{ id: "service-requests", requires: ["snapshots", "insurer-links"], remove: async () => { if (serviceRequestIds.length) await db.delete(agencyInsuranceServiceRequests).where(inArray(agencyInsuranceServiceRequests.id, serviceRequestIds)); } },
+				{ id: "agency-client", requires: ["service-requests"], remove: async () => { if (agencyClientId) await db.delete(agencyClients).where(eq(agencyClients.id, agencyClientId)); } },
+				{ id: "fraud-alerts", remove: async () => { if (ownerFraudAlertId) await db.delete(fraudAlerts).where(eq(fraudAlerts.id, ownerFraudAlertId)); if (foreignFraudAlertId) await db.delete(fraudAlerts).where(eq(fraudAlerts.id, foreignFraudAlertId)); } },
+				{ id: "signals", remove: async () => { if (ownerSignalId) await db.delete(crossClaimSignals).where(eq(crossClaimSignals.id, ownerSignalId)); if (foreignSignalId) await db.delete(crossClaimSignals).where(eq(crossClaimSignals.id, foreignSignalId)); } },
+				{ id: "confidence-scores", remove: async () => { if (ownerConfidenceScoreId) await db.delete(claimConfidenceScores).where(eq(claimConfidenceScores.id, ownerConfidenceScoreId)); if (foreignConfidenceScoreId) await db.delete(claimConfidenceScores).where(eq(claimConfidenceScores.id, foreignConfidenceScoreId)); } },
+				{ id: "inspections", remove: async () => { if (ownerInspectionId) await db.delete(inspections).where(eq(inspections.id, ownerInspectionId)); if (foreignInspectionId) await db.delete(inspections).where(eq(inspections.id, foreignInspectionId)); } },
+				{ id: "damage-history", remove: async () => { if (ownerDamageHistoryId) await db.delete(vehicleDamageHistory).where(eq(vehicleDamageHistory.id, ownerDamageHistoryId)); if (foreignDamageHistoryId) await db.delete(vehicleDamageHistory).where(eq(vehicleDamageHistory.id, foreignDamageHistoryId)); } },
+				{ id: "claims", requires: ["fraud-alerts", "signals", "confidence-scores", "inspections", "damage-history"], remove: async () => { if (foreignClaimId) await db.delete(claims).where(eq(claims.id, foreignClaimId)); if (claimId) await db.delete(claims).where(eq(claims.id, claimId)); } },
+				{ id: "vehicles", requires: ["service-requests", "damage-history"], remove: async () => { if (tenantlessVehicleRegistryId) await db.delete(vehicleRegistry).where(eq(vehicleRegistry.id, tenantlessVehicleRegistryId)); if (vehicleRegistryId) await db.delete(vehicleRegistry).where(eq(vehicleRegistry.id, vehicleRegistryId)); } },
+				{ id: "users", requires: ["agency-client", "claims", "vehicles"], remove: async () => { if (unrelatedUserId) await db.delete(users).where(eq(users.id, unrelatedUserId)); if (insurerUserId) await db.delete(users).where(eq(users.id, insurerUserId)); if (agencyUserId) await db.delete(users).where(eq(users.id, agencyUserId)); } },
+			], async () => {
+				const remaining = await Promise.all([
         snapshotIds.length
           ? db.select({ id: vehicleConditionSnapshots.id }).from(vehicleConditionSnapshots).where(inArray(vehicleConditionSnapshots.id, snapshotIds))
           : [],
         insurerLinkIds.length
           ? db.select({ id: agencyInsuranceServiceRequestInsurers.id }).from(agencyInsuranceServiceRequestInsurers).where(inArray(agencyInsuranceServiceRequestInsurers.id, insurerLinkIds))
           : [],
-        serviceRequestIds.length
-          ? db.select({ id: agencyInsuranceServiceRequests.id }).from(agencyInsuranceServiceRequests).where(inArray(agencyInsuranceServiceRequests.id, serviceRequestIds))
-          : [],
+		serviceRequestIds.length
+			? db.select({ id: agencyInsuranceServiceRequests.id }).from(agencyInsuranceServiceRequests).where(inArray(agencyInsuranceServiceRequests.id, serviceRequestIds))
+			: [],
+		agencyClientId ? db.select({ id: agencyClients.id }).from(agencyClients).where(eq(agencyClients.id, agencyClientId)) : [],
         claimId ? db.select({ id: claims.id }).from(claims).where(eq(claims.id, claimId)) : [],
         foreignClaimId ? db.select({ id: claims.id }).from(claims).where(eq(claims.id, foreignClaimId)) : [],
         ownerDamageHistoryId ? db.select({ id: vehicleDamageHistory.id }).from(vehicleDamageHistory).where(eq(vehicleDamageHistory.id, ownerDamageHistoryId)) : [],
@@ -476,9 +490,10 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
         unrelatedUserId ? db.select({ id: users.id }).from(users).where(eq(users.id, unrelatedUserId)) : [],
         insurerUserId ? db.select({ id: users.id }).from(users).where(eq(users.id, insurerUserId)) : [],
         agencyUserId ? db.select({ id: users.id }).from(users).where(eq(users.id, agencyUserId)) : [],
-      ]);
-      expect(remaining.flat()).toHaveLength(0);
-    } finally {
+				]);
+				expect(remaining.flat()).toHaveLength(0);
+			});
+		} finally {
       cacheWriteSpy?.mockRestore();
     }
   });

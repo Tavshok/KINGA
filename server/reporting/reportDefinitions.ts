@@ -1490,27 +1490,26 @@ async function generateAssessorPerformanceReport(
 ): Promise<string> {
   const conn = await getConn();
   try {
-    const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const toTs = params.toTs as number ?? Date.now();
+    const tid = tenantId?.trim();
+    requireTenantAggregateAuthority(tid);
 
     const [rows] = await conn.execute(
-      `SELECT ar.assessor_name, ar.company_name, ar.region,
+      `SELECT ar.full_name, ar.company_name, ar.region,
               ar.total_claims_assessed, ar.avg_cost_reduction_pct,
-              ar.routing_concentration_score, ar.anomaly_score,
-              ar.last_claim_date
+              ar.routing_concentration_score, ar.risk_score
        FROM assessor_registry ar
-       WHERE ar.last_claim_date BETWEEN ? AND ?
+       WHERE ar.tenant_id = ?
        ORDER BY ar.total_claims_assessed DESC LIMIT 50`,
-      [fromTs, toTs]
+      [tid]
     ) as [Record<string, unknown>[], unknown];
 
     const meta: ReportMeta = {
       title: "Assessor Performance Report",
-      subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`,
+      subtitle: "Current tenant-local registry snapshot — this legacy source has no activity-period timestamp.",
       reportRef: `RPT-ASSESSOR-${Date.now()}`,
       generatedAt: new Date(),
       generatedBy: "KINGA Intelligence Platform",
-      tenantName: tenantId,
+      tenantName: tid,
       classification: "CONFIDENTIAL",
     };
 
@@ -1521,21 +1520,21 @@ async function generateAssessorPerformanceReport(
         <table>
           <thead><tr>
             <th>Assessor</th><th>Company</th><th>Region</th>
-            <th class="text-right">Claims</th>
+            <th class="text-right">Claims (cumulative)</th>
             <th class="text-right">Avg Cost Reduction</th>
             <th>Routing Concentration</th>
-            <th>Anomaly Score</th>
+            <th>Registry Risk Score</th>
           </tr></thead>
           <tbody>
             ${(rows as Record<string, unknown>[]).map((r) => `
               <tr>
-                <td>${escHtml(String(r.assessor_name ?? "—"))}</td>
+                <td>${escHtml(String(r.full_name ?? "—"))}</td>
                 <td class="small">${escHtml(String(r.company_name ?? "—"))}</td>
                 <td class="small">${escHtml(String(r.region ?? "—"))}</td>
                 <td class="text-right">${Number(r.total_claims_assessed ?? 0).toLocaleString()}</td>
                 <td class="text-right ${Number(r.avg_cost_reduction_pct ?? 0) > 25 ? "bold" : ""}">${fmtPct(r.avg_cost_reduction_pct as number)}</td>
-                <td>${scoreBar(Math.round(Number(r.routing_concentration_score ?? 0) * 100))}</td>
-                <td>${scoreBar(Math.round(Number(r.anomaly_score ?? 0) * 100))}</td>
+                <td>${scoreBar(Math.round(Number(r.routing_concentration_score ?? 0)))}</td>
+                <td>${scoreBar(Math.round(Number(r.risk_score ?? 0)))}</td>
               </tr>`).join("")}
           </tbody>
         </table>` : `<div class="finding-box info">No assessor data available for the selected period.</div>`}
@@ -1558,26 +1557,26 @@ async function generatePanelBeaterPerformanceReport(
 ): Promise<string> {
   const conn = await getConn();
   try {
-    const fromTs = params.fromTs as number ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const toTs = params.toTs as number ?? Date.now();
+    const tid = tenantId?.trim();
+    requireTenantAggregateAuthority(tid);
 
     const [rows] = await conn.execute(
       `SELECT pb.company_name, pb.address, pb.region,
-              pb.total_claims_repaired, pb.avg_quote_vs_true_cost_pct,
-              pb.structural_gap_count, pb.anomaly_score, pb.last_claim_date
+              pb.total_quotes_submitted, pb.avg_quote_vs_true_cost_pct,
+              pb.structural_gap_count, pb.risk_score
        FROM panel_beater_registry pb
-       WHERE pb.last_claim_date BETWEEN ? AND ?
-       ORDER BY pb.total_claims_repaired DESC LIMIT 50`,
-      [fromTs, toTs]
+       WHERE pb.tenant_id = ?
+       ORDER BY pb.total_quotes_submitted DESC LIMIT 50`,
+      [tid]
     ) as [Record<string, unknown>[], unknown];
 
     const meta: ReportMeta = {
       title: "Panel Beater Performance Report",
-      subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`,
+      subtitle: "Current tenant-local registry snapshot — this legacy source has no activity-period timestamp.",
       reportRef: `RPT-PB-${Date.now()}`,
       generatedAt: new Date(),
       generatedBy: "KINGA Intelligence Platform",
-      tenantName: tenantId,
+      tenantName: tid,
       classification: "CONFIDENTIAL",
     };
 
@@ -1588,20 +1587,20 @@ async function generatePanelBeaterPerformanceReport(
         <table>
           <thead><tr>
             <th>Company</th><th>Region</th>
-            <th class="text-right">Claims</th>
+            <th class="text-right">Submitted Quotes (cumulative)</th>
             <th class="text-right">Quote vs True Cost</th>
             <th class="text-right">Structural Gaps</th>
-            <th>Anomaly Score</th>
+            <th>Registry Risk Score</th>
           </tr></thead>
           <tbody>
             ${(rows as Record<string, unknown>[]).map((r) => `
               <tr>
                 <td>${escHtml(String(r.company_name ?? "—"))}</td>
                 <td class="small">${escHtml(String(r.region ?? "—"))}</td>
-                <td class="text-right">${Number(r.total_claims_repaired ?? 0).toLocaleString()}</td>
+                <td class="text-right">${Number(r.total_quotes_submitted ?? 0).toLocaleString()}</td>
                 <td class="text-right ${Math.abs(Number(r.avg_quote_vs_true_cost_pct ?? 0)) > 20 ? "bold" : ""}">${fmtPct(r.avg_quote_vs_true_cost_pct as number)}</td>
                 <td class="text-right">${Number(r.structural_gap_count ?? 0)}</td>
-                <td>${scoreBar(Math.round(Number(r.anomaly_score ?? 0) * 100))}</td>
+                <td>${scoreBar(Math.round(Number(r.risk_score ?? 0)))}</td>
               </tr>`).join("")}
           </tbody>
         </table>` : `<div class="finding-box info">No panel beater data available for the selected period.</div>`}

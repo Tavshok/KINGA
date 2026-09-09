@@ -1,6 +1,12 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  isDynamicImportFailure,
+  withAssetRefreshMarker,
+} from "@/lib/dynamicImportRecovery";
+
+const DYNAMIC_IMPORT_RETRY_KEY = "kinga.dynamic-import-retry";
 
 interface Props {
   children: ReactNode;
@@ -30,10 +36,27 @@ export class KingaErrorBoundary extends Component<Props, State> {
     // Log to console for debugging; in production this could go to an error
     // reporting service
     console.error("[KINGA Error Boundary]", error, info.componentStack);
+
+    // A lazy chunk can be removed during a deployment while an already-open
+    // browser tab still references its old content-hashed filename. Refresh
+    // the document once to load the current asset manifest; keep a session
+    // guard so a genuine persistent network problem cannot cause a loop.
+    if (
+      isDynamicImportFailure(error) &&
+      !window.sessionStorage.getItem(DYNAMIC_IMPORT_RETRY_KEY)
+    ) {
+      window.sessionStorage.setItem(DYNAMIC_IMPORT_RETRY_KEY, "attempted");
+      window.location.replace(
+        withAssetRefreshMarker(window.location.href, String(Date.now())),
+      );
+    }
   }
 
   handleReload = () => {
-    window.location.reload();
+    window.sessionStorage.removeItem(DYNAMIC_IMPORT_RETRY_KEY);
+    window.location.replace(
+      withAssetRefreshMarker(window.location.href, String(Date.now())),
+    );
   };
 
   handleHome = () => {
@@ -44,6 +67,8 @@ export class KingaErrorBoundary extends Component<Props, State> {
     if (!this.state.hasError) {
       return this.props.children;
     }
+
+    const isStaleAssetError = isDynamicImportFailure(this.state.errorMessage);
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -66,9 +91,9 @@ export class KingaErrorBoundary extends Component<Props, State> {
               Something went wrong
             </h1>
             <p className="text-muted-foreground text-base leading-relaxed">
-              KINGA encountered an unexpected problem on this page.
-              Don't worry — your claims data is safe. Our system has
-              logged the issue and will investigate.
+              {isStaleAssetError
+                ? "KINGA has updated in the background. Reload the latest version to continue safely."
+                : "KINGA encountered an unexpected problem on this page. Don't worry — your claims data is safe. Our system has logged the issue and will investigate."}
             </p>
           </div>
 
@@ -88,7 +113,7 @@ export class KingaErrorBoundary extends Component<Props, State> {
               className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               <RefreshCw className="h-4 w-4" />
-              Reload page
+              {isStaleAssetError ? "Reload latest version" : "Reload page"}
             </Button>
             <Button
               variant="outline"

@@ -31,7 +31,7 @@ import {
   repairHistory,
   claims,
 } from "../drizzle/schema";
-import { eq, and, sql, ne } from "drizzle-orm";
+import { eq, and, sql, ne, inArray } from "drizzle-orm";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -166,6 +166,14 @@ export async function runCrossClaimIntelligence(
     return { claimId: input.claimId, signals: [], totalScoreContribution: 0, highestConfidence: null };
   }
 
+  // Cross-claim signals are tenant-local evidence. A missing tenant is never a
+  // licence to aggregate globally; the non-blocking engine fails closed instead.
+  const tenantId = input.tenantId;
+  if (!tenantId) {
+    console.warn(`[CrossClaim] Claim ${input.claimId}: no tenant scope; skipping signal detection`);
+    return { claimId: input.claimId, signals: [], totalScoreContribution: 0, highestConfidence: null };
+  }
+
   const detected: DetectedSignal[] = [];
 
   // ── 1. Repeat damage signal ────────────────────────────────────────────────
@@ -181,6 +189,7 @@ export async function runCrossClaimIntelligence(
         .where(
           and(
             eq(vehicleDamageHistory.vehicleId, input.vehicleRegistryId),
+            eq(vehicleDamageHistory.tenantId, tenantId),
             ne(vehicleDamageHistory.claimId, input.claimId),
             sql`created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)`
           )
@@ -191,7 +200,10 @@ export async function runCrossClaimIntelligence(
       const [currentDmg] = await db
         .select({ damagedComponentsJson: vehicleDamageHistory.damagedComponentsJson })
         .from(vehicleDamageHistory)
-        .where(eq(vehicleDamageHistory.claimId, input.claimId))
+        .where(and(
+          eq(vehicleDamageHistory.claimId, input.claimId),
+          eq(vehicleDamageHistory.tenantId, tenantId),
+        ))
         .limit(1);
 
       if (currentDmg?.damagedComponentsJson && repeatDamage.length > 0) {
@@ -238,6 +250,7 @@ export async function runCrossClaimIntelligence(
         .where(
           and(
             eq(driverClaims.driverId, input.driverRegistryId),
+            eq(driverClaims.tenantId, tenantId),
             ne(driverClaims.claimId, input.claimId),
             sql`created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)`
           )
@@ -271,6 +284,7 @@ export async function runCrossClaimIntelligence(
         .where(
           and(
             eq(repairHistory.vehicleId, input.vehicleRegistryId),
+            eq(repairHistory.tenantId, tenantId),
             ne(repairHistory.claimId, input.claimId)
           )
         )
@@ -300,7 +314,10 @@ export async function runCrossClaimIntelligence(
       const [vehicleRec] = await db
         .select({ totalClaimsCount: vehicleRegistry.totalClaimsCount })
         .from(vehicleRegistry)
-        .where(eq(vehicleRegistry.id, input.vehicleRegistryId))
+        .where(and(
+          eq(vehicleRegistry.id, input.vehicleRegistryId),
+          eq(vehicleRegistry.tenantId, tenantId),
+        ))
         .limit(1);
 
       if (vehicleRec && vehicleRec.totalClaimsCount >= 3) {
@@ -321,10 +338,13 @@ export async function runCrossClaimIntelligence(
   // ── 5. Damage zone repeat signal ──────────────────────────────────────────
   if (input.vehicleRegistryId) {
     try {
-        const [currentZoneRec] = await db
+      const [currentZoneRec] = await db
         .select({ damageZone: vehicleDamageHistory.damageZone, affectedZonesJson: vehicleDamageHistory.affectedZonesJson })
         .from(vehicleDamageHistory)
-        .where(eq(vehicleDamageHistory.claimId, input.claimId))
+        .where(and(
+          eq(vehicleDamageHistory.claimId, input.claimId),
+          eq(vehicleDamageHistory.tenantId, tenantId),
+        ))
         .limit(1);
 
       if (currentZoneRec?.damageZone && currentZoneRec.damageZone !== 'unknown') {
@@ -334,6 +354,7 @@ export async function runCrossClaimIntelligence(
           .where(
             and(
               eq(vehicleDamageHistory.vehicleId, input.vehicleRegistryId),
+              eq(vehicleDamageHistory.tenantId, tenantId),
               eq(vehicleDamageHistory.damageZone, currentZoneRec.damageZone),
               ne(vehicleDamageHistory.claimId, input.claimId),
               sql`created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)`
@@ -369,7 +390,9 @@ export async function runCrossClaimIntelligence(
         .where(
           and(
             eq(driverClaims.driverId, input.driverRegistryId),
+            eq(driverClaims.tenantId, tenantId),
             eq(claims.vehicleRegistryId, input.vehicleRegistryId),
+            eq(claims.tenantId, tenantId),
             ne(driverClaims.claimId, input.claimId)
           )
         )
@@ -381,7 +404,10 @@ export async function runCrossClaimIntelligence(
         const repairerOverlap = await db
           .select({ repairerId: repairHistory.repairerId, repairCount: sql<number>`COUNT(*)` })
           .from(repairHistory)
-          .where(sql`claim_id IN (${sql.join(priorClaimIds.map(id => sql`${id}`), sql`, `)})`)
+          .where(and(
+            inArray(repairHistory.claimId, priorClaimIds),
+            eq(repairHistory.tenantId, tenantId),
+          ))
           .groupBy(repairHistory.repairerId)
           .limit(5);
 
@@ -413,6 +439,7 @@ export async function runCrossClaimIntelligence(
         .where(
           and(
             eq(driverClaims.driverId, input.driverRegistryId),
+            eq(driverClaims.tenantId, tenantId),
             ne(driverClaims.claimId, input.claimId)
           )
         )
@@ -423,7 +450,10 @@ export async function runCrossClaimIntelligence(
         const repairerCounts = await db
           .select({ repairerId: repairHistory.repairerId, count: sql<number>`COUNT(*)` })
           .from(repairHistory)
-          .where(sql`claim_id IN (${sql.join(claimIds.map(id => sql`${id}`), sql`, `)})`)
+          .where(and(
+            inArray(repairHistory.claimId, claimIds),
+            eq(repairHistory.tenantId, tenantId),
+          ))
           .groupBy(repairHistory.repairerId)
           .having(sql`COUNT(*) >= 2`)
           .limit(5);
@@ -458,6 +488,7 @@ export async function runCrossClaimIntelligence(
           .where(
             and(
               eq(claims.claimantId, input.claimantId),
+              eq(claims.tenantId, tenantId),
               ne(claims.id, input.claimId),
               sql`created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
             )
@@ -472,6 +503,7 @@ export async function runCrossClaimIntelligence(
           .where(
             and(
               eq(driverClaims.driverId, input.driverRegistryId),
+              eq(driverClaims.tenantId, tenantId),
               ne(driverClaims.claimId, input.claimId),
               sql`created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
             )
@@ -501,7 +533,10 @@ export async function runCrossClaimIntelligence(
       const [vehicleRec] = await db
         .select({ isSalvageTitle: vehicleRegistry.isSalvageTitle, isStolen: vehicleRegistry.isStolen })
         .from(vehicleRegistry)
-        .where(eq(vehicleRegistry.id, input.vehicleRegistryId))
+        .where(and(
+          eq(vehicleRegistry.id, input.vehicleRegistryId),
+          eq(vehicleRegistry.tenantId, tenantId),
+        ))
         .limit(1);
 
       if (vehicleRec?.isSalvageTitle) {
@@ -538,7 +573,7 @@ export async function runCrossClaimIntelligence(
           confidence: signal.confidence,
           scoreContribution: signal.scoreContribution,
           evidenceJson: JSON.stringify(signal.evidence),
-          tenantId: input.tenantId || null,
+          tenantId,
         })
         .onDuplicateKeyUpdate({
           set: {

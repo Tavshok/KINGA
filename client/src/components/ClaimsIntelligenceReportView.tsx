@@ -9,8 +9,9 @@
  * and avoids duplicating the report layout in React.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { reportIframeHeight } from "@/lib/reportIframeSizing";
 import { Loader2, AlertTriangle, Printer } from "lucide-react";
 
 interface ClaimsIntelligenceReportViewProps {
@@ -19,7 +20,26 @@ interface ClaimsIntelligenceReportViewProps {
 
 export function ClaimsIntelligenceReportView({ claimId }: ClaimsIntelligenceReportViewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const printReport = () => iframeRef.current?.contentWindow?.print();
+  const [iframeHeight, setIframeHeight] = useState(1200);
+  const syncIframeHeight = () => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    setIframeHeight(reportIframeHeight({
+      bodyScrollHeight: doc.body?.scrollHeight,
+      documentScrollHeight: doc.documentElement?.scrollHeight,
+    }));
+  };
+  const printReport = () => {
+    const reportWindow = iframeRef.current?.contentWindow;
+    if (!reportWindow) return;
+    syncIframeHeight();
+    // Print the child report window after its complete document height is applied;
+    // never print the surrounding portal viewport.
+    reportWindow.requestAnimationFrame(() => reportWindow.requestAnimationFrame(() => {
+      reportWindow.focus();
+      reportWindow.print();
+    }));
+  };
 
   const { data, isLoading, error } = trpc.reportingEngine.previewHtml.useQuery(
     { reportKey: "claim.intelligence", claimId },
@@ -35,6 +55,18 @@ export function ClaimsIntelligenceReportView({ claimId }: ClaimsIntelligenceRepo
     doc.open();
     doc.write(data.html);
     doc.close();
+    const resize = () => syncIframeHeight();
+    const frameWindow = iframe.contentWindow;
+    const observer = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(resize)
+      : null;
+    if (doc.body) observer?.observe(doc.body);
+    if (doc.documentElement) observer?.observe(doc.documentElement);
+    const timer = frameWindow?.setTimeout(resize, 0);
+    return () => {
+      if (timer !== undefined) frameWindow?.clearTimeout(timer);
+      observer?.disconnect();
+    };
   }, [data?.html]);
 
   if (isLoading) {
@@ -91,9 +123,10 @@ export function ClaimsIntelligenceReportView({ claimId }: ClaimsIntelligenceRepo
         title="KINGA Claims Intelligence Report"
         style={{
           width: '100%',
-          minHeight: '1200px',
+          height: `${iframeHeight}px`,
           border: 'none',
           display: 'block',
+          background: '#fff',
         }}
         sandbox="allow-scripts allow-same-origin"
       />

@@ -8,43 +8,16 @@
 
 import { describe, it, expect } from "vitest";
 import type { DamageAnalysisComponent, AccidentSeverity } from "./types";
+import {
+  calculateOverallSeverity,
+  inferZone,
+  normaliseSeverity,
+} from "./stage-6-damage-analysis.helpers";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Replicate the pure functions from stage-6 for isolated testing
+// Shared pure functions are imported from the production Stage 6 module so the
+// tests guard the runtime contract rather than a duplicate implementation.
 // ─────────────────────────────────────────────────────────────────────────────
-
-function normaliseSeverity(raw: string): AccidentSeverity {
-  const s = (raw || "").toLowerCase().trim();
-  if (s === "catastrophic") return "catastrophic";
-  if (s === "severe" || s === "major") return "severe";
-  if (s === "moderate" || s === "medium") return "moderate";
-  if (s === "minor" || s === "light" || s === "slight") return "minor";
-  if (s === "cosmetic" || s === "superficial") return "cosmetic";
-  return "moderate";
-}
-
-function inferZone(location: string): string {
-  const loc = (location || "").toLowerCase();
-  if (/front|bumper front|hood|bonnet|headl|grille|radiator|fender front|wing front/.test(loc)) return "front";
-  if (/rear|bumper rear|tail|trunk|boot|boot.?lid|loadbox|fender rear|wing rear/.test(loc)) return "rear";
-  if (/left|driver|lh|l\/h/.test(loc)) return "left_side";
-  if (/right|passenger|rh|r\/h/.test(loc)) return "right_side";
-  if (/roof|top|overhead|canopy|roof.?lin/.test(loc)) return "roof";
-  if (/sill|rocker/.test(loc)) return "left_side";
-  if (/under|bottom|chassis|subframe/.test(loc)) return "undercarriage";
-  return "general";
-}
-
-function calculateOverallSeverity(components: DamageAnalysisComponent[]): number {
-  if (components.length === 0) return 0;
-  const severityWeights: Record<AccidentSeverity, number> = {
-    none: 0, cosmetic: 10, minor: 25, moderate: 50, severe: 75, catastrophic: 100,
-  };
-  const total = components.reduce((sum, c) => sum + (severityWeights[c.severity] || 50), 0);
-  const avg = total / components.length;
-  const countBoost = Math.min(20, components.length * 2);
-  return Math.min(100, Math.round(avg + countBoost));
-}
 
 function mergeComponents(
   structured: DamageAnalysisComponent[],
