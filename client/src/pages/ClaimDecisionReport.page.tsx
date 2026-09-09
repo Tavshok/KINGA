@@ -40,7 +40,7 @@ import {
   KINGAAuditTrail,
   runR7SanityChecks,
 } from "@/components/Phase3ReportComponents";
-import { ForensicAuditReport } from "@/components/ForensicAuditReport";
+import { ForensicAuditReport, type ForensicAuditReportPrintHandle } from "@/components/ForensicAuditReport";
 import { KingaClaimsReport } from "@/components/KingaClaimsReport";
 import { ClaimDecisionReportStandardView } from "@/components/ClaimDecisionReportStandardView";
 import {
@@ -192,6 +192,11 @@ export default function ClaimDecisionReport() {
   const _searchParams = new URLSearchParams(searchString);
   const _initialReport = (_searchParams.get('report') === 'forensic' ? 'forensic' : 'standard') as ReportView;
   const [reportView, setReportView] = useState<ReportView>(_initialReport);
+  const forensicPrintRef = useRef<ForensicAuditReportPrintHandle>(null);
+  const printActiveReport = () => {
+    if (reportView === 'forensic' && forensicPrintRef.current?.printReport()) return;
+    window.print();
+  };
   const { data: auditLog = [], refetch: refetchAuditLog } = trpc.aiAssessments.getAuditLog.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId && showAuditLog }
@@ -425,7 +430,7 @@ export default function ClaimDecisionReport() {
       const timer = setTimeout(() => {
         // Dismiss again in case any toasts were queued after the first dismiss
         toast.dismiss();
-        window.print();
+        printActiveReport();
         // Clean the URL so refreshing doesn't re-trigger print
         const url = new URL(window.location.href);
         url.searchParams.delete('print');
@@ -433,7 +438,7 @@ export default function ClaimDecisionReport() {
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [claim, aiAssessment, enforcement]);
+  }, [claim, aiAssessment, enforcement, reportView]);
 
   // Print header data attributes — MUST be before any early returns (Rules of Hooks)
   // Priority chain: enforcement.kingaRef (KNG-TENANT...) > claim.claimNumber > claim.id
@@ -519,6 +524,7 @@ export default function ClaimDecisionReport() {
         onReRun={() => reRunMutation.mutate({ claimId })}
         reRunPending={reRunMutation.isPending}
         isPolling={isPollingForPipeline}
+        onPrint={printActiveReport}
       />
       </div>
 
@@ -640,6 +646,7 @@ export default function ClaimDecisionReport() {
         </div>
         <div data-report-view="forensic" style={reportView !== 'forensic' ? { display: 'none' } : undefined}>
           <ForensicAuditReport
+            ref={forensicPrintRef}
             claim={claim}
             aiAssessment={aiAssessment}
             enforcement={enforcement}
@@ -1352,4 +1359,3 @@ export default function ClaimDecisionReport() {
 }
 
 // ClaimQualityPanel removed — pre-report panels no longer rendered
-

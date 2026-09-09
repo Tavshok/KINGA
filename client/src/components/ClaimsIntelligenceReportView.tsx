@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { reportIframeHeight } from "@/lib/reportIframeSizing";
+import { printIframeReport } from "@/lib/reportDocumentPrinting";
 import { Loader2, AlertTriangle, Printer } from "lucide-react";
 
 interface ClaimsIntelligenceReportViewProps {
@@ -30,15 +31,7 @@ export function ClaimsIntelligenceReportView({ claimId }: ClaimsIntelligenceRepo
     }));
   };
   const printReport = () => {
-    const reportWindow = iframeRef.current?.contentWindow;
-    if (!reportWindow) return;
-    syncIframeHeight();
-    // Print the child report window after its complete document height is applied;
-    // never print the surrounding portal viewport.
-    reportWindow.requestAnimationFrame(() => reportWindow.requestAnimationFrame(() => {
-      reportWindow.focus();
-      reportWindow.print();
-    }));
+    printIframeReport(iframeRef.current, syncIframeHeight);
   };
 
   const { data, isLoading, error } = trpc.reportingEngine.previewHtml.useQuery(
