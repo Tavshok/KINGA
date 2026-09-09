@@ -6,6 +6,8 @@
 - [x] Documented the external runtime dependency inventory, readiness contract, deferred identity/storage/provider choices, and worker/scheduler boundary in `docs/KINGA_EXTERNAL_STAGING_FOUNDATION.md`.
 - [x] Added review-only CI and staging verification handoff assets without connecting infrastructure or embedding credentials; reviewed the existing Dockerfile and retained it without speculative container changes.
 - [x] Ran focused runtime contract and probe tests (11/11), isolated tenant-boundary regressions (7/7), server bundle, and constrained Vite production build (passed). Fresh-worker full-suite comparison is exact with current main: 45 inherited failing identifiers on each side and no foundation-file failure. TypeScript retains the same 1,013 inherited diagnostics with no touched-file error. The live inspection-authority fixture suite exceeded the five-minute database-setup budget and is recorded as inconclusive, not passing.
+- [x] Phase 2 multi-report repair: replaced CI/Forensic iframe-document printing with a shared, user-gesture-safe dedicated print window that receives the complete server-rendered report document, waits for bounded document readiness, rejects empty/popup-blocked output truthfully, and preserves direct Claims Report printing unchanged. Focused regressions, a Chromium A4 fixture, production build, and same-base full-suite/TypeScript comparisons are recorded in `audit/phase2-dedicated-report-print-validation-2026-09-09.md`.
+- [ ] Phase 2 post-publication acceptance: obtain one concise authenticated CI/FR observation confirming non-blank first page, whole-document output, and no portal/iframe controls in print preview. This is a portal-only acceptance gate and does not require reproducing earlier evidence.
 
 ---
 
