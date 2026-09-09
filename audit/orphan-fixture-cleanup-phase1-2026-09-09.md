@@ -1,7 +1,7 @@
 # Orphan Fixture Cleanup — Phase 1 Evidence Record
 
-**Date:** 9 September 2026  
-**Authority:** User-approved deletion of the exact fixture artefacts identified by the PR #58 orphan-workflow discovery.  
+**Date:** 9 September 2026
+**Authority:** User-approved deletion of the exact fixture artefacts identified by the PR #58 orphan-workflow discovery.
 **Scope:** Three confirmed orphan fixture rows only. No schema, migration, application-code, workflow, relationship-repair, or additional data operation was performed.
 
 ## Authorised record identification
