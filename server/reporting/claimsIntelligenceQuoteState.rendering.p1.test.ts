@@ -55,8 +55,8 @@ const claim = {
 };
 
 const legacyQuotes = [
-  { id: 1, quoted_amount: 564000, currency: "USD", quote_type: "original", parent_quote_id: null, status: "submitted", quote_congruency_score: null, panel_beater_name: "The Dent Doctor" },
-  { id: 2, quoted_amount: 834900, currency: "USD", quote_type: "original", parent_quote_id: null, status: "submitted", quote_congruency_score: null, panel_beater_name: "Dynamic Africa Trading" },
+  { id: 1, quoted_amount: 564000, currency_code: "USD", quote_type: "original", parent_quote_id: null, status: "submitted", quote_congruency_score: null, panel_beater_name: "The Dent Doctor" },
+  { id: 2, quoted_amount: 834900, currency_code: "USD", quote_type: "original", parent_quote_id: null, status: "submitted", quote_congruency_score: null, panel_beater_name: "Dynamic Africa Trading" },
 ];
 
 describe("AUD-P1-007 executed Claims Intelligence quote-state rendering", () => {
@@ -83,5 +83,23 @@ describe("AUD-P1-007 executed Claims Intelligence quote-state rendering", () => 
     expect(html).not.toContain("Active market quote");
     expect(html).not.toContain('data-shared-quote-evidence-matrix="active"');
     expect(end).toHaveBeenCalledOnce();
+  });
+
+  it("explains mixed-currency submitted documents without deriving an L1, L2, saving, or settlement", async () => {
+    execute.mockImplementation(async (query: string) => {
+      if (query.includes("FROM claims c")) return [[claim], undefined];
+      if (query.includes("FROM panel_beater_quotes q")) return [[
+        { ...legacyQuotes[0], currency_code: "USD" },
+        { ...legacyQuotes[1], currency_code: "ZWL" },
+      ], undefined];
+      return [[], undefined];
+    });
+
+    const html = await generateClaimsIntelligenceReport(990001, "tenant-test");
+
+    expect(html).toContain("L2 unavailable — 2 submitted quotation documents are recorded in USD and ZWL");
+    expect(html).toContain("will not convert, rank, combine, or derive a lowest total, L1, L2, savings, or settlement figure");
+    expect(html).toContain("Recorded in USD and ZWL");
+    expect(html).not.toContain("Final L2");
   });
 });
