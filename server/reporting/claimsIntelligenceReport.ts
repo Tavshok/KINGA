@@ -159,6 +159,15 @@ export async function generateClaimsIntelligenceReport(
     const quoteArr = quoteEvidence.visibleQuotes;
     const comparisonQuoteArr = quoteEvidence.activeComparisonQuotes;
     const { visibleQuoteCount, activeQuoteCount, reportedQuoteCount, state: quoteEvidenceState } = quoteEvidence;
+    const submittedQuoteCurrencies = Array.from(new Set(
+      record.evidence.quoteEvidence
+        .filter((quote) => quote.quotedAmount !== null)
+        .map((quote) => String(quote.currencyCode ?? "").trim().toUpperCase())
+        .filter(Boolean),
+    ));
+    const hasMixedCurrencyLegacyEvidence = activeQuoteCount === 0
+      && visibleQuoteCount > 0
+      && submittedQuoteCurrencies.length > 1;
     const submittedQuoteLedgerDetail = quoteArr.length > 0
       ? `${quoteArr.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtUSD(quote.amountUsd)}`).join(" · ")}${costIntegrity.legacyHistoryQualified ? " · Legacy quotation history; not active comparison evidence." : ""}`
       : "No submitted repair quotations";
@@ -199,6 +208,8 @@ export async function generateClaimsIntelligenceReport(
     const l2IntegrityNote = kingaOptimised === null
       ? evidenceQualifiedL2 !== null
         ? `Evidence-qualified submitted-price comparison: ${fmtUSD(evidenceQualifiedL2)}${costIntegrity.l2EvidenceCoveragePercent === null ? "" : ` (${costIntegrity.l2EvidenceCoveragePercent}% source-evidence coverage)`}. L2 intelligence remains visible while source exceptions are reconciled. This is not an all-in payable repair total; KINGA does not publish final savings or a settlement recommendation until the complete evidence basis is equivalent and reconciled.`
+        : hasMixedCurrencyLegacyEvidence
+          ? `L2 unavailable — ${visibleQuoteCount} submitted quotation document${visibleQuoteCount === 1 ? " is" : "s are"} recorded in ${submittedQuoteCurrencies.join(" and ")} and none is eligible active comparison evidence. KINGA will not convert, rank, combine, or derive a lowest total, L1, L2, savings, or settlement figure from mixed-currency legacy documents. Obtain an approved common comparison basis and active evidence metadata before cost comparison.`
         : costIntegrity.l2Status === "reconciliation_required"
 		? `Itemised submitted-price comparison is available, but ${costIntegrity.unreconciledQuoteCount || "one or more"} quote header(s) do not reconcile to explicit submitted line totals. ${residualReconciliationDetail ? `Reconciliation findings: ${residualReconciliationDetail}. ` : ""}KINGA has not allocated the difference to labour, VAT, fee, paint, or another component. Verify the original quote, scope, tax basis, and revision before an all-in cost recommendation.`
         : `L2 incomplete — ${costIntegrity.missingRequiredComponents.length || "one or more"} required repair-scope item(s) lack a traceable price. ` +
@@ -368,8 +379,10 @@ ${(() => {
 `;
 
     // ── §1 CLAIM IDENTITY & POLICY ───────────────────────────────────────────
+    // The overview preceding this section is intentionally not page-wrapped. Do
+    // not force a break here: doing so emits a blank physical opening page.
     const s1 = `
-<div class="page page-break">
+<div class="page">
 <div class="section">
   <div class="section-tab sans"><span class="num">01</span> Claim Identity &amp; Policy <span class="flag-right ok">Verified</span></div>
   <p class="small" style="margin:0 0 8px 0;">Core claim and policy identity, extracted from submitted documentation and cross-referenced against the insurer's policy register. ${dayDelay !== null && dayDelay > 90 ? `The claim was submitted <strong>${dayDelay} days</strong> after the incident date — a written explanation is required before the claim can proceed.` : "Submission timing is within normal parameters."}</p>
@@ -690,6 +703,12 @@ ${(() => {
   <div class="box">
     <h4>Quotation Evidence</h4>
     ${sharedQuoteEvidenceHtml}
+  </div>
+
+  <div class="box" style="margin-top:10px;">
+    <h4>How to Read These Cost Results</h4>
+    <p class="small" style="margin:0 0 7px 0;">Submitted quotation documents remain visible for audit. KINGA publishes L1 only from eligible active comparison evidence and publishes L2 only when the complete comparison basis is traceable. Missing, mixed-currency, or unreconciled evidence is shown as unavailable rather than converted, ranked, or estimated.</p>
+    ${renderCostEvidenceStateHtml({ costIntegrity, formatAmount: fmtUSD, escapeHtml: esc })}
   </div>
 
   <div class="cols-2" style="margin-top:10px;">

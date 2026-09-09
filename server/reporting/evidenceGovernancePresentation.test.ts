@@ -33,6 +33,7 @@ describe("evidence governance report presentation", () => {
     });
 
     expect(html).toContain("L2 Evidence Reconciliation");
+    expect(html).toContain("Cost evidence audit ledger — submitted source rows only; not a quotation comparison, L1, L2, savings, or settlement table.");
     expect(html).toContain("Document 45 · p2");
     expect(html).toContain("Pricing variance review signals");
     expect(html).toContain("not a fraud conclusion");

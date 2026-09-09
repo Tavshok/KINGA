@@ -64,7 +64,8 @@ describe("CI report A4 print pagination", () => {
 
     expect(html).toContain("@page{ size:A4; margin:12mm; }");
     expect(html).toContain(".page-break{break-before:page; page-break-before:always;}");
-    expect((html.match(/class="page page-break"/g) ?? [])).toHaveLength(6);
+    expect((html.match(/class="page page-break"/g) ?? [])).toHaveLength(5);
+    expect(html).toContain('<div class="page">\n<div class="section">');
     expect(html).not.toContain("Page 1 of 2");
     expect(html).not.toContain("Page 2 of 2");
     expect(html).toContain("Report overview");
@@ -74,6 +75,7 @@ describe("CI report A4 print pagination", () => {
     expect(html).toContain("Section 03 · Risk Indicators");
     expect(html).toContain("Section 04 · Evidence Snapshot");
     expect(html).toContain("Section 05 · Decision &amp; Next Steps");
+    expect(html).toContain("How to Read These Cost Results");
     expect(end).toHaveBeenCalledOnce();
   });
 });
