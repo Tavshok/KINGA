@@ -9,7 +9,7 @@
  * and avoids duplicating the report layout in React.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { reportIframeHeight } from "@/lib/reportIframeSizing";
 import { printIframeReport } from "@/lib/reportDocumentPrinting";
@@ -19,7 +19,11 @@ interface ClaimsIntelligenceReportViewProps {
   claimId: number;
 }
 
-export function ClaimsIntelligenceReportView({ claimId }: ClaimsIntelligenceReportViewProps) {
+export interface ClaimsIntelligenceReportPrintHandle {
+  printReport(): boolean;
+}
+
+export const ClaimsIntelligenceReportView = forwardRef<ClaimsIntelligenceReportPrintHandle, ClaimsIntelligenceReportViewProps>(function ClaimsIntelligenceReportView({ claimId }, ref) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState(1200);
   const syncIframeHeight = () => {
@@ -30,9 +34,8 @@ export function ClaimsIntelligenceReportView({ claimId }: ClaimsIntelligenceRepo
       documentScrollHeight: doc.documentElement?.scrollHeight,
     }));
   };
-  const printReport = () => {
-    printIframeReport(iframeRef.current, syncIframeHeight);
-  };
+  const printReport = () => printIframeReport(iframeRef.current, syncIframeHeight);
+  useImperativeHandle(ref, () => ({ printReport }), [printReport]);
 
   const { data, isLoading, error } = trpc.reportingEngine.previewHtml.useQuery(
     { reportKey: "claim.intelligence", claimId },
@@ -125,4 +128,4 @@ export function ClaimsIntelligenceReportView({ claimId }: ClaimsIntelligenceRepo
       />
     </div>
   );
-}
+});

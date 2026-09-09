@@ -868,7 +868,7 @@ export async function generateForensicDecisionReport(
         </table>
       </div>
     </div>
-    ${preLossCondition ? `<div class="box" style="margin-top:10px;border-left:3px solid var(--blue);">
+    ${preLossCondition ? `<div class="box evidence-panel">
       <h4>Vehicle Passport — Pre-Loss Condition Evidence</h4>
       <table class="kv">
         ${kvRow("Valuation snapshot", `${esc(String(preLossCondition.request_number ?? "—"))} · v${esc(String(preLossCondition.snapshot_version ?? "1"))}`)}
@@ -877,7 +877,7 @@ export async function generateForensicDecisionReport(
         ${preLossCondition.odometer_km != null ? kvRow("Odometer then", `${esc(String(preLossCondition.odometer_km))} km`) : ""}
         ${preLossCondition.existing_damage_notes ? kvRow("Pre-existing condition noted", esc(String(preLossCondition.existing_damage_notes))) : ""}
       </table>
-      <p class="small" style="margin:7px 0 0 0;color:var(--ink-soft);">Dated pre-loss valuation evidence only. It does not determine causation, repair cost, policy, premium, settlement, fraud conclusion, or claim outcome.</p>
+      <p class="evidence-boundary">Dated pre-loss valuation evidence only. It does not determine causation, repair cost, policy, premium, settlement, fraud conclusion, or claim outcome.</p>
     </div>` : ""}
   </div>
 

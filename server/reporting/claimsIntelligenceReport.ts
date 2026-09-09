@@ -514,7 +514,7 @@ ${(() => {
     <p class="caption" style="margin-top:4pt;color:var(--amber);">⚠ This vehicle has ${vh.length} prior claim${vh.length !== 1 ? 's' : ''} on record. Review claim history for patterns before authorising settlement.</p>
   </div>`;
   })() : ''}
-  ${preLossCondition ? `<div style="margin-top:10pt;border-left:3px solid var(--blue);padding-left:8pt;">
+  ${preLossCondition ? `<div class="evidence-panel">
     <h4 style="margin:0 0 6pt 0;font-size:9pt;">Vehicle Passport — Pre-Loss Condition Evidence</h4>
     <table style="width:100%;border-collapse:collapse;font-size:8pt;">
       <tbody>
@@ -525,7 +525,7 @@ ${(() => {
         ${preLossCondition.existing_damage_notes ? `<tr><td style="padding:3pt 6pt;font-weight:600;">Pre-existing condition noted</td><td style="padding:3pt 6pt;">${esc(String(preLossCondition.existing_damage_notes))}</td></tr>` : ''}
       </tbody>
     </table>
-    <p class="caption" style="margin-top:4pt;">Dated pre-loss valuation evidence only. It does not determine causation, repair cost, policy, premium, settlement, fraud conclusion, or claim outcome.</p>
+    <p class="evidence-boundary">Dated pre-loss valuation evidence only. It does not determine causation, repair cost, policy, premium, settlement, fraud conclusion, or claim outcome.</p>
   </div>` : ''}
 
 </div>
