@@ -26,6 +26,7 @@ import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
 import { resolveReportRecord, toReportDefinitionRow } from "./resolvedReportRecord";
+import { renderVehiclePassportEvidencePanel } from "./vehiclePassportEvidencePresentation";
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 export async function generateClaimsIntelligenceReport(
@@ -66,16 +67,11 @@ export async function generateClaimsIntelligenceReport(
     workflow_state: history.workflowState,
     created_at: history.createdAt,
   }));
-  const preLossCondition = record.preLossCondition.value === null ? null : {
-    request_number: record.preLossCondition.value.requestNumber,
-    snapshot_version: record.preLossCondition.value.snapshotVersion,
-    snapshot_date: record.preLossCondition.value.snapshotDate,
-    exterior_condition: record.preLossCondition.value.exteriorCondition,
-    interior_condition: record.preLossCondition.value.interiorCondition,
-    mechanical_condition: record.preLossCondition.value.mechanicalCondition,
-    existing_damage_notes: record.preLossCondition.value.existingDamageNotes,
-    odometer_km: record.preLossCondition.value.odometerKm,
-  };
+  const vehiclePassportEvidenceHtml = renderVehiclePassportEvidencePanel({
+    snapshot: record.preLossCondition.value,
+    formatDate: fmtD,
+    escapeHtml: esc,
+  });
   const evidenceGovernanceData = record.evidence.evidenceGovernance;
     // ── 4. Parse JSON fields ─────────────────────────────────────────────────
     const costIntel  = safeJson(c.cost_intelligence_json as string) as any;
@@ -514,19 +510,7 @@ ${(() => {
     <p class="caption" style="margin-top:4pt;color:var(--amber);">⚠ This vehicle has ${vh.length} prior claim${vh.length !== 1 ? 's' : ''} on record. Review claim history for patterns before authorising settlement.</p>
   </div>`;
   })() : ''}
-  ${preLossCondition ? `<div class="evidence-panel">
-    <h4 style="margin:0 0 6pt 0;font-size:9pt;">Vehicle Passport — Pre-Loss Condition Evidence</h4>
-    <table style="width:100%;border-collapse:collapse;font-size:8pt;">
-      <tbody>
-        <tr><td style="padding:3pt 6pt;font-weight:600;width:32%;">Valuation snapshot</td><td style="padding:3pt 6pt;">${esc(String(preLossCondition.request_number ?? '—'))} · v${esc(String(preLossCondition.snapshot_version ?? '1'))}</td></tr>
-        <tr><td style="padding:3pt 6pt;font-weight:600;">Snapshot date</td><td style="padding:3pt 6pt;">${fmtD(preLossCondition.snapshot_date)}</td></tr>
-        <tr><td style="padding:3pt 6pt;font-weight:600;">Recorded condition</td><td style="padding:3pt 6pt;">Exterior ${esc(String(preLossCondition.exterior_condition ?? '—'))} · Interior ${esc(String(preLossCondition.interior_condition ?? '—'))} · Mechanical ${esc(String(preLossCondition.mechanical_condition ?? '—'))}</td></tr>
-        ${preLossCondition.odometer_km != null ? `<tr><td style="padding:3pt 6pt;font-weight:600;">Odometer then</td><td style="padding:3pt 6pt;">${esc(String(preLossCondition.odometer_km))} km</td></tr>` : ''}
-        ${preLossCondition.existing_damage_notes ? `<tr><td style="padding:3pt 6pt;font-weight:600;">Pre-existing condition noted</td><td style="padding:3pt 6pt;">${esc(String(preLossCondition.existing_damage_notes))}</td></tr>` : ''}
-      </tbody>
-    </table>
-    <p class="evidence-boundary">Dated pre-loss valuation evidence only. It does not determine causation, repair cost, policy, premium, settlement, fraud conclusion, or claim outcome.</p>
-  </div>` : ''}
+  ${vehiclePassportEvidenceHtml}
 
 </div>
 </div>

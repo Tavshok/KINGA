@@ -64,6 +64,8 @@ describe("CI report A4 print pagination", () => {
 
     expect(html).toContain("@page{ size:A4; margin:12mm; }");
     expect(html).toContain(".page-break{break-before:page; page-break-before:always;}");
+    expect(html).toContain("thead { display:table-header-group; }");
+    expect(html).toContain("table { break-inside:auto; page-break-inside:auto; }");
     expect((html.match(/class="page page-break"/g) ?? [])).toHaveLength(5);
     expect(html).toContain('<div class="page">\n<div class="section">');
     expect(html).not.toContain("Page 1 of 2");
