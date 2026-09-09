@@ -8,7 +8,7 @@ import {
   quoteLineItems, InsertQuoteLineItem, thirdPartyVehicles, InsertThirdPartyVehicle,
   vehicleMarketValuations, InsertVehicleMarketValuation, policeReports, InsertPoliceReport,
   preAccidentDamage, InsertPreAccidentDamage, vehicleConditionAssessment, InsertVehicleConditionAssessment,
-  approvalWorkflow, InsertApprovalWorkflow,
+  approvalWorkflow, InsertApprovalWorkflow, claims,
 } from "../../drizzle/schema";
 import { getDb } from "../db-core";
 
@@ -163,35 +163,39 @@ export async function createPoliceReport(data: InsertPoliceReport) {
 }
 
 /**
- * Get police report by claim ID
+ * Get a police report through its parent claim's tenant boundary.
+ * Police reports have no tenant column of their own, so callers must never
+ * retrieve one without the authoritative parent-claim tenant scope.
  * @param claimId - Claim ID
+ * @param tenantId - Authenticated tenant scope for the parent claim
  */
-export async function getPoliceReportByClaimId(claimId: number) {
+export async function getPoliceReportByClaimId(claimId: number, tenantId: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
   const [report] = await db
-    .select()
+    .select({ report: policeReports })
     .from(policeReports)
-    .where(eq(policeReports.claimId, claimId))
+    .innerJoin(claims, eq(claims.id, policeReports.claimId))
+    .where(and(eq(policeReports.claimId, claimId), eq(claims.tenantId, tenantId)))
     .limit(1);
 
-  return report || null;
+  return report?.report || null;
 }
 
 /**
  * Update police report
- * @param id - Report ID
+ * @param reportId - Resolved police-report ID
  * @param data - Updated data
  */
-export async function updatePoliceReport(id: number, data: Partial<InsertPoliceReport>) {
+export async function updatePoliceReport(reportId: number, data: Partial<InsertPoliceReport>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
   await db
     .update(policeReports)
     .set(data)
-    .where(eq(policeReports.id, id));
+    .where(eq(policeReports.id, reportId));
 }
 
 // ============================================================================
@@ -346,4 +350,3 @@ export async function updateApprovalWorkflow(id: number, data: Partial<InsertApp
 // ============================================================================
 // ASSESSOR OPERATIONS
 // ============================================================================
-
