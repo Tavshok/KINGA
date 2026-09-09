@@ -12,7 +12,7 @@
  */
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { printIframeReport } from "@/lib/reportDocumentPrinting";
+import { openReportPrintDocument, type ReportPrintAttempt } from "@/lib/reportDocumentPrinting";
 import { Loader2, AlertTriangle } from "lucide-react";
 
 interface ForensicAuditReportProps {
@@ -22,7 +22,7 @@ interface ForensicAuditReportProps {
 }
 
 export interface ForensicAuditReportPrintHandle {
-  printReport(): boolean;
+  printReport(): ReportPrintAttempt;
 }
 
 export const ForensicAuditReport = forwardRef<ForensicAuditReportPrintHandle, ForensicAuditReportProps>(function ForensicAuditReport({ claimId }, ref) {
@@ -34,8 +34,11 @@ export const ForensicAuditReport = forwardRef<ForensicAuditReportPrintHandle, Fo
     if (!doc?.body) return;
     setIframeHeight(Math.max(doc.body.scrollHeight, doc.documentElement?.scrollHeight ?? 0, 1200));
   };
-  const printReport = () => printIframeReport(iframeRef.current, syncIframeHeight);
-  useImperativeHandle(ref, () => ({ printReport }), []);
+  const printReport = () => openReportPrintDocument({
+    sourceDocument: iframeRef.current?.contentDocument ?? null,
+    baseHref: window.location.href,
+  });
+  useImperativeHandle(ref, () => ({ printReport }), [printReport]);
 
   const { data, isLoading, error } = trpc.reportingEngine.previewHtml.useQuery(
     { reportKey: "claim.forensic", claimId: numericClaimId },

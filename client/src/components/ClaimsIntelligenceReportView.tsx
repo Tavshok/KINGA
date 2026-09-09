@@ -12,15 +12,16 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { reportIframeHeight } from "@/lib/reportIframeSizing";
-import { printIframeReport } from "@/lib/reportDocumentPrinting";
+import { openReportPrintDocument, type ReportPrintAttempt } from "@/lib/reportDocumentPrinting";
 import { Loader2, AlertTriangle, Printer } from "lucide-react";
+import { toast } from "sonner";
 
 interface ClaimsIntelligenceReportViewProps {
   claimId: number;
 }
 
 export interface ClaimsIntelligenceReportPrintHandle {
-  printReport(): boolean;
+  printReport(): ReportPrintAttempt;
 }
 
 export const ClaimsIntelligenceReportView = forwardRef<ClaimsIntelligenceReportPrintHandle, ClaimsIntelligenceReportViewProps>(function ClaimsIntelligenceReportView({ claimId }, ref) {
@@ -34,7 +35,16 @@ export const ClaimsIntelligenceReportView = forwardRef<ClaimsIntelligenceReportP
       documentScrollHeight: doc.documentElement?.scrollHeight,
     }));
   };
-  const printReport = () => printIframeReport(iframeRef.current, syncIframeHeight);
+  const printReport = () => openReportPrintDocument({
+    sourceDocument: iframeRef.current?.contentDocument ?? null,
+    baseHref: window.location.href,
+  });
+  const handlePrintClick = () => {
+    const attempt = printReport();
+    if (!attempt.started) {
+      toast.error("Unable to print Claims Intelligence Report", { description: attempt.failure?.message });
+    }
+  };
   useImperativeHandle(ref, () => ({ printReport }), [printReport]);
 
   const { data, isLoading, error } = trpc.reportingEngine.previewHtml.useQuery(
@@ -110,7 +120,7 @@ export const ClaimsIntelligenceReportView = forwardRef<ClaimsIntelligenceReportP
   return (
     <div style={{ width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 12px', borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
-        <button type="button" onClick={printReport} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', color: '#0f172a', cursor: 'pointer' }}>
+        <button type="button" onClick={handlePrintClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', color: '#0f172a', cursor: 'pointer' }}>
           <Printer style={{ width: 14, height: 14 }} /> Print full report
         </button>
       </div>

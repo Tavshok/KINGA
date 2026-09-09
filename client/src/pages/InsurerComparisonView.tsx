@@ -180,6 +180,9 @@ export default function InsurerComparisonView() {
     intelligence: intelligencePrintRef.current,
     forensic: forensicPrintRef.current,
     printPortalDocument: () => window.print(),
+    onEmbeddedPrintUnavailable: failure => {
+      toast.error("Unable to open the report print window", { description: failure.message });
+    },
   });
 
   // Incident type override dialog state
@@ -907,7 +910,9 @@ export default function InsurerComparisonView() {
                   } else {
                     toast.success(`Opening ${label} for PDF export…`);
                   }
-                  setTimeout(printActiveReport, 400);
+                  // CI/FR must open their dedicated print window in this click event.
+                  // Deferring with setTimeout allows popup blockers to reject the window.
+                  printActiveReport();
                 }}
               >
                 <Printer className="mr-2 h-4 w-4" />
