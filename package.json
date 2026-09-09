@@ -12,6 +12,8 @@
     "check:conflicts": "node scripts/check-conflict-markers.mjs",
     "format": "prettier --write .",
     "test": "vitest run",
+
+    "check:known-fixture-orphans": "node server/test-helpers/check-known-fixture-orphans.mjs",
     "test:portal": "vitest run server/portal-conformance.test.ts",
     "audit:portal": "python3 scripts/audit-react-hook-imports.py && python3 scripts/audit-lazy-page-exports.py",
     "test:e2e": "playwright test",

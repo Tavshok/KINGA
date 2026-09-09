@@ -9,11 +9,13 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { appRouter } from "./routers";
 import { getDb } from "./db";
 import type { inferProcedureInput } from "@trpc/server";
+import { cleanupOwnedFixture } from "./test-helpers/owned-fixture-cleanup";
 
 describe("Police Report Integration", () => {
-  let testClaimId: number;
-  let testUserId: number;
-  const testRunId = Date.now();
+	let testClaimId: number;
+	let testUserId: number;
+	let testClaim2Id: number | undefined;
+	const testRunId = Date.now();
 
   // Create test context
   const createTestContext = (userId: number, role: string = "assessor") => ({
@@ -63,18 +65,21 @@ describe("Police Report Integration", () => {
     testClaimId = (claimResult as any)[0]?.insertId || (claimResult as any).insertId;
   });
 
-  afterAll(async () => {
-    const db = await getDb();
-    if (!db) return;
+	afterAll(async () => {
+		const db = await getDb();
+		if (!db) return;
 
-    // Cleanup test data
-    try {
-      await db.execute(`DELETE FROM police_reports WHERE claim_id = ${testClaimId}`);
-      await db.execute(`DELETE FROM claims WHERE id = ${testClaimId}`);
-      await db.execute(`DELETE FROM users WHERE id = ${testUserId}`);
-    } catch (e) {
-      // Ignore cleanup errors
-    }
+		const claimIds = [testClaimId, testClaim2Id].filter((id): id is number => Number.isInteger(id) && id > 0);
+		await cleanupOwnedFixture([
+			...(claimIds.length ? [{ id: "police-reports", remove: async () => { await db.execute(`DELETE FROM police_reports WHERE claim_id IN (${claimIds.join(",")})`); } }] : []),
+			...claimIds.map((id) => ({ id: `claim-${id}`, remove: async () => { await db.execute(`DELETE FROM claims WHERE id = ${id}`); }, requires: ["police-reports"] })),
+			...(testUserId ? [{ id: "user", remove: async () => { await db.execute(`DELETE FROM users WHERE id = ${testUserId}`); }, requires: claimIds.map((id) => `claim-${id}`) }] : []),
+		], async () => {
+			const reportRows = claimIds.length ? await db.execute(`SELECT id FROM police_reports WHERE claim_id IN (${claimIds.join(",")})`) : [[]];
+			const claimRows = claimIds.length ? await db.execute(`SELECT id FROM claims WHERE id IN (${claimIds.join(",")})`) : [[]];
+			const userRows = testUserId ? await db.execute(`SELECT id FROM users WHERE id = ${testUserId}`) : [[]];
+			expect([...(reportRows as any)[0], ...(claimRows as any)[0], ...(userRows as any)[0]]).toHaveLength(0);
+		});
   });
 
   it("should create police report with speed discrepancy detection", async () => {
@@ -125,7 +130,8 @@ describe("Police Report Integration", () => {
         'default'
       )`
     );
-    const claim2Id = (claimResult as any)[0]?.insertId || (claimResult as any).insertId;
+	const claim2Id = (claimResult as any)[0]?.insertId || (claimResult as any).insertId;
+	testClaim2Id = claim2Id;
 
     type PoliceReportInput = inferProcedureInput<typeof appRouter.policeReports.create>;
     const input: PoliceReportInput = {
@@ -142,14 +148,7 @@ describe("Police Report Integration", () => {
     expect(report).toBeDefined();
     expect(report?.locationMismatch).toBe(1);
 
-    // Cleanup
-    try {
-      await db.execute(`DELETE FROM police_reports WHERE claim_id = ${claim2Id}`);
-      await db.execute(`DELETE FROM claims WHERE id = ${claim2Id}`);
-    } catch (e) {
-      // Ignore cleanup errors
-    }
-  });
+	});
 
   it("should retrieve police report by claim ID", async () => {
     const caller = appRouter.createCaller(createTestContext(testUserId));
