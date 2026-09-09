@@ -38,12 +38,13 @@ import { Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 import { sanitiseField } from "@/lib/sanitise";
 import { currencySymbol } from "@/lib/currency";
-import { ForensicAuditReport } from "@/components/ForensicAuditReport";
+import { ForensicAuditReport, type ForensicAuditReportPrintHandle } from "@/components/ForensicAuditReport";
 import { KingaClaimsReport } from "@/components/KingaClaimsReport";
 import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
 import ClaimCurrencyHistory from "@/components/ClaimCurrencyHistory";
-import { ClaimsIntelligenceReportView } from "@/components/ClaimsIntelligenceReportView";
+import { ClaimsIntelligenceReportView, type ClaimsIntelligenceReportPrintHandle } from "@/components/ClaimsIntelligenceReportView";
 import { VehiclePassportPanel } from "@/components/VehiclePassportPanel";
+import { printActiveReportDocument } from "@/lib/reportDocumentPrinting";
 
 // Insurer role labels for the Push Report dialog
 // Cost Intelligence helpers extracted to InsurerComparisonView.helpers.ts for maintainability
@@ -172,6 +173,14 @@ export default function InsurerComparisonView() {
   const rawReport = searchParams.get('report');
   const initialReport = (rawReport === 'forensic' ? 'forensic' : rawReport === 'intelligence' ? 'intelligence' : 'standard') as ReportView;
   const [reportView, setReportView] = useState<ReportView>(initialReport);
+  const intelligencePrintRef = useRef<ClaimsIntelligenceReportPrintHandle>(null);
+  const forensicPrintRef = useRef<ForensicAuditReportPrintHandle>(null);
+  const printActiveReport = () => printActiveReportDocument({
+    reportView,
+    intelligence: intelligencePrintRef.current,
+    forensic: forensicPrintRef.current,
+    printPortalDocument: () => window.print(),
+  });
 
   // Incident type override dialog state
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
@@ -898,7 +907,7 @@ export default function InsurerComparisonView() {
                   } else {
                     toast.success(`Opening ${label} for PDF export…`);
                   }
-                  setTimeout(() => { window.print(); }, 400);
+                  setTimeout(printActiveReport, 400);
                 }}
               >
                 <Printer className="mr-2 h-4 w-4" />
@@ -1008,12 +1017,13 @@ export default function InsurerComparisonView() {
 
             {/* Report 2: KINGA Claims Intelligence Report */}
             <div data-report-view="intelligence" style={reportView !== 'intelligence' ? { display: 'none' } : undefined}>
-              <ClaimsIntelligenceReportView claimId={Number(claimId)} />
+              <ClaimsIntelligenceReportView ref={intelligencePrintRef} claimId={Number(claimId)} />
             </div>
 
             {/* Report 3: Forensic Audit Report */}
             <div data-report-view="forensic" style={reportView !== 'forensic' ? { display: 'none' } : undefined}>
               <ForensicAuditReport
+                ref={forensicPrintRef}
                 claim={claim}
                 aiAssessment={aiAssessment}
                 enforcement={enforcement}

@@ -137,6 +137,18 @@ export const KINGA_REPORT_CSS = `
     font-family:'Helvetica Neue',Arial,sans-serif; font-size:9.5px; text-transform:uppercase;
     letter-spacing:0.5px; color:var(--ink-soft); margin:0 0 7px 0; border-bottom:1px solid var(--hairline); padding-bottom:5px;
   }
+  /* ---- Evidence-boundary panel ----
+     Used for dated source evidence such as Vehicle Passport snapshots.
+     It is intentionally neutral: it is not a decision, risk, or cost verdict. */
+  .evidence-panel{
+    margin-top:10px; border:1px solid var(--hairline-strong); border-top:3px solid var(--teal);
+    padding:10px 12px; background:var(--grey-50);
+  }
+  .evidence-panel h4{color:var(--green-dark);}
+  .evidence-panel .evidence-boundary{
+    margin:7px 0 0; padding-top:6px; border-top:1px solid var(--hairline);
+    font-family:'Helvetica Neue',Arial,sans-serif; font-size:8.5px; line-height:1.35; color:var(--ink-soft);
+  }
 
   table{border-collapse:collapse; width:100%; font-size:11.5px;}
   table.kv td{padding:3px 0; vertical-align:top;}

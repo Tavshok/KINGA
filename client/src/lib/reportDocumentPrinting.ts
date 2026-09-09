@@ -4,6 +4,10 @@ export interface ReportPrintWindow {
   print(): void;
 }
 
+export interface EmbeddedReportPrintHandle {
+  printReport(): boolean;
+}
+
 /**
  * Schedules printing from the report document itself rather than its portal host.
  * Printing an iframe from the parent window produces an otherwise blank parent page
@@ -24,4 +28,26 @@ export function printIframeReport(iframe: HTMLIFrameElement | null, beforePrint?
   beforePrint?.();
   scheduleReportDocumentPrint(reportWindow);
   return true;
+}
+
+/**
+ * Routes a portal-level export request to the mounted report document when one
+ * is embedded. Standard Claims Reports remain direct documents and retain the
+ * caller's parent-window print fallback.
+ */
+export function printActiveReportDocument(options: {
+  reportView: "standard" | "intelligence" | "forensic";
+  intelligence?: EmbeddedReportPrintHandle | null;
+  forensic?: EmbeddedReportPrintHandle | null;
+  printPortalDocument: () => void;
+}): boolean {
+  const embeddedReport = options.reportView === "intelligence"
+    ? options.intelligence
+    : options.reportView === "forensic"
+      ? options.forensic
+      : null;
+
+  if (embeddedReport?.printReport()) return true;
+  options.printPortalDocument();
+  return false;
 }
