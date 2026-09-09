@@ -18,6 +18,24 @@ describe("Package C cost-evidence state presentation", () => {
     expect(render(complete)).toContain("Final L2");
     const partial = base(); partial.l2Status = "evidence_qualified"; partial.l2EvidenceQualifiedComparisonUsd = 80;
     expect(render(partial)).toContain("not a payable total");
-    expect(render(base())).toContain("Unavailable — reconciliation required.");
+    expect(render(base())).toContain("Unavailable — no eligible active comparison evidence is available.");
+  });
+
+  it("explains mixed-currency submitted records without inventing a minimum, L1, or L2", () => {
+    const state = base();
+    state.sourceQuoteCount = 2;
+    state.quoteReceiptStatus = "quotes_received";
+    state.quoteScopeStatus = "incomplete_scope";
+    state.l2Status = "incomplete_scope";
+    state.submittedQuotes = [
+      { repairer: "A", amountUsd: 100, currency: "USD", status: "legacy_unverified", sourceReference: "1", statusReason: "", workflowStatus: "submitted", evidenceEligibility: "comparison_only", evidenceEligibilityReason: null },
+      { repairer: "B", amountUsd: 200, currency: "ZWL", status: "legacy_unverified", sourceReference: "2", statusReason: "", workflowStatus: "submitted", evidenceEligibility: "comparison_only", evidenceEligibilityReason: null },
+    ];
+
+    const html = render(state);
+    expect(html).toContain("Recorded in USD and ZWL");
+    expect(html).toContain("no lowest total, L1, or L2 is calculated across mixed currencies");
+    expect(html).toContain("active comparison evidence is incomplete");
+    expect(html).not.toContain("Final L2");
   });
 });
