@@ -111,6 +111,7 @@ function buildMatrixRows(costIntegrity: ReportCostIntegrity, activeQuotes: reado
 function activeComparisonTable(
   activeQuotes: readonly ActiveQuote[],
   rows: readonly MatrixRow[],
+  l2Total: number | null,
   includeL2Evidence: boolean,
   escapeHtml: (value: unknown) => string,
 ): string {
@@ -124,7 +125,7 @@ function activeComparisonTable(
       <tr style="background:#f3f4f6;border-bottom:2px solid #d1d5db;">
         <th style="width:30%;padding:5px 7px;text-align:left;font-size:9px;color:#374151;">Component</th>
         ${quoteGroup.map((quote) => `<th style="padding:5px 7px;text-align:right;font-size:9px;color:#374151;">${escapeHtml(quote.repairer)}<br><span style="font-weight:400;color:#6b7280;">${formattedRecordedAmount(quote.amount, quote.currency)}</span></th>`).join("")}
-        ${includeL2Evidence ? '<th style="padding:5px 7px;text-align:right;font-size:9px;color:#17603a;background:#edf7ef;">KINGA L2 evidence</th>' : ""}
+        ${includeL2Evidence ? '<th style="padding:5px 7px;text-align:right;font-size:9px;color:#17603a;background:#edf7ef;">KINGA Optimised (L2)</th>' : ""}
       </tr>
     </thead>
     <tbody>
@@ -141,7 +142,7 @@ function activeComparisonTable(
       <tr style="border-top:2px solid #d1d5db;background:#fafafa;font-weight:700;">
         <td style="padding:5px 7px;">Recorded header total</td>
         ${quoteGroup.map((quote) => `<td style="padding:5px 7px;text-align:right;font-family:monospace;">${formattedRecordedAmount(quote.amount, quote.currency)}</td>`).join("")}
-        ${includeL2Evidence ? `<td style="padding:5px 7px;text-align:right;font-family:monospace;background:#edf7ef;color:#17603a;">${formattedUsd(null)}</td>` : ""}
+        ${includeL2Evidence ? `<td style="padding:5px 7px;text-align:right;font-family:monospace;background:#edf7ef;color:${l2Total === null ? "#6b7280" : "#17603a"};">${formattedUsd(l2Total)}</td>` : ""}
       </tr>
     </tfoot>
   </table>
@@ -230,7 +231,7 @@ export function renderSharedQuoteEvidencePresentation({
   return `
 <section data-shared-quote-evidence="active-comparison" style="margin-top:10px;page-break-inside:avoid;">
   <div style="padding:7px 10px;background:#edf4ed;border-left:3px solid #3c7844;font-size:10px;color:#1f5130;"><b>Active comparison evidence.</b> ${activeQuotes.length} eligible repair quotation${activeQuotes.length === 1 ? "" : "s"} with a shared ${escapeHtml(Array.from(currencies)[0])} basis. Values below are presented from the canonical quote ledger; missing prices are explicitly marked, not treated as zero.</div>
-  ${activeComparisonTable(activeQuotes, rows, includeL2Evidence, escapeHtml)}
+  ${activeComparisonTable(activeQuotes, rows, l2Total, includeL2Evidence, escapeHtml)}
   <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px;">
     <tr style="background:#fafafa;border-top:1px solid #d1d5db;"><td style="padding:5px 7px;font-weight:700;">L1 — lowest eligible submitted quote</td><td style="padding:5px 7px;text-align:right;font-family:monospace;">${formattedUsd(costIntegrity.l1SubmittedCostUsd)}</td><td style="padding:5px 7px;font-weight:700;">L2 — KINGA Optimised</td><td style="padding:5px 7px;text-align:right;font-family:monospace;color:${l2Total === null ? "#6b7280" : "#17603a"};">${formattedUsd(l2Total)}</td></tr>
   </table>
