@@ -24,6 +24,7 @@ import { isKingaWriteOffRecommendation } from "../../shared/writeOffRecommendati
 import { resolveForensicReportModel, type ForensicApprovalStage, type ForensicReportModel } from "./forensicReportModel";
 import { toReportDefinitionRow } from "./resolvedReportRecord";
 import { renderSharedQuoteEvidencePresentation } from "./sharedQuoteEvidencePresentation";
+import { renderVehiclePassportEvidencePanel } from "./vehiclePassportEvidencePresentation";
 
 type LegacyRendererInputs = Readonly<{
   c: Record<string, unknown>;
@@ -868,17 +869,7 @@ export async function generateForensicDecisionReport(
         </table>
       </div>
     </div>
-    ${preLossCondition ? `<div class="box evidence-panel">
-      <h4>Vehicle Passport — Pre-Loss Condition Evidence</h4>
-      <table class="kv">
-        ${kvRow("Valuation snapshot", `${esc(String(preLossCondition.request_number ?? "—"))} · v${esc(String(preLossCondition.snapshot_version ?? "1"))}`)}
-        ${kvRow("Snapshot date", fmtD(preLossCondition.snapshot_date))}
-        ${kvRow("Recorded condition", `Exterior ${esc(String(preLossCondition.exterior_condition ?? "—"))} · Interior ${esc(String(preLossCondition.interior_condition ?? "—"))} · Mechanical ${esc(String(preLossCondition.mechanical_condition ?? "—"))}`)}
-        ${preLossCondition.odometer_km != null ? kvRow("Odometer then", `${esc(String(preLossCondition.odometer_km))} km`) : ""}
-        ${preLossCondition.existing_damage_notes ? kvRow("Pre-existing condition noted", esc(String(preLossCondition.existing_damage_notes))) : ""}
-      </table>
-      <p class="evidence-boundary">Dated pre-loss valuation evidence only. It does not determine causation, repair cost, policy, premium, settlement, fraud conclusion, or claim outcome.</p>
-    </div>` : ""}
+    ${renderVehiclePassportEvidencePanel({ snapshot: preLossCondition, formatDate: fmtD, escapeHtml: esc })}
   </div>
 
   <!-- §03 INCIDENT NARRATIVE -->

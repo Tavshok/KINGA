@@ -54,6 +54,7 @@ import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from 
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
 import { resolveCanonicalClaimReportPresentation } from "./canonicalClaimReportPresentation";
 import { resolveReportRecord, toReportDefinitionRow } from "./resolvedReportRecord";
+import { renderVehiclePassportEvidencePanel } from "./vehiclePassportEvidencePresentation";
 import {
   resolvePlatformReportCollection,
   type ResolvedPlatformReportAuthority,
@@ -374,6 +375,11 @@ async function generateClaimAssessmentReport(
     const confidenceScore = Number(claim.confidence_score ?? 0);
     const estimatedCost = canonicalReport.costs.aiEstimateUsd ?? 0;
     const costIntegrity = resolveReportCostIntegrity(costIntel, quoteRows as unknown[]);
+    const vehiclePassportEvidenceHtml = renderVehiclePassportEvidencePanel({
+      snapshot: record.preLossCondition.value,
+      formatDate: fmtD,
+      escapeHtml: esc,
+    });
     const quotePresentation = resolveReportQuoteEvidencePresentation(costIntegrity);
     const sharedQuoteEvidenceHtml = renderSharedQuoteEvidencePresentation({
       costIntegrity,
@@ -548,9 +554,10 @@ ${(() => {
       <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Submitted</div><div style="font-weight:600">${fmtD(claim.created_at)}</div></td>
       <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Assessment Date</div><div style="font-weight:600">${fmtD(claim.assessment_date)}</div></td>
       <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Location</div><div style="font-weight:600">${esc(String(claim.incident_location ?? "—"))}</div></td>
-    </tr>
-  </table>
-</div>
+	    </tr>
+	  </table>
+	  ${vehiclePassportEvidenceHtml}
+	</div>
 
 <!-- ── DRIVER & INCIDENT CONDITIONS ── -->
 ${(() => {

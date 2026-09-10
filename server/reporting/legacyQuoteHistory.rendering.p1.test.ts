@@ -14,7 +14,7 @@ const { generateReportHtml } = await import("./reportDefinitions");
 
 const claim = {
   id: 9911, tenant_id: "tenant-legacy", claim_reference: "KNG-LEGACY-9911", status: "submitted", workflow_state: "intake",
-  vehicle_make: "Toyota", vehicle_model: "Corolla", vehicle_year: 2023, vehicle_registration: "LEG-9911",
+  vehicle_make: "Toyota", vehicle_model: "Corolla", vehicle_year: 2023, vehicle_registration: "LEG-9911", vehicle_registry_id: 77,
   incident_date: "2026-08-14", incident_location: "Harare", incident_type: "collision", incident_description: "No-write legacy quote fixture.", created_at: "2026-08-14T08:00:00Z",
 };
 
@@ -86,6 +86,41 @@ describe("AUD-P1-001 executed legacy-history report surfaces", () => {
       expect(section).toContain("Active Beta");
       expect(section).toContain("$1,000.00");
       expect(section).toContain("$950.00");
+    }
+    expect(sections[0]).toBe(sections[1]);
+    expect(sections[1]).toBe(sections[2]);
+  });
+
+  it("renders an identical neutral Vehicle Passport evidence section across CL, CI, and FR", async () => {
+    const preLossCondition = {
+      request_number: "VP-9911",
+      snapshot_version: "4",
+      snapshot_date: "2026-07-01",
+      exterior_condition: "Good",
+      interior_condition: "Fair",
+      mechanical_condition: "Good",
+      odometer_km: 123456,
+      existing_damage_notes: "Minor pre-loss scratch",
+    };
+    mocks.execute.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM claims c")) return [[claim], []];
+      if (sql.includes("vehicle_condition_snapshots")) return [[preLossCondition], []];
+      if (sql.includes("FROM panel_beater_quotes")) return [legacyQuotes, []];
+      return [[], []];
+    });
+    mocks.createConnection.mockResolvedValue({ execute: mocks.execute, end: mocks.end });
+
+    const [ci, fr, cl] = await Promise.all([
+      generateClaimsIntelligenceReport(9911, "tenant-legacy"),
+      generateForensicDecisionReport(9911, "tenant-legacy"),
+      generateReportHtml("claim.assessment", { claimId: 9911 }, "tenant-legacy"),
+    ]);
+    const sections = [cl, ci, fr].map((html) => html.match(/<section class="evidence-panel vehicle-passport-evidence"[\s\S]*?<\/section>/)?.[0]);
+    for (const section of sections) {
+      expect(section).toContain('data-vehicle-passport-evidence="pre-loss"');
+      expect(section).toContain("VP-9911 · v4");
+      expect(section).toContain("Minor pre-loss scratch");
+      expect(section).toContain("Dated source evidence");
     }
     expect(sections[0]).toBe(sections[1]);
     expect(sections[1]).toBe(sections[2]);
