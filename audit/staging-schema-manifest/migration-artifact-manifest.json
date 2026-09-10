@@ -1,0 +1,1491 @@
+{
+  "metadata": {
+    "generatedAt": "2026-09-10T20:30:00.000Z",
+    "sourceCommit": "484c8e1b483975acce7ae2b3e39c3e3f07b0e837",
+    "scope": "Repository-only static analysis. No database/environment connection or command is used.",
+    "counts": {
+      "schemaDeclarations": 242,
+      "mysqlDeclarations": 226,
+      "mysqlDistinctPhysicalTableNames": 221,
+      "postgresqlDeclarations": 16,
+      "allDialectDistinctPhysicalTableNames": 226,
+      "testFixtureOnlyDeclarationsExcludedFromSchemaLedger": 5,
+      "allRepositoryTableFactoryDeclarationsIncludingTestFixtures": 247,
+      "migrationSqlArtifacts": 82,
+      "journalEntries": 57
+    },
+    "checksums": {
+      "drizzleSchemaTs": "53cb1dfb54fb87cdc8e7a6b13797dc51f9469625c9963e5fdaf7afa8f46ba5f7",
+      "drizzleJournal": "7d03953ea06b31b5a17a6b25ce5c10a32e1f5c16fd59ed3213f7dbd28755c2ed"
+    }
+  },
+  "journalEntries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1770374908603,
+      "tag": "0000_green_skaar",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1770375063213,
+      "tag": "0001_worried_spitfire",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1770913415405,
+      "tag": "0002_lively_thundra",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1770919370161,
+      "tag": "0003_sweet_namorita",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1770931877913,
+      "tag": "0004_wooden_morbius",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1770959266384,
+      "tag": "0005_windy_micromacro",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1770959791865,
+      "tag": "0006_glorious_the_professor",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1770968848054,
+      "tag": "0007_aromatic_franklin_richards",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1770976146028,
+      "tag": "0008_married_kylun",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1770978135064,
+      "tag": "0009_legal_captain_flint",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1770979227525,
+      "tag": "0010_steady_gateway",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1771104332623,
+      "tag": "0011_foamy_morg",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1771106656530,
+      "tag": "0012_brainy_otto_octavius",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1771106743401,
+      "tag": "0013_graceful_outlaw_kid",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1771106906035,
+      "tag": "0014_shiny_living_tribunal",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "5",
+      "when": 1771107210928,
+      "tag": "0015_square_the_twelve",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1771153999661,
+      "tag": "0016_sudden_leper_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1771156738843,
+      "tag": "0017_cooing_midnight",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1771164320676,
+      "tag": "0018_overrated_silver_surfer",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1771166806399,
+      "tag": "0019_loud_manta",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1771170199926,
+      "tag": "0020_natural_santa_claus",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1771177794671,
+      "tag": "0021_unknown_viper",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1771179164098,
+      "tag": "0022_condemned_mentallo",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1771229856070,
+      "tag": "0023_chilly_whirlwind",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1771239623900,
+      "tag": "0024_tiresome_white_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1771240185403,
+      "tag": "0025_past_chimera",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1771269902109,
+      "tag": "0026_outgoing_blacklash",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "5",
+      "when": 1771270692767,
+      "tag": "0027_mute_wild_child",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "5",
+      "when": 1771271467068,
+      "tag": "0028_flippant_thing",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "5",
+      "when": 1771314412206,
+      "tag": "0029_bizarre_blonde_phantom",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "5",
+      "when": 1771315408996,
+      "tag": "0030_married_ironclad",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1771316253990,
+      "tag": "0031_secret_cerise",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "5",
+      "when": 1771316658056,
+      "tag": "0032_slow_next_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "5",
+      "when": 1771318590512,
+      "tag": "0033_dazzling_mongoose",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "5",
+      "when": 1771334083430,
+      "tag": "0034_windy_changeling",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "5",
+      "when": 1771335884027,
+      "tag": "0035_aspiring_energizer",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "5",
+      "when": 1771345803233,
+      "tag": "0036_silent_puma",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "5",
+      "when": 1771394665680,
+      "tag": "0037_modern_payback",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "5",
+      "when": 1771398881450,
+      "tag": "0038_perfect_bloodstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "5",
+      "when": 1771405243436,
+      "tag": "0039_wild_reptil",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "5",
+      "when": 1771405575188,
+      "tag": "0040_glamorous_giant_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "5",
+      "when": 1771406731245,
+      "tag": "0041_smooth_true_believers",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "5",
+      "when": 1771406998254,
+      "tag": "0042_lying_bushwacker",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "5",
+      "when": 1771407970247,
+      "tag": "0043_true_shriek",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "5",
+      "when": 1771408304739,
+      "tag": "0044_last_thundra",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "5",
+      "when": 1771408981998,
+      "tag": "0045_colossal_molecule_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "5",
+      "when": 1771410543144,
+      "tag": "0046_many_lady_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "5",
+      "when": 1771411411165,
+      "tag": "0047_bored_gideon",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "5",
+      "when": 1771413106625,
+      "tag": "0048_charming_rawhide_kid",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "5",
+      "when": 1771413335660,
+      "tag": "0049_exotic_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "5",
+      "when": 1771413808344,
+      "tag": "0050_regular_nightmare",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "5",
+      "when": 1771414300453,
+      "tag": "0051_little_lionheart",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "5",
+      "when": 1771416491547,
+      "tag": "0052_smiling_baron_zemo",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "5",
+      "when": 1771422286608,
+      "tag": "0053_mushy_lyja",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "5",
+      "when": 1771436082759,
+      "tag": "0054_striped_forgotten_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "5",
+      "when": 1771494069340,
+      "tag": "0055_illegal_carlie_cooper",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "5",
+      "when": 1771494069999,
+      "tag": "0060_role_assignment_audit_fleet_platform_enum",
+      "breakpoints": true
+    }
+  ],
+  "migrations": [
+    {
+      "file": "drizzle/0000_green_skaar.sql",
+      "sha256": "814a08e40d7fc2bcfd458759d18319198ca8ae394f2fa15617a78678e9c9c93b",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0001_worried_spitfire.sql",
+      "sha256": "8b2e5d14e8ed3477ed88d1679cee416031a5fd984b14753e14991a9903c1ac94",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 7,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0002_lively_thundra.sql",
+      "sha256": "e3632c7a12d9946f03ec30b4d0e4ec9398730f1d57f71c3f038fc243817176d1",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 45,
+        "alterTable": 51,
+        "dropTable": 0,
+        "createIndex": 41
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0003_sweet_namorita.sql",
+      "sha256": "e1d66bfebdc0eba7a15fc660fb3abdc064c75a9cea01ed0a9289729cd6e65468",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 4,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 13
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0004_wooden_morbius.sql",
+      "sha256": "18b5e89e303b6ae458e55a5a5fa3429adba05bdd2ed4760b93aee47037d8cdc8",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 12,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0005_windy_micromacro.sql",
+      "sha256": "28e453842ecf660b8167af6fe8d0fdeaa6a63070bbcbe6b9219094fb657d8e6f",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 11,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0006_glorious_the_professor.sql",
+      "sha256": "142a691c8f1a47d43c04a40c9ba56653e5129b635f7cb8598b3ae1bffd9e8b5c",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 20,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0007_aromatic_franklin_richards.sql",
+      "sha256": "f8d73044cd7bbe7487044a34e284bb319ca26439642a3ce176dcbd82ef8dee3b",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 11,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0008_married_kylun.sql",
+      "sha256": "b78db80b651df507598269ac74608721e4db5e636385dd03e94c3a9ec1f3ccd3",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 6,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0009_legal_captain_flint.sql",
+      "sha256": "18c1a5e381bf6e50ea898763cec85d8cefb4e8945d77a21e6f5a32d19de045b9",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0010_steady_gateway.sql",
+      "sha256": "4e8a06afd6608baf65641ad24579ec57750c7c9573becaee1e58d095a4d1611f",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 4,
+        "alterTable": 3,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0011_foamy_morg.sql",
+      "sha256": "6da4497bb79d03861d7bda55730721fee7a9468fc2a5234c647e2cb05d2db8e7",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 33,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0012_brainy_otto_octavius.sql",
+      "sha256": "7e9fa3bc6fdad1943d82510b1d8113c1d2a9daf0b62c5c3e9c6bec5560e70e92",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 5,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0013_graceful_outlaw_kid.sql",
+      "sha256": "1205840eec7ff20786e28c21c13c04489b9178c9d2582e9f495b93acefbb1880",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 3,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0014_shiny_living_tribunal.sql",
+      "sha256": "40213b147537a13c64e325b73c7efa7f7fb838f6cae6119415a7e4cd4411539e",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 8,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0015_square_the_twelve.sql",
+      "sha256": "fc7919e17139c393d689f099141d6ee29e892bcdc2024616c004914026e38725",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0016_sudden_leper_queen.sql",
+      "sha256": "81f723cd2a0fb84606d780ecf77056a52173903b9d97500573aba061513d0354",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 9,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0017_cooing_midnight.sql",
+      "sha256": "edf1b7ace6302d925c6777328546c970e51ea823bc28a0c1d2253a2e2cd3eb40",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0018_overrated_silver_surfer.sql",
+      "sha256": "5fab9a05454df57d7841d8904d02137678d44e0002a92cd7f732fc816a8d65bc",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 5,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0019_loud_manta.sql",
+      "sha256": "dee851f3159b93444611eaa61532418a560fad74289299228e92b21b81ff2e99",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 2,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0020_natural_santa_claus.sql",
+      "sha256": "b60406f0b21f9d63d1e5c39b1e24760e5085e9b52a5357f1bdecf30686edec34",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0021_unknown_viper.sql",
+      "sha256": "1fefb7773ac20827234cab026e79b8df645372cc9a5834c7dc1670c41f05200c",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0022_condemned_mentallo.sql",
+      "sha256": "0b7d581eaf3503367e43a243d8a51e6b9c30ec3c7fe4f6a92d37e0e90ef94c8f",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 2,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0023_chilly_whirlwind.sql",
+      "sha256": "cce771a017607f3836ca06e6f0749afe05ed162944686ab3a5b5b61d7171a1e2",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 3,
+        "alterTable": 2,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0024_tiresome_white_tiger.sql",
+      "sha256": "305f413624e73f04e0e84096f18b0ebb71999512db377650d0228dfee156a5e8",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0025_past_chimera.sql",
+      "sha256": "8cea56dab23965b94b84e4c087fec8650bc57b8a001a6c9d16675eabe9c9ede3",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 2,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0026_outgoing_blacklash.sql",
+      "sha256": "a4e5c9c613bcd68b6f138f82f5e7743fb9c95cb5c1e091d9ac591009b6694e68",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 2,
+        "alterTable": 4,
+        "dropTable": 0,
+        "createIndex": 8
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0027_mute_wild_child.sql",
+      "sha256": "3edb42adbbe036b37e351fac1d670957622dd127ea585f204b6513482a4fcdec",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 3
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0028_flippant_thing.sql",
+      "sha256": "96df3af4ff24e5ec4595bf076ca09bd2ecb091a608225dfad48511effb36cfd0",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0029_bizarre_blonde_phantom.sql",
+      "sha256": "6d772451ef8a495ca033783bdc7fe9eafda55cc668b7b2e35a6e3ee2ee03a553",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 2,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 12
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0030_married_ironclad.sql",
+      "sha256": "231b13f14b5ff20258a105fc857d15a19c2ae514aa75da5d1084bf2e426322bd",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 2,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 7
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0031_secret_cerise.sql",
+      "sha256": "161b8dcae837fe2b48ab776cefcc1caf3bd80cd2691cb2b05ba10b21feb61078",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0032_slow_next_avengers.sql",
+      "sha256": "dda60c3471e6beeb4d4327b8963511102bcb71cca78ac8396a159dc705929de0",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0033_dazzling_mongoose.sql",
+      "sha256": "a4d3880df50c3be02178ac6eb4a6b727a6e6b421d8106d718466e234f35090a1",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 5
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0034_windy_changeling.sql",
+      "sha256": "f65f8c82a78fa5888965f40df75a73f4e0ab56c5df47db8878218b3ed06334d2",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0035_aspiring_energizer.sql",
+      "sha256": "e309d1545c5e89cec798fb6dd811db6317003fd41127889206f93b66b0677b45",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 2,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0036_silent_puma.sql",
+      "sha256": "dab52d74d0e1337955d989321372e68d60240c7a022033bec70d74f9c1d3e840",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0037_modern_payback.sql",
+      "sha256": "89f48277e63824d19f7a8dca8bd6b51d6bbf05377a0e4c217a50175cc86531c7",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 13,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0038_perfect_bloodstrike.sql",
+      "sha256": "cd26f0f82972cfce0253e28a16c07a8af708efcc7d8ada8b6f2c2219118d5700",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 6,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0039_wild_reptil.sql",
+      "sha256": "cb7918baff023964a955ca85412c121f0123d322d9739694add003444c934517",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 6,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0040_glamorous_giant_girl.sql",
+      "sha256": "05b17076460cd3a0f7d93f118f953a18a20ee636327893fede5048a104c31a21",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 4,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0041_smooth_true_believers.sql",
+      "sha256": "e2411e50232037f27d04fbed549f8ca804e2ff90987350317fc2b1091b74287c",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 2,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0042_lying_bushwacker.sql",
+      "sha256": "2189eab0073af366d4d96823e0776310fc9451d50fbacf5defaf73ae03aa55b6",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 3,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0043_true_shriek.sql",
+      "sha256": "d4980bf3f645f4a789f085b463d471090d48b30e7285664ad05dfc8f1135af7e",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0044_last_thundra.sql",
+      "sha256": "a517b2b677b8339c51a7b7c12ecb9851d5fda96dde5483d910c0e93cd4b5c2ac",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 2
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0045_colossal_molecule_man.sql",
+      "sha256": "b63ef9a743a0e7e865fd350e12dd4bfb863c6350127077223747caea56dbf5bf",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 5
+      },
+      "knownRisk": "Known partial replay risk: TEXT index lacks an explicit key prefix."
+    },
+    {
+      "file": "drizzle/0046_many_lady_mastermind.sql",
+      "sha256": "87b20779d89869fb11a0f08a4a47eac061d38bebd5881d0c201d5aebcbbde0b2",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 2,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 8
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0047_bored_gideon.sql",
+      "sha256": "9b9e4288775aabbe659e90a1d55c0e72b33ef4dd823e93b29ab7aa53127c43b3",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 4
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0048_charming_rawhide_kid.sql",
+      "sha256": "110415e822af56d284963fe8789fd816aaf82a29894cb5434d2668f5bfa07aaa",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0049_exotic_bullseye.sql",
+      "sha256": "cf7d1da0b0eafb439a9650ab61ba4c9e154cd7206d3d44f464b771b71dbdfd9e",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 5,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0050_regular_nightmare.sql",
+      "sha256": "c3702a57040a540be9179a99e5e43ed8c9ab2db594272a1a7af268239c4fd88a",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 3,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0051_little_lionheart.sql",
+      "sha256": "4bee9091a12bd3c98af5098a90d59534d814dca8bf2cdec5d97726cc200bf332",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0052_smiling_baron_zemo.sql",
+      "sha256": "7bdee2a4d37218389b6babb023bd71c03148bcc8a515a107e375531cc0470377",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 3,
+        "dropTable": 0,
+        "createIndex": 4
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0053_mushy_lyja.sql",
+      "sha256": "00e6bec3a531ed21e246945bc3df9530494df4f4a88cc0035cb41debc8bec415",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 5,
+        "dropTable": 0,
+        "createIndex": 7
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0054_striped_forgotten_one.sql",
+      "sha256": "de3bce5dbe7993faae3f1db8dc2c412ba5bb0a7809953d378362803d22c02fa7",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0055_illegal_carlie_cooper.sql",
+      "sha256": "5c0fb4ff805a1d79fd1c3a58ec6d3b09487ebff779efe372e1668e7670293b52",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 1
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/0056_stage2_raw_ocr_text.sql",
+      "sha256": "22024666cfa76f9b8caed385f61d7dfb5e815de3b936deb12642387e8571336a",
+      "classification": "primary_journal_skipped",
+      "journaled": false,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": "Journal gap: this numbered migration is absent from the current Drizzle journal."
+    },
+    {
+      "file": "drizzle/0057_narrative_analysis_json.sql",
+      "sha256": "f17cef641a28fb3b58257148f173cad04c3e0be8bf5ce73b41ae435e9ae1283b",
+      "classification": "primary_journal_skipped",
+      "journaled": false,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": "Journal gap: this numbered migration is absent from the current Drizzle journal."
+    },
+    {
+      "file": "drizzle/0058_claim_comments_extend.sql",
+      "sha256": "5df3047ebd48f263a9270475592c5e879e9a553bd986b8ff919aa3799d9101b7",
+      "classification": "primary_journal_skipped",
+      "journaled": false,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 5,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": "Known replay risk: ALTER assumes non-existent userId physical column before later additions."
+    },
+    {
+      "file": "drizzle/0059_kinga_ref_sequence.sql",
+      "sha256": "5e3cdab9ae775ae0198735318427c5421f10d758aff1c4a5047c1673e2ff4062",
+      "classification": "primary_journal_skipped",
+      "journaled": false,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 3,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": "Journal gap: this numbered migration is absent from the current Drizzle journal."
+    },
+    {
+      "file": "drizzle/0060_role_assignment_audit_fleet_platform_enum.sql",
+      "sha256": "918a8b0d113528936ca235923d85886e7626560718c771cda4f3f22a43c6e099",
+      "classification": "primary_registered",
+      "journaled": true,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 2,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260811_add_claim_fleet_driver_attribution.sql",
+      "sha256": "c3855524afd480cee3c8dd72c9836f4a8572f7da48f52ca60d0e29789bb7deae",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 1
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260812_evidence_gap_intelligence.sql",
+      "sha256": "386510b5b6ee99f0334d061ed9270c14e21d5050bbea526e0617a5a1a2b20989",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260812_evidence_governance_foundation.sql",
+      "sha256": "dd4ef5db1e0ddbf9e4ff6816624ce7a5656aaa79a27b54af54dff034eea49656",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 2,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260812_p0_claim_intake_idempotency.sql",
+      "sha256": "e04b85664f41b354a1d8469d6ff5d35303eef41883327b354e745a8da891a1b0",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260812_p0_whatsapp_claimant_identity.sql",
+      "sha256": "a8df700742451217e8342d40458bda28605d657295bbc6deeb2fb359be38b47a",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 2,
+        "dropTable": 0,
+        "createIndex": 1
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260812_r0_report_provenance_snapshots.sql",
+      "sha256": "66273dd1ea84a4626146abb5a2f6777fb931761ab5416c2dbe4cf0c962c1669a",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260813_agency_product_commission_configs.sql",
+      "sha256": "52245fb3d98333a594faa6f8ab51da9ce02aa22c8a157ea13f59cf1fc2b40b42",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260813_agency_service_request_valuation_condition_snapshots.sql",
+      "sha256": "389eb4bf96aba0093c4ac906694c1d8bd48df7a1ba6dee668c732ee616b34a2c",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 5,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260813_client_valuation_and_insurance_service_request_separation.sql",
+      "sha256": "ee406f382f386b7a316de9fdd1676b34444c8ef515456cf92b4aefa89f887297",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 2,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260813_fleet_rfq_client_instructions.sql",
+      "sha256": "d37264a37e7c576213416b6a0393c7d16df0f5cbe7e849ad3d81b8a2017bc0a9",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260813_valuation_reliability_evidence_controls.sql",
+      "sha256": "3ae98c6750985176945b0d158bf8a70a4f1da0ee097684cc928f9ed2e138c706",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260815_assessor_report_lifecycle.sql",
+      "sha256": "3d0afcabf765dcf77cafd0637bc7da1582feaf7f0af03dd3da3e112ebde2578c",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 3,
+        "alterTable": 3,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260815_claim_assignment_history.sql",
+      "sha256": "a2b8fd842571205b013cec44794ad744a1f6921cd20365aa53d048d4d729cb0a",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/20260815_vehicle_specific_benchmark_precision.sql",
+      "sha256": "285481720f659e7d81572216359748210183013cda548ac992a088836de4acc6",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 4,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/add-claims-snapshot-fields.sql",
+      "sha256": "ccba6726ad87d0bbd925bd656e263480b40c3c784d4b77c35905f76914fdb79c",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 2,
+        "dropTable": 0,
+        "createIndex": 4
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/add_performance_indexes.sql",
+      "sha256": "84dd08f94f23b68a957e7fb53551e72a603ab457dd3ad139d580194cce80a8c4",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 6
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/arch03b-add-moderate-fraud-level.sql",
+      "sha256": "6d0a0cd9a0096700cbcee99449834124df10a0dcc543132b91f350c453d1eebf",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 5,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/batch2-persistence-gaps.sql",
+      "sha256": "296eb77e926748971be3d1ec5d1063678e4cf01de5b0310fb588fe0f07eb0db1",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 0,
+        "alterTable": 1,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/intelligence_layer.sql",
+      "sha256": "8b68faf7b6557a7aac52fb13a2ecb1da1f43801850bd767e4e04d14476d18d97",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 10,
+        "alterTable": 2,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/migrations/reporting_framework.sql",
+      "sha256": "6f1f50798fceb46683265d82885978181adb7e2ca9b89cb09f6ab01a01a8eac6",
+      "classification": "supplementary",
+      "journaled": false,
+      "statements": {
+        "createTable": 5,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 12
+      },
+      "knownRisk": null
+    },
+    {
+      "file": "drizzle/rate-limit-tracking-schema.sql",
+      "sha256": "f96a9a904c2c792860658d9b588607884c80a43c01ceb08a6c6ae1228b162658",
+      "classification": "manual_unregistered",
+      "journaled": false,
+      "statements": {
+        "createTable": 1,
+        "alterTable": 0,
+        "dropTable": 0,
+        "createIndex": 0
+      },
+      "knownRisk": "Manual, unnumbered, unjournaled schema artefact."
+    }
+  ]
+}
