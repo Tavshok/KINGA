@@ -319,14 +319,6 @@ async function generateClaimAssessmentReport(
       currency_code: quote.currencyCode,
       panel_beater_name: quote.panelBeaterName,
     }));
-    const quoteLineItemsMap = new Map<number, Record<string, unknown>[]>(
-      record.evidence.quoteEvidence.map((quote) => [quote.quoteId, quote.lineItems.map((line) => ({
-        description: line.description,
-        category: line.category,
-        unit_price: line.unitPrice,
-        line_total: line.lineTotal,
-      }))]),
-    );
 	const evidenceGovernanceData = record.evidence.evidenceGovernance;
     const rawCompsData = record.evidence.aiDetectedDamageComponents;
     const rawComps: Record<string, unknown>[] = Array.isArray(rawCompsData)
@@ -414,26 +406,13 @@ async function generateClaimAssessmentReport(
     const activeQuoteIds = new Set(
       costIntegrity.activeQuotes.map((quote) => quote.sourceReference).filter((id): id is string => Boolean(id))
     );
-    const activeQuoteRows = activeQuoteIds.size > 0
-      ? quoteRows.filter((quote) => activeQuoteIds.has(String(quote.id)))
-      : costIntegrity.legacyHistoryQualified ? [] : quoteRows;
     const kingaOptimised = costIntegrity.l2OptimisedCostUsd;
     const evidenceQualifiedL2 = costIntegrity.l2EvidenceQualifiedComparisonUsd;
-    const submittedQuoteLedgerDetail = costIntegrity.submittedQuotes.length > 0
-      ? `${costIntegrity.submittedQuotes.map((quote) => `${quote.repairer}: ${quote.amountUsd === null ? "amount unavailable" : fmtUSD(quote.amountUsd)}`).join(" · ")}${costIntegrity.legacyHistoryQualified ? " · Legacy quotation history; not active comparison evidence." : ""}`
-      : "No submitted repair quotations";
     const l2Display = kingaOptimised !== null
       ? fmtUSD(kingaOptimised)
       : evidenceQualifiedL2 !== null
         ? `${fmtUSD(evidenceQualifiedL2)} (evidence-qualified comparison)`
         : (costIntegrity.l2Status === "reconciliation_required" ? "All-in reconciliation required" : "L2 comparison pending evidence");
-    const l2LedgerLabel = kingaOptimised !== null
-      ? "L2 — KINGA Optimised Quote"
-      : evidenceQualifiedL2 !== null
-        ? "L2 — KINGA Optimised Quote (evidence-qualified comparison)"
-        : "L2 — KINGA Optimised Quote";
-    const l1Display = costIntegrity.l1SubmittedCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l1SubmittedCostUsd);
-    const l3Display = costIntegrity.l3BenchmarkReferenceCostUsd === null ? "Not available" : fmtUSD(costIntegrity.l3BenchmarkReferenceCostUsd);
 	const residualReconciliationDetail = costIntegrity.quoteReconciliations
 		.filter((quote) => quote.status !== "reconciled" && quote.unexplainedResidualUsd !== null)
 		.map((quote) => `${quote.repairer}: ${fmtUSD(quote.unexplainedResidualUsd!)} requires document-to-ledger reconciliation`)
@@ -785,74 +764,6 @@ ${totalPhotosCL > 0 ? `
 			${renderEvidenceGovernancePanel(evidenceGovernanceData, activeQuoteIds)}
 			${renderCostEvidenceStateHtml({ costIntegrity, formatAmount: fmtUSD, escapeHtml: esc })}
 			${sharedQuoteEvidenceHtml}
-	    <!-- Local quote rendering below is superseded by the shared canonical presentation above. -->
-	    <div style="display:none" aria-hidden="true">
-	  <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px"><tr style="background:#f5f5f5"><td style="padding:4px 6px;font-weight:600">Submitted quotation ledger</td><td style="padding:4px 6px">${activeQuoteRows.length} active quote${activeQuoteRows.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? `; ${costIntegrity.duplicateQuotesExcluded} duplicate excluded` : ""}</td><td style="padding:4px 6px;font-weight:600">L1 — lowest active submitted quote</td><td style="padding:4px 6px">${l1Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">Active quote amounts</td><td colspan="3" style="padding:4px 6px">${esc(submittedQuoteLedgerDetail)}</td></tr><tr><td style="padding:4px 6px;font-weight:600">Quote scope status</td><td style="padding:4px 6px">${esc(costIntegrity.quoteScopeStatus.replaceAll("_", " "))}</td><td style="padding:4px 6px;font-weight:600">${l2LedgerLabel}</td><td style="padding:4px 6px">${l2Display}</td></tr><tr><td style="padding:4px 6px;font-weight:600">L3 — benchmark reference</td><td colspan="3" style="padding:4px 6px">${l3Display}</td></tr></table>
-  ${activeQuoteRows.length > 0 ? (() => {
-    // Build a union of all line item descriptions across all quotes
-    const allDescs = new Set<string>();
-    quoteLineItemsMap.forEach(items => items.forEach(i => allDescs.add(String(i.description ?? ""))));
-    const descList = Array.from(allDescs).filter(d => d.length > 0);
-    // Find the composite selected price for each description
-    const compositeMap = new Map<string, {cost: number; source: string}>(
-      compositeLineItemsCL.map(li => [li.componentName, {cost: Number(li.selectedCostUsd), source: (li as any).selectedFromQuote ?? ""}])
-    );
-    function findComposite(desc: string): {cost: number; source: string} | null {
-      const key = desc.toLowerCase().trim();
-      for (const [name, val] of compositeMap) {
-        const nk = name.toLowerCase().trim();
-        const shorter = key.length < nk.length ? key : nk;
-        const longer  = key.length < nk.length ? nk : key;
-        if (shorter === longer || (shorter.length >= 5 && longer.includes(shorter))) return val;
-      }
-      return null;
-    }
-    const quoteNames = activeQuoteRows.map(q => String((q as any).panel_beater_name ?? `Quote ${q.id}`));
-    const colW = Math.floor(55 / activeQuoteRows.length);
-    return `
-<div style="margin-top:14px;">
-  <div style="font-size:10px;font-weight:700;color:#4a4a4a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Quote Comparison — Line Item Breakdown</div>
-  <table style="width:100%;border-collapse:collapse;font-size:10px;">
-    <thead>
-      <tr style="background:#f0f0f0;border-bottom:2px solid #d9d9d9;">
-        <th style="text-align:left;padding:4px 8px;width:25%;font-size:9px;color:#4a4a4a;">Line Item</th>
-        ${activeQuoteRows.map((q, i) => `<th style="text-align:right;padding:4px 6px;width:${colW}%;font-size:9px;color:#4a4a4a;">${esc(quoteNames[i])}<br><span style="font-weight:400;color:#8a8a8a">${fmtUSD(Number((q as any).quoted_amount ?? 0) / 100)}</span></th>`).join("")}
-        <th style="text-align:right;padding:4px 6px;width:12%;font-size:9px;color:#3C7844;font-weight:700;">KINGA Opt.</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${descList.map(desc => {
-        const comp = findComposite(desc);
-        const cells = activeQuoteRows.map(q => {
-          const items = quoteLineItemsMap.get(Number(q.id)) ?? [];
-          const match = items.find(i => String(i.description ?? "").toLowerCase() === desc.toLowerCase());
-          const val = match ? Number(match.line_total ?? match.unit_price ?? 0) : null;
-          return val != null && val > 0
-            ? `<td style="padding:3px 6px;text-align:right;font-family:monospace;">${fmtUSD(val)}</td>`
-            : `<td style="padding:3px 6px;text-align:right;color:#bbb;">—</td>`;
-        }).join("");
-        const kingaCell = kingaOptimised !== null && comp && comp.cost > 0
-          ? `<td style="padding:3px 6px;text-align:right;font-family:monospace;color:#3C7844;font-weight:700;">${fmtUSD(comp.cost)}<br><span style="font-size:8px;color:#8a8a8a;font-weight:400;">${esc(comp.source === "kinga_benchmark" ? "benchmark" : comp.source)}</span></td>`
-          : `<td style="padding:3px 6px;text-align:right;color:#bbb;">—</td>`;
-        return `<tr style="border-bottom:1px solid #f0f0f0;">
-          <td style="padding:3px 8px;font-weight:600;">${esc(desc)}</td>
-          ${cells}
-          ${kingaCell}
-        </tr>`;
-      }).join("")}
-    </tbody>
-    <tfoot>
-      <tr style="border-top:2px solid #d9d9d9;background:#fafafa;font-weight:700;">
-        <td style="padding:4px 8px;font-size:10px;">TOTAL</td>
-        ${activeQuoteRows.map(q => `<td style="padding:4px 6px;text-align:right;font-family:monospace;">${fmtUSD(Number((q as any).quoted_amount ?? 0) / 100)}</td>`).join("")}
-        <td style="padding:4px 6px;text-align:right;font-family:monospace;color:#3C7844;">${l2Display}<br><span style="font-size:8px;color:#8a8a8a;font-weight:400;">${kingaOptimised === null ? "coverage incomplete" : `${compositeLineItemsCL.length} rows`}</span></td>
-      </tr>
-    </tfoot>
-  </table>
-  <p style="font-size:9px;color:#8a8a8a;margin-top:4px;">The ledger contains ${activeQuoteRows.length} active repair quotation${activeQuoteRows.length === 1 ? "" : "s"}${costIntegrity.duplicateQuotesExcluded > 0 ? ` after excluding ${costIntegrity.duplicateQuotesExcluded} duplicate submission${costIntegrity.duplicateQuotesExcluded === 1 ? "" : "s"}` : ""}. KINGA Opt. is published only when all confirmed repair scope has a traceable payable cost; it is not a settlement agreement.</p>
-</div>` ;
-  })() : ""}
-    </div>
 </div>
 
 <!-- ── §5 PHYSICS / FRAUD ── -->
