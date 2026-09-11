@@ -15,7 +15,7 @@ export const accessDenialLog = mysqlTable("access_denial_log", {
 });
 
 export const reportProvenanceSnapshots = mysqlTable("report_provenance_snapshots", {
-	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull().primaryKey(),
 	jobId: varchar("job_id", { length: 64 }).notNull(),
 	reportKey: varchar("report_key", { length: 100 }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
@@ -36,7 +36,7 @@ export const reportProvenanceSnapshots = mysqlTable("report_provenance_snapshots
  * reference any material claim evidence while retaining tenant isolation.
  */
 export const claimEvidenceFindings = mysqlTable("claim_evidence_findings", {
-	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	claimId: int("claim_id").notNull(),
 	assessmentId: int("assessment_id"),
@@ -74,7 +74,7 @@ export const claimEvidenceFindings = mysqlTable("claim_evidence_findings", {
  * normalised quote-line representation used by legacy calculations.
  */
 export const quoteEvidenceLedger = mysqlTable("quote_evidence_ledger", {
-	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	claimId: int("claim_id").notNull(),
 	quoteId: int("quote_id"),
@@ -110,7 +110,7 @@ export const quoteEvidenceLedger = mysqlTable("quote_evidence_ledger", {
  * arithmetic constraints remain independently traceable.
  */
 export const quoteEvidenceGaps = mysqlTable("quote_evidence_gaps", {
-	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	claimId: int("claim_id").notNull(),
 	quoteId: int("quote_id"),
@@ -144,7 +144,7 @@ export const quoteEvidenceGaps = mysqlTable("quote_evidence_gaps", {
 ]);
 
 export const agencyDocuments = mysqlTable("agency_documents", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	quotationRequestId: int("quotation_request_id"),
 	policyId: int("policy_id"),
@@ -159,7 +159,7 @@ export const agencyDocuments = mysqlTable("agency_documents", {
 });
 
 export const aiAssessments = mysqlTable("ai_assessments", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	estimatedCost: int("estimated_cost"),
 	damageDescription: longtext("damage_description"),
@@ -395,7 +395,7 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 ]);
 
 export const aiPredictionLogs = mysqlTable("ai_prediction_logs", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	predictionType: mysqlEnum("prediction_type", ['cost_estimate','fraud_detection','document_classification','damage_assessment','repair_vs_replace','total_loss_determination','physics_validation']).notNull(),
@@ -425,7 +425,7 @@ export const aiPredictionLogs = mysqlTable("ai_prediction_logs", {
 ]);
 
 export const anonymizationAuditLog = mysqlTable("anonymization_audit_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	sourceRecordId: int("source_record_id").notNull(),
 	anonymousRecordId: varchar("anonymous_record_id", { length: 36 }),
 	status: mysqlEnum(['success','withheld_k_anonymity','withheld_pii_detected','withheld_tenant_opt_out']).notNull(),
@@ -442,7 +442,7 @@ export const anonymizationAuditLog = mysqlTable("anonymization_audit_log", {
 ]);
 
 export const appointments = mysqlTable("appointments", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	assessorId: int("assessor_id").notNull(),
 	appointmentType: mysqlEnum("appointment_type", ['claimant_inspection','panel_beater_inspection']).notNull(),
@@ -458,7 +458,7 @@ export const appointments = mysqlTable("appointments", {
 });
 
 export const approvalWorkflow = mysqlTable("approval_workflow", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	level: mysqlEnum(['assessor','risk_surveyor','risk_manager']).notNull(),
 	levelOrder: int("level_order").notNull(),
@@ -482,7 +482,7 @@ export const approvalWorkflow = mysqlTable("approval_workflow", {
 });
 
 export const assessorDeviationMetrics = mysqlTable("assessor_deviation_metrics", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	assessorId: int("assessor_id"),
 	assessorName: varchar("assessor_name", { length: 255 }),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
@@ -505,7 +505,7 @@ export const assessorDeviationMetrics = mysqlTable("assessor_deviation_metrics",
 });
 
 export const assessorEvaluations = mysqlTable("assessor_evaluations", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	assessorId: int("assessor_id").notNull(),
 	inspectionDate: timestamp("inspection_date", { mode: 'string' }),
@@ -533,7 +533,7 @@ export const assessorEvaluations = mysqlTable("assessor_evaluations", {
 ]);
 
 export const assessorInsurerRelationships = mysqlTable("assessor_insurer_relationships", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	assessorId: int("assessor_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	relationshipType: mysqlEnum("relationship_type", ['insurer_owned','marketplace_contract','preferred_vendor']).notNull(),
@@ -560,7 +560,7 @@ export const assessorInsurerRelationships = mysqlTable("assessor_insurer_relatio
 ]);
 
 export const assessorMarketplaceReviews = mysqlTable("assessor_marketplace_reviews", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	assessorId: int("assessor_id").notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
@@ -583,7 +583,7 @@ export const assessorMarketplaceReviews = mysqlTable("assessor_marketplace_revie
 ]);
 
 export const assessors = mysqlTable("assessors", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	userId: int("user_id").notNull(),
 	professionalLicenseNumber: varchar("professional_license_number", { length: 100 }).notNull(),
 	licenseExpiryDate: timestamp("license_expiry_date", { mode: 'string' }).notNull(),
@@ -645,7 +645,7 @@ export const auditLogs = mysqlTable("audit_logs", {
 });
 
 export const auditTrail = mysqlTable("audit_trail", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
 	userId: int("user_id").notNull(),
 	action: varchar({ length: 100 }).notNull(),
@@ -665,7 +665,7 @@ export const auditTrail = mysqlTable("audit_trail", {
 ]);
 
 export const automationAuditLog = mysqlTable("automation_audit_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	confidenceScoreId: int("confidence_score_id").notNull().references(() => claimConfidenceScores.id),
@@ -697,7 +697,7 @@ export const automationAuditLog = mysqlTable("automation_audit_log", {
 ]);
 
 export const automationPolicies = mysqlTable("automation_policies", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	policyName: varchar("policy_name", { length: 255 }).notNull(),
 	minAutomationConfidence: int("min_automation_confidence").default(85).notNull(),
@@ -730,7 +730,7 @@ export const automationPolicies = mysqlTable("automation_policies", {
 ]);
 
 export const claimComments = mysqlTable("claim_comments", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	// Gate C decision: `claimId` is the established live physical contract. Do not
 	// normalise it to `claim_id` in a fresh baseline or compatibility migration
 	// without an explicitly approved data-cutover plan.
@@ -766,7 +766,7 @@ export const claimComments = mysqlTable("claim_comments", {
 });
 
 export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	damageCertainty: decimal("damage_certainty", { precision: 5, scale: 2 }).notNull(),
@@ -794,7 +794,7 @@ export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
 
 /** Durable idempotency and recovery state for canonical claimant intake. */
 export const claimIntakeRequests = mysqlTable("claim_intake_requests", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	userId: int("user_id").notNull(),
 	idempotencyKey: varchar("idempotency_key", { length: 64 }).notNull(),
@@ -838,7 +838,7 @@ export const claimDocuments = mysqlTable("claim_documents", {
 ]);
 
 export const claimEvents = mysqlTable("claim_events", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	eventType: varchar("event_type", { length: 100 }).notNull(),
 	eventPayload: json("event_payload"),
@@ -887,7 +887,7 @@ export const claimAssignments = mysqlTable("claim_assignments", {
 ]);
 
 export const assessorReports = mysqlTable("assessor_reports", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }).notNull(),
   assessorUserId: int("assessor_user_id").references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }).notNull(),
@@ -918,7 +918,7 @@ export const assessorReports = mysqlTable("assessor_reports", {
 ]);
 
 export const assessorReportAttachments = mysqlTable("assessor_report_attachments", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   reportId: int("report_id").references(() => assessorReports.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }).notNull(),
   originalFileName: varchar("original_file_name", { length: 500 }).notNull(),
@@ -935,7 +935,7 @@ export const assessorReportAttachments = mysqlTable("assessor_report_attachments
 ]);
 
 export const assessorReportReviews = mysqlTable("assessor_report_reviews", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   reportId: int("report_id").references(() => assessorReports.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }).notNull(),
@@ -954,7 +954,7 @@ export const assessorReportReviews = mysqlTable("assessor_report_reviews", {
 ]);
 
 export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	schemaVersion: int("schema_version").default(1).notNull(),
@@ -1001,7 +1001,7 @@ export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset",
 ]);
 
 export const claimInvolvementTracking = mysqlTable("claim_involvement_tracking", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	userId: int("user_id").notNull(),
 	workflowStage: mysqlEnum("workflow_stage", ['assessment','technical_approval','financial_decision','payment_authorization']).notNull(),
@@ -1014,7 +1014,7 @@ export const claimInvolvementTracking = mysqlTable("claim_involvement_tracking",
 ]);
 
 export const claimReviewQueue = mysqlTable("claim_review_queue", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	reviewStatus: mysqlEnum("review_status", ['pending_review','in_review','approved','rejected','needs_more_info']).default('pending_review'),
@@ -1037,7 +1037,7 @@ export const claimReviewQueue = mysqlTable("claim_review_queue", {
 ]);
 
 export const claimRoutingDecisions = mysqlTable("claim_routing_decisions", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	confidenceScoreId: int("confidence_score_id").notNull().references(() => claimConfidenceScores.id),
@@ -1311,7 +1311,7 @@ export const claims = mysqlTable("claims", {
 	]);
 
 export const commissionRecords = mysqlTable("commission_records", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	policyId: int("policy_id").notNull(),
 	carrierId: int("carrier_id").notNull(),
 	productId: int("product_id").notNull(),
@@ -1332,7 +1332,7 @@ export const commissionRecords = mysqlTable("commission_records", {
  * underwriting, premiums, claims, settlement, or RFQ lifecycle transitions.
  */
 export const agencyProductCommissionConfigs = mysqlTable("agency_product_commission_configs", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
 	productId: int("product_id").notNull(),
 	commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(),
@@ -1346,7 +1346,7 @@ export const agencyProductCommissionConfigs = mysqlTable("agency_product_commiss
 ]);
 
 export const costComponents = mysqlTable("cost_components", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	sourceType: mysqlEnum("source_type", ['panel_beater_quote','assessor_report','ai_estimate','final_approved']).notNull(),
 	documentId: int("document_id"),
@@ -1389,7 +1389,7 @@ export const currencyExchangeRates = mysqlTable("currency_exchange_rates", {
 ]);
 
 export const customerConsent = mysqlTable("customer_consent", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	customerId: int("customer_id").notNull(),
 	consentType: mysqlEnum("consent_type", ['data_processing','marketing','third_party_sharing','credit_check','automated_decision_making']).notNull(),
 	consentGiven: tinyint("consent_given").notNull(),
@@ -1401,7 +1401,7 @@ export const customerConsent = mysqlTable("customer_consent", {
 });
 
 export const customerDocuments = mysqlTable("customer_documents", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	customerId: int("customer_id").notNull(),
 	documentType: mysqlEnum("document_type", ['id_document','drivers_license','proof_of_residence','vehicle_registration','other']).notNull(),
 	documentUrl: varchar("document_url", { length: 500 }).notNull(),
@@ -1418,7 +1418,7 @@ export const customerDocuments = mysqlTable("customer_documents", {
 });
 
 export const datasetAccessGrants = mysqlTable("dataset_access_grants", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	dataScope: mysqlEnum("data_scope", ['tenant_private','tenant_feature','global_anonymized']).notNull(),
 	grantedToUserId: int("granted_to_user_id"),
@@ -1441,7 +1441,7 @@ export const datasetAccessGrants = mysqlTable("dataset_access_grants", {
 ]);
 
 export const documentNamingTemplates = mysqlTable("document_naming_templates", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	docType: mysqlEnum("doc_type", ['claim','assessment','report','approval']).notNull(),
 	template: varchar({ length: 500 }).notNull(),
@@ -1489,7 +1489,7 @@ export const emailVerificationTokens = mysqlTable("email_verification_tokens", {
 ]);
 
 export const entityRelationships = mysqlTable("entity_relationships", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	entityAType: varchar("entity_a_type", { length: 50 }).notNull(),
 	entityAId: int("entity_a_id").notNull(),
 	entityAName: varchar("entity_a_name", { length: 255 }),
@@ -1548,7 +1548,7 @@ export const extractedDocumentData = mysqlTable("extracted_document_data", {
 });
 
 export const extractedRepairItems = mysqlTable("extracted_repair_items", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	documentId: int("document_id"),
 	sourceType: mysqlEnum("source_type", ['panel_beater_quote','assessor_report','ai_estimate']).notNull(),
@@ -1576,7 +1576,7 @@ export const extractedRepairItems = mysqlTable("extracted_repair_items", {
 ]);
 
 export const fastTrackConfig = mysqlTable("fast_track_config", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	productId: int("product_id"),
 	claimType: mysqlEnum("claim_type", ['collision','theft','hail','fire','vandalism','flood','hijacking','other']),
@@ -1600,7 +1600,7 @@ export const fastTrackConfig = mysqlTable("fast_track_config", {
 ]);
 
 export const fastTrackRoutingLog = mysqlTable("fast_track_routing_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	configId: int("config_id"),
@@ -1649,7 +1649,7 @@ export const federatedLearningMetadata = mysqlTable("federated_learning_metadata
 ]);
 
 export const finalApprovalRecords = mysqlTable("final_approval_records", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	finalDecision: mysqlEnum("final_decision", ['approved_repair','approved_total_loss','cash_settlement','rejected','withdrawn']).notNull(),
@@ -1681,7 +1681,7 @@ export const finalApprovalRecords = mysqlTable("final_approval_records", {
 ]);
 
 export const fleetAuditLogs = mysqlTable("fleet_audit_logs", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	entityType: mysqlEnum("entity_type", ['fleet','vehicle','maintenance','service_request','quote','document']).notNull(),
 	entityId: int("entity_id").notNull(),
@@ -1696,7 +1696,7 @@ export const fleetAuditLogs = mysqlTable("fleet_audit_logs", {
 });
 
 export const fleetDocuments = mysqlTable("fleet_documents", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	fleetId: int("fleet_id"),
 	vehicleId: int("vehicle_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
@@ -1715,7 +1715,7 @@ export const fleetDocuments = mysqlTable("fleet_documents", {
 });
 
 export const fleetDrivers = mysqlTable("fleet_drivers", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	fleetId: int("fleet_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	userId: int("user_id").notNull(),
@@ -1740,7 +1740,7 @@ export const fleetDrivers = mysqlTable("fleet_drivers", {
 ]);
 
 export const fleetIncidentReports = mysqlTable("fleet_incident_reports", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	driverId: int("driver_id").notNull(),
 	fleetId: int("fleet_id").notNull(),
@@ -1770,7 +1770,7 @@ export const fleetIncidentReports = mysqlTable("fleet_incident_reports", {
 ]);
 
 export const fleetRiskScores = mysqlTable("fleet_risk_scores", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	fleetId: int("fleet_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
@@ -1791,7 +1791,7 @@ export const fleetRiskScores = mysqlTable("fleet_risk_scores", {
 ]);
 
 export const fleetVehicles = mysqlTable("fleet_vehicles", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vin: varchar({ length: 17 }),
 	registrationNumber: varchar("registration_number", { length: 50 }).notNull(),
 	make: varchar({ length: 100 }).notNull(),
@@ -1843,7 +1843,7 @@ export const fleetVehicles = mysqlTable("fleet_vehicles", {
 ]);
 
 export const fleets = mysqlTable("fleets", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	ownerId: int("owner_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	fleetName: varchar("fleet_name", { length: 255 }).notNull(),
@@ -1861,7 +1861,7 @@ export const fleets = mysqlTable("fleets", {
 });
 
 export const fraudAlerts = mysqlTable("fraud_alerts", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	alertType: varchar("alert_type", { length: 100 }).notNull(),
 	alertSeverity: mysqlEnum("alert_severity", ['low','medium','high','critical']).notNull(),
@@ -1884,7 +1884,7 @@ export const fraudAlerts = mysqlTable("fraud_alerts", {
 });
 
 export const fraudIndicators = mysqlTable("fraud_indicators", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	overallFraudScore: int("overall_fraud_score").notNull(),
 	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','moderate','high','critical','elevated']).notNull(),
@@ -1990,7 +1990,7 @@ export const globalAnonymizedDataset = mysqlTable("global_anonymized_dataset", {
 ]);
 
 export const governanceNotifications = mysqlTable("governance_notifications", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	type: mysqlEnum(['intake_escalation','auto_assignment','ai_rerun','executive_override','segregation_violation']).notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
@@ -2010,7 +2010,7 @@ export const governanceNotifications = mysqlTable("governance_notifications", {
 ]);
 
 export const governanceViolationLog = mysqlTable("governance_violation_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	userId: int("user_id").notNull(),
 	userRole: varchar("user_role", { length: 50 }).notNull(),
@@ -2030,7 +2030,7 @@ export const governanceViolationLog = mysqlTable("governance_violation_log", {
 ]);
 
 export const historicalClaims = mysqlTable("historical_claims", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	batchId: int("batch_id"),
 	claimReference: varchar("claim_reference", { length: 100 }),
@@ -2080,7 +2080,7 @@ export const historicalClaims = mysqlTable("historical_claims", {
 ]);
 
 export const historicalReplayResults = mysqlTable("historical_replay_results", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	originalClaimReference: varchar("original_claim_reference", { length: 100 }),
@@ -2129,7 +2129,7 @@ export const historicalReplayResults = mysqlTable("historical_replay_results", {
 ]);
 
 export const ingestionBatches = mysqlTable("ingestion_batches", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	batchName: varchar("batch_name", { length: 255 }),
 	ingestionSource: mysqlEnum("ingestion_source", ['processor_upload','bulk_batch','api','email','legacy_import','broker_upload']).notNull(),
@@ -2148,7 +2148,7 @@ export const ingestionBatches = mysqlTable("ingestion_batches", {
 });
 
 export const ingestionDocuments = mysqlTable("ingestion_documents", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	batchId: int("batch_id").notNull(),
 	documentId: varchar("document_id", { length: 36 }).notNull(),
@@ -2351,7 +2351,7 @@ export const isoAuditLogs = mysqlTable("iso_audit_logs", {
 ]);
 
 export const maintenanceAlerts = mysqlTable("maintenance_alerts", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	scheduleId: int("schedule_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
@@ -2369,7 +2369,7 @@ export const maintenanceAlerts = mysqlTable("maintenance_alerts", {
 });
 
 export const maintenanceRecords = mysqlTable("maintenance_records", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	scheduleId: int("schedule_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
@@ -2396,7 +2396,7 @@ export const maintenanceRecords = mysqlTable("maintenance_records", {
 });
 
 export const maintenanceSchedules = mysqlTable("maintenance_schedules", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	maintenanceType: mysqlEnum("maintenance_type", ['oil_change','tire_rotation','brake_inspection','engine_service','transmission_service','annual_inspection','safety_inspection','filter_replacement','battery_check','coolant_flush','custom']).notNull(),
@@ -2416,7 +2416,7 @@ export const maintenanceSchedules = mysqlTable("maintenance_schedules", {
 });
 
 export const marketplaceTransactions = mysqlTable("marketplace_transactions", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	assignmentId: int("assignment_id").notNull(),
 	assessorId: int("assessor_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
@@ -2441,7 +2441,7 @@ export const marketplaceTransactions = mysqlTable("marketplace_transactions", {
 ]);
 
 export const modelTrainingAuditLog = mysqlTable("model_training_audit_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	modelVersionId: int("model_version_id").notNull(),
 	eventType: mysqlEnum("event_type", ['training_started','training_completed','training_failed','validation_started','validation_completed','deployment_requested','deployment_approved','deployment_rejected','model_deprecated','dataset_added','dataset_removed']).notNull(),
@@ -2453,7 +2453,7 @@ export const modelTrainingAuditLog = mysqlTable("model_training_audit_log", {
 });
 
 export const modelTrainingQueue = mysqlTable("model_training_queue", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	datasetRecordId: int("dataset_record_id").notNull(),
 	trainingPriority: varchar("training_priority", { length: 50 }).default('normal'),
@@ -2531,7 +2531,7 @@ export const multiReferenceTruth = mysqlTable("multi_reference_truth", {
 });
 
 export const notifications = mysqlTable("notifications", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	userId: int("user_id").notNull(),
 	// Added via ALTER TABLE in Epic 5-B (commit 523d8be0) — not previously reflected here.
 	// See scripts/tenant-onboarding/add-tenant-id-columns.sql for the original DDL.
@@ -2569,7 +2569,7 @@ export const organizations = mysqlTable("organizations", {
 });
 
 export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	panelBeaterId: int("panel_beater_id").notNull(),
 	quotedAmount: int("quoted_amount").notNull(),
@@ -2613,7 +2613,7 @@ export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
 ]);
 
 export const panelBeaters = mysqlTable("panel_beaters", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	name: text().notNull(),
 	businessName: text("business_name").notNull(),
 	email: varchar({ length: 320 }),
@@ -2703,7 +2703,7 @@ export const partsPricingOverrides = mysqlTable("parts_pricing_overrides", {
 });
 
 export const pdfReports = mysqlTable("pdf_reports", {
-	id: varchar({ length: 255 }).notNull(),
+	id: varchar({ length: 255 }).notNull().primaryKey(),
 	snapshotId: varchar("snapshot_id", { length: 255 }).notNull(),
 	s3Url: text("s3_url").notNull(),
 	fileSizeBytes: int("file_size_bytes").notNull(),
@@ -2774,7 +2774,7 @@ export const policeReports = mysqlTable("police_reports", {
 });
 
 export const policyClaimLinks = mysqlTable("policy_claim_links", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	policyId: int("policy_id").notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	coverageVerified: tinyint("coverage_verified").default(0),
@@ -2787,7 +2787,7 @@ export const policyClaimLinks = mysqlTable("policy_claim_links", {
 });
 
 export const policyDocuments = mysqlTable("policy_documents", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	policyId: int("policy_id").notNull(),
 	documentType: mysqlEnum("document_type", ['policy_schedule','certificate_of_insurance','endorsement','cancellation_notice','renewal_notice','other']).notNull(),
 	documentUrl: varchar("document_url", { length: 500 }).notNull(),
@@ -2802,7 +2802,7 @@ export const policyDocuments = mysqlTable("policy_documents", {
 });
 
 export const policyEndorsements = mysqlTable("policy_endorsements", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	policyId: int("policy_id").notNull(),
 	endorsementNumber: varchar("endorsement_number", { length: 50 }).notNull(),
 	endorsementType: mysqlEnum("endorsement_type", ['add_driver','remove_driver','change_vehicle','adjust_coverage','change_excess','other']).notNull(),
@@ -2852,7 +2852,7 @@ export const qualityMetrics = mysqlTable("quality_metrics", {
 ]);
 
 export const quotationRequests = mysqlTable("quotation_requests", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	requestNumber: varchar("request_number", { length: 50 }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	userId: int("user_id"),
@@ -3016,7 +3016,7 @@ export const quoteLineItems = mysqlTable("quote_line_items", {
 });
 
 export const rateLimitTracking = mysqlTable("rate_limit_tracking", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	userId: int("user_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	actionType: varchar("action_type", { length: 50 }).notNull(),
@@ -3031,7 +3031,7 @@ export const rateLimitTracking = mysqlTable("rate_limit_tracking", {
 ]);
 
 export const referenceDataset = mysqlTable("reference_dataset", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
@@ -3108,7 +3108,7 @@ export const registrationRequests = mysqlTable("registration_requests", {
 });
 
 export const reportAccessAudit = mysqlTable("report_access_audit", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	reportId: varchar("report_id", { length: 255 }).notNull(),
 	reportType: mysqlEnum("report_type", ['pdf','interactive']).notNull(),
 	accessedBy: int("accessed_by").notNull(),
@@ -3126,7 +3126,7 @@ export const reportAccessAudit = mysqlTable("report_access_audit", {
 ]);
 
 export const reportLinks = mysqlTable("report_links", {
-	id: varchar({ length: 255 }).notNull(),
+	id: varchar({ length: 255 }).notNull().primaryKey(),
 	snapshotId: varchar("snapshot_id", { length: 255 }).notNull(),
 	interactiveUrl: text("interactive_url").notNull(),
 	accessToken: varchar("access_token", { length: 255 }).notNull(),
@@ -3142,7 +3142,7 @@ export const reportLinks = mysqlTable("report_links", {
 ]);
 
 export const reportSnapshots = mysqlTable("report_snapshots", {
-	id: varchar({ length: 255 }).notNull(),
+	id: varchar({ length: 255 }).notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	version: int().notNull(),
 	reportType: mysqlEnum("report_type", ['insurer','assessor','regulatory']).notNull(),
@@ -3183,7 +3183,7 @@ export const riskRegister = mysqlTable("risk_register", {
 ]);
 
 export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	userId: int("user_id").notNull(),
 	previousRole: mysqlEnum("previous_role", ['user','admin','insurer','assessor','panel_beater','claimant','fleet_admin','fleet_manager','fleet_driver','platform_super_admin','agency','engineer']),
@@ -3271,7 +3271,7 @@ export const serviceProviders = mysqlTable("service_providers", {
 });
 
 export const serviceQuotes = mysqlTable("service_quotes", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	requestId: int("request_id").notNull(),
 	providerId: int("provider_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
@@ -3298,7 +3298,7 @@ export const serviceQuotes = mysqlTable("service_quotes", {
 });
 
 export const serviceRequests = mysqlTable("service_requests", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	fleetId: int("fleet_id"),
 	ownerId: int("owner_id").notNull(),
@@ -3327,7 +3327,7 @@ export const serviceRequests = mysqlTable("service_requests", {
 });
 
 export const similarClaimsClusters = mysqlTable("similar_claims_clusters", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	vehicleMake: varchar("vehicle_make", { length: 100 }),
 	vehicleModel: varchar("vehicle_model", { length: 100 }),
@@ -3348,7 +3348,7 @@ export const similarClaimsClusters = mysqlTable("similar_claims_clusters", {
 });
 
 export const superAuditSessions = mysqlTable("super_audit_sessions", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	superAdminUserId: int("super_admin_user_id").notNull(),
 	superAdminName: varchar("super_admin_name", { length: 255 }),
 	auditedTenantId: varchar("audited_tenant_id", { length: 64 }),
@@ -3554,7 +3554,7 @@ export const thirdPartyVehicles = mysqlTable("third_party_vehicles", {
 });
 
 export const trainingDataScores = mysqlTable("training_data_scores", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	trainingConfidenceScore: decimal("training_confidence_score", { precision: 5, scale: 2 }).notNull(),
@@ -3581,7 +3581,7 @@ export const trainingDataScores = mysqlTable("training_data_scores", {
 ]);
 
 export const trainingDataset = mysqlTable("training_dataset", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
@@ -3648,7 +3648,7 @@ export const trainingRecords = mysqlTable("training_records", {
 ]);
 
 export const usageEvents = mysqlTable("usage_events", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	eventType: mysqlEnum("event_type", ['CLAIM_PROCESSED','AI_EVALUATED','FAST_TRACK_TRIGGERED','AUTO_APPROVED','ASSESSOR_TOOL_USED','FLEET_VEHICLE_ACTIVE','AGENCY_POLICY_BOUND','AI_ASSESSMENT_TRIGGERED','DOCUMENT_INGESTED','EXECUTIVE_ANALYTICS_QUERY','GOVERNANCE_CHECK','FLEET_VEHICLE_MANAGED','MARKETPLACE_QUOTE_REQUEST']).notNull(),
@@ -3672,7 +3672,7 @@ export const usageEvents = mysqlTable("usage_events", {
 ]);
 
 export const userInvitations = mysqlTable("user_invitations", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	organizationId: int("organization_id").notNull(),
 	email: varchar({ length: 320 }).notNull(),
 	role: mysqlEnum(['insurer','assessor']).notNull(),
@@ -3753,7 +3753,7 @@ export const users = mysqlTable("users", {
 ]);
 export type User = typeof users.$inferSelect;
 export const varianceDatasets = mysqlTable("variance_datasets", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	comparisonType: mysqlEnum("comparison_type", ['quote_vs_final','ai_vs_final','assessor_vs_final','quote_vs_assessor','ai_vs_assessor','quote_vs_ai']).notNull(),
@@ -3903,7 +3903,7 @@ export const vehicleMileageLogs = mysqlTable("vehicle_mileage_logs", {
 });
 
 export const workflowAuditTrail = mysqlTable("workflow_audit_trail", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	userId: int("user_id").notNull(),
 	userRole: mysqlEnum("user_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']).notNull(),
@@ -3942,7 +3942,7 @@ export const workflowConfiguration = mysqlTable("workflow_configuration", {
 ]);
 
 export const workflowStates = mysqlTable("workflow_states", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	currentState: varchar("current_state", { length: 100 }).notNull(),
@@ -3963,7 +3963,7 @@ export const workflowStates = mysqlTable("workflow_states", {
 // ============================================================================
 
 export const marketplaceProfiles = mysqlTable("marketplace_profiles", {
-  id: varchar({ length: 36 }).notNull(),
+  id: varchar({ length: 36 }).notNull().primaryKey(),
   type: mysqlEnum(['assessor','panel_beater']).notNull(),
   companyName: varchar("company_name", { length: 255 }).notNull(),
   countryId: varchar("country_id", { length: 10 }).notNull().default('ZA'),
@@ -3989,7 +3989,7 @@ export type MarketplaceProfile = typeof marketplaceProfiles.$inferSelect;
 export type InsertMarketplaceProfile = typeof marketplaceProfiles.$inferInsert;
 
 export const insurerMarketplaceLinks = mysqlTable("insurer_marketplace_links", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
   marketplaceProfileId: varchar("marketplace_profile_id", { length: 36 }).notNull(),
   status: mysqlEnum(['active','suspended']).notNull().default('active'),
@@ -4048,7 +4048,7 @@ export type InsertAgencyClient = typeof agencyClients.$inferInsert;
  * selected insured value, market-valuation evidence, and review lifecycle only.
  */
 export const agencyInsuranceServiceRequests = mysqlTable("agency_insurance_service_requests", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   requestNumber: varchar("request_number", { length: 50 }).notNull(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   agencyClientId: int("agency_client_id").notNull(),
@@ -4081,7 +4081,7 @@ export const agencyInsuranceServiceRequests = mysqlTable("agency_insurance_servi
 
 /** Insurer invitations are a decision-support channel for insurance service requests, never claim or policy records. */
 export const agencyInsuranceServiceRequestInsurers = mysqlTable("agency_insurance_service_request_insurers", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   serviceRequestId: int("service_request_id").notNull(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
@@ -4095,7 +4095,7 @@ export const agencyInsuranceServiceRequestInsurers = mysqlTable("agency_insuranc
 
 /** Auditable agency record when the client retains a materially different selected insured value. */
 export const agencyInsuranceValuationDeviations = mysqlTable("agency_insurance_valuation_deviations", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   serviceRequestId: int("service_request_id").notNull(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   clientProposedValueCents: int("client_proposed_value_cents").notNull(),
@@ -4144,7 +4144,7 @@ export const vehicleConditionSnapshots = mysqlTable("vehicle_condition_snapshots
 
 /** Lower-trust claimant identity anchor for agency-assisted accident intake only. */
 export const agencyAssistedClaimantIdentities = mysqlTable("agency_assisted_claimant_identities", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   agencyClientId: int("agency_client_id").notNull(),
   insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
@@ -4163,7 +4163,7 @@ export const agencyAssistedClaimantIdentities = mysqlTable("agency_assisted_clai
 ]);
 
 export const insurerQuoteRequests = mysqlTable("insurer_quote_requests", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
@@ -4203,7 +4203,7 @@ export type InsertInsurerQuoteRequest = typeof insurerQuoteRequests.$inferInsert
  * premium, underwriting, claim, settlement, or commission effect.
  */
 export const fleetRfqClientInstructions = mysqlTable("fleet_rfq_client_instructions", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   quoteRequestId: int("quote_request_id").notNull(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   fleetAccountId: int("fleet_account_id").notNull(),
@@ -4228,7 +4228,7 @@ export const fleetRfqClientInstructions = mysqlTable("fleet_rfq_client_instructi
 // ============================================================================
 
 export const fleetAccounts = mysqlTable("fleet_accounts", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   ownerUserId: int("owner_user_id").notNull(),
   accountName: varchar("account_name", { length: 255 }).notNull(),
   accountCode: varchar("account_code", { length: 50 }),
@@ -4260,7 +4260,7 @@ export type InsertFleetAccount = typeof fleetAccounts.$inferInsert;
 // is upgraded to fleet_manager and fleet_account.verification_status = 'approved'.
 // ============================================================================
 export const fleetManagerRequests = mysqlTable("fleet_manager_requests", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   userId: int("user_id").notNull(),
   fleetAccountId: int("fleet_account_id"),
   companyName: varchar("company_name", { length: 255 }).notNull(),
@@ -4293,7 +4293,7 @@ export type InsertFleetManagerRequest = typeof fleetManagerRequests.$inferInsert
 // ============================================================================
 
 export const insurerMarketplaceRelationships = mysqlTable("insurer_marketplace_relationships", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   insurerTenantId: varchar("insurer_tenant_id", { length: 255 }).notNull(),
   marketplaceProfileId: varchar("marketplace_profile_id", { length: 36 }).notNull(),
   relationshipStatus: mysqlEnum("relationship_status", ['approved','suspended','blacklisted']).notNull().default('approved'),
@@ -4318,7 +4318,7 @@ export type InsertInsurerMarketplaceRelationship = typeof insurerMarketplaceRela
 // AI assists; insurer makes the final decision.
 
 export const quoteOptimisationResults = mysqlTable("quote_optimisation_results", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   triggeredAt: timestamp("triggered_at", { mode: "string" }).defaultNow().notNull(),
   triggeredBy: int("triggered_by"),
@@ -4519,7 +4519,7 @@ export type InsertCountryRepairIndex = typeof countryRepairIndex.$inferInsert;
 // Never seeded with artificial data.
 // intelligence_confidence = "low" when claim_count < 10.
 export const repairCostIntelligence = mysqlTable("repair_cost_intelligence", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
   vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
   vehicleYear: int("vehicle_year"),
@@ -4769,7 +4769,7 @@ export type InsertDriver = typeof drivers.$inferInsert;
 // passenger, witness). Each row captures one driver's role in one claim.
 // ============================================================================
 export const driverClaims = mysqlTable("driver_claims", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   driverId: int("driver_id").notNull(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   // Role of this driver in the claim.
@@ -4801,7 +4801,7 @@ export type InsertDriverClaim = typeof driverClaims.$inferInsert;
 // benchmarking.
 // ============================================================================
 export const repairHistory = mysqlTable("repair_history", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   // Foreign keys ----------------------------------------------------------
   // panel_beaters.id — the repairer who performed the work.
   repairerId: int("repairer_id").notNull(),
@@ -4889,7 +4889,7 @@ export type InsertRepairHistory = typeof repairHistory.$inferInsert;
 // create duplicate rows (unique on claim_id + signal_type).
 // ============================================================================
 export const crossClaimSignals = mysqlTable("cross_claim_signals", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   // Foreign keys ----------------------------------------------------------
   // The claim this signal was detected on.
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
@@ -5262,7 +5262,7 @@ export type InsertWeightAdjustmentLog = typeof weightAdjustmentLog.$inferInsert;
 // Stage 41 — Benchmark Deviation Engine: persisted deviation results
 //
 export const benchmarkDeviations = mysqlTable("benchmark_deviations", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }),
   // Classification keys used to select the benchmark
@@ -5316,7 +5316,7 @@ export type InsertBenchmarkDeviation = typeof benchmarkDeviations.$inferInsert;
 // longitudinal cost model calibration. One record per processed claim.
 //
 export const costLearningRecords = mysqlTable("cost_learning_records", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   tenantId: varchar("tenant_id", { length: 255 }),
 	// Vehicle descriptor: "make model body_type" (lowercase, normalised)
@@ -5770,7 +5770,7 @@ export type InsertComponentBenchmark = typeof componentBenchmarks.$inferInsert;
 // All writes are non-blocking fire-and-forget from the pipeline orchestrator.
 
 export const pipelineRuns = mysqlTable("pipeline_runs", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   runId: varchar("run_id", { length: 64 }).notNull(),
   claimId: int("claim_id").notNull(),
   tenantId: varchar("tenant_id", { length: 255 }),
@@ -5795,7 +5795,7 @@ export type PipelineRunRow = typeof pipelineRuns.$inferSelect;
 export type InsertPipelineRun = typeof pipelineRuns.$inferInsert;
 
 export const pipelineJobs = mysqlTable("pipeline_jobs", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").notNull(),
   runId: varchar("run_id", { length: 64 }).notNull(),
   stageId: varchar("stage_id", { length: 100 }).notNull(),
@@ -6003,7 +6003,7 @@ export type SelectPhysicsValidationRecord = typeof physicsValidationRecords.$inf
  * Asset Registry — future master asset index for all asset classes.
  */
 export const assetRegistry = mysqlTable("asset_registry", {
-  id:                   int().autoincrement().notNull(),
+  id:                   int().autoincrement().notNull().primaryKey(),
   tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
   assetRef:             varchar("asset_ref", { length: 100 }).notNull(),
   assetType:            mysqlEnum("asset_type", [
@@ -6102,7 +6102,7 @@ export type SelectInspection = typeof inspections.$inferSelect;
  * Physical Measurements — structured measurements with PhysicsMeasurement contract.
  */
 export const physicalMeasurements = mysqlTable("physical_measurements", {
-  id:                   int().autoincrement().notNull(),
+  id:                   int().autoincrement().notNull().primaryKey(),
   tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
   inspectionId:         int("inspection_id").notNull(),
   measurementCategory:  mysqlEnum("measurement_category", [
@@ -6149,7 +6149,7 @@ export type SelectPhysicalMeasurement = typeof physicalMeasurements.$inferSelect
  * Engineer Observations — structured observations with severity, type, standards reference.
  */
 export const engineerObservations = mysqlTable("engineer_observations", {
-  id:                   int().autoincrement().notNull(),
+  id:                   int().autoincrement().notNull().primaryKey(),
   tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
   inspectionId:         int("inspection_id").notNull(),
   observationType:      mysqlEnum("observation_type", [
@@ -6198,7 +6198,7 @@ export type SelectEngineerObservation = typeof engineerObservations.$inferSelect
  * Engineer Profiles — engineer-specific attributes for intelligent assignment.
  */
 export const engineerProfiles = mysqlTable("engineer_profiles", {
-  id:                   int().autoincrement().notNull(),
+  id:                   int().autoincrement().notNull().primaryKey(),
   userId:               int("user_id").notNull(),
   tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
   skills:               json("skills"),
@@ -6273,7 +6273,7 @@ export type SelectVehiclePassportSnapshot = typeof vehiclePassportSnapshots.$inf
  * Source of truth: fleet_vehicles + fleet_drivers + all canonical tables.
  */
 export const fleetIntelligenceSnapshots = mysqlTable("fleet_intelligence_snapshots", {
-  id:                      int().autoincrement().notNull(),
+  id:                      int().autoincrement().notNull().primaryKey(),
   fleetId:                 int("fleet_id").notNull(),
   tenantId:                varchar("tenant_id", { length: 255 }).notNull(),
   snapshotVersion:         int("snapshot_version").default(1).notNull(),
@@ -6305,7 +6305,7 @@ export type SelectFleetIntelligenceSnapshot = typeof fleetIntelligenceSnapshots.
  * entity_type: 'vehicle' | 'driver' | 'fleet' | 'portfolio'
  */
 export const predictiveRiskScores = mysqlTable("predictive_risk_scores", {
-  id:              int().autoincrement().notNull(),
+  id:              int().autoincrement().notNull().primaryKey(),
   entityType:      mysqlEnum("entity_type", ['vehicle','driver','fleet','portfolio']).notNull(),
   entityId:        varchar("entity_id", { length: 100 }).notNull(),
   tenantId:        varchar("tenant_id", { length: 255 }),
@@ -6368,7 +6368,7 @@ export type SelectGlobalSearchAnalytics = typeof globalSearchAnalytics.$inferSel
  * Controls in-app, email, and SMS delivery + minimum priority threshold.
  */
 export const notificationPreferences = mysqlTable("notification_preferences", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   userId: int("user_id").notNull(),
   tenantId: varchar("tenant_id", { length: 64 }).notNull(),
   /** Source module: claims | fraud | vehicle_passport | asset_passport | engineering | fleet | timeline | recoveries | portfolio | predictive */
@@ -6443,7 +6443,7 @@ export type InsertLicensingRecord = typeof licensingRecords.$inferInsert;
 // Groups multiple inspections under a named project for engineering companies
 // ============================================================================
 export const inspectionProjects = mysqlTable("inspection_projects", {
-  id:                   int().autoincrement().notNull(),
+  id:                   int().autoincrement().notNull().primaryKey(),
   tenantId:             varchar("tenant_id", { length: 255 }),
   projectRef:           varchar("project_ref", { length: 50 }).notNull(),
   projectName:          varchar("project_name", { length: 255 }).notNull(),
@@ -6492,7 +6492,7 @@ export type InsertPersonalVehicle = typeof personalVehicles.$inferInsert;
 // Documents sent by agents to clients (policy schedules, cover notes, etc.)
 // Linked to a quotation request; client can view/download from their portal.
 export const quotationRequestDocuments = mysqlTable("quotation_request_documents", {
-  id:                  int().autoincrement().notNull(),
+  id:                  int().autoincrement().notNull().primaryKey(),
   quotationRequestId:  int("quotation_request_id").notNull(),
   clientUserId:        int("client_user_id"),
   documentType:        mysqlEnum("document_type_qrd", [

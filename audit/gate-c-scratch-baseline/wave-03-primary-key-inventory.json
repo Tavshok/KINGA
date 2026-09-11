@@ -1,0 +1,461 @@
+{
+  "scope": "Repository-only Wave 3 source key inventory. No database connection, SQL generation, DDL, staging, production, or source write occurred.",
+  "expectedWaveThreeTableCount": 50,
+  "inspectedTableCount": 50,
+  "explicitPrimaryKeyCount": 50,
+  "missingExplicitPrimaryKeyCount": 0,
+  "missing": [],
+  "rows": [
+    {
+      "tableName": "agency_documents",
+      "declaration": "agencyDocuments",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 147
+    },
+    {
+      "tableName": "ai_assessments",
+      "declaration": "aiAssessments",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 162
+    },
+    {
+      "tableName": "ai_prediction_logs",
+      "declaration": "aiPredictionLogs",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 398
+    },
+    {
+      "tableName": "automation_policies",
+      "declaration": "automationPolicies",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 700
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "declaration": "claimConfidenceScores",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 769
+    },
+    {
+      "tableName": "assessor_reports",
+      "declaration": "assessorReports",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 890
+    },
+    {
+      "tableName": "assessor_report_attachments",
+      "declaration": "assessorReportAttachments",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 921
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "declaration": "assessorReportReviews",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 938
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "declaration": "claimRoutingDecisions",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1040
+    },
+    {
+      "tableName": "cost_components",
+      "declaration": "costComponents",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1349
+    },
+    {
+      "tableName": "currency_exchange_rates",
+      "declaration": "currencyExchangeRates",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1377
+    },
+    {
+      "tableName": "customer_documents",
+      "declaration": "customerDocuments",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1404
+    },
+    {
+      "tableName": "document_naming_templates",
+      "declaration": "documentNamingTemplates",
+      "idExpression": "varchar({ length: 64 }).notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1444
+    },
+    {
+      "tableName": "extracted_document_data",
+      "declaration": "extractedDocumentData",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1514
+    },
+    {
+      "tableName": "extracted_repair_items",
+      "declaration": "extractedRepairItems",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1551
+    },
+    {
+      "tableName": "fleet_documents",
+      "declaration": "fleetDocuments",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1699
+    },
+    {
+      "tableName": "fleet_incident_reports",
+      "declaration": "fleetIncidentReports",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1743
+    },
+    {
+      "tableName": "fraud_alerts",
+      "declaration": "fraudAlerts",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1864
+    },
+    {
+      "tableName": "fraud_indicators",
+      "declaration": "fraudIndicators",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1887
+    },
+    {
+      "tableName": "fraud_rules",
+      "declaration": "fraudRules",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 1931
+    },
+    {
+      "tableName": "ingestion_documents",
+      "declaration": "ingestionDocuments",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 2151
+    },
+    {
+      "tableName": "panel_beater_quotes",
+      "declaration": "panelBeaterQuotes",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 2572
+    },
+    {
+      "tableName": "pdf_reports",
+      "declaration": "pdfReports",
+      "idExpression": "varchar({ length: 255 }).notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 2706
+    },
+    {
+      "tableName": "police_reports",
+      "declaration": "policeReports",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 2736
+    },
+    {
+      "tableName": "policy_documents",
+      "declaration": "policyDocuments",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 2790
+    },
+    {
+      "tableName": "pre_accident_damage",
+      "declaration": "preAccidentDamage",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 2825
+    },
+    {
+      "tableName": "valuation_comparable_evidence",
+      "declaration": "valuationComparableEvidence",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 2942
+    },
+    {
+      "tableName": "quote_line_items",
+      "declaration": "quoteLineItems",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 2985
+    },
+    {
+      "tableName": "report_access_audit",
+      "declaration": "reportAccessAudit",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 3111
+    },
+    {
+      "tableName": "report_links",
+      "declaration": "reportLinks",
+      "idExpression": "varchar({ length: 255 }).notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 3129
+    },
+    {
+      "tableName": "report_snapshots",
+      "declaration": "reportSnapshots",
+      "idExpression": "varchar({ length: 255 }).notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 3145
+    },
+    {
+      "tableName": "service_quotes",
+      "declaration": "serviceQuotes",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 3274
+    },
+    {
+      "tableName": "supplier_quote_line_items",
+      "declaration": "supplierQuoteLineItems",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 3394
+    },
+    {
+      "tableName": "supplier_quotes",
+      "declaration": "supplierQuotes",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 3420
+    },
+    {
+      "tableName": "marketplace_profiles",
+      "declaration": "marketplaceProfiles",
+      "idExpression": "varchar({ length: 36 }).notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 3966
+    },
+    {
+      "tableName": "insurer_marketplace_links",
+      "declaration": "insurerMarketplaceLinks",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 3992
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "declaration": "insurerQuoteRequests",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 4166
+    },
+    {
+      "tableName": "insurer_marketplace_relationships",
+      "declaration": "insurerMarketplaceRelationships",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 4296
+    },
+    {
+      "tableName": "quote_optimisation_results",
+      "declaration": "quoteOptimisationResults",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 4321
+    },
+    {
+      "tableName": "country_repair_index",
+      "declaration": "countryRepairIndex",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 4500
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "declaration": "repairCostIntelligence",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 4522
+    },
+    {
+      "tableName": "repair_history",
+      "declaration": "repairHistory",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 4804
+    },
+    {
+      "tableName": "decision_snapshots",
+      "declaration": "decisionSnapshots",
+      "idExpression": "int(\"id\").autoincrement().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 4946
+    },
+    {
+      "tableName": "claim_decision_lifecycle",
+      "declaration": "claimDecisionLifecycle",
+      "idExpression": "int(\"id\").autoincrement().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 5017
+    },
+    {
+      "tableName": "cost_learning_records",
+      "declaration": "costLearningRecords",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 5319
+    },
+    {
+      "tableName": "adjuster_sign_offs",
+      "declaration": "adjusterSignOffs",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 5468
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "declaration": "componentRepairOutcomes",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 5518
+    },
+    {
+      "tableName": "generated_reports",
+      "declaration": "generatedReports",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 5561
+    },
+    {
+      "tableName": "physics_validation_records",
+      "declaration": "physicsValidationRecords",
+      "idExpression": "int(\"id\").autoincrement().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 5965
+    },
+    {
+      "tableName": "quotation_request_documents",
+      "declaration": "quotationRequestDocuments",
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "inlinePrimaryKey": true,
+      "configuredPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
+      "line": 6495
+    }
+  ],
+  "status": "complete"
+}
