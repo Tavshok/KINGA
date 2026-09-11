@@ -362,11 +362,19 @@ export async function updateTenantRoleConfig(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  // The table's canonical identity is `(tenantId, roleKey)`. Never use a
+  // tenant-only predicate here: an administrator updating one role must not
+  // overwrite every role configuration owned by that tenant.
+  const roleConfigPredicate = and(
+    eq(tenantRoleConfigs.tenantId, tenantId),
+    eq(tenantRoleConfigs.roleKey, role as 'executive' | 'claims_manager' | 'claims_processor' | 'assessor_internal' | 'risk_manager')
+  );
+
   // Check if role config exists
   const existing = await db
     .select()
     .from(tenantRoleConfigs)
-    .where(eq(tenantRoleConfigs.tenantId, tenantId))
+    .where(roleConfigPredicate)
     .limit(1);
 
   if (existing.length === 0) {
@@ -391,7 +399,7 @@ export async function updateTenantRoleConfig(
       permissions: JSON.stringify(permissions),
       updatedAt: new Date().toISOString()
     })
-    .where(eq(tenantRoleConfigs.tenantId, tenantId));
+    .where(roleConfigPredicate);
 
   return result;
 }
