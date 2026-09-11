@@ -1,0 +1,10 @@
+{
+  "scope": "Gate C Wave 4 exact loopback scratch disposal proof",
+  "target": {
+    "database": "kinga_gatec_wave4_run_b_20260911175907_227207",
+    "host": "127.0.0.1",
+    "port": "3317"
+  },
+  "commandExit": 0,
+  "absentAfterDrop": true
+}

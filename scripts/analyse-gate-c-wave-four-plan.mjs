@@ -125,6 +125,7 @@ function parseTables(relativePath) {
           property: nodeName(property.name),
           expression: property.initializer.getText(sourceFile),
           references: referencesTargets(property.initializer, sourceFile),
+          inlineUnique: property.initializer.getText(sourceFile).includes(".unique()"),
           line: sourceFile.getLineAndCharacterOfPosition(property.getStart(sourceFile)).line + 1,
         }));
       const idColumn = columns.find(({ property }) => property === "id") ?? null;
@@ -145,7 +146,11 @@ function parseTables(relativePath) {
 }
 
 const configuredGenerationSource = "drizzle/schema.ts";
-const sourceTables = [...parseTables(configuredGenerationSource), ...parseTables("drizzle/claim-comments-schema.ts")];
+const retiredSupplementarySource = "drizzle/claim-comments-schema.ts";
+const supplementaryTables = fs.existsSync(path.join(repoRoot, retiredSupplementarySource))
+  ? parseTables(retiredSupplementarySource)
+  : [];
+const sourceTables = [...parseTables(configuredGenerationSource), ...supplementaryTables];
 const tableByName = new Map();
 const duplicatePhysicalTableDeclarations = [];
 for (const table of sourceTables) {
@@ -191,6 +196,7 @@ const rows = WAVE_FOUR_TABLES.map((tableName) => {
     referencedWaveFourTables,
     unresolvedReferences,
     indexes: table.indexes.map(({ name, unique }) => ({ name, unique })),
+    inlineUniqueColumns: table.columns.filter((column) => column.inlineUnique).map((column) => column.property),
   };
 });
 
@@ -199,6 +205,8 @@ const unresolvedDependencies = rows.filter((row) => row.unresolvedReferences.len
 const tablesOutsideConfiguredGenerationSource = rows
   .filter((row) => !row.missingSourceDeclaration && !row.includedByConfiguredGenerationSource)
   .map(({ tableName, declaration, sourceFile, line }) => ({ tableName, declaration, sourceFile, line }));
+const canonicalClaimCommentDeclarations = sourceTables.filter((table) => table.tableName === "claim_comments" && table.sourceFile === configuredGenerationSource);
+const canonicalClaimCommentReadDeclarations = sourceTables.filter((table) => table.tableName === "claim_comment_reads" && table.sourceFile === configuredGenerationSource);
 const heldOverlap = WAVE_FOUR_TABLES.filter((tableName) => HELD_TABLES.includes(tableName));
 const sourceOrderDependencies = rows
   .filter((row) => row.referencedWaveFourTables.length > 0)
@@ -218,6 +226,7 @@ const repeatedNamesAcrossTables = [...new Set(rows.flatMap((row) => row.indexes.
   .map((name) => ({ name, tables: rows.filter((row) => row.indexes.some((index) => index.name === name)).map(({ tableName }) => tableName).sort() }))
   .filter(({ tables }) => tables.length > 1)
   .sort((a, b) => a.name.localeCompare(b.name));
+const inlineUniqueColumns = rows.flatMap((row) => row.inlineUniqueColumns.map((column) => ({ tableName: row.tableName, column })));
 
 const output = {
   scope: "Planning only. Parsed repository source metadata; no database connection, SQL generation, DDL, or source-schema reconciliation was performed.",
@@ -229,6 +238,9 @@ const output = {
   inspectedTableCount: rows.length,
   prerequisiteTables: [...precedingTables].sort(),
   configuredGenerationSource,
+  retiredSupplementarySourcePresent: fs.existsSync(path.join(repoRoot, retiredSupplementarySource)),
+  canonicalClaimCommentDeclarations: canonicalClaimCommentDeclarations.map(({ declaration, sourceFile, line }) => ({ declaration, sourceFile, line })),
+  canonicalClaimCommentReadDeclarations: canonicalClaimCommentReadDeclarations.map(({ declaration, sourceFile, line }) => ({ declaration, sourceFile, line })),
   heldTablesExcluded: HELD_TABLES,
   heldTableOverlap: heldOverlap,
   duplicatePhysicalTableDeclarations,
@@ -239,6 +251,7 @@ const output = {
   emptyConfiguredIndexNames,
   duplicateConfiguredIndexNames,
   repeatedNamesAcrossTables,
+  inlineUniqueColumns,
   rows,
   readiness: {
     tableSetComplete: rows.length === WAVE_FOUR_TABLES.length,
@@ -246,6 +259,8 @@ const output = {
     dependenciesResolved: unresolvedDependencies.length === 0,
     heldTablesExcluded: heldOverlap.length === 0,
     allTablesInConfiguredGenerationSource: tablesOutsideConfiguredGenerationSource.length === 0,
+    exactlyOneCanonicalClaimCommentsDeclaration: canonicalClaimCommentDeclarations.length === 1,
+    exactlyOneCanonicalClaimCommentReadsDeclaration: canonicalClaimCommentReadDeclarations.length === 1,
     noEmptyConfiguredIndexNames: emptyConfiguredIndexNames.length === 0,
     noDuplicateConfiguredIndexNames: duplicateConfiguredIndexNames.length === 0,
   },
@@ -264,5 +279,6 @@ console.log(JSON.stringify({
   emptyConfiguredIndexNames: emptyConfiguredIndexNames.length,
   duplicateConfiguredIndexNames: duplicateConfiguredIndexNames.length,
   repeatedNamesAcrossTables: repeatedNamesAcrossTables.length,
+  inlineUniqueColumns: inlineUniqueColumns.length,
   readyForSqlGeneration: output.readiness.readyForSqlGeneration,
 }, null, 2));

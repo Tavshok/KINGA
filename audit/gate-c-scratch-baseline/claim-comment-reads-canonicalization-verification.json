@@ -1,0 +1,7 @@
+{
+  "verified": true,
+  "physicalTable": "claim_comment_reads",
+  "normalizedDeclarationSha256": "f4e26b005e772751aeea33de2da87aade190c41dc70b32ac12033e51967b9f7a",
+  "canonicalClaimIdMapping": "claimId",
+  "auxiliaryTableDeclarationsRemoved": true
+}

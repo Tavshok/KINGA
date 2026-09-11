@@ -10,7 +10,7 @@ const analysisPath = path.join(repoRoot, "audit/gate-c-scratch-baseline/wave-04-
 afterEach(() => fs.rmSync(analysisPath, { force: true }));
 
 describe("Gate C Wave 4 source planning contract", () => {
-  it("holds SQL generation when any operational-table source key, identifier, or configured-source boundary is unresolved", () => {
+  it("permits the reviewed 40-table source scope only after the approved key, index, and canonical-source reconciliation", () => {
     execFileSync(process.execPath, ["scripts/analyse-gate-c-wave-four-plan.mjs", analysisPath], {
       cwd: repoRoot,
       stdio: "pipe",
@@ -25,9 +25,14 @@ describe("Gate C Wave 4 source planning contract", () => {
       "whatsapp_sessions",
     ]);
     expect(analysis.heldTableOverlap).toEqual([]);
-    expect(analysis.explicitPrimaryKeyGaps.map((row: { tableName: string }) => row.tableName)).toEqual(["tenant_workflow_configs"]);
-    expect(analysis.emptyConfiguredIndexNames.map((row: { tableName: string }) => row.tableName)).toEqual(["workflow_audit_trail"]);
-    expect(analysis.tablesOutsideConfiguredGenerationSource.map((row: { tableName: string }) => row.tableName)).toEqual(["claim_comment_reads"]);
-    expect(analysis.readiness.readyForSqlGeneration).toBe(false);
+    expect(analysis.explicitPrimaryKeyGaps).toEqual([]);
+    expect(analysis.emptyConfiguredIndexNames).toEqual([]);
+    expect(analysis.tablesOutsideConfiguredGenerationSource).toEqual([]);
+    expect(analysis.duplicatePhysicalTableDeclarations).toEqual([]);
+    expect(analysis.canonicalClaimCommentDeclarations).toHaveLength(1);
+    expect(analysis.canonicalClaimCommentReadDeclarations).toHaveLength(1);
+    expect(analysis.inlineUniqueColumns).toEqual([{ tableName: "notification_events", column: "idempotencyKey" }]);
+    expect(analysis.retiredSupplementarySourcePresent).toBe(false);
+    expect(analysis.readiness.readyForSqlGeneration).toBe(true);
   });
 });

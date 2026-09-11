@@ -86,6 +86,21 @@
     "vehicle_registry"
   ],
   "configuredGenerationSource": "drizzle/schema.ts",
+  "retiredSupplementarySourcePresent": false,
+  "canonicalClaimCommentDeclarations": [
+    {
+      "declaration": "claimComments",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 732
+    }
+  ],
+  "canonicalClaimCommentReadDeclarations": [
+    {
+      "declaration": "claimCommentReads",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 774
+    }
+  ],
   "heldTablesExcluded": [
     "audit_logs",
     "benchmark_deviations",
@@ -97,58 +112,12 @@
     "vision_calibration_results"
   ],
   "heldTableOverlap": [],
-  "duplicatePhysicalTableDeclarations": [
-    {
-      "tableName": "claim_comments",
-      "configuredDeclaration": {
-        "declaration": "claimComments",
-        "sourceFile": "drizzle/schema.ts",
-        "line": 732
-      },
-      "secondaryDeclaration": {
-        "declaration": "claimComments",
-        "sourceFile": "drizzle/claim-comments-schema.ts",
-        "line": 3
-      }
-    }
-  ],
-  "tablesOutsideConfiguredGenerationSource": [
-    {
-      "tableName": "claim_comment_reads",
-      "declaration": "claimCommentReads",
-      "sourceFile": "drizzle/claim-comments-schema.ts",
-      "line": 41
-    }
-  ],
-  "explicitPrimaryKeyGaps": [
-    {
-      "tableName": "tenant_workflow_configs",
-      "declaration": "tenantWorkflowConfigs",
-      "sourceFile": "drizzle/schema.ts",
-      "includedByConfiguredGenerationSource": true,
-      "line": 3473,
-      "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
-      "referenceTargets": [],
-      "referencedPrecedingTables": [],
-      "referencedWaveFourTables": [],
-      "unresolvedReferences": [],
-      "indexes": [
-        {
-          "name": "tenant_id",
-          "unique": false
-        }
-      ]
-    }
-  ],
+  "duplicatePhysicalTableDeclarations": [],
+  "tablesOutsideConfiguredGenerationSource": [],
+  "explicitPrimaryKeyGaps": [],
   "unresolvedDependencies": [],
   "sourceOrderDependencies": [],
-  "emptyConfiguredIndexNames": [
-    {
-      "tableName": "workflow_audit_trail"
-    }
-  ],
+  "emptyConfiguredIndexNames": [],
   "duplicateConfiguredIndexNames": [],
   "repeatedNamesAcrossTables": [
     {
@@ -159,13 +128,19 @@
       ]
     }
   ],
+  "inlineUniqueColumns": [
+    {
+      "tableName": "notification_events",
+      "column": "idempotencyKey"
+    }
+  ],
   "rows": [
     {
       "tableName": "agency_assisted_claimant_identities",
       "declaration": "agencyAssistedClaimantIdentities",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 4146,
+      "line": 4164,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -182,14 +157,15 @@
           "name": "uq_agency_assisted_claimant_identity",
           "unique": true
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "agency_clients",
       "declaration": "agencyClients",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 4018,
+      "line": 4036,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -210,14 +186,15 @@
           "name": "idx_agency_clients_tenant",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "agency_insurance_service_request_insurers",
       "declaration": "agencyInsuranceServiceRequestInsurers",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 4083,
+      "line": 4101,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -234,14 +211,15 @@
           "name": "uq_agency_service_request_insurer",
           "unique": true
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "agency_insurance_service_requests",
       "declaration": "agencyInsuranceServiceRequests",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 4050,
+      "line": 4068,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -266,14 +244,15 @@
           "name": "uq_agency_insurance_service_request_number",
           "unique": true
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "agency_insurance_valuation_deviations",
       "declaration": "agencyInsuranceValuationDeviations",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 4097,
+      "line": 4115,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -290,14 +269,15 @@
           "name": "uq_agency_insurance_valuation_deviation_request",
           "unique": true
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "agency_product_commission_configs",
       "declaration": "agencyProductCommissionConfigs",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 1334,
+      "line": 1353,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -314,7 +294,8 @@
           "name": "uq_agency_product_commission",
           "unique": true
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "approval_workflow",
@@ -333,14 +314,15 @@
       ],
       "referencedWaveFourTables": [],
       "unresolvedReferences": [],
-      "indexes": []
+      "indexes": [],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "claim_comment_reads",
       "declaration": "claimCommentReads",
-      "sourceFile": "drizzle/claim-comments-schema.ts",
-      "includedByConfiguredGenerationSource": false,
-      "line": 41,
+      "sourceFile": "drizzle/schema.ts",
+      "includedByConfiguredGenerationSource": true,
+      "line": 774,
       "hasIdColumn": true,
       "idExpression": "int(\"id\").autoincrement().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -361,7 +343,8 @@
           "name": "uq_ccr_comment_user",
           "unique": true
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "claim_comments",
@@ -382,14 +365,15 @@
       ],
       "referencedWaveFourTables": [],
       "unresolvedReferences": [],
-      "indexes": []
+      "indexes": [],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "client_insurance_service_requests",
       "declaration": "clientInsuranceServiceRequests",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 2963,
+      "line": 2982,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -406,14 +390,15 @@
           "name": "client_insurance_service_user_idx",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "client_vehicle_valuation_requests",
       "declaration": "clientVehicleValuationRequests",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 2909,
+      "line": 2928,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -434,14 +419,15 @@
           "name": "client_valuation_user_idx",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "engineer_observations",
       "declaration": "engineerObservations",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 6151,
+      "line": 6169,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -470,14 +456,15 @@
           "name": "idx_eo_type",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "engineer_profiles",
       "declaration": "engineerProfiles",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 6200,
+      "line": 6218,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -502,14 +489,15 @@
           "name": "idx_ep_user_id",
           "unique": true
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "fleet_accounts",
       "declaration": "fleetAccounts",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 4230,
+      "line": 4248,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -534,14 +522,15 @@
           "name": "idx_fleet_accounts_status",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "fleet_audit_logs",
       "declaration": "fleetAuditLogs",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 1683,
+      "line": 1702,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -549,14 +538,15 @@
       "referencedPrecedingTables": [],
       "referencedWaveFourTables": [],
       "unresolvedReferences": [],
-      "indexes": []
+      "indexes": [],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "fleet_drivers",
       "declaration": "fleetDrivers",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 1717,
+      "line": 1736,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -577,14 +567,15 @@
           "name": "idx_fleet_drivers_user_id",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "fleet_intelligence_snapshots",
       "declaration": "fleetIntelligenceSnapshots",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 6275,
+      "line": 6293,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -605,14 +596,15 @@
           "name": "idx_fis_tenant_id",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "fleet_manager_requests",
       "declaration": "fleetManagerRequests",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 4262,
+      "line": 4280,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -637,14 +629,15 @@
           "name": "idx_fmr_user_id",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "fleet_rfq_client_instructions",
       "declaration": "fleetRfqClientInstructions",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 4205,
+      "line": 4223,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -665,14 +658,15 @@
           "name": "uq_fleet_rfq_client_instruction",
           "unique": true
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "fleet_risk_scores",
       "declaration": "fleetRiskScores",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 1772,
+      "line": 1791,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -685,14 +679,15 @@
           "name": "fleet_risk_scores_vehicle_id_unique",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "fleet_vehicles",
       "declaration": "fleetVehicles",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 1793,
+      "line": 1812,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -709,14 +704,15 @@
           "name": "fleet_vehicles_vin_unique",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "fleets",
       "declaration": "fleets",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 1845,
+      "line": 1864,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -724,14 +720,15 @@
       "referencedPrecedingTables": [],
       "referencedWaveFourTables": [],
       "unresolvedReferences": [],
-      "indexes": []
+      "indexes": [],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "governance_audit_log",
       "declaration": "governanceAuditLog",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 5095,
+      "line": 5113,
       "hasIdColumn": true,
       "idExpression": "int(\"id\").autoincrement().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -760,14 +757,15 @@
           "name": "idx_gal_timestamp",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "governance_notifications",
       "declaration": "governanceNotifications",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 1992,
+      "line": 2011,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -800,14 +798,15 @@
           "name": "idx_tenant_id",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "governance_violation_log",
       "declaration": "governanceViolationLog",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 2012,
+      "line": 2031,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -836,14 +835,15 @@
           "name": "idx_gov_violation_user",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "inspection_projects",
       "declaration": "inspectionProjects",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 6445,
+      "line": 6463,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -851,14 +851,15 @@
       "referencedPrecedingTables": [],
       "referencedWaveFourTables": [],
       "unresolvedReferences": [],
-      "indexes": []
+      "indexes": [],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "notification_events",
       "declaration": "notificationEvents",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 4433,
+      "line": 4451,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -883,6 +884,9 @@
           "name": "idx_ne_recipient",
           "unique": false
         }
+      ],
+      "inlineUniqueColumns": [
+        "idempotencyKey"
       ]
     },
     {
@@ -890,7 +894,7 @@
       "declaration": "notificationPreferences",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 6370,
+      "line": 6388,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -911,14 +915,15 @@
           "name": "uq_notif_pref_user_module",
           "unique": true
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "notifications",
       "declaration": "notifications",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 2533,
+      "line": 2552,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -930,14 +935,15 @@
       ],
       "referencedWaveFourTables": [],
       "unresolvedReferences": [],
-      "indexes": []
+      "indexes": [],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "panel_beaters",
       "declaration": "panelBeaters",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 2615,
+      "line": 2634,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -945,14 +951,15 @@
       "referencedPrecedingTables": [],
       "referencedWaveFourTables": [],
       "unresolvedReferences": [],
-      "indexes": []
+      "indexes": [],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "platform_governance_limits",
       "declaration": "platformGovernanceLimits",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 2719,
+      "line": 2738,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -969,14 +976,15 @@
           "name": "idx_gov_limits_version",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "rate_limit_tracking",
       "declaration": "rateLimitTracking",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 3018,
+      "line": 3037,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -993,14 +1001,15 @@
           "name": "idx_window_start",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "recovery_cases",
       "declaration": "recoveryCases",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 5599,
+      "line": 5617,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -1041,14 +1050,15 @@
           "name": "idx_rc_tenant_status",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "recovery_correspondence_log",
       "declaration": "recoveryCorrespondenceLog",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 5678,
+      "line": 5696,
       "hasIdColumn": true,
       "idExpression": "int(\"id\").autoincrement().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -1069,14 +1079,15 @@
           "name": "idx_rcl_tenant_id",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "service_requests",
       "declaration": "serviceRequests",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 3300,
+      "line": 3319,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -1084,17 +1095,18 @@
       "referencedPrecedingTables": [],
       "referencedWaveFourTables": [],
       "unresolvedReferences": [],
-      "indexes": []
+      "indexes": [],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "tenant_workflow_configs",
       "declaration": "tenantWorkflowConfigs",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 3473,
+      "line": 3492,
       "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
+      "idExpression": "varchar({ length: 64 }).notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
       "referenceTargets": [],
       "referencedPrecedingTables": [],
       "referencedWaveFourTables": [],
@@ -1104,14 +1116,15 @@
           "name": "tenant_id",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "whatsapp_sessions",
       "declaration": "whatsappSessions",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 6525,
+      "line": 6543,
       "hasIdColumn": true,
       "idExpression": "varchar(\"id\", { length: 36 }).notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -1128,14 +1141,15 @@
           "name": "idx_wa_status",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "workflow_audit_trail",
       "declaration": "workflowAuditTrail",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 3905,
+      "line": 3924,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -1149,10 +1163,6 @@
       "unresolvedReferences": [],
       "indexes": [
         {
-          "name": "",
-          "unique": false
-        },
-        {
           "name": "idx_audit_claim_timestamp",
           "unique": false
         },
@@ -1164,14 +1174,15 @@
           "name": "idx_workflow_audit_override",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "workflow_configuration",
       "declaration": "workflowConfiguration",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 3928,
+      "line": 3946,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -1184,14 +1195,15 @@
           "name": "tenant_id",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     },
     {
       "tableName": "workflow_templates",
       "declaration": "workflowTemplates",
       "sourceFile": "drizzle/schema.ts",
       "includedByConfiguredGenerationSource": true,
-      "line": 5410,
+      "line": 5428,
       "hasIdColumn": true,
       "idExpression": "int().autoincrement().notNull().primaryKey()",
       "hasExplicitPrimaryKey": true,
@@ -1208,17 +1220,20 @@
           "name": "idx_wt_tenant_id",
           "unique": false
         }
-      ]
+      ],
+      "inlineUniqueColumns": []
     }
   ],
   "readiness": {
     "tableSetComplete": true,
-    "explicitKeysComplete": false,
+    "explicitKeysComplete": true,
     "dependenciesResolved": true,
     "heldTablesExcluded": true,
-    "allTablesInConfiguredGenerationSource": false,
-    "noEmptyConfiguredIndexNames": false,
+    "allTablesInConfiguredGenerationSource": true,
+    "exactlyOneCanonicalClaimCommentsDeclaration": true,
+    "exactlyOneCanonicalClaimCommentReadsDeclaration": true,
+    "noEmptyConfiguredIndexNames": true,
     "noDuplicateConfiguredIndexNames": true,
-    "readyForSqlGeneration": false
+    "readyForSqlGeneration": true
   }
 }
