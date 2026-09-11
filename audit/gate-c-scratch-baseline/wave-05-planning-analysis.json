@@ -1,0 +1,2389 @@
+{
+  "scope": "Planning only. Parsed repository source metadata; no database connection, SQL generation, DDL, or source-schema reconciliation was performed.",
+  "wave": 5,
+  "title": "Intelligence, learning, analytics and secondary capabilities",
+  "originalFinalWaveTableCount": 78,
+  "alreadyWavedOperationalChannels": [
+    "recovery_cases",
+    "recovery_correspondence_log",
+    "whatsapp_sessions"
+  ],
+  "expectedTableCount": 75,
+  "inspectedTableCount": 75,
+  "prerequisiteTableCount": 113,
+  "prerequisiteTables": [
+    "adjuster_sign_offs",
+    "agency_assisted_claimant_identities",
+    "agency_clients",
+    "agency_documents",
+    "agency_insurance_service_request_insurers",
+    "agency_insurance_service_requests",
+    "agency_insurance_valuation_deviations",
+    "agency_product_commission_configs",
+    "ai_assessments",
+    "ai_prediction_logs",
+    "approval_workflow",
+    "assessor_report_attachments",
+    "assessor_report_reviews",
+    "assessor_reports",
+    "automation_policies",
+    "claim_assignments",
+    "claim_comment_reads",
+    "claim_comments",
+    "claim_confidence_scores",
+    "claim_decision_lifecycle",
+    "claim_documents",
+    "claim_routing_decisions",
+    "claims",
+    "client_insurance_service_requests",
+    "client_vehicle_valuation_requests",
+    "component_repair_outcomes",
+    "cost_components",
+    "cost_learning_records",
+    "country_repair_index",
+    "currency_exchange_rates",
+    "customer_documents",
+    "decision_snapshots",
+    "document_naming_templates",
+    "drivers",
+    "engineer_observations",
+    "engineer_profiles",
+    "extracted_document_data",
+    "extracted_repair_items",
+    "fleet_accounts",
+    "fleet_audit_logs",
+    "fleet_documents",
+    "fleet_drivers",
+    "fleet_incident_reports",
+    "fleet_intelligence_snapshots",
+    "fleet_manager_requests",
+    "fleet_rfq_client_instructions",
+    "fleet_risk_scores",
+    "fleet_vehicles",
+    "fleets",
+    "fraud_alerts",
+    "fraud_indicators",
+    "fraud_rules",
+    "generated_reports",
+    "governance_audit_log",
+    "governance_notifications",
+    "governance_violation_log",
+    "ingestion_documents",
+    "inspection_projects",
+    "inspections",
+    "insurance_audit_logs",
+    "insurance_carriers",
+    "insurance_policies",
+    "insurance_products",
+    "insurance_quotes",
+    "insurer_marketplace_links",
+    "insurer_marketplace_relationships",
+    "insurer_quote_requests",
+    "marketplace_profiles",
+    "measurement_types",
+    "notification_events",
+    "notification_preferences",
+    "notifications",
+    "panel_beater_quotes",
+    "panel_beaters",
+    "pdf_reports",
+    "physics_validation_records",
+    "platform_governance_limits",
+    "police_reports",
+    "policy_documents",
+    "pre_accident_damage",
+    "quotation_request_documents",
+    "quote_line_items",
+    "quote_optimisation_results",
+    "rate_limit_tracking",
+    "recovery_cases",
+    "recovery_correspondence_log",
+    "repair_cost_intelligence",
+    "repair_history",
+    "report_access_audit",
+    "report_links",
+    "report_snapshots",
+    "service_quotes",
+    "service_requests",
+    "supplier_quote_line_items",
+    "supplier_quotes",
+    "tenant_invitations",
+    "tenant_workflow_configs",
+    "tenants",
+    "users",
+    "valuation_comparable_evidence",
+    "vehicle_condition_assessment",
+    "vehicle_condition_snapshots",
+    "vehicle_damage_history",
+    "vehicle_geometry_measurements",
+    "vehicle_market_valuations",
+    "vehicle_mileage_logs",
+    "vehicle_models",
+    "vehicle_passport_snapshots",
+    "vehicle_registry",
+    "whatsapp_sessions",
+    "workflow_audit_trail",
+    "workflow_configuration",
+    "workflow_templates"
+  ],
+  "configuredGenerationSource": "drizzle/schema.ts",
+  "heldTablesExcluded": [
+    "audit_logs",
+    "benchmark_deviations",
+    "geometry_sources",
+    "photo_reextraction_jobs",
+    "tenant_tier_history",
+    "tenant_usage_summary",
+    "vehicle_landmarks",
+    "vision_calibration_results"
+  ],
+  "heldTableOverlap": [],
+  "missingSourceDeclarations": [],
+  "explicitPrimaryKeyGaps": [
+    {
+      "tableName": "insurer_tenants",
+      "declaration": "insurerTenants",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2322,
+      "hasIdColumn": true,
+      "idExpression": "varchar({ length: 64 }).notNull()",
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "iso_audit_logs",
+      "declaration": "isoAuditLogs",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2351,
+      "hasIdColumn": true,
+      "idExpression": "varchar({ length: 64 }).notNull()",
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_iso_audit_logs_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "idx_iso_audit_logs_timestamp",
+          "unique": false
+        },
+        {
+          "name": "idx_iso_audit_logs_user_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "risk_register",
+      "declaration": "riskRegister",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3182,
+      "hasIdColumn": true,
+      "idExpression": "varchar({ length: 64 }).notNull()",
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_risk_register_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_risk_register_tenant_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "routing_history",
+      "declaration": "routingHistory",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3225,
+      "hasIdColumn": true,
+      "idExpression": "varchar({ length: 64 }).notNull()",
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_routing_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_routing_claim_tenant",
+          "unique": false
+        },
+        {
+          "name": "idx_routing_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "idx_routing_timestamp",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "routing_threshold_config",
+      "declaration": "routingThresholdConfig",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3250,
+      "hasIdColumn": true,
+      "idExpression": "varchar({ length: 64 }).notNull()",
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_threshold_active",
+          "unique": false
+        },
+        {
+          "name": "idx_threshold_tenant_active",
+          "unique": false
+        },
+        {
+          "name": "idx_threshold_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "unique_threshold_tenant_version",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "tenant_role_configs",
+      "declaration": "tenantRoleConfigs",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3482,
+      "hasIdColumn": false,
+      "idExpression": null,
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    }
+  ],
+  "unresolvedDependencies": [],
+  "sourceOrderDependencies": [],
+  "emptyConfiguredIndexNames": [],
+  "duplicateConfiguredIndexNames": [],
+  "repeatedNamesAcrossTables": [
+    {
+      "name": "idx_tenant_id",
+      "tables": [
+        "automation_audit_log",
+        "role_assignment_audit"
+      ]
+    },
+    {
+      "name": "idx_type",
+      "tables": [
+        "assessor_insurer_relationships",
+        "assessors"
+      ]
+    }
+  ],
+  "inlineUniqueColumns": [],
+  "rows": [
+    {
+      "tableName": "access_denial_log",
+      "declaration": "accessDenialLog",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 4,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "anonymization_audit_log",
+      "declaration": "anonymizationAuditLog",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 427,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_aal_anonymized_at",
+          "unique": false
+        },
+        {
+          "name": "idx_aal_source_record",
+          "unique": false
+        },
+        {
+          "name": "idx_aal_status",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "appointments",
+      "declaration": "appointments",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 444,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "assessor_deviation_metrics",
+      "declaration": "assessorDeviationMetrics",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 484,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "assessor_evaluations",
+      "declaration": "assessorEvaluations",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 507,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "assessor_report_reviews",
+        "assessor_reports",
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "assessor_report_reviews",
+        "assessor_reports",
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_evaluations_assessor_id",
+          "unique": false
+        },
+        {
+          "name": "idx_evaluations_claim_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "assessor_insurer_relationships",
+      "declaration": "assessorInsurerRelationships",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 535,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_preferred",
+          "unique": false
+        },
+        {
+          "name": "idx_status",
+          "unique": false
+        },
+        {
+          "name": "idx_tenant",
+          "unique": false
+        },
+        {
+          "name": "idx_type",
+          "unique": false
+        },
+        {
+          "name": "unique_assessor_tenant",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "assessor_subscriptions",
+      "declaration": "assessorSubscriptions",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 4386,
+      "hasIdColumn": true,
+      "idExpression": "int(\"id\").autoincrement().primaryKey().notNull()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_asub_profile",
+          "unique": false
+        },
+        {
+          "name": "idx_asub_tier",
+          "unique": false
+        },
+        {
+          "name": "idx_asub_user",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "assessors",
+      "declaration": "assessors",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 585,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_marketplace_status",
+          "unique": false
+        },
+        {
+          "name": "idx_performance",
+          "unique": false
+        },
+        {
+          "name": "idx_primary_tenant",
+          "unique": false
+        },
+        {
+          "name": "idx_rating",
+          "unique": false
+        },
+        {
+          "name": "idx_type",
+          "unique": false
+        },
+        {
+          "name": "professional_license_number",
+          "unique": false
+        },
+        {
+          "name": "user_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "asset_registry",
+      "declaration": "assetRegistry",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 6023,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_ar_owner",
+          "unique": false
+        },
+        {
+          "name": "idx_ar_ref",
+          "unique": true
+        },
+        {
+          "name": "idx_ar_tenant",
+          "unique": false
+        },
+        {
+          "name": "idx_ar_type",
+          "unique": false
+        },
+        {
+          "name": "idx_ar_vehicle_reg",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "audit_trail",
+      "declaration": "auditTrail",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 647,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_audit_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_audit_created_at",
+          "unique": false
+        },
+        {
+          "name": "idx_audit_user_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "automation_audit_log",
+      "declaration": "automationAuditLog",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 667,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "automation_policies",
+        "claim_confidence_scores",
+        "claim_routing_decisions",
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "automation_policies",
+        "claim_confidence_scores",
+        "claim_routing_decisions",
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_composite_score",
+          "unique": false
+        },
+        {
+          "name": "idx_decision_made_at",
+          "unique": false
+        },
+        {
+          "name": "idx_routed_workflow",
+          "unique": false
+        },
+        {
+          "name": "idx_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "idx_was_overridden",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "bias_detection_flags",
+      "declaration": "biasDetectionFlags",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3623,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "calibration_overrides",
+      "declaration": "calibrationOverrides",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 5392,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_cal_scenario",
+          "unique": false
+        },
+        {
+          "name": "idx_cal_status",
+          "unique": false
+        },
+        {
+          "name": "idx_cal_tenant_jurisdiction",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "claim_approvals",
+      "declaration": "claimApprovals",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 5455,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_ca_acted_at",
+          "unique": false
+        },
+        {
+          "name": "idx_ca_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_ca_role_key",
+          "unique": false
+        },
+        {
+          "name": "idx_ca_stage_order",
+          "unique": false
+        },
+        {
+          "name": "idx_ca_tenant_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "claim_events",
+      "declaration": "claimEvents",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 859,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_ce_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_ce_emitted_at",
+          "unique": false
+        },
+        {
+          "name": "idx_ce_event_type",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "claim_intake_requests",
+      "declaration": "claimIntakeRequests",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 815,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_claim_intake_request_claim",
+          "unique": false
+        },
+        {
+          "name": "idx_claim_intake_request_tenant_status",
+          "unique": false
+        },
+        {
+          "name": "uq_claim_intake_request_actor",
+          "unique": true
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "claim_intelligence_dataset",
+      "declaration": "claimIntelligenceDataset",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 975,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_anonymized_at",
+          "unique": false
+        },
+        {
+          "name": "idx_cid_captured_at",
+          "unique": false
+        },
+        {
+          "name": "idx_cid_claim_id_unique",
+          "unique": true
+        },
+        {
+          "name": "idx_cid_schema_version",
+          "unique": false
+        },
+        {
+          "name": "idx_cid_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "idx_data_scope",
+          "unique": false
+        },
+        {
+          "name": "idx_global_sharing",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "claim_involvement_tracking",
+      "declaration": "claimInvolvementTracking",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 1022,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_involvement_claim_user",
+          "unique": false
+        },
+        {
+          "name": "idx_involvement_claim_user_stage",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "claim_review_queue",
+      "declaration": "claimReviewQueue",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 1035,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "claim_review_queue_historical_claim_id_unique",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "commission_records",
+      "declaration": "commissionRecords",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 1332,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "component_benchmarks",
+      "declaration": "componentBenchmarks",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 5754,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_cb_component_id",
+          "unique": false
+        },
+        {
+          "name": "idx_cb_component_make",
+          "unique": false
+        },
+        {
+          "name": "idx_cb_market_currency",
+          "unique": false
+        },
+        {
+          "name": "idx_cb_vehicle_precision",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "cross_claim_signals",
+      "declaration": "crossClaimSignals",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 4909,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_ccs_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_ccs_claim_signal_unique",
+          "unique": true
+        },
+        {
+          "name": "idx_ccs_confidence",
+          "unique": false
+        },
+        {
+          "name": "idx_ccs_dismissed",
+          "unique": false
+        },
+        {
+          "name": "idx_ccs_signal_type",
+          "unique": false
+        },
+        {
+          "name": "idx_ccs_tenant",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "customer_consent",
+      "declaration": "customerConsent",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 1410,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "dataset_access_grants",
+      "declaration": "datasetAccessGrants",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 1439,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_dag_data_scope",
+          "unique": false
+        },
+        {
+          "name": "idx_dag_expiry_date",
+          "unique": false
+        },
+        {
+          "name": "idx_dag_granted_to_user",
+          "unique": false
+        },
+        {
+          "name": "idx_dag_tenant_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "driver_claims",
+      "declaration": "driverClaims",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 4789,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_dc_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_dc_driver_id",
+          "unique": false
+        },
+        {
+          "name": "idx_dc_role",
+          "unique": false
+        },
+        {
+          "name": "idx_dc_tenant",
+          "unique": false
+        },
+        {
+          "name": "idx_dc_unique",
+          "unique": true
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "fast_track_config",
+      "declaration": "fastTrackConfig",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 1597,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_ft_config_claim_type",
+          "unique": false
+        },
+        {
+          "name": "idx_ft_config_effective",
+          "unique": false
+        },
+        {
+          "name": "idx_ft_config_enabled",
+          "unique": false
+        },
+        {
+          "name": "idx_ft_config_hierarchy",
+          "unique": false
+        },
+        {
+          "name": "idx_ft_config_product",
+          "unique": false
+        },
+        {
+          "name": "idx_ft_config_tenant",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "fast_track_routing_log",
+      "declaration": "fastTrackRoutingLog",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 1621,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_ft_log_claim",
+          "unique": false
+        },
+        {
+          "name": "idx_ft_log_claim_tenant",
+          "unique": false
+        },
+        {
+          "name": "idx_ft_log_config",
+          "unique": false
+        },
+        {
+          "name": "idx_ft_log_decision",
+          "unique": false
+        },
+        {
+          "name": "idx_ft_log_evaluated",
+          "unique": false
+        },
+        {
+          "name": "idx_ft_log_tenant",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "federated_learning_metadata",
+      "declaration": "federatedLearningMetadata",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 1649,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_flm_model_type",
+          "unique": false
+        },
+        {
+          "name": "idx_flm_round_number",
+          "unique": false
+        },
+        {
+          "name": "idx_flm_training_started",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "final_approval_records",
+      "declaration": "finalApprovalRecords",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 1670,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "historical_claim_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "fuel_records",
+      "declaration": "fuelRecords",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 6413,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "global_anonymized_dataset",
+      "declaration": "globalAnonymizedDataset",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 1974,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "anonymous_record_id",
+          "unique": false
+        },
+        {
+          "name": "idx_gad_accident_type",
+          "unique": false
+        },
+        {
+          "name": "idx_gad_anonymized_at",
+          "unique": false
+        },
+        {
+          "name": "idx_gad_capture_month",
+          "unique": false
+        },
+        {
+          "name": "idx_gad_province",
+          "unique": false
+        },
+        {
+          "name": "idx_gad_vehicle_make",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "global_search_analytics",
+      "declaration": "globalSearchAnalytics",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 6366,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().primaryKey().notNull()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_gsa_query",
+          "unique": false
+        },
+        {
+          "name": "idx_gsa_searched_at",
+          "unique": false
+        },
+        {
+          "name": "idx_gsa_tenant_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "global_search_history",
+      "declaration": "globalSearchHistory",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 6351,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().primaryKey().notNull()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_gsh_searched_at",
+          "unique": false
+        },
+        {
+          "name": "idx_gsh_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "idx_gsh_user_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "historical_claims",
+      "declaration": "historicalClaims",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2051,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_hc_batch",
+          "unique": false
+        },
+        {
+          "name": "idx_hc_status",
+          "unique": false
+        },
+        {
+          "name": "idx_hc_tenant",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "historical_replay_results",
+      "declaration": "historicalReplayResults",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2101,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_historical_replay_results_historical_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_historical_replay_results_policy_version_id",
+          "unique": false
+        },
+        {
+          "name": "idx_historical_replay_results_replayed_at",
+          "unique": false
+        },
+        {
+          "name": "idx_historical_replay_results_tenant_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "human_review_queue",
+      "declaration": "humanReviewQueue",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3637,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "ingestion_batches",
+      "declaration": "ingestionBatches",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2150,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "insurer_tenants",
+      "declaration": "insurerTenants",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2322,
+      "hasIdColumn": true,
+      "idExpression": "varchar({ length: 64 }).notNull()",
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "iso_audit_logs",
+      "declaration": "isoAuditLogs",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2351,
+      "hasIdColumn": true,
+      "idExpression": "varchar({ length: 64 }).notNull()",
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_iso_audit_logs_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "idx_iso_audit_logs_timestamp",
+          "unique": false
+        },
+        {
+          "name": "idx_iso_audit_logs_user_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "licensing_records",
+      "declaration": "licensingRecords",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 6437,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "maintenance_alerts",
+      "declaration": "maintenanceAlerts",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2372,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "maintenance_records",
+      "declaration": "maintenanceRecords",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2390,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "maintenance_schedules",
+      "declaration": "maintenanceSchedules",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2417,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "mismatch_annotations",
+      "declaration": "mismatchAnnotations",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 5187,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_ma_action",
+          "unique": false
+        },
+        {
+          "name": "idx_ma_claim",
+          "unique": false
+        },
+        {
+          "name": "idx_ma_type",
+          "unique": false
+        },
+        {
+          "name": "idx_ma_user",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "model_training_queue",
+      "declaration": "modelTrainingQueue",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2474,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_mtq_claim_id_unique",
+          "unique": true
+        },
+        {
+          "name": "idx_mtq_created_at",
+          "unique": false
+        },
+        {
+          "name": "idx_mtq_processed",
+          "unique": false
+        },
+        {
+          "name": "idx_mtq_training_priority",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "multi_reference_truth",
+      "declaration": "multiReferenceTruth",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2525,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "narrative_versions",
+      "declaration": "narrativeVersions",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 5217,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_nv_active",
+          "unique": false
+        },
+        {
+          "name": "idx_nv_assessment",
+          "unique": false
+        },
+        {
+          "name": "idx_nv_claim",
+          "unique": false
+        },
+        {
+          "name": "idx_nv_type",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "parts_pricing_baseline",
+      "declaration": "partsPricingBaseline",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2687,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "personal_vehicles",
+      "declaration": "personalVehicles",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 6487,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "personal_vehicles_user_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "physical_measurements",
+      "declaration": "physicalMeasurements",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 6122,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_pm_captured_at",
+          "unique": false
+        },
+        {
+          "name": "idx_pm_captured_by",
+          "unique": false
+        },
+        {
+          "name": "idx_pm_category",
+          "unique": false
+        },
+        {
+          "name": "idx_pm_inspection",
+          "unique": false
+        },
+        {
+          "name": "idx_pm_tenant",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "pipeline_jobs",
+      "declaration": "pipelineJobs",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 5815,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_pj_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_pj_run_id",
+          "unique": false
+        },
+        {
+          "name": "idx_pj_run_stage",
+          "unique": true
+        },
+        {
+          "name": "idx_pj_stage_id",
+          "unique": false
+        },
+        {
+          "name": "idx_pj_status",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "pipeline_runs",
+      "declaration": "pipelineRuns",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 5790,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_pr_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_pr_run_id",
+          "unique": false
+        },
+        {
+          "name": "idx_pr_started_at",
+          "unique": false
+        },
+        {
+          "name": "idx_pr_status",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "policy_claim_links",
+      "declaration": "policyClaimLinks",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2795,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "policy_endorsements",
+      "declaration": "policyEndorsements",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2823,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "policy_endorsements_endorsement_number_unique",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "predictive_risk_scores",
+      "declaration": "predictiveRiskScores",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 6325,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_prs_entity",
+          "unique": false
+        },
+        {
+          "name": "idx_prs_score_type",
+          "unique": false
+        },
+        {
+          "name": "idx_prs_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "idx_prs_valid_from",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "quotation_requests",
+      "declaration": "quotationRequests",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 2873,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "request_number",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "replay_logs",
+      "declaration": "replayLogs",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 5075,
+      "hasIdColumn": true,
+      "idExpression": "int(\"id\").autoincrement().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_rl_changed",
+          "unique": false
+        },
+        {
+          "name": "idx_rl_claim",
+          "unique": false
+        },
+        {
+          "name": "idx_rl_replayed_at",
+          "unique": false
+        },
+        {
+          "name": "idx_rl_tenant",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "risk_register",
+      "declaration": "riskRegister",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3182,
+      "hasIdColumn": true,
+      "idExpression": "varchar({ length: 64 }).notNull()",
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_risk_register_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_risk_register_tenant_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "role_assignment_audit",
+      "declaration": "roleAssignmentAudit",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3204,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_changed_by",
+          "unique": false
+        },
+        {
+          "name": "idx_role_audit_tenant_time",
+          "unique": false
+        },
+        {
+          "name": "idx_role_audit_user_time",
+          "unique": false
+        },
+        {
+          "name": "idx_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "idx_timestamp",
+          "unique": false
+        },
+        {
+          "name": "idx_user_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "routing_history",
+      "declaration": "routingHistory",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3225,
+      "hasIdColumn": true,
+      "idExpression": "varchar({ length: 64 }).notNull()",
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_routing_claim_id",
+          "unique": false
+        },
+        {
+          "name": "idx_routing_claim_tenant",
+          "unique": false
+        },
+        {
+          "name": "idx_routing_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "idx_routing_timestamp",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "routing_threshold_config",
+      "declaration": "routingThresholdConfig",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3250,
+      "hasIdColumn": true,
+      "idExpression": "varchar({ length: 64 }).notNull()",
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_threshold_active",
+          "unique": false
+        },
+        {
+          "name": "idx_threshold_tenant_active",
+          "unique": false
+        },
+        {
+          "name": "idx_threshold_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "unique_threshold_tenant_version",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "service_providers",
+      "declaration": "serviceProviders",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3268,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "shadow_override_monitor",
+      "declaration": "shadowOverrideMonitor",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 5145,
+      "hasIdColumn": true,
+      "idExpression": "int(\"id\").autoincrement().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_som_activity",
+          "unique": false
+        },
+        {
+          "name": "idx_som_scanned",
+          "unique": false
+        },
+        {
+          "name": "idx_som_tenant",
+          "unique": false
+        },
+        {
+          "name": "idx_som_user",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "similar_claims_clusters",
+      "declaration": "similarClaimsClusters",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3348,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "super_audit_sessions",
+      "declaration": "superAuditSessions",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3369,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_super_audit_sessions_audited_tenant_id",
+          "unique": false
+        },
+        {
+          "name": "idx_super_audit_sessions_session_started_at",
+          "unique": false
+        },
+        {
+          "name": "idx_super_audit_sessions_super_admin_user_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "supplier_performance_metrics",
+      "declaration": "supplierPerformanceMetrics",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3393,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "supplier_performance_metrics_supplier_name_unique",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "system_errors",
+      "declaration": "systemErrors",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 4486,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_se_error_code",
+          "unique": false
+        },
+        {
+          "name": "idx_se_occurred_at",
+          "unique": false
+        },
+        {
+          "name": "idx_se_procedure",
+          "unique": false
+        },
+        {
+          "name": "idx_se_user_id",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "tenant_isolation_violations",
+      "declaration": "tenantIsolationViolations",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 4416,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().primaryKey().notNull()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_tiv_occurred_at",
+          "unique": false
+        },
+        {
+          "name": "idx_tiv_procedure",
+          "unique": false
+        },
+        {
+          "name": "idx_tiv_user_id",
+          "unique": false
+        },
+        {
+          "name": "idx_tiv_user_tenant",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "tenant_role_configs",
+      "declaration": "tenantRoleConfigs",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3482,
+      "hasIdColumn": false,
+      "idExpression": null,
+      "hasExplicitPrimaryKey": false,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "third_party_vehicles",
+      "declaration": "thirdPartyVehicles",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3546,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "training_data_scores",
+      "declaration": "trainingDataScores",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3575,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "training_data_scores_historical_claim_id_unique",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "training_dataset",
+      "declaration": "trainingDataset",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3602,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "training_dataset_historical_claim_id_unique",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "usage_events",
+      "declaration": "usageEvents",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3669,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [
+        "claims"
+      ],
+      "referencedPrecedingTables": [
+        "claims"
+      ],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "claim_idx",
+          "unique": false
+        },
+        {
+          "name": "event_type_idx",
+          "unique": false
+        },
+        {
+          "name": "reference_idx",
+          "unique": false
+        },
+        {
+          "name": "tenant_idx",
+          "unique": false
+        },
+        {
+          "name": "timestamp_idx",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "variance_datasets",
+      "declaration": "varianceDatasets",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 3774,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_vd_claim",
+          "unique": false
+        },
+        {
+          "name": "idx_vd_tenant",
+          "unique": false
+        },
+        {
+          "name": "idx_vd_type",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    },
+    {
+      "tableName": "weight_adjustment_log",
+      "declaration": "weightAdjustmentLog",
+      "sourceFile": "drizzle/schema.ts",
+      "line": 5255,
+      "hasIdColumn": true,
+      "idExpression": "int().autoincrement().notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
+      "referenceTargets": [],
+      "referencedPrecedingTables": [],
+      "referencedWaveFiveTables": [],
+      "unresolvedReferences": [],
+      "indexes": [
+        {
+          "name": "idx_wal_created_at",
+          "unique": false
+        },
+        {
+          "name": "idx_wal_direction",
+          "unique": false
+        },
+        {
+          "name": "idx_wal_type",
+          "unique": false
+        }
+      ],
+      "inlineUniqueColumns": []
+    }
+  ],
+  "readiness": {
+    "tableSetComplete": true,
+    "originalOperationalChannelsAlreadyWaved": true,
+    "explicitKeysComplete": false,
+    "sourceDeclarationsComplete": true,
+    "dependenciesResolved": true,
+    "heldTablesExcluded": true,
+    "noEmptyConfiguredIndexNames": true,
+    "noDuplicateConfiguredIndexNames": true,
+    "readyForSqlGeneration": false
+  }
+}
