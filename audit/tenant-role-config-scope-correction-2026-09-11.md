@@ -37,6 +37,12 @@ The new regression creates a uniquely named `kinga_gatec_tenant_role_scope_*` da
 
 The pre-existing `tenant-config.test.ts` cannot be treated as a passing validation when the database URLs are deliberately empty: its database-dependent tests report the established `Database not available` failure. The dedicated loopback test above is the functional evidence for this change.
 
-## Review boundary
+## Post-main-merge revalidation
 
-This correction is ready for a dedicated priority review branch. It can be reviewed and merged independently of Gate D and independently of the still-stacked Gate C baseline PRs.
+After merging current Gate C main into the priority branch, the isolated local scratch regression again passed (`1` file / `2` tests), and independent disposal again found no `kinga_gatec_tenant_role_scope_*` database. The production build passed in `27.74` seconds with only the existing large-chunk warnings. The database-disabled `tenant-config.test.ts` remained unavailable for the same established reason, and TypeScript reported `998` inherited diagnostics with no diagnostic in either touched path.
+
+The merge conflict was one additive `todo.md` hunk only. The resolution retains both the priority-correction record and the complete merged Gate C record; no service, test, schema, migration, or evidence conflict required a semantic choice.
+
+## Merge boundary
+
+This correction is independently ready for the owner-authorised merge. It remains separate from Gate D and no staging/production/Gate D action is part of this pull request.
