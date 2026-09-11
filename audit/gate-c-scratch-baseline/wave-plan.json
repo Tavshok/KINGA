@@ -1,6 +1,6 @@
 {
   "scope": "Planning only. No database was opened, no SQL was generated and no DDL was executed.",
-  "sourceManifestCommit": "c69b446c7d4305a85e96d46e992564020b7b8a1a",
+  "sourceManifestCommit": "pending-gate-c-wave-2-review-commit; source checksum is authoritative",
   "gates": {
     "gateBReplayEvidenceVerified": true,
     "stagingAndProductionExcluded": true,
@@ -241,7 +241,7 @@
         },
         {
           "tableName": "tenants",
-          "declarationId": "drizzle/schema.ts:3488:tenants",
+          "declarationId": "drizzle/schema.ts:3489:tenants",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -249,7 +249,7 @@
         },
         {
           "tableName": "users",
-          "declarationId": "drizzle/schema.ts:3692:users",
+          "declarationId": "drizzle/schema.ts:3693:users",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -293,7 +293,7 @@
         },
         {
           "tableName": "drivers",
-          "declarationId": "drizzle/schema.ts:4703:drivers",
+          "declarationId": "drizzle/schema.ts:4705:drivers",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -301,7 +301,7 @@
         },
         {
           "tableName": "inspections",
-          "declarationId": "drizzle/schema.ts:6040:inspections",
+          "declarationId": "drizzle/schema.ts:6042:inspections",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -349,7 +349,7 @@
         },
         {
           "tableName": "measurement_types",
-          "declarationId": "drizzle/schema.ts:5879:measurementTypes",
+          "declarationId": "drizzle/schema.ts:5881:measurementTypes",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "verified_gate_c_current_runtime_path",
           "dependencies": [],
@@ -357,7 +357,7 @@
         },
         {
           "tableName": "vehicle_condition_assessment",
-          "declarationId": "drizzle/schema.ts:3786:vehicleConditionAssessment",
+          "declarationId": "drizzle/schema.ts:3788:vehicleConditionAssessment",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -367,7 +367,7 @@
         },
         {
           "tableName": "vehicle_condition_snapshots",
-          "declarationId": "drizzle/schema.ts:4115:vehicleConditionSnapshots",
+          "declarationId": "drizzle/schema.ts:4117:vehicleConditionSnapshots",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -375,7 +375,7 @@
         },
         {
           "tableName": "vehicle_damage_history",
-          "declarationId": "drizzle/schema.ts:4618:vehicleDamageHistory",
+          "declarationId": "drizzle/schema.ts:4620:vehicleDamageHistory",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -385,7 +385,7 @@
         },
         {
           "tableName": "vehicle_geometry_measurements",
-          "declarationId": "drizzle/schema.ts:5889:vehicleGeometryMeasurements",
+          "declarationId": "drizzle/schema.ts:5891:vehicleGeometryMeasurements",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "verified_gate_c_current_runtime_path",
           "dependencies": [
@@ -395,7 +395,7 @@
         },
         {
           "tableName": "vehicle_market_valuations",
-          "declarationId": "drizzle/schema.ts:3852:vehicleMarketValuations",
+          "declarationId": "drizzle/schema.ts:3854:vehicleMarketValuations",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -405,7 +405,7 @@
         },
         {
           "tableName": "vehicle_mileage_logs",
-          "declarationId": "drizzle/schema.ts:3892:vehicleMileageLogs",
+          "declarationId": "drizzle/schema.ts:3894:vehicleMileageLogs",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -413,7 +413,7 @@
         },
         {
           "tableName": "vehicle_models",
-          "declarationId": "drizzle/schema.ts:5863:vehicleModels",
+          "declarationId": "drizzle/schema.ts:5865:vehicleModels",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "verified_gate_c_current_runtime_path",
           "dependencies": [],
@@ -421,7 +421,7 @@
         },
         {
           "tableName": "vehicle_passport_snapshots",
-          "declarationId": "drizzle/schema.ts:6231:vehiclePassportSnapshots",
+          "declarationId": "drizzle/schema.ts:6233:vehiclePassportSnapshots",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -429,7 +429,7 @@
         },
         {
           "tableName": "vehicle_registry",
-          "declarationId": "drizzle/schema.ts:4550:vehicleRegistry",
+          "declarationId": "drizzle/schema.ts:4552:vehicleRegistry",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -443,7 +443,7 @@
       "tables": [
         {
           "tableName": "adjuster_sign_offs",
-          "declarationId": "drizzle/schema.ts:5466:adjusterSignOffs",
+          "declarationId": "drizzle/schema.ts:5468:adjusterSignOffs",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "verified_gate_c_current_runtime_path",
           "dependencies": [
@@ -531,7 +531,7 @@
         },
         {
           "tableName": "claim_decision_lifecycle",
-          "declarationId": "drizzle/schema.ts:5015:claimDecisionLifecycle",
+          "declarationId": "drizzle/schema.ts:5017:claimDecisionLifecycle",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -551,7 +551,7 @@
         },
         {
           "tableName": "component_repair_outcomes",
-          "declarationId": "drizzle/schema.ts:5516:componentRepairOutcomes",
+          "declarationId": "drizzle/schema.ts:5518:componentRepairOutcomes",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -569,7 +569,7 @@
         },
         {
           "tableName": "cost_learning_records",
-          "declarationId": "drizzle/schema.ts:5317:costLearningRecords",
+          "declarationId": "drizzle/schema.ts:5319:costLearningRecords",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -579,7 +579,7 @@
         },
         {
           "tableName": "country_repair_index",
-          "declarationId": "drizzle/schema.ts:4498:countryRepairIndex",
+          "declarationId": "drizzle/schema.ts:4500:countryRepairIndex",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -603,7 +603,7 @@
         },
         {
           "tableName": "decision_snapshots",
-          "declarationId": "drizzle/schema.ts:4944:decisionSnapshots",
+          "declarationId": "drizzle/schema.ts:4946:decisionSnapshots",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -679,7 +679,7 @@
         },
         {
           "tableName": "generated_reports",
-          "declarationId": "drizzle/schema.ts:5559:generatedReports",
+          "declarationId": "drizzle/schema.ts:5561:generatedReports",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -697,7 +697,7 @@
         },
         {
           "tableName": "insurer_marketplace_links",
-          "declarationId": "drizzle/schema.ts:3990:insurerMarketplaceLinks",
+          "declarationId": "drizzle/schema.ts:3992:insurerMarketplaceLinks",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -705,7 +705,7 @@
         },
         {
           "tableName": "insurer_marketplace_relationships",
-          "declarationId": "drizzle/schema.ts:4294:insurerMarketplaceRelationships",
+          "declarationId": "drizzle/schema.ts:4296:insurerMarketplaceRelationships",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -713,7 +713,7 @@
         },
         {
           "tableName": "insurer_quote_requests",
-          "declarationId": "drizzle/schema.ts:4164:insurerQuoteRequests",
+          "declarationId": "drizzle/schema.ts:4166:insurerQuoteRequests",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -723,7 +723,7 @@
         },
         {
           "tableName": "marketplace_profiles",
-          "declarationId": "drizzle/schema.ts:3964:marketplaceProfiles",
+          "declarationId": "drizzle/schema.ts:3966:marketplaceProfiles",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -749,7 +749,7 @@
         },
         {
           "tableName": "physics_validation_records",
-          "declarationId": "drizzle/schema.ts:5957:physicsValidationRecords",
+          "declarationId": "drizzle/schema.ts:5959:physicsValidationRecords",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -785,7 +785,7 @@
         },
         {
           "tableName": "quotation_request_documents",
-          "declarationId": "drizzle/schema.ts:6487:quotationRequestDocuments",
+          "declarationId": "drizzle/schema.ts:6489:quotationRequestDocuments",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -801,7 +801,7 @@
         },
         {
           "tableName": "quote_optimisation_results",
-          "declarationId": "drizzle/schema.ts:4319:quoteOptimisationResults",
+          "declarationId": "drizzle/schema.ts:4321:quoteOptimisationResults",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -811,7 +811,7 @@
         },
         {
           "tableName": "repair_cost_intelligence",
-          "declarationId": "drizzle/schema.ts:4520:repairCostIntelligence",
+          "declarationId": "drizzle/schema.ts:4522:repairCostIntelligence",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -819,7 +819,7 @@
         },
         {
           "tableName": "repair_history",
-          "declarationId": "drizzle/schema.ts:4802:repairHistory",
+          "declarationId": "drizzle/schema.ts:4804:repairHistory",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -893,7 +893,7 @@
       "tables": [
         {
           "tableName": "agency_assisted_claimant_identities",
-          "declarationId": "drizzle/schema.ts:4145:agencyAssistedClaimantIdentities",
+          "declarationId": "drizzle/schema.ts:4147:agencyAssistedClaimantIdentities",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -901,7 +901,7 @@
         },
         {
           "tableName": "agency_clients",
-          "declarationId": "drizzle/schema.ts:4017:agencyClients",
+          "declarationId": "drizzle/schema.ts:4019:agencyClients",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -909,7 +909,7 @@
         },
         {
           "tableName": "agency_insurance_service_request_insurers",
-          "declarationId": "drizzle/schema.ts:4082:agencyInsuranceServiceRequestInsurers",
+          "declarationId": "drizzle/schema.ts:4084:agencyInsuranceServiceRequestInsurers",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -917,7 +917,7 @@
         },
         {
           "tableName": "agency_insurance_service_requests",
-          "declarationId": "drizzle/schema.ts:4049:agencyInsuranceServiceRequests",
+          "declarationId": "drizzle/schema.ts:4051:agencyInsuranceServiceRequests",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -925,7 +925,7 @@
         },
         {
           "tableName": "agency_insurance_valuation_deviations",
-          "declarationId": "drizzle/schema.ts:4096:agencyInsuranceValuationDeviations",
+          "declarationId": "drizzle/schema.ts:4098:agencyInsuranceValuationDeviations",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -986,7 +986,7 @@
         },
         {
           "tableName": "engineer_observations",
-          "declarationId": "drizzle/schema.ts:6144:engineerObservations",
+          "declarationId": "drizzle/schema.ts:6146:engineerObservations",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -994,7 +994,7 @@
         },
         {
           "tableName": "engineer_profiles",
-          "declarationId": "drizzle/schema.ts:6193:engineerProfiles",
+          "declarationId": "drizzle/schema.ts:6195:engineerProfiles",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1002,7 +1002,7 @@
         },
         {
           "tableName": "fleet_accounts",
-          "declarationId": "drizzle/schema.ts:4229:fleetAccounts",
+          "declarationId": "drizzle/schema.ts:4231:fleetAccounts",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1026,7 +1026,7 @@
         },
         {
           "tableName": "fleet_intelligence_snapshots",
-          "declarationId": "drizzle/schema.ts:6268:fleetIntelligenceSnapshots",
+          "declarationId": "drizzle/schema.ts:6270:fleetIntelligenceSnapshots",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1034,7 +1034,7 @@
         },
         {
           "tableName": "fleet_manager_requests",
-          "declarationId": "drizzle/schema.ts:4261:fleetManagerRequests",
+          "declarationId": "drizzle/schema.ts:4263:fleetManagerRequests",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1042,7 +1042,7 @@
         },
         {
           "tableName": "fleet_rfq_client_instructions",
-          "declarationId": "drizzle/schema.ts:4204:fleetRfqClientInstructions",
+          "declarationId": "drizzle/schema.ts:4206:fleetRfqClientInstructions",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1074,7 +1074,7 @@
         },
         {
           "tableName": "governance_audit_log",
-          "declarationId": "drizzle/schema.ts:5094:governanceAuditLog",
+          "declarationId": "drizzle/schema.ts:5096:governanceAuditLog",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1100,7 +1100,7 @@
         },
         {
           "tableName": "inspection_projects",
-          "declarationId": "drizzle/schema.ts:6438:inspectionProjects",
+          "declarationId": "drizzle/schema.ts:6440:inspectionProjects",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1108,7 +1108,7 @@
         },
         {
           "tableName": "notification_events",
-          "declarationId": "drizzle/schema.ts:4432:notificationEvents",
+          "declarationId": "drizzle/schema.ts:4434:notificationEvents",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1116,7 +1116,7 @@
         },
         {
           "tableName": "notification_preferences",
-          "declarationId": "drizzle/schema.ts:6363:notificationPreferences",
+          "declarationId": "drizzle/schema.ts:6365:notificationPreferences",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1166,7 +1166,7 @@
         },
         {
           "tableName": "tenant_workflow_configs",
-          "declarationId": "drizzle/schema.ts:3473:tenantWorkflowConfigs",
+          "declarationId": "drizzle/schema.ts:3474:tenantWorkflowConfigs",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1174,7 +1174,7 @@
         },
         {
           "tableName": "workflow_audit_trail",
-          "declarationId": "drizzle/schema.ts:3904:workflowAuditTrail",
+          "declarationId": "drizzle/schema.ts:3906:workflowAuditTrail",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -1184,7 +1184,7 @@
         },
         {
           "tableName": "workflow_configuration",
-          "declarationId": "drizzle/schema.ts:3927:workflowConfiguration",
+          "declarationId": "drizzle/schema.ts:3929:workflowConfiguration",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1192,7 +1192,7 @@
         },
         {
           "tableName": "workflow_templates",
-          "declarationId": "drizzle/schema.ts:5409:workflowTemplates",
+          "declarationId": "drizzle/schema.ts:5411:workflowTemplates",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1260,7 +1260,7 @@
         },
         {
           "tableName": "assessor_subscriptions",
-          "declarationId": "drizzle/schema.ts:4367:assessorSubscriptions",
+          "declarationId": "drizzle/schema.ts:4369:assessorSubscriptions",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1276,7 +1276,7 @@
         },
         {
           "tableName": "asset_registry",
-          "declarationId": "drizzle/schema.ts:5998:assetRegistry",
+          "declarationId": "drizzle/schema.ts:6000:assetRegistry",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1307,7 +1307,7 @@
         },
         {
           "tableName": "bias_detection_flags",
-          "declarationId": "drizzle/schema.ts:3604:biasDetectionFlags",
+          "declarationId": "drizzle/schema.ts:3605:biasDetectionFlags",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1315,7 +1315,7 @@
         },
         {
           "tableName": "calibration_overrides",
-          "declarationId": "drizzle/schema.ts:5373:calibrationOverrides",
+          "declarationId": "drizzle/schema.ts:5375:calibrationOverrides",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1323,7 +1323,7 @@
         },
         {
           "tableName": "claim_approvals",
-          "declarationId": "drizzle/schema.ts:5436:claimApprovals",
+          "declarationId": "drizzle/schema.ts:5438:claimApprovals",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -1389,7 +1389,7 @@
         },
         {
           "tableName": "component_benchmarks",
-          "declarationId": "drizzle/schema.ts:5735:componentBenchmarks",
+          "declarationId": "drizzle/schema.ts:5737:componentBenchmarks",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1397,7 +1397,7 @@
         },
         {
           "tableName": "cross_claim_signals",
-          "declarationId": "drizzle/schema.ts:4890:crossClaimSignals",
+          "declarationId": "drizzle/schema.ts:4892:crossClaimSignals",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -1423,7 +1423,7 @@
         },
         {
           "tableName": "driver_claims",
-          "declarationId": "drizzle/schema.ts:4770:driverClaims",
+          "declarationId": "drizzle/schema.ts:4772:driverClaims",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -1467,7 +1467,7 @@
         },
         {
           "tableName": "fuel_records",
-          "declarationId": "drizzle/schema.ts:6388:fuelRecords",
+          "declarationId": "drizzle/schema.ts:6390:fuelRecords",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1483,7 +1483,7 @@
         },
         {
           "tableName": "global_search_analytics",
-          "declarationId": "drizzle/schema.ts:6341:globalSearchAnalytics",
+          "declarationId": "drizzle/schema.ts:6343:globalSearchAnalytics",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1491,7 +1491,7 @@
         },
         {
           "tableName": "global_search_history",
-          "declarationId": "drizzle/schema.ts:6326:globalSearchHistory",
+          "declarationId": "drizzle/schema.ts:6328:globalSearchHistory",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1515,7 +1515,7 @@
         },
         {
           "tableName": "human_review_queue",
-          "declarationId": "drizzle/schema.ts:3618:humanReviewQueue",
+          "declarationId": "drizzle/schema.ts:3619:humanReviewQueue",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1547,7 +1547,7 @@
         },
         {
           "tableName": "licensing_records",
-          "declarationId": "drizzle/schema.ts:6412:licensingRecords",
+          "declarationId": "drizzle/schema.ts:6414:licensingRecords",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1579,7 +1579,7 @@
         },
         {
           "tableName": "mismatch_annotations",
-          "declarationId": "drizzle/schema.ts:5168:mismatchAnnotations",
+          "declarationId": "drizzle/schema.ts:5170:mismatchAnnotations",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -1607,7 +1607,7 @@
         },
         {
           "tableName": "narrative_versions",
-          "declarationId": "drizzle/schema.ts:5198:narrativeVersions",
+          "declarationId": "drizzle/schema.ts:5200:narrativeVersions",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -1625,7 +1625,7 @@
         },
         {
           "tableName": "personal_vehicles",
-          "declarationId": "drizzle/schema.ts:6462:personalVehicles",
+          "declarationId": "drizzle/schema.ts:6464:personalVehicles",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1633,7 +1633,7 @@
         },
         {
           "tableName": "physical_measurements",
-          "declarationId": "drizzle/schema.ts:6097:physicalMeasurements",
+          "declarationId": "drizzle/schema.ts:6099:physicalMeasurements",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1641,7 +1641,7 @@
         },
         {
           "tableName": "pipeline_jobs",
-          "declarationId": "drizzle/schema.ts:5796:pipelineJobs",
+          "declarationId": "drizzle/schema.ts:5798:pipelineJobs",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1649,7 +1649,7 @@
         },
         {
           "tableName": "pipeline_runs",
-          "declarationId": "drizzle/schema.ts:5771:pipelineRuns",
+          "declarationId": "drizzle/schema.ts:5773:pipelineRuns",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1675,7 +1675,7 @@
         },
         {
           "tableName": "predictive_risk_scores",
-          "declarationId": "drizzle/schema.ts:6300:predictiveRiskScores",
+          "declarationId": "drizzle/schema.ts:6302:predictiveRiskScores",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1691,7 +1691,7 @@
         },
         {
           "tableName": "recovery_cases",
-          "declarationId": "drizzle/schema.ts:5598:recoveryCases",
+          "declarationId": "drizzle/schema.ts:5600:recoveryCases",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -1701,7 +1701,7 @@
         },
         {
           "tableName": "recovery_correspondence_log",
-          "declarationId": "drizzle/schema.ts:5677:recoveryCorrespondenceLog",
+          "declarationId": "drizzle/schema.ts:5679:recoveryCorrespondenceLog",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1709,7 +1709,7 @@
         },
         {
           "tableName": "replay_logs",
-          "declarationId": "drizzle/schema.ts:5056:replayLogs",
+          "declarationId": "drizzle/schema.ts:5058:replayLogs",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1761,7 +1761,7 @@
         },
         {
           "tableName": "shadow_override_monitor",
-          "declarationId": "drizzle/schema.ts:5126:shadowOverrideMonitor",
+          "declarationId": "drizzle/schema.ts:5128:shadowOverrideMonitor",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1793,7 +1793,7 @@
         },
         {
           "tableName": "system_errors",
-          "declarationId": "drizzle/schema.ts:4467:systemErrors",
+          "declarationId": "drizzle/schema.ts:4469:systemErrors",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1801,7 +1801,7 @@
         },
         {
           "tableName": "tenant_isolation_violations",
-          "declarationId": "drizzle/schema.ts:4397:tenantIsolationViolations",
+          "declarationId": "drizzle/schema.ts:4399:tenantIsolationViolations",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1809,7 +1809,7 @@
         },
         {
           "tableName": "tenant_role_configs",
-          "declarationId": "drizzle/schema.ts:3463:tenantRoleConfigs",
+          "declarationId": "drizzle/schema.ts:3464:tenantRoleConfigs",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1817,7 +1817,7 @@
         },
         {
           "tableName": "third_party_vehicles",
-          "declarationId": "drizzle/schema.ts:3527:thirdPartyVehicles",
+          "declarationId": "drizzle/schema.ts:3528:thirdPartyVehicles",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -1827,7 +1827,7 @@
         },
         {
           "tableName": "training_data_scores",
-          "declarationId": "drizzle/schema.ts:3556:trainingDataScores",
+          "declarationId": "drizzle/schema.ts:3557:trainingDataScores",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1835,7 +1835,7 @@
         },
         {
           "tableName": "training_dataset",
-          "declarationId": "drizzle/schema.ts:3583:trainingDataset",
+          "declarationId": "drizzle/schema.ts:3584:trainingDataset",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1843,7 +1843,7 @@
         },
         {
           "tableName": "usage_events",
-          "declarationId": "drizzle/schema.ts:3650:usageEvents",
+          "declarationId": "drizzle/schema.ts:3651:usageEvents",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [
@@ -1853,7 +1853,7 @@
         },
         {
           "tableName": "variance_datasets",
-          "declarationId": "drizzle/schema.ts:3754:varianceDatasets",
+          "declarationId": "drizzle/schema.ts:3756:varianceDatasets",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1861,7 +1861,7 @@
         },
         {
           "tableName": "weight_adjustment_log",
-          "declarationId": "drizzle/schema.ts:5236:weightAdjustmentLog",
+          "declarationId": "drizzle/schema.ts:5238:weightAdjustmentLog",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
@@ -1869,7 +1869,7 @@
         },
         {
           "tableName": "whatsapp_sessions",
-          "declarationId": "drizzle/schema.ts:6518:whatsappSessions",
+          "declarationId": "drizzle/schema.ts:6520:whatsappSessions",
           "sourceFile": "drizzle/schema.ts",
           "selectionReason": "direct_non_test_schema_import_evidence",
           "dependencies": [],
