@@ -52,7 +52,7 @@ describe("Gate C classified global primary-key contract", () => {
     expect(classification.heldForContractDecision.every(({ declaration }) => !safe.has(declaration))).toBe(true);
   });
 
-  it("adds primary keys only to classified sole-identifier auto-increment ids", () => {
+  it("retains the first-pass primary keys for classified sole-identifier auto-increment ids", () => {
     const idExpressions = sourceIdExpressions();
     for (const { declaration, tableName } of classification.safeSoleIdentifiers) {
       const expression = idExpressions.get(declaration);
@@ -61,12 +61,12 @@ describe("Gate C classified global primary-key contract", () => {
     }
   });
 
-  it("leaves every composite, junction, or alternative-identity exception unaltered", () => {
+  it("adds surrogate primary keys to every compatible former exception without deciding additional unique constraints", () => {
     const idExpressions = sourceIdExpressions();
     for (const { declaration, tableName } of classification.heldForContractDecision) {
       const expression = idExpressions.get(declaration);
       expect(expression, `${tableName}.id must remain auto-increment`).toContain(".autoincrement()");
-      expect(expression, `${tableName}.id must remain held from the global fix`).not.toContain(".primaryKey()");
+      expect(expression, `${tableName}.id must be an explicit surrogate primary key`).toContain(".primaryKey()");
     }
   });
 });

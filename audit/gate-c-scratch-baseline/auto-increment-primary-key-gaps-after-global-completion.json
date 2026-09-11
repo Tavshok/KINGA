@@ -1,0 +1,32 @@
+{
+  "scope": "Authoritative drizzle/schema.ts static inventory only; no database connection, SQL generation, or source modification.",
+  "completedWaveTablesExcluded": [
+    "claim_assignments",
+    "claim_documents",
+    "claims",
+    "drivers",
+    "inspections",
+    "insurance_audit_logs",
+    "insurance_carriers",
+    "insurance_policies",
+    "insurance_products",
+    "insurance_quotes",
+    "measurement_types",
+    "tenant_invitations",
+    "tenants",
+    "users",
+    "vehicle_condition_assessment",
+    "vehicle_condition_snapshots",
+    "vehicle_damage_history",
+    "vehicle_geometry_measurements",
+    "vehicle_market_valuations",
+    "vehicle_mileage_logs",
+    "vehicle_models",
+    "vehicle_passport_snapshots",
+    "vehicle_registry"
+  ],
+  "allUnkeyedAutoIncrementIdentityCount": 0,
+  "futureWaveUnkeyedAutoIncrementIdentityCount": 0,
+  "futureWaveGaps": [],
+  "status": "inventory_complete"
+}
