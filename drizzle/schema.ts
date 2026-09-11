@@ -731,6 +731,9 @@ export const automationPolicies = mysqlTable("automation_policies", {
 
 export const claimComments = mysqlTable("claim_comments", {
 	id: int().autoincrement().notNull(),
+	// Gate C decision: `claimId` is the established live physical contract. Do not
+	// normalise it to `claim_id` in a fresh baseline or compatibility migration
+	// without an explicitly approved data-cutover plan.
 	claimId: int("claimId").notNull().references(() => claims.id),
 	userId: int("author_user_id").notNull().references(() => users.id),
 	userRole: varchar("author_role", { length: 50 }).notNull(),
@@ -3438,24 +3441,25 @@ export const supplierQuotes = mysqlTable("supplier_quotes", {
 });
 
 export const tenantInvitations = mysqlTable("tenant_invitations", {
-	id: int().autoincrement().notNull(),
+	/** Durable invitation record identity; required by review/revocation paths. */
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	email: varchar({ length: 320 }).notNull(),
 	role: mysqlEnum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver']).notNull(),
 	insurerRole: mysqlEnum("insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']),
 	token: varchar({ length: 64 }).notNull(),
 	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
-	acceptedAt: timestamp("accepted_at", { mode: 'string' }),
-	createdBy: int("created_by").notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+		acceptedAt: timestamp("accepted_at", { mode: 'string' }),
+		createdBy: int("created_by").notNull(),
+		createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
-(table) => [
-	index("tenant_id_idx").on(table.tenantId),
-	index("email_idx").on(table.email),
-	index("token_idx").on(table.token),
-	index("expires_at_idx").on(table.expiresAt),
-	index("token").on(table.token),
-]);
+	(table) => [
+		index("tenant_id_idx").on(table.tenantId),
+		index("email_idx").on(table.email),
+		/** A live invitation token identifies exactly one invitation. */
+		uniqueIndex("tenant_invitations_token_unique").on(table.token),
+		index("expires_at_idx").on(table.expiresAt),
+	]);
 
 export const tenantRoleConfigs = mysqlTable("tenant_role_configs", {
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
@@ -3483,7 +3487,8 @@ export const tenantWorkflowConfigs = mysqlTable("tenant_workflow_configs", {
 ]);
 
 export const tenants = mysqlTable("tenants", {
-	id: varchar({ length: 255 }).notNull(),
+	/** Canonical tenant identity used by tenant-scoped application relations. */
+	id: varchar({ length: 255 }).notNull().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
 	displayName: varchar("display_name", { length: 255 }).notNull(),
 	tier: mysqlEnum(['tier-basic','tier-professional','tier-enterprise']).default('tier-basic').notNull(),
@@ -3496,7 +3501,7 @@ export const tenants = mysqlTable("tenants", {
 	configJson: json("config_json"),
 	workflowConfig: text("workflow_config"),
 	intakeEscalationHours: int("intake_escalation_hours").default(6),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow(),
 	activatedAt: timestamp("activated_at", { mode: 'string' }),
 	suspendedAt: timestamp("suspended_at", { mode: 'string' }),
@@ -3515,11 +3520,10 @@ export const tenants = mysqlTable("tenants", {
 	 *  Set to 1 for the kinga-qa-internal tenant used for superadmin impersonation testing. */
 	isSyntheticTenant: tinyint("is_synthetic_tenant").default(0).notNull(),
 },
-(table) => [
-	index("idx_tenants_name").on(table.name),
-	index("idx_tenants_status").on(table.status),
-	index("name").on(table.name),
-]);
+	(table) => [
+		index("idx_tenants_name").on(table.name),
+		index("idx_tenants_status").on(table.status),
+	]);
 
 export const thirdPartyVehicles = mysqlTable("third_party_vehicles", {
 	id: int().autoincrement().notNull(),
@@ -3712,9 +3716,9 @@ export const users = mysqlTable("users", {
 	organizationId: int("organization_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	emailVerified: tinyint("email_verified").default(0).notNull(),
-	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
-	lastSignedIn: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	lastSignedIn: timestamp({ mode: 'string' }).defaultNow().notNull(),
 	assessorTier: mysqlEnum("assessor_tier", ['free','premium','enterprise']).default('free'),
 	tierActivatedAt: timestamp("tier_activated_at", { mode: 'string' }),
 	tierExpiresAt: timestamp("tier_expires_at", { mode: 'string' }),
@@ -3742,7 +3746,8 @@ export const users = mysqlTable("users", {
 	isUnregisteredClaimant: tinyint("is_unregistered_claimant").default(0).notNull(),
 },
 (table) => [
-		index("users_openId_unique").on(table.openId),
+		/** Required by upsertUser(...).onDuplicateKeyUpdate and identity lookup. */
+		uniqueIndex("users_openId_unique").on(table.openId),
 	index("idx_users_tenant_id").on(table.tenantId),
 	index("idx_users_is_active").on(table.isActive),
 	index("idx_users_phone_tenant").on(table.phoneNumber, table.tenantId),

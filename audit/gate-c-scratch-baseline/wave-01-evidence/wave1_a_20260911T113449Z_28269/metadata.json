@@ -1,0 +1,155 @@
+{
+  "target": {
+    "database": "kinga_gatec_wave1_a_20260911T113449Z_28269",
+    "host": "127.0.0.1",
+    "port": "3317"
+  },
+  "tables": [
+    {
+      "tableName": "tenants"
+    },
+    {
+      "tableName": "tenant_invitations"
+    },
+    {
+      "tableName": "users"
+    }
+  ],
+  "constraints": [
+    {
+      "tableName": "tenants",
+      "constraintName": "config_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "tenants",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "constraintName": "tenant_invitations_token_unique",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "users",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "users",
+      "constraintName": "secondary_roles",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "users",
+      "constraintName": "users_openId_unique",
+      "constraintType": "UNIQUE"
+    }
+  ],
+  "indexes": [
+    {
+      "tableName": "tenants",
+      "indexName": "idx_tenants_name",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "name"
+    },
+    {
+      "tableName": "tenants",
+      "indexName": "idx_tenants_status",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "status"
+    },
+    {
+      "tableName": "tenants",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "indexName": "email_idx",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "email"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "indexName": "expires_at_idx",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "expires_at"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "indexName": "tenant_id_idx",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "indexName": "tenant_invitations_token_unique",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "token"
+    },
+    {
+      "tableName": "users",
+      "indexName": "idx_users_is_active",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "is_active"
+    },
+    {
+      "tableName": "users",
+      "indexName": "idx_users_phone_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "phone_number"
+    },
+    {
+      "tableName": "users",
+      "indexName": "idx_users_phone_tenant",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "users",
+      "indexName": "idx_users_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "users",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "users",
+      "indexName": "users_openId_unique",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "openId"
+    }
+  ]
+}

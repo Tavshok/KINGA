@@ -32,6 +32,8 @@ const migration = readJson("migration-artifact-manifest.json");
 const ledger = readJson("drift-decision-ledger.json.gz");
 const dependency = readJson("foreign-key-dependency-manifest.json");
 const readme = fs.readFileSync(path.join(outputDir, "README.md"), "utf8");
+const gateCDispositionsPath = path.join(repoRoot, "docs", "staging-schema-reconciliation", "gate-c-runtime-candidate-dispositions.json");
+const gateCDispositions = JSON.parse(fs.readFileSync(gateCDispositionsPath, "utf8"));
 
 if (source.declarations.length !== ledger.entries.length) {
   fail(`source declaration count ${source.declarations.length} does not equal ledger count ${ledger.entries.length}`);
@@ -51,11 +53,45 @@ for (const entry of ledger.entries) {
     fail(`${entry.declarationId} lacks a documented basis or next action`);
   }
   const hasDirectRuntimeEvidence = entry.nonTestApplicationEvidence.some((item) => /\[(?:direct|namespace)-schema-import\]$/.test(item));
-  if (entry.classification === "required_baseline" && !hasDirectRuntimeEvidence) {
-    fail(`${entry.declarationId} is required_baseline without direct non-test schema-import evidence`);
+  const hasVerifiedGateCRuntimePath = entry.gateCCandidateVerification?.status === "verified_current_path" &&
+    Array.isArray(entry.gateCCandidateVerification.codePath) &&
+    entry.gateCCandidateVerification.codePath.length > 0;
+  if (entry.classification === "required_baseline" && !hasDirectRuntimeEvidence && !hasVerifiedGateCRuntimePath) {
+    fail(`${entry.declarationId} is required_baseline without direct non-test schema-import evidence or verified Gate C current-code-path evidence`);
   }
   if (entry.classification !== "required_baseline" && hasDirectRuntimeEvidence && entry.classification !== "needs_migration_chain_repair_first" && entry.classification !== "superseded_duplicate") {
     fail(`${entry.declarationId} has direct runtime evidence but an unexplained non-required classification`);
+  }
+}
+
+for (const candidate of gateCDispositions.candidateTables) {
+  const entries = ledger.entries.filter((entry) => entry.tableName === candidate.tableName && entry.dialect === "mysql");
+  if (entries.length === 0) {
+    fail(`Gate C candidate ${candidate.tableName} is absent from the MySQL ledger`);
+    continue;
+  }
+  for (const entry of entries) {
+    if (!entry.gateCCandidateVerification || entry.gateCCandidateVerification.status !== candidate.status) {
+      fail(`${entry.declarationId} does not preserve the Gate C disposition for ${candidate.tableName}`);
+    }
+    if (candidate.status === "verified_current_path" && entry.classification !== "required_baseline") {
+      fail(`${entry.declarationId} has verified Gate C current-code-path evidence but is not required_baseline`);
+    }
+    if (candidate.status !== "verified_current_path" && entry.classification === "required_baseline") {
+      fail(`${entry.declarationId} is required_baseline despite Gate C status ${candidate.status}`);
+    }
+  }
+}
+
+const claimCommentsEntries = ledger.entries.filter((entry) => entry.tableName === "claim_comments" && entry.dialect === "mysql");
+if (claimCommentsEntries.length === 0) {
+  fail("claim_comments is absent from the MySQL ledger");
+} else {
+  for (const entry of claimCommentsEntries) {
+    const claimIdColumn = entry.columns.find((column) => column.logicalName === "claimId");
+    if (claimIdColumn?.physicalName !== "claimId" || entry.physicalNameDecision?.columnName !== "claimId") {
+      fail(`${entry.declarationId} does not preserve the approved claim_comments.claimId physical contract`);
+    }
   }
 }
 
@@ -94,6 +130,9 @@ if (dependency.summary.configuredMySqlDeclarationsAnalysed !== dependency.entrie
 }
 if (!readme.includes("254 source tables is not reproducible") || !readme.includes("221 distinct physical names")) {
   fail("README does not preserve the source-table count reconciliation statement");
+}
+if (!readme.includes("Gate C candidate verification") || !readme.includes("claimId")) {
+  fail("README does not preserve Gate C candidate or claim-comments physical-name decisions");
 }
 
 const output = {

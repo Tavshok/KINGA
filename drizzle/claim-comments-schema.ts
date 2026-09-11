@@ -2,6 +2,8 @@ import { mysqlTable, int, text, varchar, tinyint, mysqlEnum, index, uniqueIndex 
 
 export const claimComments = mysqlTable("claim_comments", {
   id: int("id").autoincrement().primaryKey(),
+  // Gate C decision: `claimId` is the established live physical contract. Do not
+  // normalise it to `claim_id` without an explicitly approved data-cutover plan.
   claimId: int("claimId").notNull(),
   tenantId: varchar("tenant_id", { length: 255 }),
   authorUserId: int("author_user_id").notNull(),
