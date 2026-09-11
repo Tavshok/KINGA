@@ -1,4 +1,4 @@
-import { mysqlTable, mysqlSchema, AnyMySqlColumn, int, varchar, text, timestamp, mysqlEnum, index, uniqueIndex, decimal, json, date, foreignKey, double, time, longtext, tinyint, bigint } from "drizzle-orm/mysql-core"
+import { mysqlTable, mysqlSchema, AnyMySqlColumn, int, varchar, text, timestamp, mysqlEnum, index, uniqueIndex, decimal, json, date, foreignKey, double, time, longtext, tinyint, bigint, primaryKey } from "drizzle-orm/mysql-core"
 import { sql } from "drizzle-orm"
 
 export const accessDenialLog = mysqlTable("access_denial_log", {
@@ -2320,7 +2320,7 @@ export const insuranceQuotes = mysqlTable("insurance_quotes", {
 ]);
 
 export const insurerTenants = mysqlTable("insurer_tenants", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
 	displayName: varchar("display_name", { length: 255 }).notNull(),
 	logoUrl: text("logo_url"),
@@ -2349,7 +2349,7 @@ export const insurerTenants = mysqlTable("insurer_tenants", {
 });
 
 export const isoAuditLogs = mysqlTable("iso_audit_logs", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	userId: int("user_id").notNull(),
 	userRole: varchar("user_role", { length: 50 }).notNull(),
@@ -3180,7 +3180,7 @@ export const reportSnapshots = mysqlTable("report_snapshots", {
 ]);
 
 export const riskRegister = mysqlTable("risk_register", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	riskType: mysqlEnum("risk_type", ['fraud','cost_overrun','compliance','operational']).notNull(),
@@ -3223,7 +3223,7 @@ export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
 ]);
 
 export const routingHistory = mysqlTable("routing_history", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	confidenceScore: decimal("confidence_score", { precision: 5, scale: 2 }).notNull(),
@@ -3248,7 +3248,7 @@ export const routingHistory = mysqlTable("routing_history", {
 ]);
 
 export const routingThresholdConfig = mysqlTable("routing_threshold_config", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	version: varchar({ length: 50 }).notNull(),
 	highThreshold: decimal("high_threshold", { precision: 5, scale: 2 }).notNull(),
@@ -3487,7 +3487,7 @@ export const tenantRoleConfigs = mysqlTable("tenant_role_configs", {
 	permissions: text(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => [primaryKey({ columns: [table.tenantId, table.roleKey] })]);
 
 export const tenantWorkflowConfigs = mysqlTable("tenant_workflow_configs", {
 	id: varchar({ length: 64 }).notNull().primaryKey(),

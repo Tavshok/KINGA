@@ -143,7 +143,8 @@ const rows = WAVE_FIVE_TABLES.map((tableName) => {
   };
 });
 
-const keyGaps = rows.filter((row) => !row.hasExplicitPrimaryKey || !row.hasIdColumn);
+// A table may validly use a configured composite primary key and therefore have no `id` column.
+const keyGaps = rows.filter((row) => !row.hasExplicitPrimaryKey);
 const unresolvedDependencies = rows.filter((row) => row.unresolvedReferences.length > 0);
 const missingSourceDeclarations = rows.filter((row) => row.missingSourceDeclaration);
 const heldTableOverlap = WAVE_FIVE_TABLES.filter((tableName) => HELD_TABLES.includes(tableName));

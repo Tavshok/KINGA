@@ -139,162 +139,7 @@
   ],
   "heldTableOverlap": [],
   "missingSourceDeclarations": [],
-  "explicitPrimaryKeyGaps": [
-    {
-      "tableName": "insurer_tenants",
-      "declaration": "insurerTenants",
-      "sourceFile": "drizzle/schema.ts",
-      "line": 2322,
-      "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
-      "referenceTargets": [],
-      "referencedPrecedingTables": [],
-      "referencedWaveFiveTables": [],
-      "unresolvedReferences": [],
-      "indexes": [],
-      "inlineUniqueColumns": []
-    },
-    {
-      "tableName": "iso_audit_logs",
-      "declaration": "isoAuditLogs",
-      "sourceFile": "drizzle/schema.ts",
-      "line": 2351,
-      "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
-      "referenceTargets": [],
-      "referencedPrecedingTables": [],
-      "referencedWaveFiveTables": [],
-      "unresolvedReferences": [],
-      "indexes": [
-        {
-          "name": "idx_iso_audit_logs_tenant_id",
-          "unique": false
-        },
-        {
-          "name": "idx_iso_audit_logs_timestamp",
-          "unique": false
-        },
-        {
-          "name": "idx_iso_audit_logs_user_id",
-          "unique": false
-        }
-      ],
-      "inlineUniqueColumns": []
-    },
-    {
-      "tableName": "risk_register",
-      "declaration": "riskRegister",
-      "sourceFile": "drizzle/schema.ts",
-      "line": 3182,
-      "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
-      "referenceTargets": [
-        "claims"
-      ],
-      "referencedPrecedingTables": [
-        "claims"
-      ],
-      "referencedWaveFiveTables": [],
-      "unresolvedReferences": [],
-      "indexes": [
-        {
-          "name": "idx_risk_register_claim_id",
-          "unique": false
-        },
-        {
-          "name": "idx_risk_register_tenant_id",
-          "unique": false
-        }
-      ],
-      "inlineUniqueColumns": []
-    },
-    {
-      "tableName": "routing_history",
-      "declaration": "routingHistory",
-      "sourceFile": "drizzle/schema.ts",
-      "line": 3225,
-      "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
-      "referenceTargets": [
-        "claims"
-      ],
-      "referencedPrecedingTables": [
-        "claims"
-      ],
-      "referencedWaveFiveTables": [],
-      "unresolvedReferences": [],
-      "indexes": [
-        {
-          "name": "idx_routing_claim_id",
-          "unique": false
-        },
-        {
-          "name": "idx_routing_claim_tenant",
-          "unique": false
-        },
-        {
-          "name": "idx_routing_tenant_id",
-          "unique": false
-        },
-        {
-          "name": "idx_routing_timestamp",
-          "unique": false
-        }
-      ],
-      "inlineUniqueColumns": []
-    },
-    {
-      "tableName": "routing_threshold_config",
-      "declaration": "routingThresholdConfig",
-      "sourceFile": "drizzle/schema.ts",
-      "line": 3250,
-      "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
-      "referenceTargets": [],
-      "referencedPrecedingTables": [],
-      "referencedWaveFiveTables": [],
-      "unresolvedReferences": [],
-      "indexes": [
-        {
-          "name": "idx_threshold_active",
-          "unique": false
-        },
-        {
-          "name": "idx_threshold_tenant_active",
-          "unique": false
-        },
-        {
-          "name": "idx_threshold_tenant_id",
-          "unique": false
-        },
-        {
-          "name": "unique_threshold_tenant_version",
-          "unique": false
-        }
-      ],
-      "inlineUniqueColumns": []
-    },
-    {
-      "tableName": "tenant_role_configs",
-      "declaration": "tenantRoleConfigs",
-      "sourceFile": "drizzle/schema.ts",
-      "line": 3482,
-      "hasIdColumn": false,
-      "idExpression": null,
-      "hasExplicitPrimaryKey": false,
-      "referenceTargets": [],
-      "referencedPrecedingTables": [],
-      "referencedWaveFiveTables": [],
-      "unresolvedReferences": [],
-      "indexes": [],
-      "inlineUniqueColumns": []
-    }
-  ],
+  "explicitPrimaryKeyGaps": [],
   "unresolvedDependencies": [],
   "sourceOrderDependencies": [],
   "emptyConfiguredIndexNames": [],
@@ -1412,8 +1257,8 @@
       "sourceFile": "drizzle/schema.ts",
       "line": 2322,
       "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
+      "idExpression": "varchar({ length: 64 }).notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
       "referenceTargets": [],
       "referencedPrecedingTables": [],
       "referencedWaveFiveTables": [],
@@ -1427,8 +1272,8 @@
       "sourceFile": "drizzle/schema.ts",
       "line": 2351,
       "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
+      "idExpression": "varchar({ length: 64 }).notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
       "referenceTargets": [],
       "referencedPrecedingTables": [],
       "referencedWaveFiveTables": [],
@@ -1900,8 +1745,8 @@
       "sourceFile": "drizzle/schema.ts",
       "line": 3182,
       "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
+      "idExpression": "varchar({ length: 64 }).notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
       "referenceTargets": [
         "claims"
       ],
@@ -1968,8 +1813,8 @@
       "sourceFile": "drizzle/schema.ts",
       "line": 3225,
       "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
+      "idExpression": "varchar({ length: 64 }).notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
       "referenceTargets": [
         "claims"
       ],
@@ -2004,8 +1849,8 @@
       "sourceFile": "drizzle/schema.ts",
       "line": 3250,
       "hasIdColumn": true,
-      "idExpression": "varchar({ length: 64 }).notNull()",
-      "hasExplicitPrimaryKey": false,
+      "idExpression": "varchar({ length: 64 }).notNull().primaryKey()",
+      "hasExplicitPrimaryKey": true,
       "referenceTargets": [],
       "referencedPrecedingTables": [],
       "referencedWaveFiveTables": [],
@@ -2211,7 +2056,7 @@
       "line": 3482,
       "hasIdColumn": false,
       "idExpression": null,
-      "hasExplicitPrimaryKey": false,
+      "hasExplicitPrimaryKey": true,
       "referenceTargets": [],
       "referencedPrecedingTables": [],
       "referencedWaveFiveTables": [],
@@ -2378,12 +2223,12 @@
   "readiness": {
     "tableSetComplete": true,
     "originalOperationalChannelsAlreadyWaved": true,
-    "explicitKeysComplete": false,
+    "explicitKeysComplete": true,
     "sourceDeclarationsComplete": true,
     "dependenciesResolved": true,
     "heldTablesExcluded": true,
     "noEmptyConfiguredIndexNames": true,
     "noDuplicateConfiguredIndexNames": true,
-    "readyForSqlGeneration": false
+    "readyForSqlGeneration": true
   }
 }

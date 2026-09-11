@@ -1,0 +1,25 @@
+{
+  "scope": "Gate C Wave 5 exact-base full-suite comparison with DATABASE_URL and KINGA_STAGING_DATABASE_URL deliberately empty; no external database was accessed.",
+  "branch": {
+    "revision": "uncommitted Wave 5 reconciliation worktree at comparison time",
+    "exitCode": 1,
+    "failedFiles": 101,
+    "failedTests": 217,
+    "passedTests": 8709,
+    "skippedTests": 217,
+    "uniqueFailureHeaders": 277
+  },
+  "exactBase": {
+    "commit": "ab47cfcc9c0abc280545c3f6f5047f3b1173e9ed",
+    "exitCode": 1,
+    "failedFiles": 101,
+    "failedTests": 217,
+    "passedTests": 8705,
+    "skippedTests": 217,
+    "uniqueFailureHeaders": 277
+  },
+  "branchOnlyFailureHeaders": [],
+  "baseOnlyFailureHeaders": [],
+  "sharedFailureHeaderSetSha256": "b7363a7bea7d0d282edf07c509f482b4295c8c539f8cbd49401928a668394c27",
+  "status": "no-new-branch-failure-identifiers"
+}

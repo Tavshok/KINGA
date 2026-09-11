@@ -10,7 +10,7 @@ const analysisPath = path.join(repoRoot, "audit/gate-c-scratch-baseline/wave-05-
 afterEach(() => fs.rmSync(analysisPath, { force: true }));
 
 describe("Gate C Wave 5 source planning contract", () => {
-  it("preserves the remaining final-wave scope, excludes operational channels already proven in Wave 4, and holds each unresolved key contract", () => {
+  it("preserves the remaining final-wave scope, excludes operational channels already proven in Wave 4, and recognises the approved key reconciliation", () => {
     execFileSync(process.execPath, ["scripts/analyse-gate-c-wave-five-plan.mjs", analysisPath], { cwd: repoRoot, stdio: "pipe" });
     const analysis = JSON.parse(fs.readFileSync(analysisPath, "utf8"));
     expect(analysis.originalFinalWaveTableCount).toBe(78);
@@ -21,18 +21,11 @@ describe("Gate C Wave 5 source planning contract", () => {
     expect(analysis.rows.map((row: { tableName: string }) => row.tableName)).not.toContain("recovery_cases");
     expect(analysis.rows.map((row: { tableName: string }) => row.tableName)).not.toContain("recovery_correspondence_log");
     expect(analysis.rows.map((row: { tableName: string }) => row.tableName)).not.toContain("whatsapp_sessions");
-    expect(analysis.explicitPrimaryKeyGaps.map((row: { tableName: string }) => row.tableName)).toEqual([
-      "insurer_tenants",
-      "iso_audit_logs",
-      "risk_register",
-      "routing_history",
-      "routing_threshold_config",
-      "tenant_role_configs",
-    ]);
+    expect(analysis.explicitPrimaryKeyGaps).toEqual([]);
     expect(analysis.missingSourceDeclarations).toEqual([]);
     expect(analysis.unresolvedDependencies).toEqual([]);
     expect(analysis.emptyConfiguredIndexNames).toEqual([]);
     expect(analysis.duplicateConfiguredIndexNames).toEqual([]);
-    expect(analysis.readiness.readyForSqlGeneration).toBe(false);
+    expect(analysis.readiness.readyForSqlGeneration).toBe(true);
   });
 });
