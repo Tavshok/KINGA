@@ -1,0 +1,592 @@
+{
+  "scope": "Gate C repository-only classified sole-identifier primary-key reconciliation; no database, migration, environment, staging, or production operation was used.",
+  "dryRun": true,
+  "candidateCount": 145,
+  "changedSafeSoleIdentifierCount": 34,
+  "heldForContractDecisionCount": 111,
+  "changed": [
+    {
+      "declaration": "claimantHistory",
+      "tableName": "claimant_history"
+    },
+    {
+      "declaration": "currencyExchangeRates",
+      "tableName": "currency_exchange_rates"
+    },
+    {
+      "declaration": "emailVerificationTokens",
+      "tableName": "email_verification_tokens"
+    },
+    {
+      "declaration": "extractedDocumentData",
+      "tableName": "extracted_document_data"
+    },
+    {
+      "declaration": "federatedLearningMetadata",
+      "tableName": "federated_learning_metadata"
+    },
+    {
+      "declaration": "fraudRules",
+      "tableName": "fraud_rules"
+    },
+    {
+      "declaration": "globalAnonymizedDataset",
+      "tableName": "global_anonymized_dataset"
+    },
+    {
+      "declaration": "modelVersionRegistry",
+      "tableName": "model_version_registry"
+    },
+    {
+      "declaration": "multiReferenceTruth",
+      "tableName": "multi_reference_truth"
+    },
+    {
+      "declaration": "organizations",
+      "tableName": "organizations"
+    },
+    {
+      "declaration": "partStratification",
+      "tableName": "part_stratification"
+    },
+    {
+      "declaration": "partsPricingAuditLog",
+      "tableName": "parts_pricing_audit_log"
+    },
+    {
+      "declaration": "partsPricingBaseline",
+      "tableName": "parts_pricing_baseline"
+    },
+    {
+      "declaration": "partsPricingOverrides",
+      "tableName": "parts_pricing_overrides"
+    },
+    {
+      "declaration": "platformGovernanceLimits",
+      "tableName": "platform_governance_limits"
+    },
+    {
+      "declaration": "policeReports",
+      "tableName": "police_reports"
+    },
+    {
+      "declaration": "preAccidentDamage",
+      "tableName": "pre_accident_damage"
+    },
+    {
+      "declaration": "quoteLineItems",
+      "tableName": "quote_line_items"
+    },
+    {
+      "declaration": "regionalBenchmarks",
+      "tableName": "regional_benchmarks"
+    },
+    {
+      "declaration": "regionalPricingMultipliers",
+      "tableName": "regional_pricing_multipliers"
+    },
+    {
+      "declaration": "registrationRequests",
+      "tableName": "registration_requests"
+    },
+    {
+      "declaration": "serviceProviders",
+      "tableName": "service_providers"
+    },
+    {
+      "declaration": "supplierPerformanceMetrics",
+      "tableName": "supplier_performance_metrics"
+    },
+    {
+      "declaration": "supplierQuoteLineItems",
+      "tableName": "supplier_quote_line_items"
+    },
+    {
+      "declaration": "supplierQuotes",
+      "tableName": "supplier_quotes"
+    },
+    {
+      "declaration": "thirdPartyVehicles",
+      "tableName": "third_party_vehicles"
+    },
+    {
+      "declaration": "vehicleHistory",
+      "tableName": "vehicle_history"
+    },
+    {
+      "declaration": "workflowConfiguration",
+      "tableName": "workflow_configuration"
+    },
+    {
+      "declaration": "agencyClients",
+      "tableName": "agency_clients"
+    },
+    {
+      "declaration": "countryRepairIndex",
+      "tableName": "country_repair_index"
+    },
+    {
+      "declaration": "componentBenchmarks",
+      "tableName": "component_benchmarks"
+    },
+    {
+      "declaration": "fuelRecords",
+      "tableName": "fuel_records"
+    },
+    {
+      "declaration": "licensingRecords",
+      "tableName": "licensing_records"
+    },
+    {
+      "declaration": "personalVehicles",
+      "tableName": "personal_vehicles"
+    }
+  ],
+  "heldObserved": [
+    {
+      "declaration": "reportProvenanceSnapshots",
+      "tableName": "report_provenance_snapshots"
+    },
+    {
+      "declaration": "claimEvidenceFindings",
+      "tableName": "claim_evidence_findings"
+    },
+    {
+      "declaration": "quoteEvidenceLedger",
+      "tableName": "quote_evidence_ledger"
+    },
+    {
+      "declaration": "quoteEvidenceGaps",
+      "tableName": "quote_evidence_gaps"
+    },
+    {
+      "declaration": "agencyDocuments",
+      "tableName": "agency_documents"
+    },
+    {
+      "declaration": "aiAssessments",
+      "tableName": "ai_assessments"
+    },
+    {
+      "declaration": "aiPredictionLogs",
+      "tableName": "ai_prediction_logs"
+    },
+    {
+      "declaration": "anonymizationAuditLog",
+      "tableName": "anonymization_audit_log"
+    },
+    {
+      "declaration": "appointments",
+      "tableName": "appointments"
+    },
+    {
+      "declaration": "approvalWorkflow",
+      "tableName": "approval_workflow"
+    },
+    {
+      "declaration": "assessorDeviationMetrics",
+      "tableName": "assessor_deviation_metrics"
+    },
+    {
+      "declaration": "assessorEvaluations",
+      "tableName": "assessor_evaluations"
+    },
+    {
+      "declaration": "assessorInsurerRelationships",
+      "tableName": "assessor_insurer_relationships"
+    },
+    {
+      "declaration": "assessorMarketplaceReviews",
+      "tableName": "assessor_marketplace_reviews"
+    },
+    {
+      "declaration": "assessors",
+      "tableName": "assessors"
+    },
+    {
+      "declaration": "auditTrail",
+      "tableName": "audit_trail"
+    },
+    {
+      "declaration": "automationAuditLog",
+      "tableName": "automation_audit_log"
+    },
+    {
+      "declaration": "automationPolicies",
+      "tableName": "automation_policies"
+    },
+    {
+      "declaration": "claimComments",
+      "tableName": "claim_comments"
+    },
+    {
+      "declaration": "claimConfidenceScores",
+      "tableName": "claim_confidence_scores"
+    },
+    {
+      "declaration": "claimIntakeRequests",
+      "tableName": "claim_intake_requests"
+    },
+    {
+      "declaration": "claimEvents",
+      "tableName": "claim_events"
+    },
+    {
+      "declaration": "assessorReports",
+      "tableName": "assessor_reports"
+    },
+    {
+      "declaration": "assessorReportAttachments",
+      "tableName": "assessor_report_attachments"
+    },
+    {
+      "declaration": "assessorReportReviews",
+      "tableName": "assessor_report_reviews"
+    },
+    {
+      "declaration": "claimIntelligenceDataset",
+      "tableName": "claim_intelligence_dataset"
+    },
+    {
+      "declaration": "claimInvolvementTracking",
+      "tableName": "claim_involvement_tracking"
+    },
+    {
+      "declaration": "claimReviewQueue",
+      "tableName": "claim_review_queue"
+    },
+    {
+      "declaration": "claimRoutingDecisions",
+      "tableName": "claim_routing_decisions"
+    },
+    {
+      "declaration": "commissionRecords",
+      "tableName": "commission_records"
+    },
+    {
+      "declaration": "agencyProductCommissionConfigs",
+      "tableName": "agency_product_commission_configs"
+    },
+    {
+      "declaration": "costComponents",
+      "tableName": "cost_components"
+    },
+    {
+      "declaration": "customerConsent",
+      "tableName": "customer_consent"
+    },
+    {
+      "declaration": "customerDocuments",
+      "tableName": "customer_documents"
+    },
+    {
+      "declaration": "datasetAccessGrants",
+      "tableName": "dataset_access_grants"
+    },
+    {
+      "declaration": "entityRelationships",
+      "tableName": "entity_relationships"
+    },
+    {
+      "declaration": "extractedRepairItems",
+      "tableName": "extracted_repair_items"
+    },
+    {
+      "declaration": "fastTrackConfig",
+      "tableName": "fast_track_config"
+    },
+    {
+      "declaration": "fastTrackRoutingLog",
+      "tableName": "fast_track_routing_log"
+    },
+    {
+      "declaration": "finalApprovalRecords",
+      "tableName": "final_approval_records"
+    },
+    {
+      "declaration": "fleetAuditLogs",
+      "tableName": "fleet_audit_logs"
+    },
+    {
+      "declaration": "fleetDocuments",
+      "tableName": "fleet_documents"
+    },
+    {
+      "declaration": "fleetDrivers",
+      "tableName": "fleet_drivers"
+    },
+    {
+      "declaration": "fleetIncidentReports",
+      "tableName": "fleet_incident_reports"
+    },
+    {
+      "declaration": "fleetRiskScores",
+      "tableName": "fleet_risk_scores"
+    },
+    {
+      "declaration": "fleetVehicles",
+      "tableName": "fleet_vehicles"
+    },
+    {
+      "declaration": "fleets",
+      "tableName": "fleets"
+    },
+    {
+      "declaration": "fraudAlerts",
+      "tableName": "fraud_alerts"
+    },
+    {
+      "declaration": "fraudIndicators",
+      "tableName": "fraud_indicators"
+    },
+    {
+      "declaration": "governanceNotifications",
+      "tableName": "governance_notifications"
+    },
+    {
+      "declaration": "governanceViolationLog",
+      "tableName": "governance_violation_log"
+    },
+    {
+      "declaration": "historicalClaims",
+      "tableName": "historical_claims"
+    },
+    {
+      "declaration": "historicalReplayResults",
+      "tableName": "historical_replay_results"
+    },
+    {
+      "declaration": "ingestionBatches",
+      "tableName": "ingestion_batches"
+    },
+    {
+      "declaration": "ingestionDocuments",
+      "tableName": "ingestion_documents"
+    },
+    {
+      "declaration": "maintenanceAlerts",
+      "tableName": "maintenance_alerts"
+    },
+    {
+      "declaration": "maintenanceRecords",
+      "tableName": "maintenance_records"
+    },
+    {
+      "declaration": "maintenanceSchedules",
+      "tableName": "maintenance_schedules"
+    },
+    {
+      "declaration": "marketplaceTransactions",
+      "tableName": "marketplace_transactions"
+    },
+    {
+      "declaration": "modelTrainingAuditLog",
+      "tableName": "model_training_audit_log"
+    },
+    {
+      "declaration": "modelTrainingQueue",
+      "tableName": "model_training_queue"
+    },
+    {
+      "declaration": "notifications",
+      "tableName": "notifications"
+    },
+    {
+      "declaration": "panelBeaterQuotes",
+      "tableName": "panel_beater_quotes"
+    },
+    {
+      "declaration": "panelBeaters",
+      "tableName": "panel_beaters"
+    },
+    {
+      "declaration": "policyClaimLinks",
+      "tableName": "policy_claim_links"
+    },
+    {
+      "declaration": "policyDocuments",
+      "tableName": "policy_documents"
+    },
+    {
+      "declaration": "policyEndorsements",
+      "tableName": "policy_endorsements"
+    },
+    {
+      "declaration": "quotationRequests",
+      "tableName": "quotation_requests"
+    },
+    {
+      "declaration": "rateLimitTracking",
+      "tableName": "rate_limit_tracking"
+    },
+    {
+      "declaration": "referenceDataset",
+      "tableName": "reference_dataset"
+    },
+    {
+      "declaration": "reportAccessAudit",
+      "tableName": "report_access_audit"
+    },
+    {
+      "declaration": "roleAssignmentAudit",
+      "tableName": "role_assignment_audit"
+    },
+    {
+      "declaration": "serviceQuotes",
+      "tableName": "service_quotes"
+    },
+    {
+      "declaration": "serviceRequests",
+      "tableName": "service_requests"
+    },
+    {
+      "declaration": "similarClaimsClusters",
+      "tableName": "similar_claims_clusters"
+    },
+    {
+      "declaration": "superAuditSessions",
+      "tableName": "super_audit_sessions"
+    },
+    {
+      "declaration": "trainingDataScores",
+      "tableName": "training_data_scores"
+    },
+    {
+      "declaration": "trainingDataset",
+      "tableName": "training_dataset"
+    },
+    {
+      "declaration": "usageEvents",
+      "tableName": "usage_events"
+    },
+    {
+      "declaration": "userInvitations",
+      "tableName": "user_invitations"
+    },
+    {
+      "declaration": "varianceDatasets",
+      "tableName": "variance_datasets"
+    },
+    {
+      "declaration": "workflowAuditTrail",
+      "tableName": "workflow_audit_trail"
+    },
+    {
+      "declaration": "workflowStates",
+      "tableName": "workflow_states"
+    },
+    {
+      "declaration": "insurerMarketplaceLinks",
+      "tableName": "insurer_marketplace_links"
+    },
+    {
+      "declaration": "agencyInsuranceServiceRequests",
+      "tableName": "agency_insurance_service_requests"
+    },
+    {
+      "declaration": "agencyInsuranceServiceRequestInsurers",
+      "tableName": "agency_insurance_service_request_insurers"
+    },
+    {
+      "declaration": "agencyInsuranceValuationDeviations",
+      "tableName": "agency_insurance_valuation_deviations"
+    },
+    {
+      "declaration": "agencyAssistedClaimantIdentities",
+      "tableName": "agency_assisted_claimant_identities"
+    },
+    {
+      "declaration": "insurerQuoteRequests",
+      "tableName": "insurer_quote_requests"
+    },
+    {
+      "declaration": "fleetRfqClientInstructions",
+      "tableName": "fleet_rfq_client_instructions"
+    },
+    {
+      "declaration": "fleetAccounts",
+      "tableName": "fleet_accounts"
+    },
+    {
+      "declaration": "fleetManagerRequests",
+      "tableName": "fleet_manager_requests"
+    },
+    {
+      "declaration": "insurerMarketplaceRelationships",
+      "tableName": "insurer_marketplace_relationships"
+    },
+    {
+      "declaration": "quoteOptimisationResults",
+      "tableName": "quote_optimisation_results"
+    },
+    {
+      "declaration": "repairCostIntelligence",
+      "tableName": "repair_cost_intelligence"
+    },
+    {
+      "declaration": "driverClaims",
+      "tableName": "driver_claims"
+    },
+    {
+      "declaration": "repairHistory",
+      "tableName": "repair_history"
+    },
+    {
+      "declaration": "crossClaimSignals",
+      "tableName": "cross_claim_signals"
+    },
+    {
+      "declaration": "benchmarkDeviations",
+      "tableName": "benchmark_deviations"
+    },
+    {
+      "declaration": "costLearningRecords",
+      "tableName": "cost_learning_records"
+    },
+    {
+      "declaration": "pipelineRuns",
+      "tableName": "pipeline_runs"
+    },
+    {
+      "declaration": "pipelineJobs",
+      "tableName": "pipeline_jobs"
+    },
+    {
+      "declaration": "assetRegistry",
+      "tableName": "asset_registry"
+    },
+    {
+      "declaration": "physicalMeasurements",
+      "tableName": "physical_measurements"
+    },
+    {
+      "declaration": "engineerObservations",
+      "tableName": "engineer_observations"
+    },
+    {
+      "declaration": "engineerProfiles",
+      "tableName": "engineer_profiles"
+    },
+    {
+      "declaration": "fleetIntelligenceSnapshots",
+      "tableName": "fleet_intelligence_snapshots"
+    },
+    {
+      "declaration": "predictiveRiskScores",
+      "tableName": "predictive_risk_scores"
+    },
+    {
+      "declaration": "notificationPreferences",
+      "tableName": "notification_preferences"
+    },
+    {
+      "declaration": "inspectionProjects",
+      "tableName": "inspection_projects"
+    },
+    {
+      "declaration": "quotationRequestDocuments",
+      "tableName": "quotation_request_documents"
+    }
+  ],
+  "status": "passed"
+}
