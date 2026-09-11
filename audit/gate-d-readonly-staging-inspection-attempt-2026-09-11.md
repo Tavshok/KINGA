@@ -64,6 +64,55 @@ The latest successful snapshot timestamp and the Backup-page display were not ex
 
 Gate D remains non-executing. The authorised inspection did not establish the recovery acceptance gate, and it did not authorize a migration account, staging DDL/DML, backup creation, restore rehearsal, production work, or Gate D execution.
 
+## Authorised restore-rehearsal preparation
+
+The owner subsequently approved a restore rehearsal using the latest available KINGA-staging snapshot, subject to the following recorded roles and boundaries:
+
+| Item | Recorded value |
+|---|---|
+| Approver | KINGA owner |
+| Operator | Manus AI, acting under the owner's explicit authority |
+| Source | `KINGA-staging` latest available snapshot only |
+| Proposed recovery target | `kinga-staging-restore-rehearsal-20260911` (new, separate, disposable non-production instance) |
+| Forbidden source actions | Any DDL/DML, migration, data change, backup configuration change, or restore action on `kinga_staging` |
+| Forbidden scope | Production and migration-account work |
+| Submission control | A final owner confirmation is required immediately before selecting **Restore** in the TiDB Cloud console. |
+
+Before submission, the exact backup timestamp, displayed restore option, target name, and target service/capacity setting must be captured from the Backup page. The target must be a newly created instance rather than `KINGA-staging` itself; any unexpected target name, in-place option, or data-change screen is a stop condition.
+
+## Latest snapshot evidence for the authorised rehearsal
+
+The owner supplied a TiDB Cloud **KINGA-staging → Data → Backup** console screenshot. The visible latest snapshot record is:
+
+| Field | Console value |
+|---|---|
+| Backup time | `2026-09-11 03:00:45 UTC+00:00` |
+| Status | Succeeded |
+| Expiry time | `2026-09-12 03:00:45 UTC+00:00` |
+| Available action | Restore |
+
+This is the source snapshot approved for the rehearsal. The restore form has not yet been opened or submitted. The next evidence gate is confirmation from the form that TiDB Cloud will create a new instance, with the exact target name and capacity settings visible before the final owner confirmation.
+
+## Restore-form boundary evidence
+
+The owner then opened the TiDB Cloud restore form without submission. The form confirms the following:
+
+| Form field | Visible value |
+|---|---|
+| Source Starter instance | `KINGA-staging` |
+| Restore mode | Snapshot Restore selected |
+| Point-in-Time Restore | Unavailable; form states it is available only for Essential |
+| Destination model | Restore to a New Starter Instance |
+| Provider | AWS |
+| Region | Frankfurt (`eu-central-1`) |
+| Target name | Not yet entered |
+| Backup snapshot selection | Not yet selected in the form |
+| Restore submission | Not performed |
+
+This confirms the current console flow does not present an in-place restore option. The operator instructed the owner to select the already evidenced `2026-09-11 03:00:45 UTC` snapshot and enter `kinga-staging-restore-rehearsal-20260911`. The final summary must show those exact values before the final submission confirmation is requested.
+
+The owner then selected the expected snapshot. The visible restore summary confirms `KINGA-staging`, **Snapshot Restore**, backup snapshot `2026-09-11 03:00:45 UTC+00:00`, AWS, Frankfurt (`eu-central-1`), and a `$0.00` monthly spending limit. The instance-name field remained blank and the summary displayed the name as `–`; this is a stop condition. No final confirmation has been requested and no restore was submitted until the exact disposable target name is shown.
+
 ## Reference
 
 [1] [TiDB Cloud Starter or Essential Backup and Restore](https://docs.pingcap.com/tidbcloud/backup-and-restore-serverless/) — automatic backup, retention, restore modes, destination, and limitations.
