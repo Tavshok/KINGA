@@ -765,6 +765,25 @@ export const claimComments = mysqlTable("claim_comments", {
 	blocksApproval: tinyint("blocks_approval").notNull().default(0),
 });
 
+/**
+ * Canonical read-receipt contract for claim comments. This declaration was moved
+ * verbatim from the retired supplementary schema so source SQL and runtime
+ * contracts share `drizzle/schema.ts`. Do not change claim_comments.claimId:
+ * the established live physical name is `claimId`, not `claim_id`.
+ */
+export const claimCommentReads = mysqlTable("claim_comment_reads", {
+	id: int("id").autoincrement().primaryKey(),
+	commentId: int("comment_id").notNull(),
+	userId: int("user_id").notNull(),
+	readAt: varchar("read_at", { length: 50 }).notNull(),
+}, (table) => [
+	index("idx_ccr_comment_id").on(table.commentId),
+	index("idx_ccr_user_id").on(table.userId),
+	uniqueIndex("uq_ccr_comment_user").on(table.commentId, table.userId),
+]);
+
+export type ClaimCommentReadRow = typeof claimCommentReads.$inferSelect;
+
 export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
 	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
@@ -3471,7 +3490,7 @@ export const tenantRoleConfigs = mysqlTable("tenant_role_configs", {
 });
 
 export const tenantWorkflowConfigs = mysqlTable("tenant_workflow_configs", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	requireExecutiveApprovalAbove: decimal("require_executive_approval_above", { precision: 10, scale: 2 }).default('50000.00'),
 	requireManagerApprovalAbove: decimal("require_manager_approval_above", { precision: 10, scale: 2 }).default('10000.00'),
@@ -3920,10 +3939,9 @@ export const workflowAuditTrail = mysqlTable("workflow_audit_trail", {
 },
 (table) => [
 	index("idx_workflow_audit_claim_state_time").on(table.claimId, table.newState, table.createdAt),
-	index("idx_workflow_audit_override").on(table.executiveOverride, table.createdAt),
-	index("idx_audit_claim_timestamp").on(table.claimId, table.createdAt),
-	index("").on(table.claimId, table.createdAt),
-]);
+		index("idx_workflow_audit_override").on(table.executiveOverride, table.createdAt),
+		index("idx_audit_claim_timestamp").on(table.claimId, table.createdAt),
+	]);
 
 export const workflowConfiguration = mysqlTable("workflow_configuration", {
 	id: int().autoincrement().notNull().primaryKey(),
