@@ -113,6 +113,14 @@ This confirms the current console flow does not present an in-place restore opti
 
 The owner then selected the expected snapshot. The visible restore summary confirms `KINGA-staging`, **Snapshot Restore**, backup snapshot `2026-09-11 03:00:45 UTC+00:00`, AWS, Frankfurt (`eu-central-1`), and a `$0.00` monthly spending limit. The instance-name field remained blank and the summary displayed the name as `–`; this is a stop condition. No final confirmation has been requested and no restore was submitted until the exact disposable target name is shown.
 
+The owner subsequently populated the exact target `kinga-staging-restore-rehearsal-20260911`. The summary confirmed that same name alongside the previously verified source snapshot, Snapshot Restore mode, AWS Frankfurt (`eu-central-1`) region, and $0.00 monthly limit. The owner then explicitly confirmed submission. The owner must submit through the separately authenticated TiDB Cloud console; this task has no access to that browser session. Completion, restored-instance state, and source-instance invariance remain pending console status evidence.
+
+## Submitted restore observation
+
+The owner supplied the first post-submission TiDB Cloud resource-list view. It confirms that a distinct resource named `kinga-staging-restore-rehearsal-20260911` exists with plan **Starter** and status **Restoring**. In the same view, `KINGA-staging` and `KINGA-production` remain separately listed and each shows **Active**. This is positive in-progress evidence that the console created a separate recovery target rather than restoring in place.
+
+The rehearsal is not yet complete. No SQL, DDL, DML, migration, import, or application test must be run against the restored target until its status is **Active** and a separate verification plan is approved.
+
 ## Reference
 
 [1] [TiDB Cloud Starter or Essential Backup and Restore](https://docs.pingcap.com/tidbcloud/backup-and-restore-serverless/) — automatic backup, retention, restore modes, destination, and limitations.
