@@ -1,0 +1,376 @@
+{
+  "purpose": "Gate B immutable scratch-only corrected replay overlay",
+  "historicalJournalSha256": "7d03953ea06b31b5a17a6b25ce5c10a32e1f5c16fd59ed3213f7dbd28755c2ed",
+  "files": [
+    {
+      "tag": "0000_green_skaar",
+      "sourceSha256": "814a08e40d7fc2bcfd458759d18319198ca8ae394f2fa15617a78678e9c9c93b",
+      "overlaySha256": "814a08e40d7fc2bcfd458759d18319198ca8ae394f2fa15617a78678e9c9c93b",
+      "changed": false
+    },
+    {
+      "tag": "0001_worried_spitfire",
+      "sourceSha256": "8b2e5d14e8ed3477ed88d1679cee416031a5fd984b14753e14991a9903c1ac94",
+      "overlaySha256": "8b2e5d14e8ed3477ed88d1679cee416031a5fd984b14753e14991a9903c1ac94",
+      "changed": false
+    },
+    {
+      "tag": "0002_lively_thundra",
+      "sourceSha256": "e3632c7a12d9946f03ec30b4d0e4ec9398730f1d57f71c3f038fc243817176d1",
+      "overlaySha256": "e3632c7a12d9946f03ec30b4d0e4ec9398730f1d57f71c3f038fc243817176d1",
+      "changed": false
+    },
+    {
+      "tag": "0003_sweet_namorita",
+      "sourceSha256": "e1d66bfebdc0eba7a15fc660fb3abdc064c75a9cea01ed0a9289729cd6e65468",
+      "overlaySha256": "e1d66bfebdc0eba7a15fc660fb3abdc064c75a9cea01ed0a9289729cd6e65468",
+      "changed": false
+    },
+    {
+      "tag": "0004_wooden_morbius",
+      "sourceSha256": "18b5e89e303b6ae458e55a5a5fa3429adba05bdd2ed4760b93aee47037d8cdc8",
+      "overlaySha256": "18b5e89e303b6ae458e55a5a5fa3429adba05bdd2ed4760b93aee47037d8cdc8",
+      "changed": false
+    },
+    {
+      "tag": "0005_windy_micromacro",
+      "sourceSha256": "28e453842ecf660b8167af6fe8d0fdeaa6a63070bbcbe6b9219094fb657d8e6f",
+      "overlaySha256": "28e453842ecf660b8167af6fe8d0fdeaa6a63070bbcbe6b9219094fb657d8e6f",
+      "changed": false
+    },
+    {
+      "tag": "0006_glorious_the_professor",
+      "sourceSha256": "142a691c8f1a47d43c04a40c9ba56653e5129b635f7cb8598b3ae1bffd9e8b5c",
+      "overlaySha256": "142a691c8f1a47d43c04a40c9ba56653e5129b635f7cb8598b3ae1bffd9e8b5c",
+      "changed": false
+    },
+    {
+      "tag": "0007_aromatic_franklin_richards",
+      "sourceSha256": "f8d73044cd7bbe7487044a34e284bb319ca26439642a3ce176dcbd82ef8dee3b",
+      "overlaySha256": "f8d73044cd7bbe7487044a34e284bb319ca26439642a3ce176dcbd82ef8dee3b",
+      "changed": false
+    },
+    {
+      "tag": "0008_married_kylun",
+      "sourceSha256": "b78db80b651df507598269ac74608721e4db5e636385dd03e94c3a9ec1f3ccd3",
+      "overlaySha256": "b78db80b651df507598269ac74608721e4db5e636385dd03e94c3a9ec1f3ccd3",
+      "changed": false
+    },
+    {
+      "tag": "0009_legal_captain_flint",
+      "sourceSha256": "18c1a5e381bf6e50ea898763cec85d8cefb4e8945d77a21e6f5a32d19de045b9",
+      "overlaySha256": "18c1a5e381bf6e50ea898763cec85d8cefb4e8945d77a21e6f5a32d19de045b9",
+      "changed": false
+    },
+    {
+      "tag": "0010_steady_gateway",
+      "sourceSha256": "4e8a06afd6608baf65641ad24579ec57750c7c9573becaee1e58d095a4d1611f",
+      "overlaySha256": "4e8a06afd6608baf65641ad24579ec57750c7c9573becaee1e58d095a4d1611f",
+      "changed": false
+    },
+    {
+      "tag": "0011_foamy_morg",
+      "sourceSha256": "6da4497bb79d03861d7bda55730721fee7a9468fc2a5234c647e2cb05d2db8e7",
+      "overlaySha256": "6da4497bb79d03861d7bda55730721fee7a9468fc2a5234c647e2cb05d2db8e7",
+      "changed": false
+    },
+    {
+      "tag": "0012_brainy_otto_octavius",
+      "sourceSha256": "7e9fa3bc6fdad1943d82510b1d8113c1d2a9daf0b62c5c3e9c6bec5560e70e92",
+      "overlaySha256": "7e9fa3bc6fdad1943d82510b1d8113c1d2a9daf0b62c5c3e9c6bec5560e70e92",
+      "changed": false
+    },
+    {
+      "tag": "0013_graceful_outlaw_kid",
+      "sourceSha256": "1205840eec7ff20786e28c21c13c04489b9178c9d2582e9f495b93acefbb1880",
+      "overlaySha256": "1205840eec7ff20786e28c21c13c04489b9178c9d2582e9f495b93acefbb1880",
+      "changed": false
+    },
+    {
+      "tag": "0014_shiny_living_tribunal",
+      "sourceSha256": "40213b147537a13c64e325b73c7efa7f7fb838f6cae6119415a7e4cd4411539e",
+      "overlaySha256": "40213b147537a13c64e325b73c7efa7f7fb838f6cae6119415a7e4cd4411539e",
+      "changed": false
+    },
+    {
+      "tag": "0015_square_the_twelve",
+      "sourceSha256": "fc7919e17139c393d689f099141d6ee29e892bcdc2024616c004914026e38725",
+      "overlaySha256": "fc7919e17139c393d689f099141d6ee29e892bcdc2024616c004914026e38725",
+      "changed": false
+    },
+    {
+      "tag": "0016_sudden_leper_queen",
+      "sourceSha256": "81f723cd2a0fb84606d780ecf77056a52173903b9d97500573aba061513d0354",
+      "overlaySha256": "81f723cd2a0fb84606d780ecf77056a52173903b9d97500573aba061513d0354",
+      "changed": false
+    },
+    {
+      "tag": "0017_cooing_midnight",
+      "sourceSha256": "edf1b7ace6302d925c6777328546c970e51ea823bc28a0c1d2253a2e2cd3eb40",
+      "overlaySha256": "edf1b7ace6302d925c6777328546c970e51ea823bc28a0c1d2253a2e2cd3eb40",
+      "changed": false
+    },
+    {
+      "tag": "0018_overrated_silver_surfer",
+      "sourceSha256": "5fab9a05454df57d7841d8904d02137678d44e0002a92cd7f732fc816a8d65bc",
+      "overlaySha256": "5fab9a05454df57d7841d8904d02137678d44e0002a92cd7f732fc816a8d65bc",
+      "changed": false
+    },
+    {
+      "tag": "0019_loud_manta",
+      "sourceSha256": "dee851f3159b93444611eaa61532418a560fad74289299228e92b21b81ff2e99",
+      "overlaySha256": "dee851f3159b93444611eaa61532418a560fad74289299228e92b21b81ff2e99",
+      "changed": false
+    },
+    {
+      "tag": "0020_natural_santa_claus",
+      "sourceSha256": "b60406f0b21f9d63d1e5c39b1e24760e5085e9b52a5357f1bdecf30686edec34",
+      "overlaySha256": "b60406f0b21f9d63d1e5c39b1e24760e5085e9b52a5357f1bdecf30686edec34",
+      "changed": false
+    },
+    {
+      "tag": "0021_unknown_viper",
+      "sourceSha256": "1fefb7773ac20827234cab026e79b8df645372cc9a5834c7dc1670c41f05200c",
+      "overlaySha256": "1fefb7773ac20827234cab026e79b8df645372cc9a5834c7dc1670c41f05200c",
+      "changed": false
+    },
+    {
+      "tag": "0022_condemned_mentallo",
+      "sourceSha256": "0b7d581eaf3503367e43a243d8a51e6b9c30ec3c7fe4f6a92d37e0e90ef94c8f",
+      "overlaySha256": "0b7d581eaf3503367e43a243d8a51e6b9c30ec3c7fe4f6a92d37e0e90ef94c8f",
+      "changed": false
+    },
+    {
+      "tag": "0023_chilly_whirlwind",
+      "sourceSha256": "cce771a017607f3836ca06e6f0749afe05ed162944686ab3a5b5b61d7171a1e2",
+      "overlaySha256": "cce771a017607f3836ca06e6f0749afe05ed162944686ab3a5b5b61d7171a1e2",
+      "changed": false
+    },
+    {
+      "tag": "0024_tiresome_white_tiger",
+      "sourceSha256": "305f413624e73f04e0e84096f18b0ebb71999512db377650d0228dfee156a5e8",
+      "overlaySha256": "305f413624e73f04e0e84096f18b0ebb71999512db377650d0228dfee156a5e8",
+      "changed": false
+    },
+    {
+      "tag": "0025_past_chimera",
+      "sourceSha256": "8cea56dab23965b94b84e4c087fec8650bc57b8a001a6c9d16675eabe9c9ede3",
+      "overlaySha256": "8cea56dab23965b94b84e4c087fec8650bc57b8a001a6c9d16675eabe9c9ede3",
+      "changed": false
+    },
+    {
+      "tag": "0026_outgoing_blacklash",
+      "sourceSha256": "a4e5c9c613bcd68b6f138f82f5e7743fb9c95cb5c1e091d9ac591009b6694e68",
+      "overlaySha256": "a4e5c9c613bcd68b6f138f82f5e7743fb9c95cb5c1e091d9ac591009b6694e68",
+      "changed": false
+    },
+    {
+      "tag": "0027_mute_wild_child",
+      "sourceSha256": "3edb42adbbe036b37e351fac1d670957622dd127ea585f204b6513482a4fcdec",
+      "overlaySha256": "3edb42adbbe036b37e351fac1d670957622dd127ea585f204b6513482a4fcdec",
+      "changed": false
+    },
+    {
+      "tag": "0028_flippant_thing",
+      "sourceSha256": "96df3af4ff24e5ec4595bf076ca09bd2ecb091a608225dfad48511effb36cfd0",
+      "overlaySha256": "96df3af4ff24e5ec4595bf076ca09bd2ecb091a608225dfad48511effb36cfd0",
+      "changed": false
+    },
+    {
+      "tag": "0029_bizarre_blonde_phantom",
+      "sourceSha256": "6d772451ef8a495ca033783bdc7fe9eafda55cc668b7b2e35a6e3ee2ee03a553",
+      "overlaySha256": "6d772451ef8a495ca033783bdc7fe9eafda55cc668b7b2e35a6e3ee2ee03a553",
+      "changed": false
+    },
+    {
+      "tag": "0030_married_ironclad",
+      "sourceSha256": "231b13f14b5ff20258a105fc857d15a19c2ae514aa75da5d1084bf2e426322bd",
+      "overlaySha256": "231b13f14b5ff20258a105fc857d15a19c2ae514aa75da5d1084bf2e426322bd",
+      "changed": false
+    },
+    {
+      "tag": "0031_secret_cerise",
+      "sourceSha256": "161b8dcae837fe2b48ab776cefcc1caf3bd80cd2691cb2b05ba10b21feb61078",
+      "overlaySha256": "161b8dcae837fe2b48ab776cefcc1caf3bd80cd2691cb2b05ba10b21feb61078",
+      "changed": false
+    },
+    {
+      "tag": "0032_slow_next_avengers",
+      "sourceSha256": "dda60c3471e6beeb4d4327b8963511102bcb71cca78ac8396a159dc705929de0",
+      "overlaySha256": "dda60c3471e6beeb4d4327b8963511102bcb71cca78ac8396a159dc705929de0",
+      "changed": false
+    },
+    {
+      "tag": "0033_dazzling_mongoose",
+      "sourceSha256": "a4d3880df50c3be02178ac6eb4a6b727a6e6b421d8106d718466e234f35090a1",
+      "overlaySha256": "a4d3880df50c3be02178ac6eb4a6b727a6e6b421d8106d718466e234f35090a1",
+      "changed": false
+    },
+    {
+      "tag": "0034_windy_changeling",
+      "sourceSha256": "f65f8c82a78fa5888965f40df75a73f4e0ab56c5df47db8878218b3ed06334d2",
+      "overlaySha256": "f65f8c82a78fa5888965f40df75a73f4e0ab56c5df47db8878218b3ed06334d2",
+      "changed": false
+    },
+    {
+      "tag": "0035_aspiring_energizer",
+      "sourceSha256": "e309d1545c5e89cec798fb6dd811db6317003fd41127889206f93b66b0677b45",
+      "overlaySha256": "e309d1545c5e89cec798fb6dd811db6317003fd41127889206f93b66b0677b45",
+      "changed": false
+    },
+    {
+      "tag": "0036_silent_puma",
+      "sourceSha256": "dab52d74d0e1337955d989321372e68d60240c7a022033bec70d74f9c1d3e840",
+      "overlaySha256": "dab52d74d0e1337955d989321372e68d60240c7a022033bec70d74f9c1d3e840",
+      "changed": false
+    },
+    {
+      "tag": "0037_modern_payback",
+      "sourceSha256": "89f48277e63824d19f7a8dca8bd6b51d6bbf05377a0e4c217a50175cc86531c7",
+      "overlaySha256": "89f48277e63824d19f7a8dca8bd6b51d6bbf05377a0e4c217a50175cc86531c7",
+      "changed": false
+    },
+    {
+      "tag": "0038_perfect_bloodstrike",
+      "sourceSha256": "cd26f0f82972cfce0253e28a16c07a8af708efcc7d8ada8b6f2c2219118d5700",
+      "overlaySha256": "cd26f0f82972cfce0253e28a16c07a8af708efcc7d8ada8b6f2c2219118d5700",
+      "changed": false
+    },
+    {
+      "tag": "0039_wild_reptil",
+      "sourceSha256": "cb7918baff023964a955ca85412c121f0123d322d9739694add003444c934517",
+      "overlaySha256": "cb7918baff023964a955ca85412c121f0123d322d9739694add003444c934517",
+      "changed": false
+    },
+    {
+      "tag": "0040_glamorous_giant_girl",
+      "sourceSha256": "05b17076460cd3a0f7d93f118f953a18a20ee636327893fede5048a104c31a21",
+      "overlaySha256": "05b17076460cd3a0f7d93f118f953a18a20ee636327893fede5048a104c31a21",
+      "changed": false
+    },
+    {
+      "tag": "0041_smooth_true_believers",
+      "sourceSha256": "e2411e50232037f27d04fbed549f8ca804e2ff90987350317fc2b1091b74287c",
+      "overlaySha256": "e2411e50232037f27d04fbed549f8ca804e2ff90987350317fc2b1091b74287c",
+      "changed": false
+    },
+    {
+      "tag": "0042_lying_bushwacker",
+      "sourceSha256": "2189eab0073af366d4d96823e0776310fc9451d50fbacf5defaf73ae03aa55b6",
+      "overlaySha256": "2189eab0073af366d4d96823e0776310fc9451d50fbacf5defaf73ae03aa55b6",
+      "changed": false
+    },
+    {
+      "tag": "0043_true_shriek",
+      "sourceSha256": "d4980bf3f645f4a789f085b463d471090d48b30e7285664ad05dfc8f1135af7e",
+      "overlaySha256": "d4980bf3f645f4a789f085b463d471090d48b30e7285664ad05dfc8f1135af7e",
+      "changed": false
+    },
+    {
+      "tag": "0044_last_thundra",
+      "sourceSha256": "a517b2b677b8339c51a7b7c12ecb9851d5fda96dde5483d910c0e93cd4b5c2ac",
+      "overlaySha256": "a517b2b677b8339c51a7b7c12ecb9851d5fda96dde5483d910c0e93cd4b5c2ac",
+      "changed": false
+    },
+    {
+      "tag": "0045_colossal_molecule_man",
+      "sourceSha256": "dfc6be805daec6b27c30b1f1be090410bb053007c9692667e6f2d6fce931d978",
+      "overlaySha256": "b4cbb349efd034f50d8f34ed49077743dc6205b06599102500c079b9f944d4cd",
+      "changed": true
+    },
+    {
+      "tag": "0046_many_lady_mastermind",
+      "sourceSha256": "87b20779d89869fb11a0f08a4a47eac061d38bebd5881d0c201d5aebcbbde0b2",
+      "overlaySha256": "87b20779d89869fb11a0f08a4a47eac061d38bebd5881d0c201d5aebcbbde0b2",
+      "changed": false
+    },
+    {
+      "tag": "0047_bored_gideon",
+      "sourceSha256": "9b9e4288775aabbe659e90a1d55c0e72b33ef4dd823e93b29ab7aa53127c43b3",
+      "overlaySha256": "9b9e4288775aabbe659e90a1d55c0e72b33ef4dd823e93b29ab7aa53127c43b3",
+      "changed": false
+    },
+    {
+      "tag": "0048_charming_rawhide_kid",
+      "sourceSha256": "110415e822af56d284963fe8789fd816aaf82a29894cb5434d2668f5bfa07aaa",
+      "overlaySha256": "110415e822af56d284963fe8789fd816aaf82a29894cb5434d2668f5bfa07aaa",
+      "changed": false
+    },
+    {
+      "tag": "0049_exotic_bullseye",
+      "sourceSha256": "cf7d1da0b0eafb439a9650ab61ba4c9e154cd7206d3d44f464b771b71dbdfd9e",
+      "overlaySha256": "cf7d1da0b0eafb439a9650ab61ba4c9e154cd7206d3d44f464b771b71dbdfd9e",
+      "changed": false
+    },
+    {
+      "tag": "0050_regular_nightmare",
+      "sourceSha256": "c3702a57040a540be9179a99e5e43ed8c9ab2db594272a1a7af268239c4fd88a",
+      "overlaySha256": "c3702a57040a540be9179a99e5e43ed8c9ab2db594272a1a7af268239c4fd88a",
+      "changed": false
+    },
+    {
+      "tag": "0051_little_lionheart",
+      "sourceSha256": "4bee9091a12bd3c98af5098a90d59534d814dca8bf2cdec5d97726cc200bf332",
+      "overlaySha256": "4bee9091a12bd3c98af5098a90d59534d814dca8bf2cdec5d97726cc200bf332",
+      "changed": false
+    },
+    {
+      "tag": "0052_smiling_baron_zemo",
+      "sourceSha256": "7bdee2a4d37218389b6babb023bd71c03148bcc8a515a107e375531cc0470377",
+      "overlaySha256": "7bdee2a4d37218389b6babb023bd71c03148bcc8a515a107e375531cc0470377",
+      "changed": false
+    },
+    {
+      "tag": "0053_mushy_lyja",
+      "sourceSha256": "00e6bec3a531ed21e246945bc3df9530494df4f4a88cc0035cb41debc8bec415",
+      "overlaySha256": "00e6bec3a531ed21e246945bc3df9530494df4f4a88cc0035cb41debc8bec415",
+      "changed": false
+    },
+    {
+      "tag": "0054_striped_forgotten_one",
+      "sourceSha256": "de3bce5dbe7993faae3f1db8dc2c412ba5bb0a7809953d378362803d22c02fa7",
+      "overlaySha256": "de3bce5dbe7993faae3f1db8dc2c412ba5bb0a7809953d378362803d22c02fa7",
+      "changed": false
+    },
+    {
+      "tag": "0055_illegal_carlie_cooper",
+      "sourceSha256": "5c0fb4ff805a1d79fd1c3a58ec6d3b09487ebff779efe372e1668e7670293b52",
+      "overlaySha256": "5c0fb4ff805a1d79fd1c3a58ec6d3b09487ebff779efe372e1668e7670293b52",
+      "changed": false
+    },
+    {
+      "tag": "0056_stage2_raw_ocr_text",
+      "sourceSha256": "22024666cfa76f9b8caed385f61d7dfb5e815de3b936deb12642387e8571336a",
+      "overlaySha256": "22024666cfa76f9b8caed385f61d7dfb5e815de3b936deb12642387e8571336a",
+      "changed": false
+    },
+    {
+      "tag": "0057_narrative_analysis_json",
+      "sourceSha256": "f17cef641a28fb3b58257148f173cad04c3e0be8bf5ce73b41ae435e9ae1283b",
+      "overlaySha256": "f17cef641a28fb3b58257148f173cad04c3e0be8bf5ce73b41ae435e9ae1283b",
+      "changed": false
+    },
+    {
+      "tag": "0058_claim_comments_extend",
+      "sourceSha256": "5df3047ebd48f263a9270475592c5e879e9a553bd986b8ff919aa3799d9101b7",
+      "overlaySha256": "b43d275780569968e5e99ff8dce0781f1cefcfa0fde5f23673b2b53d9ca11d9a",
+      "changed": true
+    },
+    {
+      "tag": "0059_kinga_ref_sequence",
+      "sourceSha256": "5e3cdab9ae775ae0198735318427c5421f10d758aff1c4a5047c1673e2ff4062",
+      "overlaySha256": "80bc5bfd5270b98364d9e510f5b02f876cc135041695a18a9c6555dfd9d8e93e",
+      "changed": true
+    },
+    {
+      "tag": "0060_role_assignment_audit_fleet_platform_enum",
+      "sourceSha256": "918a8b0d113528936ca235923d85886e7626560718c771cda4f3f22a43c6e099",
+      "overlaySha256": "58b271ac5646843564f4c2b5c5a70b4b86828e0bb799986ca7a8f70761666325",
+      "changed": true
+    }
+  ],
+  "excludedUnregisteredArtefacts": [
+    "rate-limit-tracking-schema.sql"
+  ],
+  "explanation": "The overlay preserves committed historical migration and journal bytes. It substitutes corrected copies only within the disposable scratch evidence directory."
+}

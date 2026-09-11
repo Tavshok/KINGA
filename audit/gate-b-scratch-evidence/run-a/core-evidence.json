@@ -1,0 +1,49 @@
+{
+  "requiredColumns": {
+    "ai_assessments": [
+      "stage2_raw_ocr_text",
+      "narrative_analysis_json"
+    ],
+    "claims": [
+      "kinga_ref"
+    ],
+    "claim_comments": [
+      "claim_id",
+      "author_user_id",
+      "author_role",
+      "body",
+      "to_roles",
+      "to_user_ids",
+      "to_emails",
+      "parent_comment_id",
+      "is_resolved",
+      "resolved_by_user_id",
+      "resolved_at",
+      "requires_response",
+      "response_deadline_at",
+      "email_sent"
+    ],
+    "governance_notifications": [
+      "tenant_id",
+      "recipients",
+      "read_at",
+      "created_at"
+    ],
+    "rate_limit_tracking": [
+      "user_id",
+      "tenant_id",
+      "action_type",
+      "window_start",
+      "action_count"
+    ]
+  },
+  "missingColumns": [],
+  "unexpectedRecipientsIndex": false,
+  "unexpectedLegacyClaimId": false,
+  "rateLimitIndexPresent": true,
+  "expectedJournalEntryCount": 61,
+  "actualJournalEntryCount": 61,
+  "missingJournalTimes": [],
+  "unexpectedJournalTimes": [],
+  "pass": true
+}

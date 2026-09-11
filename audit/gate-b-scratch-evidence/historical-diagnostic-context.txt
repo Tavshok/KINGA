@@ -1,0 +1,4 @@
+scratch_database=kinga_gateb_repro_20260910231354_177096
+database_url_host=127.0.0.1:3317
+staging_or_production_connection=false
+drizzle_migrate_exit=1
