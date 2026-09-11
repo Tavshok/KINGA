@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generatedAt": "2026-09-11T14:00:47.603Z",
+    "generatedAt": "2026-09-11T15:38:31.435Z",
     "sourceCommit": "resolved at execution time; see shell record",
     "scope": "Repository-only static analysis. No database/environment connection or command is used.",
     "counts": {
@@ -15,7 +15,7 @@
       "journalEntries": 57
     },
     "checksums": {
-      "drizzleSchemaTs": "a6316b3af5c3ea58e7955f404e682bc76332f82edf4bed6a47fd463dadd6a4df",
+      "drizzleSchemaTs": "5228a51338aff43b9fac65ae4ff5b1f90f9052aba3db04e2272ba5a4390fac0d",
       "drizzleJournal": "7d03953ea06b31b5a17a6b25ce5c10a32e1f5c16fd59ed3213f7dbd28755c2ed",
       "gateCRuntimeCandidateDispositions": "5ad689838482a56443240848159f9fa534cde6b405e3299acbbca68b58defc64"
     }
