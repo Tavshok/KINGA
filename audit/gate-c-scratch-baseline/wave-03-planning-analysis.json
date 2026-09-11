@@ -1,0 +1,546 @@
+{
+  "scope": "Planning analysis only. No SQL generation, database connection, DDL, or source mutation.",
+  "wave": 3,
+  "title": "Assessment, evidence and reporting",
+  "tableCount": 50,
+  "dependenciesOutsideWave3": [
+    "claim_assignments",
+    "claims",
+    "users"
+  ],
+  "tablesWithPrimaryKeyAddedByGlobalSafePass": [
+    "country_repair_index",
+    "currency_exchange_rates",
+    "extracted_document_data",
+    "fraud_rules",
+    "police_reports",
+    "pre_accident_damage",
+    "quote_line_items",
+    "supplier_quote_line_items",
+    "supplier_quotes"
+  ],
+  "tablesStillHeldForPrimaryKeyContract": [
+    {
+      "table": "agency_documents",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "ai_assessments",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "ai_prediction_logs",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "assessor_report_attachments",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "assessor_report_reviews",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "assessor_reports",
+      "reason": "two_or_more_identifier_like_reference_columns+configured_unique_identity_constraint_outside_id"
+    },
+    {
+      "table": "automation_policies",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "claim_confidence_scores",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "claim_routing_decisions",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "cost_components",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "cost_learning_records",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "customer_documents",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "extracted_repair_items",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "fleet_documents",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "fleet_incident_reports",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "fraud_alerts",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "fraud_indicators",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "ingestion_documents",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "insurer_marketplace_links",
+      "reason": "two_or_more_identifier_like_reference_columns+configured_unique_identity_constraint_outside_id"
+    },
+    {
+      "table": "insurer_marketplace_relationships",
+      "reason": "two_or_more_identifier_like_reference_columns+configured_unique_identity_constraint_outside_id"
+    },
+    {
+      "table": "insurer_quote_requests",
+      "reason": "two_or_more_identifier_like_reference_columns+configured_unique_identity_constraint_outside_id"
+    },
+    {
+      "table": "panel_beater_quotes",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "policy_documents",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "quotation_request_documents",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "quote_optimisation_results",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "repair_cost_intelligence",
+      "reason": "configured_unique_identity_constraint_outside_id"
+    },
+    {
+      "table": "repair_history",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "report_access_audit",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    },
+    {
+      "table": "service_quotes",
+      "reason": "two_or_more_identifier_like_reference_columns"
+    }
+  ],
+  "verifiedCandidatesInWave3": [
+    {
+      "table": "adjuster_sign_offs",
+      "candidateStatus": "verified_current_path"
+    },
+    {
+      "table": "currency_exchange_rates",
+      "candidateStatus": "verified_current_path"
+    }
+  ],
+  "tables": [
+    {
+      "table": "adjuster_sign_offs",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "verified_gate_c_current_runtime_path",
+      "candidateStatus": "verified_current_path"
+    },
+    {
+      "table": "agency_documents",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "ai_assessments",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "gate_b_immutable_replay_proven",
+      "candidateStatus": null
+    },
+    {
+      "table": "ai_prediction_logs",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "assessor_report_attachments",
+      "dependencies": [
+        "assessor_reports"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "assessor_report_reviews",
+      "dependencies": [
+        "assessor_reports",
+        "claims",
+        "users"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "assessor_reports",
+      "dependencies": [
+        "claim_assignments",
+        "claims",
+        "users"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns+configured_unique_identity_constraint_outside_id",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "automation_policies",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "claim_confidence_scores",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "claim_decision_lifecycle",
+      "dependencies": [],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "claim_routing_decisions",
+      "dependencies": [
+        "automation_policies",
+        "claim_confidence_scores",
+        "claims"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "component_repair_outcomes",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "cost_components",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "cost_learning_records",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "country_repair_index",
+      "dependencies": [],
+      "sourceKeyStatus": "primary_key_added_by_global_safe_pass",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "currency_exchange_rates",
+      "dependencies": [],
+      "sourceKeyStatus": "primary_key_added_by_global_safe_pass",
+      "selectionReason": "verified_gate_c_current_runtime_path",
+      "candidateStatus": "verified_current_path"
+    },
+    {
+      "table": "customer_documents",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "decision_snapshots",
+      "dependencies": [],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "document_naming_templates",
+      "dependencies": [],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "extracted_document_data",
+      "dependencies": [],
+      "sourceKeyStatus": "primary_key_added_by_global_safe_pass",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "extracted_repair_items",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "fleet_documents",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "fleet_incident_reports",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "fraud_alerts",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "fraud_indicators",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "fraud_rules",
+      "dependencies": [],
+      "sourceKeyStatus": "primary_key_added_by_global_safe_pass",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "generated_reports",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "ingestion_documents",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "insurer_marketplace_links",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns+configured_unique_identity_constraint_outside_id",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "insurer_marketplace_relationships",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns+configured_unique_identity_constraint_outside_id",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "insurer_quote_requests",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns+configured_unique_identity_constraint_outside_id",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "marketplace_profiles",
+      "dependencies": [],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "panel_beater_quotes",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "pdf_reports",
+      "dependencies": [],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "physics_validation_records",
+      "dependencies": [],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "police_reports",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "primary_key_added_by_global_safe_pass",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "policy_documents",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "pre_accident_damage",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "primary_key_added_by_global_safe_pass",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "quotation_request_documents",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "quote_line_items",
+      "dependencies": [],
+      "sourceKeyStatus": "primary_key_added_by_global_safe_pass",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "quote_optimisation_results",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "repair_cost_intelligence",
+      "dependencies": [],
+      "sourceKeyStatus": "held:configured_unique_identity_constraint_outside_id",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "repair_history",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "report_access_audit",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "report_links",
+      "dependencies": [],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "report_snapshots",
+      "dependencies": [
+        "claims"
+      ],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "service_quotes",
+      "dependencies": [],
+      "sourceKeyStatus": "held:two_or_more_identifier_like_reference_columns",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "supplier_quote_line_items",
+      "dependencies": [],
+      "sourceKeyStatus": "primary_key_added_by_global_safe_pass",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "supplier_quotes",
+      "dependencies": [],
+      "sourceKeyStatus": "primary_key_added_by_global_safe_pass",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    },
+    {
+      "table": "valuation_comparable_evidence",
+      "dependencies": [],
+      "sourceKeyStatus": "not_in_global_gap_inventory",
+      "selectionReason": "direct_non_test_schema_import_evidence",
+      "candidateStatus": null
+    }
+  ]
+}

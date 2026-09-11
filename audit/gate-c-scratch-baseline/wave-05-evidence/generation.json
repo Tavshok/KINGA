@@ -1,0 +1,216 @@
+{
+  "scope": "Source-derived Wave 5 scratch SQL selection only. No database connection, DDL execution, staging, production, migration account, or live-data operation occurred.",
+  "sourceSqlSha256": "8aad7291c96684e0f2cbf93a8286741308c4100b32c94a5508d5ddf5dd8f1bac",
+  "outputSqlSha256": "f552c1df891de5816d05d43cdf777d315c7d7a829cf27bede0debd5224f6ad24",
+  "tableCount": 75,
+  "tableNames": [
+    "access_denial_log",
+    "anonymization_audit_log",
+    "appointments",
+    "assessor_deviation_metrics",
+    "assessor_evaluations",
+    "assessor_insurer_relationships",
+    "assessor_subscriptions",
+    "assessors",
+    "asset_registry",
+    "audit_trail",
+    "automation_audit_log",
+    "bias_detection_flags",
+    "calibration_overrides",
+    "claim_approvals",
+    "claim_events",
+    "claim_intake_requests",
+    "claim_intelligence_dataset",
+    "claim_involvement_tracking",
+    "claim_review_queue",
+    "commission_records",
+    "component_benchmarks",
+    "cross_claim_signals",
+    "customer_consent",
+    "dataset_access_grants",
+    "driver_claims",
+    "fast_track_config",
+    "fast_track_routing_log",
+    "federated_learning_metadata",
+    "final_approval_records",
+    "fuel_records",
+    "global_anonymized_dataset",
+    "global_search_analytics",
+    "global_search_history",
+    "historical_claims",
+    "historical_replay_results",
+    "human_review_queue",
+    "ingestion_batches",
+    "insurer_tenants",
+    "iso_audit_logs",
+    "licensing_records",
+    "maintenance_alerts",
+    "maintenance_records",
+    "maintenance_schedules",
+    "mismatch_annotations",
+    "model_training_queue",
+    "multi_reference_truth",
+    "narrative_versions",
+    "parts_pricing_baseline",
+    "personal_vehicles",
+    "physical_measurements",
+    "pipeline_jobs",
+    "pipeline_runs",
+    "policy_claim_links",
+    "policy_endorsements",
+    "predictive_risk_scores",
+    "quotation_requests",
+    "replay_logs",
+    "risk_register",
+    "role_assignment_audit",
+    "routing_history",
+    "routing_threshold_config",
+    "service_providers",
+    "shadow_override_monitor",
+    "similar_claims_clusters",
+    "super_audit_sessions",
+    "supplier_performance_metrics",
+    "system_errors",
+    "tenant_isolation_violations",
+    "tenant_role_configs",
+    "third_party_vehicles",
+    "training_data_scores",
+    "training_dataset",
+    "usage_events",
+    "variance_datasets",
+    "weight_adjustment_log"
+  ],
+  "indexStatementCount": 190,
+  "inlineUniqueConstraintCount": 7,
+  "totalSourceDeclaredIndexAndUniqueConstraintCount": 197,
+  "foreignKeyCount": 25,
+  "foreignKeys": [
+    {
+      "source": "appointments",
+      "name": "appointments_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "assessor_evaluations",
+      "name": "assessor_evaluations_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "assessor_evaluations",
+      "name": "assessor_evaluations_source_report_id_assessor_reports_id_fk",
+      "target": "assessor_reports"
+    },
+    {
+      "source": "assessor_evaluations",
+      "name": "fk_ae_accepted_review",
+      "target": "assessor_report_reviews"
+    },
+    {
+      "source": "audit_trail",
+      "name": "audit_trail_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "automation_audit_log",
+      "name": "automation_audit_log_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "automation_audit_log",
+      "name": "fk_aal_confidence_score",
+      "target": "claim_confidence_scores"
+    },
+    {
+      "source": "automation_audit_log",
+      "name": "fk_aal_routing_decision",
+      "target": "claim_routing_decisions"
+    },
+    {
+      "source": "automation_audit_log",
+      "name": "fk_aal_automation_policy",
+      "target": "automation_policies"
+    },
+    {
+      "source": "claim_approvals",
+      "name": "claim_approvals_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "claim_events",
+      "name": "claim_events_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "claim_intake_requests",
+      "name": "claim_intake_requests_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "claim_intelligence_dataset",
+      "name": "claim_intelligence_dataset_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "claim_involvement_tracking",
+      "name": "claim_involvement_tracking_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "cross_claim_signals",
+      "name": "cross_claim_signals_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "driver_claims",
+      "name": "driver_claims_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "fast_track_routing_log",
+      "name": "fast_track_routing_log_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "mismatch_annotations",
+      "name": "mismatch_annotations_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "model_training_queue",
+      "name": "model_training_queue_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "narrative_versions",
+      "name": "narrative_versions_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "policy_claim_links",
+      "name": "policy_claim_links_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "risk_register",
+      "name": "risk_register_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "routing_history",
+      "name": "routing_history_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "third_party_vehicles",
+      "name": "third_party_vehicles_claim_id_claims_id_fk",
+      "target": "claims"
+    },
+    {
+      "source": "usage_events",
+      "name": "usage_events_claim_id_claims_id_fk",
+      "target": "claims"
+    }
+  ],
+  "statementCount": 290,
+  "status": "passed"
+}

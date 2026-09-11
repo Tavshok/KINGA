@@ -1,0 +1,8 @@
+{
+  "scope": "repository-only AST-verified quoted CURRENT_TIMESTAMP default inventory",
+  "source": "drizzle/schema.ts",
+  "total": 0,
+  "waveOneCount": 0,
+  "outsideWaveOneCount": 0,
+  "occurrences": []
+}

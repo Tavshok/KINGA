@@ -1,4 +1,4 @@
-import { mysqlTable, mysqlSchema, AnyMySqlColumn, int, varchar, text, timestamp, mysqlEnum, index, uniqueIndex, decimal, json, date, foreignKey, double, time, longtext, tinyint, bigint } from "drizzle-orm/mysql-core"
+import { mysqlTable, mysqlSchema, AnyMySqlColumn, int, varchar, text, timestamp, mysqlEnum, index, uniqueIndex, decimal, json, date, foreignKey, double, time, longtext, tinyint, bigint, primaryKey } from "drizzle-orm/mysql-core"
 import { sql } from "drizzle-orm"
 
 export const accessDenialLog = mysqlTable("access_denial_log", {
@@ -11,11 +11,11 @@ export const accessDenialLog = mysqlTable("access_denial_log", {
 	denialReason: text("denial_reason"),
 	ipAddress: varchar("ip_address", { length: 45 }),
 	userAgent: text("user_agent"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const reportProvenanceSnapshots = mysqlTable("report_provenance_snapshots", {
-	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull().primaryKey(),
 	jobId: varchar("job_id", { length: 64 }).notNull(),
 	reportKey: varchar("report_key", { length: 100 }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
@@ -36,7 +36,7 @@ export const reportProvenanceSnapshots = mysqlTable("report_provenance_snapshots
  * reference any material claim evidence while retaining tenant isolation.
  */
 export const claimEvidenceFindings = mysqlTable("claim_evidence_findings", {
-	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	claimId: int("claim_id").notNull(),
 	assessmentId: int("assessment_id"),
@@ -61,7 +61,7 @@ export const claimEvidenceFindings = mysqlTable("claim_evidence_findings", {
 	evidenceJson: json("evidence_json"),
 	reviewedByUserId: int("reviewed_by_user_id"),
 	reviewedAt: timestamp("reviewed_at", { mode: "string" }),
-	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+	createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
 	index("claim_evidence_findings_tenant_claim_idx").on(table.tenantId, table.claimId),
 	index("claim_evidence_findings_quote_idx").on(table.quoteId, table.quoteLineItemId),
@@ -74,7 +74,7 @@ export const claimEvidenceFindings = mysqlTable("claim_evidence_findings", {
  * normalised quote-line representation used by legacy calculations.
  */
 export const quoteEvidenceLedger = mysqlTable("quote_evidence_ledger", {
-	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	claimId: int("claim_id").notNull(),
 	quoteId: int("quote_id"),
@@ -96,7 +96,7 @@ export const quoteEvidenceLedger = mysqlTable("quote_evidence_ledger", {
 	extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }),
 	evidenceStatus: mysqlEnum("evidence_status", ["verified", "reconstructed", "documented_revision", "scope_difference", "extraction_defect", "evidence_gap", "pricing_variance_review_signal", "unresolved"]).notNull(),
 	verificationNote: text("verification_note"),
-	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+	createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
 	index("quote_evidence_ledger_tenant_claim_idx").on(table.tenantId, table.claimId),
 	index("quote_evidence_ledger_quote_idx").on(table.quoteId, table.quoteLineItemId),
@@ -110,7 +110,7 @@ export const quoteEvidenceLedger = mysqlTable("quote_evidence_ledger", {
  * arithmetic constraints remain independently traceable.
  */
 export const quoteEvidenceGaps = mysqlTable("quote_evidence_gaps", {
-	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull(),
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	claimId: int("claim_id").notNull(),
 	quoteId: int("quote_id"),
@@ -135,7 +135,7 @@ export const quoteEvidenceGaps = mysqlTable("quote_evidence_gaps", {
 	reviewFieldsJson: json("review_fields_json"),
 	reviewedByUserId: int("reviewed_by_user_id"),
 	reviewedAt: timestamp("reviewed_at", { mode: "string" }),
-	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+	createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
 	index("quote_evidence_gaps_tenant_claim_idx").on(table.tenantId, table.claimId),
 	index("quote_evidence_gaps_quote_idx").on(table.quoteId, table.quoteLineItemId),
@@ -144,7 +144,7 @@ export const quoteEvidenceGaps = mysqlTable("quote_evidence_gaps", {
 ]);
 
 export const agencyDocuments = mysqlTable("agency_documents", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	quotationRequestId: int("quotation_request_id"),
 	policyId: int("policy_id"),
@@ -155,11 +155,11 @@ export const agencyDocuments = mysqlTable("agency_documents", {
 	fileSize: int("file_size"),
 	mimeType: varchar("mime_type", { length: 100 }),
 	uploadedBy: int("uploaded_by").notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const aiAssessments = mysqlTable("ai_assessments", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	estimatedCost: int("estimated_cost"),
 	damageDescription: longtext("damage_description"),
@@ -177,7 +177,7 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 	fraudScoreBreakdownJson: longtext("fraud_score_breakdown_json"),
 	modelVersion: varchar("model_version", { length: 50 }),
 	processingTime: int("processing_time"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	totalLossIndicated: tinyint("total_loss_indicated").default(0),
 	structuralDamageSeverity: mysqlEnum("structural_damage_severity", ['none','minor','moderate','severe','catastrophic']).default('none'),
@@ -395,7 +395,7 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 ]);
 
 export const aiPredictionLogs = mysqlTable("ai_prediction_logs", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	predictionType: mysqlEnum("prediction_type", ['cost_estimate','fraud_detection','document_classification','damage_assessment','repair_vs_replace','total_loss_determination','physics_validation']).notNull(),
@@ -417,7 +417,7 @@ export const aiPredictionLogs = mysqlTable("ai_prediction_logs", {
 	totalCost: decimal("total_cost", { precision: 10, scale: 6 }),
 	errorOccurred: tinyint("error_occurred").default(0),
 	errorMessage: text("error_message"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_apl_claim").on(table.historicalClaimId),
@@ -425,7 +425,7 @@ export const aiPredictionLogs = mysqlTable("ai_prediction_logs", {
 ]);
 
 export const anonymizationAuditLog = mysqlTable("anonymization_audit_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	sourceRecordId: int("source_record_id").notNull(),
 	anonymousRecordId: varchar("anonymous_record_id", { length: 36 }),
 	status: mysqlEnum(['success','withheld_k_anonymity','withheld_pii_detected','withheld_tenant_opt_out']).notNull(),
@@ -433,7 +433,7 @@ export const anonymizationAuditLog = mysqlTable("anonymization_audit_log", {
 	groupSize: int("group_size"),
 	transformationsApplied: json("transformations_applied"),
 	anonymizedByUserId: int("anonymized_by_user_id"),
-	anonymizedAt: timestamp("anonymized_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	anonymizedAt: timestamp("anonymized_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_aal_source_record").on(table.sourceRecordId),
@@ -442,7 +442,7 @@ export const anonymizationAuditLog = mysqlTable("anonymization_audit_log", {
 ]);
 
 export const appointments = mysqlTable("appointments", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	assessorId: int("assessor_id").notNull(),
 	appointmentType: mysqlEnum("appointment_type", ['claimant_inspection','panel_beater_inspection']).notNull(),
@@ -452,13 +452,13 @@ export const appointments = mysqlTable("appointments", {
 	location: text(),
 	notes: text(),
 	status: mysqlEnum(['scheduled','confirmed','completed','cancelled']).default('scheduled').notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),
 });
 
 export const approvalWorkflow = mysqlTable("approval_workflow", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	level: mysqlEnum(['assessor','risk_surveyor','risk_manager']).notNull(),
 	levelOrder: int("level_order").notNull(),
@@ -477,12 +477,12 @@ export const approvalWorkflow = mysqlTable("approval_workflow", {
 	approvalDate: timestamp("approval_date", { mode: 'string' }),
 	isEscalated: tinyint("is_escalated").default(0),
 	escalationReason: text("escalation_reason"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const assessorDeviationMetrics = mysqlTable("assessor_deviation_metrics", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	assessorId: int("assessor_id"),
 	assessorName: varchar("assessor_name", { length: 255 }),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
@@ -501,17 +501,17 @@ export const assessorDeviationMetrics = mysqlTable("assessor_deviation_metrics",
 	panelBeaterId: int("panel_beater_id"),
 	dataQualityScore: int("data_quality_score"),
 	sampleSize: int("sample_size"),
-	calculatedAt: timestamp("calculated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	calculatedAt: timestamp("calculated_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const assessorEvaluations = mysqlTable("assessor_evaluations", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	assessorId: int("assessor_id").notNull(),
 	inspectionDate: timestamp("inspection_date", { mode: 'string' }),
 	inspectionPhotos: text("inspection_photos"),
 	status: mysqlEnum(['pending','in_progress','completed','submitted']).default('pending').notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	estimatedRepairCost: int("estimated_repair_cost"),
 	laborCost: int("labor_cost"),
@@ -533,7 +533,7 @@ export const assessorEvaluations = mysqlTable("assessor_evaluations", {
 ]);
 
 export const assessorInsurerRelationships = mysqlTable("assessor_insurer_relationships", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	assessorId: int("assessor_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	relationshipType: mysqlEnum("relationship_type", ['insurer_owned','marketplace_contract','preferred_vendor']).notNull(),
@@ -548,7 +548,7 @@ export const assessorInsurerRelationships = mysqlTable("assessor_insurer_relatio
 	averageCompletionTimeHours: decimal("average_completion_time_hours", { precision: 8, scale: 2 }),
 	isPreferredVendor: tinyint("is_preferred_vendor").default(0),
 	preferredVendorSince: timestamp("preferred_vendor_since", { mode: 'string' }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -560,7 +560,7 @@ export const assessorInsurerRelationships = mysqlTable("assessor_insurer_relatio
 ]);
 
 export const assessorMarketplaceReviews = mysqlTable("assessor_marketplace_reviews", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	assessorId: int("assessor_id").notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
@@ -572,7 +572,7 @@ export const assessorMarketplaceReviews = mysqlTable("assessor_marketplace_revie
 	communicationRating: int("communication_rating"),
 	reviewText: text("review_text"),
 	wouldHireAgain: tinyint("would_hire_again"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -583,7 +583,7 @@ export const assessorMarketplaceReviews = mysqlTable("assessor_marketplace_revie
 ]);
 
 export const assessors = mysqlTable("assessors", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	userId: int("user_id").notNull(),
 	professionalLicenseNumber: varchar("professional_license_number", { length: 100 }).notNull(),
 	licenseExpiryDate: timestamp("license_expiry_date", { mode: 'string' }).notNull(),
@@ -615,7 +615,7 @@ export const assessors = mysqlTable("assessors", {
 	backgroundCheckDate: timestamp("background_check_date", { mode: 'string' }),
 	insuranceVerified: tinyint("insurance_verified").default(0),
 	insuranceExpiryDate: timestamp("insurance_expiry_date", { mode: 'string' }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -640,12 +640,12 @@ export const auditLogs = mysqlTable("audit_logs", {
 	afterState: text("after_state"),
 	ipAddress: varchar("ip_address", { length: 45 }),
 	sessionId: varchar("session_id", { length: 64 }),
-	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	timestamp: timestamp({ mode: 'string' }).defaultNow().notNull(),
 	integrityHash: varchar("integrity_hash", { length: 64 }).notNull(),
 });
 
 export const auditTrail = mysqlTable("audit_trail", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
 	userId: int("user_id").notNull(),
 	action: varchar({ length: 100 }).notNull(),
@@ -656,7 +656,7 @@ export const auditTrail = mysqlTable("audit_trail", {
 	changeDescription: text("change_description"),
 	ipAddress: varchar("ip_address", { length: 45 }),
 	userAgent: text("user_agent"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_audit_claim_id").on(table.claimId),
@@ -665,7 +665,7 @@ export const auditTrail = mysqlTable("audit_trail", {
 ]);
 
 export const automationAuditLog = mysqlTable("automation_audit_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	confidenceScoreId: int("confidence_score_id").notNull().references(() => claimConfidenceScores.id),
@@ -685,7 +685,7 @@ export const automationAuditLog = mysqlTable("automation_audit_log", {
 	wasOverridden: tinyint("was_overridden").default(0).notNull(),
 	overrideReason: text("override_reason"),
 	overriddenByUserId: int("overridden_by_user_id"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 },
 (table) => [
 	index("idx_claim_id").on(table.claimId),
@@ -697,7 +697,7 @@ export const automationAuditLog = mysqlTable("automation_audit_log", {
 ]);
 
 export const automationPolicies = mysqlTable("automation_policies", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	policyName: varchar("policy_name", { length: 255 }).notNull(),
 	minAutomationConfidence: int("min_automation_confidence").default(85).notNull(),
@@ -713,12 +713,12 @@ export const automationPolicies = mysqlTable("automation_policies", {
 	maxVehicleAge: int("max_vehicle_age").default(15).notNull(),
 	requireManagerApprovalAbove: bigint("require_manager_approval_above", { mode: "number" }).default(10000000).notNull(),
 	allowPolicyOverride: tinyint("allow_policy_override").default(1).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow(),
 	createdByUserId: int("created_by_user_id"),
 	isActive: tinyint("is_active").default(1).notNull(),
 	version: int().default(1).notNull(),
-	effectiveFrom: timestamp("effective_from", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	effectiveFrom: timestamp("effective_from", { mode: 'string' }).defaultNow().notNull(),
 	effectiveUntil: timestamp("effective_until", { mode: 'string' }),
 	supersededByPolicyId: int("superseded_by_policy_id"),
 	fraudSensitivityMultiplier: decimal("fraud_sensitivity_multiplier", { precision: 3, scale: 2 }).default('1.00').notNull(),
@@ -730,7 +730,10 @@ export const automationPolicies = mysqlTable("automation_policies", {
 ]);
 
 export const claimComments = mysqlTable("claim_comments", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
+	// Gate C decision: `claimId` is the established live physical contract. Do not
+	// normalise it to `claim_id` in a fresh baseline or compatibility migration
+	// without an explicitly approved data-cutover plan.
 	claimId: int("claimId").notNull().references(() => claims.id),
 	userId: int("author_user_id").notNull().references(() => users.id),
 	userRole: varchar("author_role", { length: 50 }).notNull(),
@@ -762,8 +765,27 @@ export const claimComments = mysqlTable("claim_comments", {
 	blocksApproval: tinyint("blocks_approval").notNull().default(0),
 });
 
+/**
+ * Canonical read-receipt contract for claim comments. This declaration was moved
+ * verbatim from the retired supplementary schema so source SQL and runtime
+ * contracts share `drizzle/schema.ts`. Do not change claim_comments.claimId:
+ * the established live physical name is `claimId`, not `claim_id`.
+ */
+export const claimCommentReads = mysqlTable("claim_comment_reads", {
+	id: int("id").autoincrement().primaryKey(),
+	commentId: int("comment_id").notNull(),
+	userId: int("user_id").notNull(),
+	readAt: varchar("read_at", { length: 50 }).notNull(),
+}, (table) => [
+	index("idx_ccr_comment_id").on(table.commentId),
+	index("idx_ccr_user_id").on(table.userId),
+	uniqueIndex("uq_ccr_comment_user").on(table.commentId, table.userId),
+]);
+
+export type ClaimCommentReadRow = typeof claimCommentReads.$inferSelect;
+
 export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	damageCertainty: decimal("damage_certainty", { precision: 5, scale: 2 }).notNull(),
@@ -774,7 +796,7 @@ export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
 	vehicleRiskIntelligence: decimal("vehicle_risk_intelligence", { precision: 5, scale: 2 }).notNull(),
 	compositeConfidenceScore: decimal("composite_confidence_score", { precision: 5, scale: 2 }).notNull(),
 	scoringVersion: varchar("scoring_version", { length: 50 }).default('v1.0').notNull(),
-	scoringTimestamp: timestamp("scoring_timestamp", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	scoringTimestamp: timestamp("scoring_timestamp", { mode: 'string' }).defaultNow(),
 	damageCertaintyBreakdown: json("damage_certainty_breakdown"),
 	physicsValidationDetails: json("physics_validation_details"),
 	fraudAnalysisDetails: json("fraud_analysis_details"),
@@ -791,7 +813,7 @@ export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
 
 /** Durable idempotency and recovery state for canonical claimant intake. */
 export const claimIntakeRequests = mysqlTable("claim_intake_requests", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	userId: int("user_id").notNull(),
 	idempotencyKey: varchar("idempotency_key", { length: 64 }).notNull(),
@@ -799,7 +821,7 @@ export const claimIntakeRequests = mysqlTable("claim_intake_requests", {
 	channel: varchar("channel", { length: 50 }).notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: "set null", onUpdate: "cascade" }),
 	status: varchar("status", { length: 50 }).notNull().default("persisted"),
-	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+	createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
 	uniqueIndex("uq_claim_intake_request_actor").on(table.tenantId, table.userId, table.idempotencyKey),
@@ -808,7 +830,7 @@ export const claimIntakeRequests = mysqlTable("claim_intake_requests", {
 ]);
 
 export const claimDocuments = mysqlTable("claim_documents", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	uploadedBy: int("uploaded_by").notNull(),
 	fileName: varchar("file_name", { length: 255 }).notNull(),
@@ -824,7 +846,7 @@ export const claimDocuments = mysqlTable("claim_documents", {
 	 *  captured as evidence during an inspection workflow. Nullable FK so that
 	 *  documents uploaded outside an inspection context are unaffected. */
 	inspectionId: int("inspection_id").references(() => inspections.id, { onDelete: 'set null', onUpdate: 'cascade' }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -835,14 +857,14 @@ export const claimDocuments = mysqlTable("claim_documents", {
 ]);
 
 export const claimEvents = mysqlTable("claim_events", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	eventType: varchar("event_type", { length: 100 }).notNull(),
 	eventPayload: json("event_payload"),
 	userId: int("user_id"),
 	userRole: varchar("user_role", { length: 50 }),
 	tenantId: varchar("tenant_id", { length: 255 }),
-	emittedAt: timestamp("emitted_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	emittedAt: timestamp("emitted_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
   index("idx_ce_claim_id").on(table.claimId),
@@ -855,7 +877,7 @@ export const claimEvents = mysqlTable("claim_events", {
  * only: an email notification can never create or alter an assignment.
  */
 export const claimAssignments = mysqlTable("claim_assignments", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }).notNull(),
   assignmentRole: mysqlEnum("assignment_role", ["assessor", "claims_assessor", "claims_manager"]).notNull(),
@@ -869,12 +891,12 @@ export const claimAssignments = mysqlTable("claim_assignments", {
   emailNotificationSentAt: timestamp("email_notification_sent_at", { mode: "string" }),
   emailNotificationReference: varchar("email_notification_reference", { length: 255 }),
   decisionReason: text("decision_reason"),
-  assignedAt: timestamp("assigned_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  assignedAt: timestamp("assigned_at", { mode: "string" }).defaultNow().notNull(),
   acceptedAt: timestamp("accepted_at", { mode: "string" }),
   declinedAt: timestamp("declined_at", { mode: "string" }),
   reassignedAt: timestamp("reassigned_at", { mode: "string" }),
   completedAt: timestamp("completed_at", { mode: "string" }),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
   index("idx_claim_assignments_claim_active").on(table.claimId, table.status),
@@ -884,7 +906,7 @@ export const claimAssignments = mysqlTable("claim_assignments", {
 ]);
 
 export const assessorReports = mysqlTable("assessor_reports", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }).notNull(),
   assessorUserId: int("assessor_user_id").references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }).notNull(),
@@ -905,7 +927,7 @@ export const assessorReports = mysqlTable("assessor_reports", {
   attestedAt: timestamp("attested_at", { mode: "string" }),
   submittedAt: timestamp("submitted_at", { mode: "string" }),
   supersededAt: timestamp("superseded_at", { mode: "string" }),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
   index("idx_assessor_reports_claim_state").on(table.claimId, table.status),
@@ -915,7 +937,7 @@ export const assessorReports = mysqlTable("assessor_reports", {
 ]);
 
 export const assessorReportAttachments = mysqlTable("assessor_report_attachments", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   reportId: int("report_id").references(() => assessorReports.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }).notNull(),
   originalFileName: varchar("original_file_name", { length: 500 }).notNull(),
@@ -925,14 +947,14 @@ export const assessorReportAttachments = mysqlTable("assessor_report_attachments
   sizeBytes: int("size_bytes"),
   fileHash: varchar("file_hash", { length: 128 }),
   attachmentRole: mysqlEnum("attachment_role", ["original_report", "supporting_evidence", "generated_export"]).default("supporting_evidence").notNull(),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
   index("idx_assessor_report_attachments_report").on(table.reportId),
   index("idx_assessor_report_attachments_tenant").on(table.tenantId),
 ]);
 
 export const assessorReportReviews = mysqlTable("assessor_report_reviews", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   reportId: int("report_id").references(() => assessorReports.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: "cascade", onUpdate: "cascade" }).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }).notNull(),
@@ -942,7 +964,7 @@ export const assessorReportReviews = mysqlTable("assessor_report_reviews", {
   routeReason: mysqlEnum("route_reason", ["assigned_claims_assessor", "claims_manager_fallback", "claims_manager_escalation"]).notNull(),
   decisionReason: text("decision_reason"),
   reviewedAt: timestamp("reviewed_at", { mode: "string" }),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
   index("idx_assessor_report_reviews_reviewer_state").on(table.reviewerUserId, table.status),
@@ -951,7 +973,7 @@ export const assessorReportReviews = mysqlTable("assessor_report_reviews", {
 ]);
 
 export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	schemaVersion: int("schema_version").default(1).notNull(),
@@ -981,8 +1003,8 @@ export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset",
 	assessmentTurnaroundHours: decimal("assessment_turnaround_hours", { precision: 10, scale: 2 }),
 	reassignmentCount: int("reassignment_count").default(0),
 	approvalTimelineHours: decimal("approval_timeline_hours", { precision: 10, scale: 2 }),
-	capturedAt: timestamp("captured_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	capturedAt: timestamp("captured_at", { mode: 'string' }).defaultNow().notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	dataScope: mysqlEnum("data_scope", ['tenant_private','tenant_feature']).default('tenant_private').notNull(),
 	globalSharingEnabled: tinyint("global_sharing_enabled").default(0),
 	anonymizedAt: timestamp("anonymized_at", { mode: 'string' }),
@@ -998,12 +1020,12 @@ export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset",
 ]);
 
 export const claimInvolvementTracking = mysqlTable("claim_involvement_tracking", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	userId: int("user_id").notNull(),
 	workflowStage: mysqlEnum("workflow_stage", ['assessment','technical_approval','financial_decision','payment_authorization']).notNull(),
 	actionType: mysqlEnum("action_type", ['transition_state','approve_technical','authorize_payment','close_claim','redirect_claim','add_assessment','complete_assessment','start_assessment','submit_quote','request_info','escalate']).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_involvement_claim_user_stage").on(table.claimId, table.userId, table.workflowStage),
@@ -1011,7 +1033,7 @@ export const claimInvolvementTracking = mysqlTable("claim_involvement_tracking",
 ]);
 
 export const claimReviewQueue = mysqlTable("claim_review_queue", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	reviewStatus: mysqlEnum("review_status", ['pending_review','in_review','approved','rejected','needs_more_info']).default('pending_review'),
@@ -1026,7 +1048,7 @@ export const claimReviewQueue = mysqlTable("claim_review_queue", {
 	reviewNotes: text("review_notes"),
 	includeInTrainingDataset: tinyint("include_in_training_dataset").default(0),
 	includeInReferenceDataset: tinyint("include_in_reference_dataset").default(1),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -1034,7 +1056,7 @@ export const claimReviewQueue = mysqlTable("claim_review_queue", {
 ]);
 
 export const claimRoutingDecisions = mysqlTable("claim_routing_decisions", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	confidenceScoreId: int("confidence_score_id").notNull().references(() => claimConfidenceScores.id),
@@ -1042,7 +1064,7 @@ export const claimRoutingDecisions = mysqlTable("claim_routing_decisions", {
 	routedWorkflow: mysqlEnum("routed_workflow", ['ai_only','hybrid','manual']).notNull(),
 	routingReason: text("routing_reason").notNull(),
 	policyThresholdsApplied: json("policy_thresholds_applied").notNull(),
-	decisionTimestamp: timestamp("decision_timestamp", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	decisionTimestamp: timestamp("decision_timestamp", { mode: 'string' }).defaultNow(),
 	decisionMadeBySystem: tinyint("decision_made_by_system").default(1).notNull(),
 	decisionMadeByUserId: int("decision_made_by_user_id"),
 	wasOverridden: tinyint("was_overridden").default(0).notNull(),
@@ -1061,7 +1083,7 @@ export const claimRoutingDecisions = mysqlTable("claim_routing_decisions", {
 ]);
 
 export const claimantHistory = mysqlTable("claimant_history", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimantId: int("claimant_id").notNull(),
 	claimantEmail: varchar("claimant_email", { length: 320 }),
 	claimantPhone: varchar("claimant_phone", { length: 20 }),
@@ -1087,12 +1109,12 @@ export const claimantHistory = mysqlTable("claimant_history", {
 	isFraudster: tinyint("is_fraudster").default(0),
 	isBlacklisted: tinyint("is_blacklisted").default(0),
 	notes: text(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const claims = mysqlTable("claims", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimantId: int("claimant_id"),
 	claimNumber: varchar("claim_number", { length: 50 }).notNull(),
 	/** Immutable KINGA audit reference number assigned at document ingestion. Format: KNG-{INSURER_CODE}-{YEAR}-{SEQUENCE}. Never changes after assignment. Null for claims created before this feature was introduced. */
@@ -1136,7 +1158,7 @@ export const claims = mysqlTable("claims", {
 	fraudRiskScore: int("fraud_risk_score"),
 	fraudFlags: text("fraud_flags"),
 	complexityScore: mysqlEnum("complexity_score", ['simple','moderate','complex','exceptional']),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	externalAssessmentUrl: text("external_assessment_url"),
 	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','moderate','high']),
@@ -1294,7 +1316,6 @@ export const claims = mysqlTable("claims", {
 	index("idx_claims_vehicle_registry_id").on(table.vehicleRegistryId),
 	uniqueIndex("idx_claims_source_document_id").on(table.sourceDocumentId),
 	index("idx_claims_claimant_id").on(table.claimantId),
-	index("").on(table.claimantId),
 	index("idx_claims_assigned_assessor_id").on(table.assignedAssessorId),
 	index("idx_claims_status").on(table.status),
 	index("idx_claims_created_at").on(table.createdAt),
@@ -1309,7 +1330,7 @@ export const claims = mysqlTable("claims", {
 	]);
 
 export const commissionRecords = mysqlTable("commission_records", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	policyId: int("policy_id").notNull(),
 	carrierId: int("carrier_id").notNull(),
 	productId: int("product_id").notNull(),
@@ -1322,7 +1343,7 @@ export const commissionRecords = mysqlTable("commission_records", {
 	paymentReference: varchar("payment_reference", { length: 100 }),
 	commissionPeriod: varchar("commission_period", { length: 20 }),
 	tenantId: varchar("tenant_id", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 /**
@@ -1330,13 +1351,13 @@ export const commissionRecords = mysqlTable("commission_records", {
  * underwriting, premiums, claims, settlement, or RFQ lifecycle transitions.
  */
 export const agencyProductCommissionConfigs = mysqlTable("agency_product_commission_configs", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
 	productId: int("product_id").notNull(),
 	commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(),
 	isActive: tinyint("is_active").default(1).notNull(),
 	configuredBy: int("configured_by").notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
 	uniqueIndex("uq_agency_product_commission").on(table.agencyTenantId, table.productId),
@@ -1344,7 +1365,7 @@ export const agencyProductCommissionConfigs = mysqlTable("agency_product_commiss
 ]);
 
 export const costComponents = mysqlTable("cost_components", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	sourceType: mysqlEnum("source_type", ['panel_beater_quote','assessor_report','ai_estimate','final_approved']).notNull(),
 	documentId: int("document_id"),
@@ -1365,33 +1386,33 @@ export const costComponents = mysqlTable("cost_components", {
 	repairVsReplaceRatio: decimal("repair_vs_replace_ratio", { precision: 5, scale: 2 }),
 	totalBetterment: decimal("total_betterment", { precision: 12, scale: 2 }).default('0.00'),
 	extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_cc_claim").on(table.historicalClaimId),
 ]);
 
 export const currencyExchangeRates = mysqlTable("currency_exchange_rates", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	currencyCode: varchar("currency_code", { length: 3 }).notNull(),
 	currencyName: varchar("currency_name", { length: 100 }),
 	currencySymbol: varchar("currency_symbol", { length: 10 }),
 	rateToUsd: decimal("rate_to_usd", { precision: 18, scale: 6 }).notNull(),
 	source: varchar({ length: 100 }).default('manual'),
-	lastUpdated: timestamp("last_updated", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	lastUpdated: timestamp("last_updated", { mode: 'string' }).defaultNow().notNull(),
 	isActive: tinyint("is_active").default(1).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("currency_exchange_rates_currency_code_unique").on(table.currencyCode),
 ]);
 
 export const customerConsent = mysqlTable("customer_consent", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	customerId: int("customer_id").notNull(),
 	consentType: mysqlEnum("consent_type", ['data_processing','marketing','third_party_sharing','credit_check','automated_decision_making']).notNull(),
 	consentGiven: tinyint("consent_given").notNull(),
-	consentDate: timestamp("consent_date", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	consentDate: timestamp("consent_date", { mode: 'string' }).defaultNow().notNull(),
 	withdrawnDate: timestamp("withdrawn_date", { mode: 'string' }),
 	consentMethod: varchar("consent_method", { length: 50 }),
 	consentVersion: varchar("consent_version", { length: 20 }),
@@ -1399,7 +1420,7 @@ export const customerConsent = mysqlTable("customer_consent", {
 });
 
 export const customerDocuments = mysqlTable("customer_documents", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	customerId: int("customer_id").notNull(),
 	documentType: mysqlEnum("document_type", ['id_document','drivers_license','proof_of_residence','vehicle_registration','other']).notNull(),
 	documentUrl: varchar("document_url", { length: 500 }).notNull(),
@@ -1412,11 +1433,11 @@ export const customerDocuments = mysqlTable("customer_documents", {
 	fileSize: int("file_size"),
 	mimeType: varchar("mime_type", { length: 100 }),
 	tenantId: varchar("tenant_id", { length: 255 }),
-	uploadedAt: timestamp("uploaded_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	uploadedAt: timestamp("uploaded_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const datasetAccessGrants = mysqlTable("dataset_access_grants", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	dataScope: mysqlEnum("data_scope", ['tenant_private','tenant_feature','global_anonymized']).notNull(),
 	grantedToUserId: int("granted_to_user_id"),
@@ -1427,7 +1448,7 @@ export const datasetAccessGrants = mysqlTable("dataset_access_grants", {
 	expiryDate: date("expiry_date", { mode: 'string' }),
 	maxRecords: int("max_records"),
 	grantedByUserId: int("granted_by_user_id").notNull(),
-	grantedAt: timestamp("granted_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	grantedAt: timestamp("granted_at", { mode: 'string' }).defaultNow().notNull(),
 	revokedAt: timestamp("revoked_at", { mode: 'string' }),
 	revokedByUserId: int("revoked_by_user_id"),
 },
@@ -1439,12 +1460,12 @@ export const datasetAccessGrants = mysqlTable("dataset_access_grants", {
 ]);
 
 export const documentNamingTemplates = mysqlTable("document_naming_templates", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	docType: mysqlEnum("doc_type", ['claim','assessment','report','approval']).notNull(),
 	template: varchar({ length: 500 }).notNull(),
 	description: text(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -1463,7 +1484,7 @@ export const documentVersions = mysqlTable("document_versions", {
 	approvedBy: int("approved_by"),
 	approvedAt: timestamp("approved_at", { mode: 'string' }),
 	retentionUntil: timestamp("retention_until", { mode: 'string' }).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("document_versions_claim_id_doc_type_version_unique").on(table.claimId, table.docType, table.version),
@@ -1472,7 +1493,7 @@ export const documentVersions = mysqlTable("document_versions", {
 ]);
 
 export const emailVerificationTokens = mysqlTable("email_verification_tokens", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	userId: int("user_id").notNull(),
 	email: varchar({ length: 320 }).notNull(),
 	token: varchar({ length: 64 }).notNull(),
@@ -1480,14 +1501,14 @@ export const emailVerificationTokens = mysqlTable("email_verification_tokens", {
 	used: tinyint().default(0).notNull(),
 	usedAt: timestamp("used_at", { mode: 'string' }),
 	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("token").on(table.token),
 ]);
 
 export const entityRelationships = mysqlTable("entity_relationships", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	entityAType: varchar("entity_a_type", { length: 50 }).notNull(),
 	entityAId: int("entity_a_id").notNull(),
 	entityAName: varchar("entity_a_name", { length: 255 }),
@@ -1504,12 +1525,12 @@ export const entityRelationships = mysqlTable("entity_relationships", {
 	collusionEvidence: text("collusion_evidence"),
 	investigationStatus: mysqlEnum("investigation_status", ['none','pending','in_progress','confirmed','cleared']).default('none'),
 	investigationNotes: text("investigation_notes"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const extractedDocumentData = mysqlTable("extracted_document_data", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	documentId: int("document_id").notNull(),
 	policyNumber: varchar("policy_number", { length: 100 }),
 	claimNumber: varchar("claim_number", { length: 100 }),
@@ -1541,12 +1562,12 @@ export const extractedDocumentData = mysqlTable("extracted_document_data", {
 	fieldsExtractedCount: int("fields_extracted_count"),
 	fieldsMissingCount: int("fields_missing_count"),
 	fullText: longtext("full_text"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const extractedRepairItems = mysqlTable("extracted_repair_items", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	documentId: int("document_id"),
 	sourceType: mysqlEnum("source_type", ['panel_beater_quote','assessor_report','ai_estimate']).notNull(),
@@ -1567,14 +1588,14 @@ export const extractedRepairItems = mysqlTable("extracted_repair_items", {
 	extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }),
 	isHandwritten: tinyint("is_handwritten").default(0),
 	manuallyVerified: tinyint("manually_verified").default(0),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_eri_claim").on(table.historicalClaimId),
 ]);
 
 export const fastTrackConfig = mysqlTable("fast_track_config", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	productId: int("product_id"),
 	claimType: mysqlEnum("claim_type", ['collision','theft','hail','fire','vandalism','flood','hijacking','other']),
@@ -1586,7 +1607,7 @@ export const fastTrackConfig = mysqlTable("fast_track_config", {
 	version: int().notNull(),
 	effectiveFrom: timestamp("effective_from", { mode: 'string' }).notNull(),
 	createdBy: int("created_by").notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_ft_config_tenant").on(table.tenantId),
@@ -1598,7 +1619,7 @@ export const fastTrackConfig = mysqlTable("fast_track_config", {
 ]);
 
 export const fastTrackRoutingLog = mysqlTable("fast_track_routing_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	configId: int("config_id"),
@@ -1614,7 +1635,7 @@ export const fastTrackRoutingLog = mysqlTable("fast_track_routing_log", {
 	override: tinyint().default(0).notNull(),
 	overrideBy: int("override_by"),
 	overrideReason: text("override_reason"),
-	evaluatedAt: timestamp("evaluated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	evaluatedAt: timestamp("evaluated_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_ft_log_claim").on(table.claimId),
@@ -1626,7 +1647,7 @@ export const fastTrackRoutingLog = mysqlTable("fast_track_routing_log", {
 ]);
 
 export const federatedLearningMetadata = mysqlTable("federated_learning_metadata", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	roundNumber: int("round_number").notNull(),
 	modelType: varchar("model_type", { length: 100 }).notNull(),
 	participantCount: int("participant_count").notNull(),
@@ -1638,7 +1659,7 @@ export const federatedLearningMetadata = mysqlTable("federated_learning_metadata
 	convergenceStatus: mysqlEnum("convergence_status", ['converging','converged','diverged']).default('converging'),
 	trainingStartedAt: timestamp("training_started_at", { mode: 'string' }).notNull(),
 	trainingCompletedAt: timestamp("training_completed_at", { mode: 'string' }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_flm_round_number").on(table.roundNumber),
@@ -1647,7 +1668,7 @@ export const federatedLearningMetadata = mysqlTable("federated_learning_metadata
 ]);
 
 export const finalApprovalRecords = mysqlTable("final_approval_records", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	finalDecision: mysqlEnum("final_decision", ['approved_repair','approved_total_loss','cash_settlement','rejected','withdrawn']).notNull(),
@@ -1671,7 +1692,7 @@ export const finalApprovalRecords = mysqlTable("final_approval_records", {
 	conditionsText: text("conditions_text"),
 	dataSource: mysqlEnum("data_source", ['extracted_from_document','manual_entry','system_import']).notNull(),
 	capturedByUserId: int("captured_by_user_id"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -1679,7 +1700,7 @@ export const finalApprovalRecords = mysqlTable("final_approval_records", {
 ]);
 
 export const fleetAuditLogs = mysqlTable("fleet_audit_logs", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	entityType: mysqlEnum("entity_type", ['fleet','vehicle','maintenance','service_request','quote','document']).notNull(),
 	entityId: int("entity_id").notNull(),
@@ -1690,11 +1711,11 @@ export const fleetAuditLogs = mysqlTable("fleet_audit_logs", {
 	changesAfter: text("changes_after"),
 	ipAddress: varchar("ip_address", { length: 45 }),
 	userAgent: text("user_agent"),
-	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	timestamp: timestamp({ mode: 'string' }).defaultNow().notNull(),
 });
 
 export const fleetDocuments = mysqlTable("fleet_documents", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	fleetId: int("fleet_id"),
 	vehicleId: int("vehicle_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
@@ -1709,11 +1730,11 @@ export const fleetDocuments = mysqlTable("fleet_documents", {
 	verifiedAt: timestamp("verified_at", { mode: 'string' }),
 	rejectionReason: text("rejection_reason"),
 	uploadedBy: int("uploaded_by").notNull(),
-	uploadedAt: timestamp("uploaded_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	uploadedAt: timestamp("uploaded_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const fleetDrivers = mysqlTable("fleet_drivers", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	fleetId: int("fleet_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	userId: int("user_id").notNull(),
@@ -1728,7 +1749,7 @@ export const fleetDrivers = mysqlTable("fleet_drivers", {
 	terminationDate: date("termination_date", { mode: 'string' }),
 	emergencyContactName: varchar("emergency_contact_name", { length: 255 }),
 	emergencyContactPhone: varchar("emergency_contact_phone", { length: 50 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -1738,7 +1759,7 @@ export const fleetDrivers = mysqlTable("fleet_drivers", {
 ]);
 
 export const fleetIncidentReports = mysqlTable("fleet_incident_reports", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	driverId: int("driver_id").notNull(),
 	fleetId: int("fleet_id").notNull(),
@@ -1756,7 +1777,7 @@ export const fleetIncidentReports = mysqlTable("fleet_incident_reports", {
 	reviewedBy: int("reviewed_by"),
 	reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
 	reviewNotes: text("review_notes"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -1768,7 +1789,7 @@ export const fleetIncidentReports = mysqlTable("fleet_incident_reports", {
 ]);
 
 export const fleetRiskScores = mysqlTable("fleet_risk_scores", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	fleetId: int("fleet_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
@@ -1781,7 +1802,7 @@ export const fleetRiskScores = mysqlTable("fleet_risk_scores", {
 	riskFactors: text("risk_factors"),
 	premiumImpact: mysqlEnum("premium_impact", ['decrease','neutral','increase']),
 	recommendedPremiumAdjustment: decimal("recommended_premium_adjustment", { precision: 5, scale: 2 }),
-	calculatedAt: timestamp("calculated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	calculatedAt: timestamp("calculated_at", { mode: 'string' }).defaultNow().notNull(),
 	nextReviewDate: timestamp("next_review_date", { mode: 'string' }),
 },
 (table) => [
@@ -1789,7 +1810,7 @@ export const fleetRiskScores = mysqlTable("fleet_risk_scores", {
 ]);
 
 export const fleetVehicles = mysqlTable("fleet_vehicles", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vin: varchar({ length: 17 }),
 	registrationNumber: varchar("registration_number", { length: 50 }).notNull(),
 	make: varchar({ length: 100 }).notNull(),
@@ -1809,7 +1830,7 @@ export const fleetVehicles = mysqlTable("fleet_vehicles", {
 	registrationBookUrl: varchar("registration_book_url", { length: 500 }),
 	registrationBookS3Key: varchar("registration_book_s3_key", { length: 500 }),
 	tenantId: varchar("tenant_id", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	fleetId: int("fleet_id"),
 	engineCapacity: int("engine_capacity"),
@@ -1841,7 +1862,7 @@ export const fleetVehicles = mysqlTable("fleet_vehicles", {
 ]);
 
 export const fleets = mysqlTable("fleets", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	ownerId: int("owner_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	fleetName: varchar("fleet_name", { length: 255 }).notNull(),
@@ -1850,7 +1871,7 @@ export const fleets = mysqlTable("fleets", {
 	activeVehicles: int("active_vehicles").default(0),
 	description: text(),
 	primaryLocation: varchar("primary_location", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	preferredInsurerId: int("preferred_insurer_id"),
 	preferredInsurerName: varchar("preferred_insurer_name", { length: 255 }),
@@ -1859,7 +1880,7 @@ export const fleets = mysqlTable("fleets", {
 });
 
 export const fraudAlerts = mysqlTable("fraud_alerts", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	alertType: varchar("alert_type", { length: 100 }).notNull(),
 	alertSeverity: mysqlEnum("alert_severity", ['low','medium','high','critical']).notNull(),
@@ -1877,12 +1898,12 @@ export const fraudAlerts = mysqlTable("fraud_alerts", {
 	resolutionDate: timestamp("resolution_date", { mode: 'string' }),
 	isFraudConfirmed: tinyint("is_fraud_confirmed"),
 	actionsTaken: text("actions_taken"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const fraudIndicators = mysqlTable("fraud_indicators", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	overallFraudScore: int("overall_fraud_score").notNull(),
 	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','moderate','high','critical','elevated']).notNull(),
@@ -1920,13 +1941,13 @@ export const fraudIndicators = mysqlTable("fraud_indicators", {
 	investigationPriority: mysqlEnum("investigation_priority", ['low','medium','high','urgent']),
 	investigationStatus: mysqlEnum("investigation_status", ['pending','in_progress','completed','closed']).default('pending'),
 	investigationNotes: text("investigation_notes"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),
 });
 
 export const fraudRules = mysqlTable("fraud_rules", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	ruleName: varchar("rule_name", { length: 255 }).notNull(),
 	ruleDescription: text("rule_description"),
 	ruleCategory: mysqlEnum("rule_category", ['claimant','panel_beater','assessor','vehicle','document','temporal','geographic','network']).notNull(),
@@ -1943,7 +1964,7 @@ export const fraudRules = mysqlTable("fraud_rules", {
 	truePositiveCount: int("true_positive_count").default(0),
 	falsePositiveCount: int("false_positive_count").default(0),
 	accuracy: int().default(0),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -1951,7 +1972,7 @@ export const fraudRules = mysqlTable("fraud_rules", {
 ]);
 
 export const globalAnonymizedDataset = mysqlTable("global_anonymized_dataset", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	anonymousRecordId: varchar("anonymous_record_id", { length: 36 }).notNull(),
 	captureMonth: varchar("capture_month", { length: 7 }).notNull(),
 	vehicleMake: varchar("vehicle_make", { length: 100 }),
@@ -1975,7 +1996,7 @@ export const globalAnonymizedDataset = mysqlTable("global_anonymized_dataset", {
 	assessmentTurnaroundHours: decimal("assessment_turnaround_hours", { precision: 10, scale: 2 }),
 	reassignmentCount: int("reassignment_count"),
 	approvalTimelineHours: decimal("approval_timeline_hours", { precision: 10, scale: 2 }),
-	anonymizedAt: timestamp("anonymized_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	anonymizedAt: timestamp("anonymized_at", { mode: 'string' }).defaultNow().notNull(),
 	schemaVersion: int("schema_version").default(1).notNull(),
 },
 (table) => [
@@ -1988,7 +2009,7 @@ export const globalAnonymizedDataset = mysqlTable("global_anonymized_dataset", {
 ]);
 
 export const governanceNotifications = mysqlTable("governance_notifications", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	type: mysqlEnum(['intake_escalation','auto_assignment','ai_rerun','executive_override','segregation_violation']).notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
@@ -1996,7 +2017,7 @@ export const governanceNotifications = mysqlTable("governance_notifications", {
 	title: varchar({ length: 255 }).notNull(),
 	message: text().notNull(),
 	metadata: text(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	readAt: timestamp("read_at", { mode: 'string' }),
 },
 (table) => [
@@ -2008,7 +2029,7 @@ export const governanceNotifications = mysqlTable("governance_notifications", {
 ]);
 
 export const governanceViolationLog = mysqlTable("governance_violation_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	userId: int("user_id").notNull(),
 	userRole: varchar("user_role", { length: 50 }).notNull(),
@@ -2017,7 +2038,7 @@ export const governanceViolationLog = mysqlTable("governance_violation_log", {
 	governanceLimitsVersion: int("governance_limits_version").notNull(),
 	governanceLimitsSnapshot: text("governance_limits_snapshot").notNull(),
 	reason: text().notNull(),
-	violatedAt: timestamp("violated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	violatedAt: timestamp("violated_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_gov_violation_tenant").on(table.tenantId),
@@ -2028,7 +2049,7 @@ export const governanceViolationLog = mysqlTable("governance_violation_log", {
 ]);
 
 export const historicalClaims = mysqlTable("historical_claims", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	batchId: int("batch_id"),
 	claimReference: varchar("claim_reference", { length: 100 }),
@@ -2064,7 +2085,7 @@ export const historicalClaims = mysqlTable("historical_claims", {
 	extractionLog: json("extraction_log"),
 	lastError: text("last_error"),
 	retryCount: int("retry_count").default(0),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	replayMode: tinyint("replay_mode").default(0).notNull(),
 	lastReplayedAt: timestamp("last_replayed_at", { mode: 'string' }),
@@ -2078,11 +2099,11 @@ export const historicalClaims = mysqlTable("historical_claims", {
 ]);
 
 export const historicalReplayResults = mysqlTable("historical_replay_results", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	originalClaimReference: varchar("original_claim_reference", { length: 100 }),
-	replayedAt: timestamp("replayed_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	replayedAt: timestamp("replayed_at", { mode: 'string' }).defaultNow().notNull(),
 	replayedByUserId: int("replayed_by_user_id"),
 	replayVersion: int("replay_version").default(1),
 	policyVersionId: int("policy_version_id"),
@@ -2116,7 +2137,7 @@ export const historicalReplayResults = mysqlTable("historical_replay_results", {
 	replayDurationMs: int("replay_duration_ms"),
 	replayStatus: mysqlEnum("replay_status", ['success','partial_success','failed']).default('success').notNull(),
 	replayErrors: json("replay_errors"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -2127,7 +2148,7 @@ export const historicalReplayResults = mysqlTable("historical_replay_results", {
 ]);
 
 export const ingestionBatches = mysqlTable("ingestion_batches", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	batchName: varchar("batch_name", { length: 255 }),
 	ingestionSource: mysqlEnum("ingestion_source", ['processor_upload','bulk_batch','api','email','legacy_import','broker_upload']).notNull(),
@@ -2142,11 +2163,11 @@ export const ingestionBatches = mysqlTable("ingestion_batches", {
 	startedAt: timestamp("started_at", { mode: 'string' }),
 	completedAt: timestamp("completed_at", { mode: 'string' }),
 	custodyChain: json("custody_chain"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const ingestionDocuments = mysqlTable("ingestion_documents", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	batchId: int("batch_id").notNull(),
 	documentId: varchar("document_id", { length: 36 }).notNull(),
@@ -2169,7 +2190,7 @@ export const ingestionDocuments = mysqlTable("ingestion_documents", {
 	validatedAt: timestamp("validated_at", { mode: 'string' }),
 	pageCount: int("page_count"),
 	languageDetected: varchar("language_detected", { length: 10 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	/**
 	 * 64-char binary string perceptual hash (8x8 DCT thumbnail hash).
 	 * Computed by computeThumbnailHash() in imageIntelligence.ts.
@@ -2183,8 +2204,8 @@ export const ingestionDocuments = mysqlTable("ingestion_documents", {
 ]);
 
 export const insuranceAuditLogs = mysqlTable("insurance_audit_logs", {
-	id: int().autoincrement().notNull(),
-	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
+	timestamp: timestamp({ mode: 'string' }).defaultNow().notNull(),
 	userId: int("user_id").notNull(),
 	userRole: varchar("user_role", { length: 50 }),
 	action: varchar({ length: 100 }).notNull(),
@@ -2197,7 +2218,7 @@ export const insuranceAuditLogs = mysqlTable("insurance_audit_logs", {
 });
 
 export const insuranceCarriers = mysqlTable("insurance_carriers", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
 	shortCode: varchar("short_code", { length: 50 }).notNull(),
 	isActive: tinyint("is_active").default(1).notNull(),
@@ -2208,7 +2229,7 @@ export const insuranceCarriers = mysqlTable("insurance_carriers", {
 	contactEmail: varchar("contact_email", { length: 320 }),
 	contactPhone: varchar("contact_phone", { length: 20 }),
 	tenantId: varchar("tenant_id", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -2216,7 +2237,7 @@ export const insuranceCarriers = mysqlTable("insurance_carriers", {
 ]);
 
 export const insurancePolicies = mysqlTable("insurance_policies", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	policyNumber: varchar("policy_number", { length: 100 }).notNull(),
 	quoteId: int("quote_id"),
 	customerId: int("customer_id").notNull(),
@@ -2237,7 +2258,7 @@ export const insurancePolicies = mysqlTable("insurance_policies", {
 	renewalReminderDate: timestamp("renewal_reminder_date", { mode: 'string' }),
 	renewedToPolicyId: int("renewed_to_policy_id"),
 	tenantId: varchar("tenant_id", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -2245,7 +2266,7 @@ export const insurancePolicies = mysqlTable("insurance_policies", {
 ]);
 
 export const insuranceProducts = mysqlTable("insurance_products", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	carrierId: int("carrier_id").notNull(),
 	productName: varchar("product_name", { length: 255 }).notNull(),
 	productCode: varchar("product_code", { length: 50 }).notNull(),
@@ -2260,12 +2281,12 @@ export const insuranceProducts = mysqlTable("insurance_products", {
 	commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }),
 	isActive: tinyint("is_active").default(1).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const insuranceQuotes = mysqlTable("insurance_quotes", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	quoteNumber: varchar("quote_number", { length: 50 }).notNull(),
 	customerId: int("customer_id").notNull(),
 	vehicleId: int("vehicle_id").notNull(),
@@ -2281,7 +2302,7 @@ export const insuranceQuotes = mysqlTable("insurance_quotes", {
 	status: mysqlEnum(['pending','payment_pending','payment_submitted','payment_verified','accepted','rejected','expired']).default('pending').notNull(),
 	kingaInsights: text("kinga_insights"),
 	tenantId: varchar("tenant_id", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	paymentMethod: mysqlEnum("payment_method", ['cash','bank_transfer','ecocash','onemoney','rtgs','zipit']),
 	paymentReferenceNumber: varchar("payment_reference_number", { length: 100 }),
@@ -2299,7 +2320,7 @@ export const insuranceQuotes = mysqlTable("insurance_quotes", {
 ]);
 
 export const insurerTenants = mysqlTable("insurer_tenants", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
 	displayName: varchar("display_name", { length: 255 }).notNull(),
 	logoUrl: text("logo_url"),
@@ -2312,7 +2333,7 @@ export const insurerTenants = mysqlTable("insurer_tenants", {
 	highValueThreshold: decimal("high_value_threshold", { precision: 10, scale: 2 }).default('10000.00'),
 	autoApproveBelow: decimal("auto_approve_below", { precision: 10, scale: 2 }).default('5000.00'),
 	fraudFlagThreshold: decimal("fraud_flag_threshold", { precision: 3, scale: 2 }).default('0.70'),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	primaryCurrency: varchar("primary_currency", { length: 3 }).default('USD'),
 	primaryCurrencySymbol: varchar("primary_currency_symbol", { length: 10 }).default('$'),
@@ -2328,7 +2349,7 @@ export const insurerTenants = mysqlTable("insurer_tenants", {
 });
 
 export const isoAuditLogs = mysqlTable("iso_audit_logs", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	userId: int("user_id").notNull(),
 	userRole: varchar("user_role", { length: 50 }).notNull(),
@@ -2339,7 +2360,7 @@ export const isoAuditLogs = mysqlTable("iso_audit_logs", {
 	afterState: text("after_state"),
 	ipAddress: varchar("ip_address", { length: 45 }),
 	sessionId: varchar("session_id", { length: 64 }),
-	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	timestamp: timestamp({ mode: 'string' }).defaultNow().notNull(),
 	integrityHash: varchar("integrity_hash", { length: 64 }).notNull(),
 },
 (table) => [
@@ -2349,7 +2370,7 @@ export const isoAuditLogs = mysqlTable("iso_audit_logs", {
 ]);
 
 export const maintenanceAlerts = mysqlTable("maintenance_alerts", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	scheduleId: int("schedule_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
@@ -2363,11 +2384,11 @@ export const maintenanceAlerts = mysqlTable("maintenance_alerts", {
 	acknowledgedBy: int("acknowledged_by"),
 	acknowledgedAt: timestamp("acknowledged_at", { mode: 'string' }),
 	resolvedAt: timestamp("resolved_at", { mode: 'string' }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const maintenanceRecords = mysqlTable("maintenance_records", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	scheduleId: int("schedule_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
@@ -2388,13 +2409,13 @@ export const maintenanceRecords = mysqlTable("maintenance_records", {
 	daysOverdue: int("days_overdue"),
 	performedBy: int("performed_by"),
 	recordedBy: int("recorded_by").notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	relatedClaimId: int("related_claim_id"),
 	isClaimRelated: tinyint("is_claim_related").default(0).notNull(),
 });
 
 export const maintenanceSchedules = mysqlTable("maintenance_schedules", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	maintenanceType: mysqlEnum("maintenance_type", ['oil_change','tire_rotation','brake_inspection','engine_service','transmission_service','annual_inspection','safety_inspection','filter_replacement','battery_check','coolant_flush','custom']).notNull(),
@@ -2409,12 +2430,12 @@ export const maintenanceSchedules = mysqlTable("maintenance_schedules", {
 	alertDaysBefore: int("alert_days_before").default(7),
 	alertMileageBefore: int("alert_mileage_before").default(500),
 	isActive: tinyint("is_active").default(1),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const marketplaceTransactions = mysqlTable("marketplace_transactions", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	assignmentId: int("assignment_id").notNull(),
 	assessorId: int("assessor_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
@@ -2428,7 +2449,7 @@ export const marketplaceTransactions = mysqlTable("marketplace_transactions", {
 	paidOutAt: timestamp("paid_out_at", { mode: 'string' }),
 	paymentMethod: varchar("payment_method", { length: 50 }),
 	paymentReference: varchar("payment_reference", { length: 100 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -2439,25 +2460,25 @@ export const marketplaceTransactions = mysqlTable("marketplace_transactions", {
 ]);
 
 export const modelTrainingAuditLog = mysqlTable("model_training_audit_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	modelVersionId: int("model_version_id").notNull(),
 	eventType: mysqlEnum("event_type", ['training_started','training_completed','training_failed','validation_started','validation_completed','deployment_requested','deployment_approved','deployment_rejected','model_deprecated','dataset_added','dataset_removed']).notNull(),
 	eventDescription: text("event_description"),
 	eventMetadata: text("event_metadata"),
 	performedBy: int("performed_by"),
-	performedAt: timestamp("performed_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	performedAt: timestamp("performed_at", { mode: 'string' }).defaultNow().notNull(),
 	ipAddress: varchar("ip_address", { length: 45 }),
 });
 
 export const modelTrainingQueue = mysqlTable("model_training_queue", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	datasetRecordId: int("dataset_record_id").notNull(),
 	trainingPriority: varchar("training_priority", { length: 50 }).default('normal'),
 	processed: tinyint().default(0),
 	processedAt: timestamp("processed_at", { mode: 'string' }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	uniqueIndex("idx_mtq_claim_id_unique").on(table.claimId),
@@ -2467,7 +2488,7 @@ export const modelTrainingQueue = mysqlTable("model_training_queue", {
 ]);
 
 export const modelVersionRegistry = mysqlTable("model_version_registry", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	modelName: varchar("model_name", { length: 255 }).notNull(),
 	modelVersion: varchar("model_version", { length: 50 }).notNull(),
@@ -2494,7 +2515,7 @@ export const modelVersionRegistry = mysqlTable("model_version_registry", {
 	approvalNotes: text("approval_notes"),
 	modelArtifactUrl: text("model_artifact_url"),
 	modelConfigUrl: text("model_config_url"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -2502,7 +2523,7 @@ export const modelVersionRegistry = mysqlTable("model_version_registry", {
 ]);
 
 export const multiReferenceTruth = mysqlTable("multi_reference_truth", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	synthesizedValue: decimal("synthesized_value", { precision: 10, scale: 2 }).notNull(),
 	confidenceInterval: decimal("confidence_interval", { precision: 5, scale: 2 }),
@@ -2523,13 +2544,13 @@ export const multiReferenceTruth = mysqlTable("multi_reference_truth", {
 	synthesisMethod: varchar("synthesis_method", { length: 50 }),
 	componentsUsed: int("components_used"),
 	synthesisQuality: mysqlEnum("synthesis_quality", ['high','medium','low']),
-	synthesizedAt: timestamp("synthesized_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	synthesizedAt: timestamp("synthesized_at", { mode: 'string' }).defaultNow().notNull(),
 	synthesizedBy: varchar("synthesized_by", { length: 50 }),
 	synthesisExplanation: text("synthesis_explanation"),
 });
 
 export const notifications = mysqlTable("notifications", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	userId: int("user_id").notNull(),
 	// Added via ALTER TABLE in Epic 5-B (commit 523d8be0) — not previously reflected here.
 	// See scripts/tenant-onboarding/add-tenant-id-columns.sql for the original DDL.
@@ -2547,11 +2568,11 @@ export const notifications = mysqlTable("notifications", {
 	archivedAt: timestamp("archived_at", { mode: 'string' }),
 	actionUrl: varchar("action_url", { length: 500 }),
 	priority: mysqlEnum(['low','medium','high','urgent']).default('medium').notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const organizations = mysqlTable("organizations", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	name: varchar({ length: 200 }).notNull(),
 	businessName: varchar("business_name", { length: 200 }),
 	email: varchar({ length: 320 }),
@@ -2562,12 +2583,12 @@ export const organizations = mysqlTable("organizations", {
 	type: mysqlEnum(['insurer','broker','tpa']).default('insurer').notNull(),
 	ownerId: int("owner_id").notNull(),
 	active: tinyint().default(1).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	panelBeaterId: int("panel_beater_id").notNull(),
 	quotedAmount: int("quoted_amount").notNull(),
@@ -2592,7 +2613,7 @@ export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
 	// Links a revised/adjusted quote back to the quote it supersedes
 	parentQuoteId: int("parent_quote_id"),
 	status: mysqlEnum(['draft','submitted','modified','accepted','rejected']).default('draft').notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	componentsJson: text("components_json"),
 	partsQuality: mysqlEnum("parts_quality", ['aftermarket','oem','genuine','used']).default('aftermarket'),
@@ -2611,7 +2632,7 @@ export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
 ]);
 
 export const panelBeaters = mysqlTable("panel_beaters", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	name: text().notNull(),
 	businessName: text("business_name").notNull(),
 	email: varchar({ length: 320 }),
@@ -2621,7 +2642,7 @@ export const panelBeaters = mysqlTable("panel_beaters", {
 	approved: tinyint().default(1).notNull(),
 	panelBeaterStatus: mysqlEnum("panel_beater_status", ['pending','approved','suspended','rejected']).default('approved').notNull(),
 	userId: int("user_id"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),
   // Repair performance aggregates (updated after each repair) -------------
@@ -2639,32 +2660,32 @@ export const panelBeaters = mysqlTable("panel_beaters", {
 });
 
 export const partStratification = mysqlTable("part_stratification", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	stratumType: mysqlEnum("stratum_type", ['OEM','OEM_Equivalent','Aftermarket','Used']).notNull(),
 	priceMultiplier: decimal("price_multiplier", { precision: 5, scale: 2 }).notNull(),
 	qualityRating: int("quality_rating"),
 	warrantyMonths: int("warranty_months"),
 	description: text(),
 	partCategory: varchar("part_category", { length: 100 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
-	updatedAt: timestamp("updated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const partsPricingAuditLog = mysqlTable("parts_pricing_audit_log", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	changeType: mysqlEnum("change_type", ['baseline_update','multiplier_update','override_created','override_deleted','scraper_run']).notNull(),
 	tableName: varchar("table_name", { length: 100 }).notNull(),
 	recordId: int("record_id"),
 	oldValue: text("old_value"),
 	newValue: text("new_value"),
 	changedBy: int("changed_by"),
-	changedAt: timestamp("changed_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	changedAt: timestamp("changed_at", { mode: 'string' }).defaultNow().notNull(),
 	reason: text(),
 	ipAddress: varchar("ip_address", { length: 45 }),
 });
 
 export const partsPricingBaseline = mysqlTable("parts_pricing_baseline", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	partName: varchar("part_name", { length: 255 }).notNull(),
 	partNumber: varchar("part_number", { length: 100 }),
 	partCategory: varchar("part_category", { length: 100 }),
@@ -2677,14 +2698,14 @@ export const partsPricingBaseline = mysqlTable("parts_pricing_baseline", {
 	source: varchar({ length: 100 }).notNull(),
 	sourceUrl: text("source_url"),
 	scrapedAt: timestamp("scraped_at", { mode: 'string' }),
-	lastUpdated: timestamp("last_updated", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	lastUpdated: timestamp("last_updated", { mode: 'string' }).defaultNow().notNull(),
 	confidence: mysqlEnum(['low','medium','high']).default('medium'),
 	dataQuality: text("data_quality"),
 	partType: mysqlEnum("part_type", ['OEM','OEM_Equivalent','Aftermarket','Used','Unknown']).default('Unknown'),
 });
 
 export const partsPricingOverrides = mysqlTable("parts_pricing_overrides", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	partName: varchar("part_name", { length: 255 }),
 	partNumber: varchar("part_number", { length: 100 }),
 	partCategory: varchar("part_category", { length: 100 }),
@@ -2696,16 +2717,16 @@ export const partsPricingOverrides = mysqlTable("parts_pricing_overrides", {
 	overrideMultiplier: decimal("override_multiplier", { precision: 5, scale: 2 }),
 	reason: text().notNull(),
 	createdBy: int("created_by").notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	expiresAt: timestamp("expires_at", { mode: 'string' }),
 });
 
 export const pdfReports = mysqlTable("pdf_reports", {
-	id: varchar({ length: 255 }).notNull(),
+	id: varchar({ length: 255 }).notNull().primaryKey(),
 	snapshotId: varchar("snapshot_id", { length: 255 }).notNull(),
 	s3Url: text("s3_url").notNull(),
 	fileSizeBytes: int("file_size_bytes").notNull(),
-	generatedAt: timestamp("generated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	generatedAt: timestamp("generated_at", { mode: 'string' }).defaultNow().notNull(),
 	deletedAt: timestamp("deleted_at", { mode: 'string' }),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 },
@@ -2715,14 +2736,14 @@ export const pdfReports = mysqlTable("pdf_reports", {
 ]);
 
 export const platformGovernanceLimits = mysqlTable("platform_governance_limits", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	maxAutoApprovalLimitGlobal: int("max_auto_approval_limit_global").notNull(),
 	minConfidenceAllowedGlobal: decimal("min_confidence_allowed_global", { precision: 5, scale: 2 }).notNull(),
 	maxFraudToleranceGlobal: decimal("max_fraud_tolerance_global", { precision: 5, scale: 2 }).notNull(),
 	version: int().notNull(),
 	effectiveFrom: timestamp("effective_from", { mode: 'string' }).notNull(),
 	createdBy: int("created_by").notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	notes: text(),
 },
 (table) => [
@@ -2731,7 +2752,7 @@ export const platformGovernanceLimits = mysqlTable("platform_governance_limits",
 ]);
 
 export const policeReports = mysqlTable("police_reports", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	reportNumber: varchar("report_number", { length: 100 }).notNull(),
 	policeStation: varchar("police_station", { length: 200 }),
@@ -2756,7 +2777,7 @@ export const policeReports = mysqlTable("police_reports", {
 	weatherMismatch: tinyint("weather_mismatch").default(0),
 	descriptionInconsistent: tinyint("description_inconsistent").default(0),
 	notes: text(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	roadSurface: varchar("road_surface", { length: 100 }),
 	vehicle1Mass: int("vehicle1_mass"),
@@ -2772,7 +2793,7 @@ export const policeReports = mysqlTable("police_reports", {
 });
 
 export const policyClaimLinks = mysqlTable("policy_claim_links", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	policyId: int("policy_id").notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	coverageVerified: tinyint("coverage_verified").default(0),
@@ -2781,11 +2802,11 @@ export const policyClaimLinks = mysqlTable("policy_claim_links", {
 	coverageApproved: tinyint("coverage_approved"),
 	coverageDecisionReason: text("coverage_decision_reason"),
 	tenantId: varchar("tenant_id", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const policyDocuments = mysqlTable("policy_documents", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	policyId: int("policy_id").notNull(),
 	documentType: mysqlEnum("document_type", ['policy_schedule','certificate_of_insurance','endorsement','cancellation_notice','renewal_notice','other']).notNull(),
 	documentUrl: varchar("document_url", { length: 500 }).notNull(),
@@ -2796,11 +2817,11 @@ export const policyDocuments = mysqlTable("policy_documents", {
 	mimeType: varchar("mime_type", { length: 100 }),
 	uploadedBy: int("uploaded_by"),
 	tenantId: varchar("tenant_id", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const policyEndorsements = mysqlTable("policy_endorsements", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	policyId: int("policy_id").notNull(),
 	endorsementNumber: varchar("endorsement_number", { length: 50 }).notNull(),
 	endorsementType: mysqlEnum("endorsement_type", ['add_driver','remove_driver','change_vehicle','adjust_coverage','change_excess','other']).notNull(),
@@ -2813,14 +2834,14 @@ export const policyEndorsements = mysqlTable("policy_endorsements", {
 	approvedAt: timestamp("approved_at", { mode: 'string' }),
 	status: mysqlEnum(['pending','approved','rejected']).default('pending').notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("policy_endorsements_endorsement_number_unique").on(table.endorsementNumber),
 ]);
 
 export const preAccidentDamage = mysqlTable("pre_accident_damage", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	damageType: mysqlEnum("damage_type", ['rust','dent','scratch','paint_damage','mechanical','glass','interior','other']).notNull(),
 	location: varchar({ length: 200 }).notNull(),
@@ -2832,7 +2853,7 @@ export const preAccidentDamage = mysqlTable("pre_accident_damage", {
 	isRelatedToCurrentClaim: tinyint("is_related_to_current_claim").default(0),
 	assessorNotes: text("assessor_notes"),
 	documentedBy: int("documented_by"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
@@ -2843,14 +2864,14 @@ export const qualityMetrics = mysqlTable("quality_metrics", {
 	metricValue: decimal("metric_value", { precision: 10, scale: 2 }).notNull(),
 	periodStart: timestamp("period_start", { mode: 'string' }).notNull(),
 	periodEnd: timestamp("period_end", { mode: 'string' }).notNull(),
-	calculatedAt: timestamp("calculated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	calculatedAt: timestamp("calculated_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_quality_metrics_tenant_id").on(table.tenantId),
 ]);
 
 export const quotationRequests = mysqlTable("quotation_requests", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	requestNumber: varchar("request_number", { length: 50 }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	userId: int("user_id"),
@@ -2893,7 +2914,7 @@ export const quotationRequests = mysqlTable("quotation_requests", {
 	fleetVehicleCount: int("fleet_vehicle_count"),
 	submissionToken: varchar("submission_token", { length: 64 }),
 	contactVerified: tinyint("contact_verified").default(0).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -2924,7 +2945,7 @@ export const clientVehicleValuationRequests = mysqlTable("client_vehicle_valuati
 	submissionToken: varchar("submission_token", { length: 64 }).notNull(),
 	kingaMarketValuationCents: int("kinga_market_valuation_cents"),
 	valuationProvenanceJson: longtext("valuation_provenance_json"),
-	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+	createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
 	index("client_valuation_request_number_idx").on(table.requestNumber),
@@ -2948,7 +2969,7 @@ export const valuationComparableEvidence = mysqlTable("valuation_comparable_evid
 	adjustmentJson: longtext("adjustment_json"),
 	limitation: text(),
 	inclusionStatus: mysqlEnum("inclusion_status", ["included", "excluded", "review_required"]).default("included").notNull(),
-	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+	createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
 	index("valuation_comparable_request_idx").on(table.valuationRequestId),
 	index("valuation_comparable_source_idx").on(table.sourceType, table.sourceReference),
@@ -2972,7 +2993,7 @@ export const clientInsuranceServiceRequests = mysqlTable("client_insurance_servi
 	requestPayloadJson: longtext("request_payload_json").notNull(),
 	status: mysqlEnum(["submitted", "under_review", "closed_without_quote"]).default("submitted").notNull(),
 	submissionToken: varchar("submission_token", { length: 64 }).notNull(),
-	createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+	createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
 	index("client_insurance_service_request_number_idx").on(table.requestNumber),
@@ -2980,7 +3001,7 @@ export const clientInsuranceServiceRequests = mysqlTable("client_insurance_servi
 ]);
 
 export const quoteLineItems = mysqlTable("quote_line_items", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	quoteId: int("quote_id").notNull(),
 	itemNumber: int("item_number"),
 	description: varchar({ length: 500 }).notNull(),
@@ -3009,18 +3030,18 @@ export const quoteLineItems = mysqlTable("quote_line_items", {
 	partOrigin: mysqlEnum("part_origin", ["oem", "aftermarket", "reconditioned", "used", "unknown"]).default("unknown"),
 	// Repairer/panel beater name extracted from the quote header.
 	repairerName: varchar("repairer_name", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const rateLimitTracking = mysqlTable("rate_limit_tracking", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	userId: int("user_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	actionType: varchar("action_type", { length: 50 }).notNull(),
 	windowStart: timestamp("window_start", { mode: 'string' }).notNull(),
 	actionCount: int("action_count").default(1).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow(),
 },
 (table) => [
@@ -3029,11 +3050,11 @@ export const rateLimitTracking = mysqlTable("rate_limit_tracking", {
 ]);
 
 export const referenceDataset = mysqlTable("reference_dataset", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
-	includedAt: timestamp("included_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	includedAt: timestamp("included_at", { mode: 'string' }).defaultNow().notNull(),
 	usedForBenchmarking: tinyint("used_for_benchmarking").default(0),
 	usedForAnalytics: tinyint("used_for_analytics").default(0),
 	lastAccessedAt: timestamp("last_accessed_at", { mode: 'string' }),
@@ -3044,7 +3065,7 @@ export const referenceDataset = mysqlTable("reference_dataset", {
 ]);
 
 export const regionalBenchmarks = mysqlTable("regional_benchmarks", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	region: varchar({ length: 100 }).notNull(),
 	city: varchar({ length: 100 }),
 	vehicleType: varchar("vehicle_type", { length: 50 }),
@@ -3060,12 +3081,12 @@ export const regionalBenchmarks = mysqlTable("regional_benchmarks", {
 	effectiveFrom: date("effective_from", { mode: 'string' }).notNull(),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
 	effectiveTo: date("effective_to", { mode: 'string' }),
-	lastUpdated: timestamp("last_updated", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	lastUpdated: timestamp("last_updated", { mode: 'string' }).defaultNow().notNull(),
 	dataSource: varchar("data_source", { length: 255 }),
 });
 
 export const regionalPricingMultipliers = mysqlTable("regional_pricing_multipliers", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	country: varchar({ length: 100 }).notNull(),
 	countryCode: varchar("country_code", { length: 3 }).notNull(),
 	transportCostMultiplier: decimal("transport_cost_multiplier", { precision: 5, scale: 2 }).notNull(),
@@ -3075,7 +3096,7 @@ export const regionalPricingMultipliers = mysqlTable("regional_pricing_multiplie
 	currencyCode: varchar("currency_code", { length: 3 }).notNull(),
 	exchangeRateToUsd: decimal("exchange_rate_to_usd", { precision: 15, scale: 6 }).notNull(),
 	exchangeRateSource: varchar("exchange_rate_source", { length: 100 }),
-	lastUpdated: timestamp("last_updated", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	lastUpdated: timestamp("last_updated", { mode: 'string' }).defaultNow().notNull(),
 	updatedBy: int("updated_by"),
 	notes: text(),
 },
@@ -3084,7 +3105,7 @@ export const regionalPricingMultipliers = mysqlTable("regional_pricing_multiplie
 ]);
 
 export const registrationRequests = mysqlTable("registration_requests", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	name: varchar({ length: 200 }).notNull(),
 	email: varchar({ length: 320 }).notNull(),
 	phone: varchar({ length: 20 }),
@@ -3101,17 +3122,17 @@ export const registrationRequests = mysqlTable("registration_requests", {
 	reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
 	reviewNotes: text("review_notes"),
 	createdUserId: int("created_user_id"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const reportAccessAudit = mysqlTable("report_access_audit", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	reportId: varchar("report_id", { length: 255 }).notNull(),
 	reportType: mysqlEnum("report_type", ['pdf','interactive']).notNull(),
 	accessedBy: int("accessed_by").notNull(),
 	accessType: mysqlEnum("access_type", ['view','download','export','create']).notNull(),
-	accessedAt: timestamp("accessed_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	accessedAt: timestamp("accessed_at", { mode: 'string' }).defaultNow().notNull(),
 	ipAddress: varchar("ip_address", { length: 45 }),
 	userAgent: text("user_agent"),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
@@ -3124,13 +3145,13 @@ export const reportAccessAudit = mysqlTable("report_access_audit", {
 ]);
 
 export const reportLinks = mysqlTable("report_links", {
-	id: varchar({ length: 255 }).notNull(),
+	id: varchar({ length: 255 }).notNull().primaryKey(),
 	snapshotId: varchar("snapshot_id", { length: 255 }).notNull(),
 	interactiveUrl: text("interactive_url").notNull(),
 	accessToken: varchar("access_token", { length: 255 }).notNull(),
 	qrCodeData: text("qr_code_data"),
 	expiresAt: timestamp("expires_at", { mode: 'string' }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 },
 (table) => [
@@ -3140,14 +3161,14 @@ export const reportLinks = mysqlTable("report_links", {
 ]);
 
 export const reportSnapshots = mysqlTable("report_snapshots", {
-	id: varchar({ length: 255 }).notNull(),
+	id: varchar({ length: 255 }).notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	version: int().notNull(),
 	reportType: mysqlEnum("report_type", ['insurer','assessor','regulatory']).notNull(),
 	intelligenceData: json("intelligence_data").notNull(),
 	auditHash: varchar("audit_hash", { length: 64 }).notNull(),
 	generatedBy: int("generated_by").notNull(),
-	generatedAt: timestamp("generated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	generatedAt: timestamp("generated_at", { mode: 'string' }).defaultNow().notNull(),
 	isImmutable: tinyint("is_immutable").default(1).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 },
@@ -3159,7 +3180,7 @@ export const reportSnapshots = mysqlTable("report_snapshots", {
 ]);
 
 export const riskRegister = mysqlTable("risk_register", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	riskType: mysqlEnum("risk_type", ['fraud','cost_overrun','compliance','operational']).notNull(),
@@ -3170,7 +3191,7 @@ export const riskRegister = mysqlTable("risk_register", {
 	treatmentPlan: mysqlEnum("treatment_plan", ['accept','mitigate','transfer','avoid']),
 	treatmentNotes: text("treatment_notes"),
 	identifiedBy: int("identified_by").notNull(),
-	identifiedAt: timestamp("identified_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	identifiedAt: timestamp("identified_at", { mode: 'string' }).defaultNow().notNull(),
 	reviewedBy: int("reviewed_by"),
 	reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
 	status: mysqlEnum(['open','mitigated','closed']).default('open').notNull(),
@@ -3181,7 +3202,7 @@ export const riskRegister = mysqlTable("risk_register", {
 ]);
 
 export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	userId: int("user_id").notNull(),
 	previousRole: mysqlEnum("previous_role", ['user','admin','insurer','assessor','panel_beater','claimant','fleet_admin','fleet_manager','fleet_driver','platform_super_admin','agency','engineer']),
@@ -3190,7 +3211,7 @@ export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
 	newInsurerRole: mysqlEnum("new_insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']),
 	changedByUserId: int("changed_by_user_id").notNull(),
 	justification: text(),
-	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	timestamp: timestamp({ mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_tenant_id").on(table.tenantId),
@@ -3202,7 +3223,7 @@ export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
 ]);
 
 export const routingHistory = mysqlTable("routing_history", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	confidenceScore: decimal("confidence_score", { precision: 5, scale: 2 }).notNull(),
@@ -3215,7 +3236,7 @@ export const routingHistory = mysqlTable("routing_history", {
 	decidedByUserId: int("decided_by_user_id"),
 	justification: text(),
 	explainabilityMetadata: text("explainability_metadata"),
-	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	timestamp: timestamp({ mode: 'string' }).defaultNow().notNull(),
 	routingVersion: int("routing_version").notNull().default(1),
 	thresholdSnapshot: text("threshold_snapshot"),
 },
@@ -3227,14 +3248,14 @@ export const routingHistory = mysqlTable("routing_history", {
 ]);
 
 export const routingThresholdConfig = mysqlTable("routing_threshold_config", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	version: varchar({ length: 50 }).notNull(),
 	highThreshold: decimal("high_threshold", { precision: 5, scale: 2 }).notNull(),
 	mediumThreshold: decimal("medium_threshold", { precision: 5, scale: 2 }).notNull(),
 	aiFastTrackEnabled: tinyint("ai_fast_track_enabled").default(1).notNull(),
 	createdByUserId: int("created_by_user_id").notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	isActive: tinyint("is_active").default(1).notNull(),
 },
 (table) => [
@@ -3245,7 +3266,7 @@ export const routingThresholdConfig = mysqlTable("routing_threshold_config", {
 ]);
 
 export const serviceProviders = mysqlTable("service_providers", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	providerName: varchar("provider_name", { length: 255 }).notNull(),
 	providerType: mysqlEnum("provider_type", ['panel_beater','mechanic','dealership','specialist']).notNull(),
 	contactPerson: varchar("contact_person", { length: 255 }),
@@ -3264,12 +3285,12 @@ export const serviceProviders = mysqlTable("service_providers", {
 	isActive: tinyint("is_active").default(1),
 	isVerified: tinyint("is_verified").default(0),
 	verifiedAt: timestamp("verified_at", { mode: 'string' }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const serviceQuotes = mysqlTable("service_quotes", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	requestId: int("request_id").notNull(),
 	providerId: int("provider_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
@@ -3291,12 +3312,12 @@ export const serviceQuotes = mysqlTable("service_quotes", {
 	recommendationScore: int("recommendation_score"),
 	status: mysqlEnum(['pending','accepted','rejected','expired']).default('pending'),
 	validUntil: timestamp("valid_until", { mode: 'string' }),
-	submittedAt: timestamp("submitted_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	submittedAt: timestamp("submitted_at", { mode: 'string' }).defaultNow().notNull(),
 	acceptedAt: timestamp("accepted_at", { mode: 'string' }),
 });
 
 export const serviceRequests = mysqlTable("service_requests", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	fleetId: int("fleet_id"),
 	ownerId: int("owner_id").notNull(),
@@ -3313,7 +3334,7 @@ export const serviceRequests = mysqlTable("service_requests", {
 	quotesReceived: int("quotes_received").default(0),
 	selectedQuoteId: int("selected_quote_id"),
 	selectedProviderId: int("selected_provider_id"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	completedAt: timestamp("completed_at", { mode: 'string' }),
 	requiresApproval: tinyint("requires_approval").default(1).notNull(),
@@ -3325,7 +3346,7 @@ export const serviceRequests = mysqlTable("service_requests", {
 });
 
 export const similarClaimsClusters = mysqlTable("similar_claims_clusters", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	vehicleMake: varchar("vehicle_make", { length: 100 }),
 	vehicleModel: varchar("vehicle_model", { length: 100 }),
@@ -3341,17 +3362,17 @@ export const similarClaimsClusters = mysqlTable("similar_claims_clusters", {
 	clusterStdDev: decimal("cluster_std_dev", { precision: 10, scale: 2 }),
 	similarityThreshold: decimal("similarity_threshold", { precision: 5, scale: 2 }),
 	kNeighbors: int("k_neighbors"),
-	clusteredAt: timestamp("clustered_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	clusteredAt: timestamp("clustered_at", { mode: 'string' }).defaultNow().notNull(),
 	clusteringAlgorithm: varchar("clustering_algorithm", { length: 50 }),
 });
 
 export const superAuditSessions = mysqlTable("super_audit_sessions", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	superAdminUserId: int("super_admin_user_id").notNull(),
 	superAdminName: varchar("super_admin_name", { length: 255 }),
 	auditedTenantId: varchar("audited_tenant_id", { length: 64 }),
 	impersonatedRole: varchar("impersonated_role", { length: 64 }),
-	sessionStartedAt: timestamp("session_started_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	sessionStartedAt: timestamp("session_started_at", { mode: 'string' }).defaultNow().notNull(),
 	sessionEndedAt: timestamp("session_ended_at", { mode: 'string' }),
 	sessionDurationSeconds: int("session_duration_seconds"),
 	accessedClaimIds: text("accessed_claim_ids"),
@@ -3360,7 +3381,7 @@ export const superAuditSessions = mysqlTable("super_audit_sessions", {
 	viewedAiScoringClaimIds: text("viewed_ai_scoring_claim_ids"),
 	viewedRoutingLogicClaimIds: text("viewed_routing_logic_claim_ids"),
 	isActive: tinyint("is_active").default(1).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -3370,7 +3391,7 @@ export const superAuditSessions = mysqlTable("super_audit_sessions", {
 ]);
 
 export const supplierPerformanceMetrics = mysqlTable("supplier_performance_metrics", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	supplierName: varchar("supplier_name", { length: 255 }).notNull(),
 	supplierCountry: varchar("supplier_country", { length: 100 }),
 	totalQuotesSubmitted: int("total_quotes_submitted").default(0),
@@ -3382,14 +3403,14 @@ export const supplierPerformanceMetrics = mysqlTable("supplier_performance_metri
 	firstQuoteDate: date("first_quote_date", { mode: 'string' }),
 	// you can use { mode: 'date' }, if you want to have Date as type for this column
 	lastQuoteDate: date("last_quote_date", { mode: 'string' }),
-	lastUpdated: timestamp("last_updated", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	lastUpdated: timestamp("last_updated", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("supplier_performance_metrics_supplier_name_unique").on(table.supplierName),
 ]);
 
 export const supplierQuoteLineItems = mysqlTable("supplier_quote_line_items", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	quoteId: int("quote_id").notNull(),
 	partName: varchar("part_name", { length: 255 }).notNull(),
 	partNumber: varchar("part_number", { length: 100 }),
@@ -3405,7 +3426,7 @@ export const supplierQuoteLineItems = mysqlTable("supplier_quote_line_items", {
 	quantity: int().default(1),
 	approved: tinyint().default(0),
 	rejectionReason: text("rejection_reason"),
-	extractedAt: timestamp("extracted_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	extractedAt: timestamp("extracted_at", { mode: 'string' }).defaultNow().notNull(),
 	lineNumber: int("line_number"),
 	shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }),
 	customsDuty: decimal("customs_duty", { precision: 10, scale: 2 }),
@@ -3415,7 +3436,7 @@ export const supplierQuoteLineItems = mysqlTable("supplier_quote_line_items", {
 });
 
 export const supplierQuotes = mysqlTable("supplier_quotes", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	supplierName: varchar("supplier_name", { length: 255 }).notNull(),
 	supplierCountry: varchar("supplier_country", { length: 100 }).notNull(),
 	supplierContact: varchar("supplier_contact", { length: 255 }),
@@ -3433,29 +3454,30 @@ export const supplierQuotes = mysqlTable("supplier_quotes", {
 	extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 2 }),
 	extractionNotes: text("extraction_notes"),
 	uploadedBy: int("uploaded_by").notNull(),
-	uploadedAt: timestamp("uploaded_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	uploadedAt: timestamp("uploaded_at", { mode: 'string' }).defaultNow().notNull(),
 	notes: text(),
 });
 
 export const tenantInvitations = mysqlTable("tenant_invitations", {
-	id: int().autoincrement().notNull(),
+	/** Durable invitation record identity; required by review/revocation paths. */
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	email: varchar({ length: 320 }).notNull(),
 	role: mysqlEnum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver']).notNull(),
 	insurerRole: mysqlEnum("insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']),
 	token: varchar({ length: 64 }).notNull(),
 	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
-	acceptedAt: timestamp("accepted_at", { mode: 'string' }),
-	createdBy: int("created_by").notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+		acceptedAt: timestamp("accepted_at", { mode: 'string' }),
+		createdBy: int("created_by").notNull(),
+		createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
-(table) => [
-	index("tenant_id_idx").on(table.tenantId),
-	index("email_idx").on(table.email),
-	index("token_idx").on(table.token),
-	index("expires_at_idx").on(table.expiresAt),
-	index("token").on(table.token),
-]);
+	(table) => [
+		index("tenant_id_idx").on(table.tenantId),
+		index("email_idx").on(table.email),
+		/** A live invitation token identifies exactly one invitation. */
+		uniqueIndex("tenant_invitations_token_unique").on(table.token),
+		index("expires_at_idx").on(table.expiresAt),
+	]);
 
 export const tenantRoleConfigs = mysqlTable("tenant_role_configs", {
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
@@ -3463,19 +3485,19 @@ export const tenantRoleConfigs = mysqlTable("tenant_role_configs", {
 	enabled: tinyint().default(1).notNull(),
 	displayName: varchar("display_name", { length: 100 }),
 	permissions: text(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => [primaryKey({ columns: [table.tenantId, table.roleKey] })]);
 
 export const tenantWorkflowConfigs = mysqlTable("tenant_workflow_configs", {
-	id: varchar({ length: 64 }).notNull(),
+	id: varchar({ length: 64 }).notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	requireExecutiveApprovalAbove: decimal("require_executive_approval_above", { precision: 10, scale: 2 }).default('50000.00'),
 	requireManagerApprovalAbove: decimal("require_manager_approval_above", { precision: 10, scale: 2 }).default('10000.00'),
 	autoApproveBelow: decimal("auto_approve_below", { precision: 10, scale: 2 }).default('5000.00'),
 	fraudFlagThreshold: decimal("fraud_flag_threshold", { precision: 3, scale: 2 }).default('0.70'),
 	requireInternalAssessment: tinyint("require_internal_assessment").default(0).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -3483,7 +3505,8 @@ export const tenantWorkflowConfigs = mysqlTable("tenant_workflow_configs", {
 ]);
 
 export const tenants = mysqlTable("tenants", {
-	id: varchar({ length: 255 }).notNull(),
+	/** Canonical tenant identity used by tenant-scoped application relations. */
+	id: varchar({ length: 255 }).notNull().primaryKey(),
 	name: varchar({ length: 255 }).notNull(),
 	displayName: varchar("display_name", { length: 255 }).notNull(),
 	tier: mysqlEnum(['tier-basic','tier-professional','tier-enterprise']).default('tier-basic').notNull(),
@@ -3496,7 +3519,7 @@ export const tenants = mysqlTable("tenants", {
 	configJson: json("config_json"),
 	workflowConfig: text("workflow_config"),
 	intakeEscalationHours: int("intake_escalation_hours").default(6),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow(),
 	activatedAt: timestamp("activated_at", { mode: 'string' }),
 	suspendedAt: timestamp("suspended_at", { mode: 'string' }),
@@ -3515,14 +3538,13 @@ export const tenants = mysqlTable("tenants", {
 	 *  Set to 1 for the kinga-qa-internal tenant used for superadmin impersonation testing. */
 	isSyntheticTenant: tinyint("is_synthetic_tenant").default(0).notNull(),
 },
-(table) => [
-	index("idx_tenants_name").on(table.name),
-	index("idx_tenants_status").on(table.status),
-	index("name").on(table.name),
-]);
+	(table) => [
+		index("idx_tenants_name").on(table.name),
+		index("idx_tenants_status").on(table.status),
+	]);
 
 export const thirdPartyVehicles = mysqlTable("third_party_vehicles", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	make: varchar({ length: 100 }),
 	model: varchar({ length: 100 }),
@@ -3546,12 +3568,12 @@ export const thirdPartyVehicles = mysqlTable("third_party_vehicles", {
 	liabilityPercentage: int("liability_percentage").default(0),
 	compensationAmount: int("compensation_amount"),
 	compensationType: mysqlEnum("compensation_type", ['repair','cash','total_loss']),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const trainingDataScores = mysqlTable("training_data_scores", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	trainingConfidenceScore: decimal("training_confidence_score", { precision: 5, scale: 2 }).notNull(),
@@ -3570,7 +3592,7 @@ export const trainingDataScores = mysqlTable("training_data_scores", {
 	anomalyReason: text("anomaly_reason"),
 	biasRiskDetected: tinyint("bias_risk_detected").default(0),
 	biasRiskReason: text("bias_risk_reason"),
-	scoredAt: timestamp("scored_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	scoredAt: timestamp("scored_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -3578,11 +3600,11 @@ export const trainingDataScores = mysqlTable("training_data_scores", {
 ]);
 
 export const trainingDataset = mysqlTable("training_dataset", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
-	includedAt: timestamp("included_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	includedAt: timestamp("included_at", { mode: 'string' }).defaultNow().notNull(),
 	includedBy: int("included_by").notNull(),
 	inclusionReason: text("inclusion_reason"),
 	usedInModelVersions: text("used_in_model_versions"),
@@ -3637,7 +3659,7 @@ export const trainingRecords = mysqlTable("training_records", {
 	trainer: varchar({ length: 255 }),
 	assessmentScore: decimal("assessment_score", { precision: 5, scale: 2 }),
 	certificateUrl: text("certificate_url"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_training_records_user_id").on(table.userId),
@@ -3645,15 +3667,15 @@ export const trainingRecords = mysqlTable("training_records", {
 ]);
 
 export const usageEvents = mysqlTable("usage_events", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	eventType: mysqlEnum("event_type", ['CLAIM_PROCESSED','AI_EVALUATED','FAST_TRACK_TRIGGERED','AUTO_APPROVED','ASSESSOR_TOOL_USED','FLEET_VEHICLE_ACTIVE','AGENCY_POLICY_BOUND','AI_ASSESSMENT_TRIGGERED','DOCUMENT_INGESTED','EXECUTIVE_ANALYTICS_QUERY','GOVERNANCE_CHECK','FLEET_VEHICLE_MANAGED','MARKETPLACE_QUOTE_REQUEST']).notNull(),
 	quantity: int().default(1).notNull(),
-	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	timestamp: timestamp({ mode: 'string' }).defaultNow().notNull(),
 	referenceId: varchar("reference_id", { length: 255 }),
 	metadata: json(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	userId: int("user_id"),
 	resourceType: varchar("resource_type", { length: 100 }),
 	computeUnits: decimal("compute_units", { precision: 10, scale: 4 }).default('1.0000'),
@@ -3669,7 +3691,7 @@ export const usageEvents = mysqlTable("usage_events", {
 ]);
 
 export const userInvitations = mysqlTable("user_invitations", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	organizationId: int("organization_id").notNull(),
 	email: varchar({ length: 320 }).notNull(),
 	role: mysqlEnum(['insurer','assessor']).notNull(),
@@ -3679,7 +3701,7 @@ export const userInvitations = mysqlTable("user_invitations", {
 	acceptedAt: timestamp("accepted_at", { mode: 'string' }),
 	acceptedUserId: int("accepted_user_id"),
 	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -3712,9 +3734,9 @@ export const users = mysqlTable("users", {
 	organizationId: int("organization_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	emailVerified: tinyint("email_verified").default(0).notNull(),
-	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
-	lastSignedIn: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	lastSignedIn: timestamp({ mode: 'string' }).defaultNow().notNull(),
 	assessorTier: mysqlEnum("assessor_tier", ['free','premium','enterprise']).default('free'),
 	tierActivatedAt: timestamp("tier_activated_at", { mode: 'string' }),
 	tierExpiresAt: timestamp("tier_expires_at", { mode: 'string' }),
@@ -3742,14 +3764,15 @@ export const users = mysqlTable("users", {
 	isUnregisteredClaimant: tinyint("is_unregistered_claimant").default(0).notNull(),
 },
 (table) => [
-		index("users_openId_unique").on(table.openId),
+		/** Required by upsertUser(...).onDuplicateKeyUpdate and identity lookup. */
+		uniqueIndex("users_openId_unique").on(table.openId),
 	index("idx_users_tenant_id").on(table.tenantId),
 	index("idx_users_is_active").on(table.isActive),
 	index("idx_users_phone_tenant").on(table.phoneNumber, table.tenantId),
 ]);
 export type User = typeof users.$inferSelect;
 export const varianceDatasets = mysqlTable("variance_datasets", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	comparisonType: mysqlEnum("comparison_type", ['quote_vs_final','ai_vs_final','assessor_vs_final','quote_vs_assessor','ai_vs_assessor','quote_vs_ai']).notNull(),
@@ -3772,7 +3795,7 @@ export const varianceDatasets = mysqlTable("variance_datasets", {
 	assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
 	isFraudSuspected: tinyint("is_fraud_suspected").default(0),
 	isOutlier: tinyint("is_outlier").default(0),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
 	index("idx_vd_claim").on(table.historicalClaimId),
@@ -3781,7 +3804,7 @@ export const varianceDatasets = mysqlTable("variance_datasets", {
 ]);
 
 export const vehicleConditionAssessment = mysqlTable("vehicle_condition_assessment", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	assessorId: int("assessor_id").notNull(),
 	speedoReading: int("speedo_reading"),
@@ -3811,15 +3834,15 @@ export const vehicleConditionAssessment = mysqlTable("vehicle_condition_assessme
 	hasContributoryNegligence: tinyint("has_contributory_negligence").default(0),
 	negligenceDescription: text("negligence_description"),
 	conditionPhotos: text("condition_photos"),
-	assessmentDate: timestamp("assessment_date", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	assessmentDate: timestamp("assessment_date", { mode: 'string' }).defaultNow().notNull(),
 	assessorSignature: varchar("assessor_signature", { length: 500 }),
 	notes: text(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const vehicleHistory = mysqlTable("vehicle_history", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleRegistration: varchar("vehicle_registration", { length: 50 }).notNull(),
 	vehicleMake: varchar("vehicle_make", { length: 100 }),
 	vehicleModel: varchar("vehicle_model", { length: 100 }),
@@ -3839,7 +3862,7 @@ export const vehicleHistory = mysqlTable("vehicle_history", {
 	nonOwnerAccidentCount: int("non_owner_accident_count").default(0),
 	driverHistory: text("driver_history"),
 	riskScore: int("risk_score").default(0),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -3847,7 +3870,7 @@ export const vehicleHistory = mysqlTable("vehicle_history", {
 ]);
 
 export const vehicleMarketValuations = mysqlTable("vehicle_market_valuations", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
 	vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
@@ -3878,16 +3901,16 @@ export const vehicleMarketValuations = mysqlTable("vehicle_market_valuations", {
 	assessorOverride: tinyint("assessor_override").default(0),
 	assessorValue: int("assessor_value"),
 	assessorJustification: text("assessor_justification"),
-	valuationDate: timestamp("valuation_date", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	valuationDate: timestamp("valuation_date", { mode: 'string' }).defaultNow().notNull(),
 	validUntil: timestamp("valid_until", { mode: 'string' }),
 	valuedBy: int("valued_by"),
 	notes: text(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
 export const vehicleMileageLogs = mysqlTable("vehicle_mileage_logs", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	vehicleId: int("vehicle_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	mileage: int().notNull(),
@@ -3895,11 +3918,11 @@ export const vehicleMileageLogs = mysqlTable("vehicle_mileage_logs", {
 	recordedBy: int("recorded_by").notNull(),
 	recordType: mysqlEnum("record_type", ['manual','service','inspection','claim','automated']).default('manual'),
 	notes: text(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const workflowAuditTrail = mysqlTable("workflow_audit_trail", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	userId: int("user_id").notNull(),
 	userRole: mysqlEnum("user_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']).notNull(),
@@ -3910,19 +3933,18 @@ export const workflowAuditTrail = mysqlTable("workflow_audit_trail", {
 	confidenceScore: int("confidence_score"),
 	comments: text(),
 	metadata: text(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	executiveOverride: int("executive_override").default(0),
 	overrideReason: text("override_reason"),
 },
 (table) => [
 	index("idx_workflow_audit_claim_state_time").on(table.claimId, table.newState, table.createdAt),
-	index("idx_workflow_audit_override").on(table.executiveOverride, table.createdAt),
-	index("idx_audit_claim_timestamp").on(table.claimId, table.createdAt),
-	index("").on(table.claimId, table.createdAt),
-]);
+		index("idx_workflow_audit_override").on(table.executiveOverride, table.createdAt),
+		index("idx_audit_claim_timestamp").on(table.claimId, table.createdAt),
+	]);
 
 export const workflowConfiguration = mysqlTable("workflow_configuration", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	riskManagerEnabled: tinyint("risk_manager_enabled").default(1).notNull(),
 	highValueThreshold: int("high_value_threshold").default(1000000).notNull(),
@@ -3930,7 +3952,7 @@ export const workflowConfiguration = mysqlTable("workflow_configuration", {
 	aiFastTrackEnabled: tinyint("ai_fast_track_enabled").default(0).notNull(),
 	externalAssessorEnabled: tinyint("external_assessor_enabled").default(1).notNull(),
 	maxSequentialStagesByUser: int("max_sequential_stages_by_user").default(2).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -3938,13 +3960,13 @@ export const workflowConfiguration = mysqlTable("workflow_configuration", {
 ]);
 
 export const workflowStates = mysqlTable("workflow_states", {
-	id: int().autoincrement().notNull(),
+	id: int().autoincrement().notNull().primaryKey(),
 	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	currentState: varchar("current_state", { length: 100 }).notNull(),
 	previousState: varchar("previous_state", { length: 100 }),
 	transitionedBy: int("transitioned_by").notNull(),
-	transitionedAt: timestamp("transitioned_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	transitionedAt: timestamp("transitioned_at", { mode: 'string' }).defaultNow().notNull(),
 	metadata: json(),
 },
 (table) => [
@@ -3959,7 +3981,7 @@ export const workflowStates = mysqlTable("workflow_states", {
 // ============================================================================
 
 export const marketplaceProfiles = mysqlTable("marketplace_profiles", {
-  id: varchar({ length: 36 }).notNull(),
+  id: varchar({ length: 36 }).notNull().primaryKey(),
   type: mysqlEnum(['assessor','panel_beater']).notNull(),
   companyName: varchar("company_name", { length: 255 }).notNull(),
   countryId: varchar("country_id", { length: 10 }).notNull().default('ZA'),
@@ -3972,7 +3994,7 @@ export const marketplaceProfiles = mysqlTable("marketplace_profiles", {
   rejectionReason: text("rejection_reason"),
   approvedBy: int("approved_by"),
   approvedAt: timestamp("approved_at", { mode: 'string' }),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -3985,15 +4007,15 @@ export type MarketplaceProfile = typeof marketplaceProfiles.$inferSelect;
 export type InsertMarketplaceProfile = typeof marketplaceProfiles.$inferInsert;
 
 export const insurerMarketplaceLinks = mysqlTable("insurer_marketplace_links", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
   marketplaceProfileId: varchar("marketplace_profile_id", { length: 36 }).notNull(),
   status: mysqlEnum(['active','suspended']).notNull().default('active'),
   linkedBy: int("linked_by"),
-  linkedAt: timestamp("linked_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  linkedAt: timestamp("linked_at", { mode: 'string' }).defaultNow().notNull(),
   suspendedAt: timestamp("suspended_at", { mode: 'string' }),
   suspensionReason: text("suspension_reason"),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4012,7 +4034,7 @@ export type InsertInsurerMarketplaceLink = typeof insurerMarketplaceLinks.$infer
 // ============================================================================
 
 export const agencyClients = mysqlTable("agency_clients", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   fullName: varchar("full_name", { length: 255 }).notNull(),
   idNumber: varchar("id_number", { length: 50 }),
@@ -4026,7 +4048,7 @@ export const agencyClients = mysqlTable("agency_clients", {
   vehicleVin: varchar("vehicle_vin", { length: 50 }),
   notes: text(),
   createdBy: int("created_by"),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4044,7 +4066,7 @@ export type InsertAgencyClient = typeof agencyClients.$inferInsert;
  * selected insured value, market-valuation evidence, and review lifecycle only.
  */
 export const agencyInsuranceServiceRequests = mysqlTable("agency_insurance_service_requests", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   requestNumber: varchar("request_number", { length: 50 }).notNull(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   agencyClientId: int("agency_client_id").notNull(),
@@ -4066,7 +4088,7 @@ export const agencyInsuranceServiceRequests = mysqlTable("agency_insurance_servi
   variancePercent: decimal("variance_percent", { precision: 7, scale: 2 }),
   clientAcknowledgementJson: json("client_acknowledgement_json"),
   createdBy: int("created_by").notNull(),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
   uniqueIndex("uq_agency_insurance_service_request_number").on(table.requestNumber),
@@ -4077,12 +4099,12 @@ export const agencyInsuranceServiceRequests = mysqlTable("agency_insurance_servi
 
 /** Insurer invitations are a decision-support channel for insurance service requests, never claim or policy records. */
 export const agencyInsuranceServiceRequestInsurers = mysqlTable("agency_insurance_service_request_insurers", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   serviceRequestId: int("service_request_id").notNull(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
   status: mysqlEnum("status", ["invited", "viewed", "responded", "withdrawn"]).default("invited").notNull(),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
   uniqueIndex("uq_agency_service_request_insurer").on(table.serviceRequestId, table.insurerTenantId),
@@ -4091,7 +4113,7 @@ export const agencyInsuranceServiceRequestInsurers = mysqlTable("agency_insuranc
 
 /** Auditable agency record when the client retains a materially different selected insured value. */
 export const agencyInsuranceValuationDeviations = mysqlTable("agency_insurance_valuation_deviations", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   serviceRequestId: int("service_request_id").notNull(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   clientProposedValueCents: int("client_proposed_value_cents").notNull(),
@@ -4099,7 +4121,7 @@ export const agencyInsuranceValuationDeviations = mysqlTable("agency_insurance_v
   variancePercent: decimal("variance_percent", { precision: 7, scale: 2 }).notNull(),
   acknowledgementJson: json("acknowledgement_json").notNull(),
   recordedBy: int("recorded_by").notNull(),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
   uniqueIndex("uq_agency_insurance_valuation_deviation_request").on(table.serviceRequestId),
   index("idx_agency_insurance_valuation_deviation_tenant").on(table.agencyTenantId),
@@ -4110,7 +4132,7 @@ export const agencyInsuranceValuationDeviations = mysqlTable("agency_insurance_v
  * explicitly not a claim outcome, repair estimate, settlement, policy term, or premium input.
  */
 export const vehicleConditionSnapshots = mysqlTable("vehicle_condition_snapshots", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   vehicleRegistryId: int("vehicle_registry_id").notNull(),
   insuranceServiceRequestId: int("insurance_service_request_id").notNull(),
   vehicleMarketValuationId: int("vehicle_market_valuation_id"),
@@ -4130,7 +4152,7 @@ export const vehicleConditionSnapshots = mysqlTable("vehicle_condition_snapshots
   assessorNotes: text("assessor_notes"),
   capturedBy: int("captured_by").notNull(),
   tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
   uniqueIndex("uq_vehicle_condition_snapshot_version").on(table.insuranceServiceRequestId, table.snapshotVersion),
@@ -4140,7 +4162,7 @@ export const vehicleConditionSnapshots = mysqlTable("vehicle_condition_snapshots
 
 /** Lower-trust claimant identity anchor for agency-assisted accident intake only. */
 export const agencyAssistedClaimantIdentities = mysqlTable("agency_assisted_claimant_identities", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   agencyClientId: int("agency_client_id").notNull(),
   insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
@@ -4151,7 +4173,7 @@ export const agencyAssistedClaimantIdentities = mysqlTable("agency_assisted_clai
   linkedBy: int("linked_by"),
   linkedAt: timestamp("linked_at", { mode: "string" }),
   linkConfirmationStatement: text("link_confirmation_statement"),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
   uniqueIndex("uq_agency_assisted_claimant_identity").on(table.agencyTenantId, table.agencyClientId, table.insurerTenantId),
@@ -4159,7 +4181,7 @@ export const agencyAssistedClaimantIdentities = mysqlTable("agency_assisted_clai
 ]);
 
 export const insurerQuoteRequests = mysqlTable("insurer_quote_requests", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
@@ -4179,7 +4201,7 @@ export const insurerQuoteRequests = mysqlTable("insurer_quote_requests", {
   estimatedTotalValue: decimal("estimated_total_value", { precision: 14, scale: 2 }),
   claimsHistorySummary: text("claims_history_summary"),
   commissionEstimate: decimal("commission_estimate", { precision: 12, scale: 2 }),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4199,7 +4221,7 @@ export type InsertInsurerQuoteRequest = typeof insurerQuoteRequests.$inferInsert
  * premium, underwriting, claim, settlement, or commission effect.
  */
 export const fleetRfqClientInstructions = mysqlTable("fleet_rfq_client_instructions", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   quoteRequestId: int("quote_request_id").notNull(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   fleetAccountId: int("fleet_account_id").notNull(),
@@ -4208,7 +4230,7 @@ export const fleetRfqClientInstructions = mysqlTable("fleet_rfq_client_instructi
   instructedBy: int("instructed_by").notNull(),
   executedBy: int("executed_by"),
   notes: text("notes"),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   executedAt: timestamp("executed_at", { mode: "string" }),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
@@ -4224,7 +4246,7 @@ export const fleetRfqClientInstructions = mysqlTable("fleet_rfq_client_instructi
 // ============================================================================
 
 export const fleetAccounts = mysqlTable("fleet_accounts", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   ownerUserId: int("owner_user_id").notNull(),
   accountName: varchar("account_name", { length: 255 }).notNull(),
   accountCode: varchar("account_code", { length: 50 }),
@@ -4238,7 +4260,7 @@ export const fleetAccounts = mysqlTable("fleet_accounts", {
   verificationStatus: mysqlEnum("verification_status", ['pending','approved','rejected']).notNull().default('pending'),
   verifiedByUserId: int("verified_by_user_id"),
   verifiedAt: timestamp("verified_at", { mode: 'string' }),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4256,7 +4278,7 @@ export type InsertFleetAccount = typeof fleetAccounts.$inferInsert;
 // is upgraded to fleet_manager and fleet_account.verification_status = 'approved'.
 // ============================================================================
 export const fleetManagerRequests = mysqlTable("fleet_manager_requests", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   userId: int("user_id").notNull(),
   fleetAccountId: int("fleet_account_id"),
   companyName: varchar("company_name", { length: 255 }).notNull(),
@@ -4267,7 +4289,7 @@ export const fleetManagerRequests = mysqlTable("fleet_manager_requests", {
   reviewedByUserId: int("reviewed_by_user_id"),
   reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
   reviewNotes: text("review_notes"),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4289,14 +4311,14 @@ export type InsertFleetManagerRequest = typeof fleetManagerRequests.$inferInsert
 // ============================================================================
 
 export const insurerMarketplaceRelationships = mysqlTable("insurer_marketplace_relationships", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   insurerTenantId: varchar("insurer_tenant_id", { length: 255 }).notNull(),
   marketplaceProfileId: varchar("marketplace_profile_id", { length: 36 }).notNull(),
   relationshipStatus: mysqlEnum("relationship_status", ['approved','suspended','blacklisted']).notNull().default('approved'),
   slaSigned: tinyint("sla_signed").notNull().default(0),
   preferred: tinyint().notNull().default(0),
   notes: text(),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4314,9 +4336,9 @@ export type InsertInsurerMarketplaceRelationship = typeof insurerMarketplaceRela
 // AI assists; insurer makes the final decision.
 
 export const quoteOptimisationResults = mysqlTable("quote_optimisation_results", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
-  triggeredAt: timestamp("triggered_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  triggeredAt: timestamp("triggered_at", { mode: "string" }).defaultNow().notNull(),
   triggeredBy: int("triggered_by"),
   status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
 
@@ -4344,7 +4366,7 @@ export const quoteOptimisationResults = mysqlTable("quote_optimisation_results",
   insurerDecisionAt: timestamp("insurer_decision_at", { mode: "string" }),
   insurerOverrideReason: text("insurer_override_reason"),
 
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4368,7 +4390,7 @@ export const assessorSubscriptions = mysqlTable("assessor_subscriptions", {
   tier: mysqlEnum("tier", ["free", "pro"]).notNull().default("free"),
   maxClaimsPerMonth: int("max_claims_per_month").notNull().default(10),
   expiresAt: timestamp("expires_at", { mode: "string" }),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4408,7 +4430,7 @@ export const tenantIsolationViolations = mysqlTable("tenant_isolation_violations
   /** User-Agent header from the request. */
   userAgent: text("user_agent"),
   /** ISO-8601 timestamp of the violation. */
-  occurredAt: timestamp("occurred_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  occurredAt: timestamp("occurred_at", { mode: "string" }).defaultNow().notNull(),
 },
 (table) => [
   index("idx_tiv_user_id").on(table.userId),
@@ -4444,7 +4466,7 @@ export const notificationEvents = mysqlTable("notification_events", {
   skipReason: varchar("skip_reason", { length: 255 }),
   /** Tenant the notification belongs to. */
   tenantId: varchar("tenant_id", { length: 64 }),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 },
 (table) => [
   index("idx_ne_idempotency_key").on(table.idempotencyKey),
@@ -4476,7 +4498,7 @@ export const systemErrors = mysqlTable("system_errors", {
   /** HTTP-style error code from TRPCError, e.g. "INTERNAL_SERVER_ERROR". */
   errorCode: varchar("error_code", { length: 64 }),
   /** ISO-8601 timestamp of the error. */
-  occurredAt: timestamp("occurred_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  occurredAt: timestamp("occurred_at", { mode: "string" }).defaultNow().notNull(),
 },
 (table) => [
   index("idx_se_procedure").on(table.procedureName),
@@ -4493,7 +4515,7 @@ export type InsertSystemError = typeof systemErrors.$inferInsert;
 // Used by the Repair Quote Intelligence layer for cost normalisation.
 // Append-only: new rows supersede old ones (ordered by effective_from DESC).
 export const countryRepairIndex = mysqlTable("country_repair_index", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   countryCode: varchar("country_code", { length: 10 }).notNull(),
   countryName: varchar("country_name", { length: 100 }).notNull(),
   vatRate: decimal("vat_rate", { precision: 5, scale: 4 }).notNull(),
@@ -4501,7 +4523,7 @@ export const countryRepairIndex = mysqlTable("country_repair_index", {
   avgLabourRatePerHour: int("avg_labour_rate_per_hour").notNull(), // ZAR cents
   currencyCode: varchar("currency_code", { length: 10 }).notNull(),
   effectiveFrom: varchar("effective_from", { length: 10 }).notNull(), // ISO date string
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 },
 (table) => [
   index("idx_cri_country").on(table.countryCode),
@@ -4515,7 +4537,7 @@ export type InsertCountryRepairIndex = typeof countryRepairIndex.$inferInsert;
 // Never seeded with artificial data.
 // intelligence_confidence = "low" when claim_count < 10.
 export const repairCostIntelligence = mysqlTable("repair_cost_intelligence", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
   vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
   vehicleYear: int("vehicle_year"),
@@ -4527,7 +4549,7 @@ export const repairCostIntelligence = mysqlTable("repair_cost_intelligence", {
   claimCount: int("claim_count").notNull().default(0),
   intelligenceConfidence: mysqlEnum("intelligence_confidence", ["low", "medium", "high"]).notNull().default("low"),
   lastUpdated: timestamp("last_updated", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 },
 (table) => [
   index("idx_rci_make_model").on(table.vehicleMake, table.vehicleModel),
@@ -4545,7 +4567,7 @@ export type InsertRepairCostIntelligence = typeof repairCostIntelligence.$inferI
 // Tracks damage history, risk signals, and inferred technical attributes.
 // ============================================================================
 export const vehicleRegistry = mysqlTable("vehicle_registry", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   // Identity --------------------------------------------------------------
   // VIN stored uppercase, spaces stripped. Unique but nullable (pre-2000 vehicles).
   vin: varchar({ length: 17 }).unique(),
@@ -4590,9 +4612,9 @@ export const vehicleRegistry = mysqlTable("vehicle_registry", {
   vehicleRiskScore: int("vehicle_risk_score").default(0).notNull(),
   // Lifecycle -------------------------------------------------------------
   tenantId: varchar("tenant_id", { length: 255 }),
-  firstSeenAt: timestamp("first_seen_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  firstSeenAt: timestamp("first_seen_at", { mode: 'string' }).defaultNow().notNull(),
   lastSeenAt: timestamp("last_seen_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4613,7 +4635,7 @@ export type InsertVehicleRegistry = typeof vehicleRegistry.$inferInsert;
 // Powers: repeat damage detection, repair failure alerts, accident history.
 // ============================================================================
 export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
 
   // Foreign keys ----------------------------------------------------------
   // Links to vehicle_registry.id — the persistent vehicle record.
@@ -4669,7 +4691,7 @@ export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
 
   // Lifecycle -------------------------------------------------------------
   tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4698,7 +4720,7 @@ export type InsertVehicleDamageHistory = typeof vehicleDamageHistory.$inferInser
 //   - license_number has a unique index but is nullable (pre-digital era records).
 // ============================================================================
 export const drivers = mysqlTable("drivers", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
 
   // Identity --------------------------------------------------------------
   fullName: varchar("full_name", { length: 255 }).notNull(),
@@ -4741,9 +4763,9 @@ export const drivers = mysqlTable("drivers", {
 
   // Lifecycle -------------------------------------------------------------
   tenantId: varchar("tenant_id", { length: 255 }),
-  firstSeenAt: timestamp("first_seen_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  firstSeenAt: timestamp("first_seen_at", { mode: 'string' }).defaultNow().notNull(),
   lastSeenAt: timestamp("last_seen_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4765,7 +4787,7 @@ export type InsertDriver = typeof drivers.$inferInsert;
 // passenger, witness). Each row captures one driver's role in one claim.
 // ============================================================================
 export const driverClaims = mysqlTable("driver_claims", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   driverId: int("driver_id").notNull(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   // Role of this driver in the claim.
@@ -4777,7 +4799,7 @@ export const driverClaims = mysqlTable("driver_claims", {
   // Free-text notes about this driver's involvement.
   notes: text("notes"),
   tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
   index("idx_dc_driver_id").on(table.driverId),
@@ -4797,7 +4819,7 @@ export type InsertDriverClaim = typeof driverClaims.$inferInsert;
 // benchmarking.
 // ============================================================================
 export const repairHistory = mysqlTable("repair_history", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   // Foreign keys ----------------------------------------------------------
   // panel_beaters.id — the repairer who performed the work.
   repairerId: int("repairer_id").notNull(),
@@ -4861,7 +4883,7 @@ export const repairHistory = mysqlTable("repair_history", {
   damageHistoryLinkCount: int("damage_history_link_count").default(0).notNull(),
   // Lifecycle -------------------------------------------------------------
   tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -4885,7 +4907,7 @@ export type InsertRepairHistory = typeof repairHistory.$inferInsert;
 // create duplicate rows (unique on claim_id + signal_type).
 // ============================================================================
 export const crossClaimSignals = mysqlTable("cross_claim_signals", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   // Foreign keys ----------------------------------------------------------
   // The claim this signal was detected on.
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
@@ -4920,7 +4942,7 @@ export const crossClaimSignals = mysqlTable("cross_claim_signals", {
   dismissedAt: timestamp("dismissed_at", { mode: 'string' }),
   dismissalNote: text("dismissal_note"),
   tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -5258,7 +5280,7 @@ export type InsertWeightAdjustmentLog = typeof weightAdjustmentLog.$inferInsert;
 // Stage 41 — Benchmark Deviation Engine: persisted deviation results
 //
 export const benchmarkDeviations = mysqlTable("benchmark_deviations", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }),
   // Classification keys used to select the benchmark
@@ -5294,7 +5316,7 @@ export const benchmarkDeviations = mysqlTable("benchmark_deviations", {
   fraudNarrative: text("fraud_narrative"),
   // Overall flag
   overallDeviationFlag: tinyint("overall_deviation_flag").default(0),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
   index("idx_bmd_claim_id").on(table.claimId),
   index("idx_bmd_tenant_id").on(table.tenantId),
@@ -5312,7 +5334,7 @@ export type InsertBenchmarkDeviation = typeof benchmarkDeviations.$inferInsert;
 // longitudinal cost model calibration. One record per processed claim.
 //
 export const costLearningRecords = mysqlTable("cost_learning_records", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   tenantId: varchar("tenant_id", { length: 255 }),
 	// Vehicle descriptor: "make model body_type" (lowercase, normalised)
@@ -5349,8 +5371,8 @@ export const costLearningRecords = mysqlTable("cost_learning_records", {
   componentDetailJson: text("component_detail_json").notNull().default("[]"),
   // JSON: string[] — data quality flags (no_final_cost, no_quote_components, etc.)
   qualityFlagsJson: text("quality_flags_json").notNull().default("[]"),
-  recordedAt: timestamp("recorded_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  recordedAt: timestamp("recorded_at", { mode: "string" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
   index("idx_clr_claim_id").on(table.claimId),
   index("idx_clr_tenant_id").on(table.tenantId),
@@ -5390,7 +5412,7 @@ export const calibrationOverrides = mysqlTable("calibration_overrides", {
   rejectionReason: text("rejection_reason"),
   // Source reports that triggered this update (JSON summary)
   sourceReportsJson: text("source_reports_json"),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
   index("idx_cal_tenant_jurisdiction").on(table.tenantId, table.jurisdiction),
@@ -5418,7 +5440,7 @@ export const workflowTemplates = mysqlTable("workflow_templates", {
   isDefault: tinyint("is_default").default(0).notNull(), // 1 = default template for this tenant
   isActive: tinyint("is_active").default(1).notNull(),
   createdBy: int("created_by"),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
   index("idx_wt_tenant_id").on(table.tenantId),
@@ -5446,7 +5468,7 @@ export const claimApprovals = mysqlTable("claim_approvals", {
   notes: text("notes"),
   // JSON: any additional metadata (e.g. external assessor report reference)
   metadataJson: text("metadata_json"),
-  actedAt: timestamp("acted_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  actedAt: timestamp("acted_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
   index("idx_ca_claim_id").on(table.claimId),
   index("idx_ca_tenant_id").on(table.tenantId),
@@ -5650,7 +5672,7 @@ export const recoveryCases = mysqlTable("recovery_cases", {
   assignedAt: varchar("assigned_at", { length: 50 }),
   officerNotes: text("officer_notes"),
   aiDemandLetterJson: longtext("ai_demand_letter_json"),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
   closedAt: varchar("closed_at", { length: 50 }),
   // Repeat offender detection
@@ -5730,7 +5752,7 @@ export type InsertRecoveryCorrespondenceLog = typeof recoveryCorrespondenceLog.$
 // segmented by vehicle make. Rows with vehicleMake = NULL are global fallbacks
 // used when no make-specific benchmark exists.
 export const componentBenchmarks = mysqlTable("component_benchmarks", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
 	componentId: varchar("component_id", { length: 100 }).notNull(),
 	vehicleMake: varchar("vehicle_make", { length: 100 }),  // NULL = global fallback
 	vehicleModel: varchar("vehicle_model", { length: 100 }),
@@ -5749,7 +5771,7 @@ export const componentBenchmarks = mysqlTable("component_benchmarks", {
   maxCost: double("max_cost"),
   confidence: mysqlEnum(['HIGH','MEDIUM','LOW']).default('LOW').notNull(),
   modelVersion: varchar("model_version", { length: 50 }).default('v1.0').notNull(),
-  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 }, (table) => [
 	index("idx_cb_component_make").on(table.componentId, table.vehicleMake),
@@ -5766,7 +5788,7 @@ export type InsertComponentBenchmark = typeof componentBenchmarks.$inferInsert;
 // All writes are non-blocking fire-and-forget from the pipeline orchestrator.
 
 export const pipelineRuns = mysqlTable("pipeline_runs", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   runId: varchar("run_id", { length: 64 }).notNull(),
   claimId: int("claim_id").notNull(),
   tenantId: varchar("tenant_id", { length: 255 }),
@@ -5791,7 +5813,7 @@ export type PipelineRunRow = typeof pipelineRuns.$inferSelect;
 export type InsertPipelineRun = typeof pipelineRuns.$inferInsert;
 
 export const pipelineJobs = mysqlTable("pipeline_jobs", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   claimId: int("claim_id").notNull(),
   runId: varchar("run_id", { length: 64 }).notNull(),
   stageId: varchar("stage_id", { length: 100 }).notNull(),
@@ -5885,7 +5907,7 @@ export const measurementTypes = mysqlTable("measurement_types", {
 
 export const vehicleGeometryMeasurements = mysqlTable("vehicle_geometry_measurements", {
   id:              int("id").autoincrement().primaryKey(),
-  vehicleModelId:  int("vehicle_model_id").notNull().references(() => vehicleModels.id),
+  vehicleModelId:  int("vehicle_model_id").notNull(),
   measurementType: varchar("measurement_type", { length: 80 }).notNull(),
   valueMm:         decimal("value_mm", { precision: 10, scale: 2 }).notNull(),
   unit:            varchar("unit", { length: 20 }).notNull().default("mm"),
@@ -5894,7 +5916,13 @@ export const vehicleGeometryMeasurements = mysqlTable("vehicle_geometry_measurem
   sourceReference: varchar("source_reference", { length: 255 }),
   verifiedBy:      varchar("verified_by", { length: 100 }),
   createdAt:       timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [
+  foreignKey({
+    name: "fk_vgm_vehicle_model",
+    columns: [table.vehicleModelId],
+    foreignColumns: [vehicleModels.id],
+  }).onDelete("no action").onUpdate("no action"),
+]);
 
 export const vehicleLandmarks = mysqlTable("vehicle_landmarks", {
   id:             int("id").autoincrement().primaryKey(),
@@ -5993,7 +6021,7 @@ export type SelectPhysicsValidationRecord = typeof physicsValidationRecords.$inf
  * Asset Registry — future master asset index for all asset classes.
  */
 export const assetRegistry = mysqlTable("asset_registry", {
-  id:                   int().autoincrement().notNull(),
+  id:                   int().autoincrement().notNull().primaryKey(),
   tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
   assetRef:             varchar("asset_ref", { length: 100 }).notNull(),
   assetType:            mysqlEnum("asset_type", [
@@ -6018,7 +6046,7 @@ export const assetRegistry = mysqlTable("asset_registry", {
   riskRating:           mysqlEnum("risk_rating", ['low','medium','high','critical']),
   metadataJson:         json("metadata_json"),
   createdBy:            int("created_by").notNull(),
-  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt:            timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -6072,7 +6100,7 @@ export const inspections = mysqlTable("inspections", {
   reportKey:            varchar("report_key", { length: 100 }),
   reportId:             int("report_id"),
   createdBy:            int("created_by").notNull(),
-  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt:            timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -6092,7 +6120,7 @@ export type SelectInspection = typeof inspections.$inferSelect;
  * Physical Measurements — structured measurements with PhysicsMeasurement contract.
  */
 export const physicalMeasurements = mysqlTable("physical_measurements", {
-  id:                   int().autoincrement().notNull(),
+  id:                   int().autoincrement().notNull().primaryKey(),
   tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
   inspectionId:         int("inspection_id").notNull(),
   measurementCategory:  mysqlEnum("measurement_category", [
@@ -6112,7 +6140,7 @@ export const physicalMeasurements = mysqlTable("physical_measurements", {
   calibrationReference: varchar("calibration_reference", { length: 255 }),
   confidence:           decimal("confidence", { precision: 4, scale: 3 }).notNull().default('0.900'),
   capturedBy:           int("captured_by").notNull(),
-  capturedAt:           timestamp("captured_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  capturedAt:           timestamp("captured_at", { mode: 'string' }).defaultNow().notNull(),
   source:               varchar("source", { length: 50 }).notNull().default('ENGINEER_MEASUREMENT'),
   evidenceDocumentIds:  json("evidence_document_ids"),
   locationReference:    varchar("location_reference", { length: 255 }),
@@ -6122,7 +6150,7 @@ export const physicalMeasurements = mysqlTable("physical_measurements", {
   standardsClause:      varchar("standards_clause", { length: 100 }),
   standardsDescription: text("standards_description"),
   notes:                text("notes"),
-  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt:            timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -6139,7 +6167,7 @@ export type SelectPhysicalMeasurement = typeof physicalMeasurements.$inferSelect
  * Engineer Observations — structured observations with severity, type, standards reference.
  */
 export const engineerObservations = mysqlTable("engineer_observations", {
-  id:                   int().autoincrement().notNull(),
+  id:                   int().autoincrement().notNull().primaryKey(),
   tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
   inspectionId:         int("inspection_id").notNull(),
   observationType:      mysqlEnum("observation_type", [
@@ -6170,8 +6198,8 @@ export const engineerObservations = mysqlTable("engineer_observations", {
   aiDraftApproved:      tinyint("ai_draft_approved").notNull().default(0),
   aiDraftPrompt:        text("ai_draft_prompt"),
   authoredBy:           int("authored_by").notNull(),
-  authoredAt:           timestamp("authored_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
-  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  authoredAt:           timestamp("authored_at", { mode: 'string' }).defaultNow().notNull(),
+  createdAt:            timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -6188,7 +6216,7 @@ export type SelectEngineerObservation = typeof engineerObservations.$inferSelect
  * Engineer Profiles — engineer-specific attributes for intelligent assignment.
  */
 export const engineerProfiles = mysqlTable("engineer_profiles", {
-  id:                   int().autoincrement().notNull(),
+  id:                   int().autoincrement().notNull().primaryKey(),
   userId:               int("user_id").notNull(),
   tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
   skills:               json("skills"),
@@ -6200,7 +6228,7 @@ export const engineerProfiles = mysqlTable("engineer_profiles", {
   isAvailable:          tinyint("is_available").notNull().default(1),
   availabilityNotes:    text("availability_notes"),
   activeInspections:    int("active_inspections").notNull().default(0),
-  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt:            timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -6226,7 +6254,7 @@ export type SelectEngineerProfile = typeof engineerProfiles.$inferSelect;
  * Never modify source data — this is a derived cache only.
  */
 export const vehiclePassportSnapshots = mysqlTable("vehicle_passport_snapshots", {
-  id:                    int().autoincrement().notNull(),
+  id:                    int().autoincrement().notNull().primaryKey(),
   vehicleRegistryId:     int("vehicle_registry_id").notNull(),
   registrationNumber:    varchar("registration_number", { length: 50 }).notNull(),
   tenantId:              varchar("tenant_id", { length: 255 }),
@@ -6246,7 +6274,7 @@ export const vehiclePassportSnapshots = mysqlTable("vehicle_passport_snapshots",
   lastInspectionDate:    timestamp("last_inspection_date", { mode: 'string' }),
   lastFraudSignalDate:   timestamp("last_fraud_signal_date", { mode: 'string' }),
   intelligenceJson:      json("intelligence_json"),
-  generatedAt:           timestamp("generated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  generatedAt:           timestamp("generated_at", { mode: 'string' }).defaultNow().notNull(),
   generatedBy:           varchar("generated_by", { length: 100 }).default('system').notNull(),
 }, (table) => [
   index("idx_vps_vehicle_registry_id").on(table.vehicleRegistryId),
@@ -6263,7 +6291,7 @@ export type SelectVehiclePassportSnapshot = typeof vehiclePassportSnapshots.$inf
  * Source of truth: fleet_vehicles + fleet_drivers + all canonical tables.
  */
 export const fleetIntelligenceSnapshots = mysqlTable("fleet_intelligence_snapshots", {
-  id:                      int().autoincrement().notNull(),
+  id:                      int().autoincrement().notNull().primaryKey(),
   fleetId:                 int("fleet_id").notNull(),
   tenantId:                varchar("tenant_id", { length: 255 }).notNull(),
   snapshotVersion:         int("snapshot_version").default(1).notNull(),
@@ -6278,7 +6306,7 @@ export const fleetIntelligenceSnapshots = mysqlTable("fleet_intelligence_snapsho
   highRiskDriverCount:     int("high_risk_driver_count").default(0).notNull(),
   fleetRiskScore:          int("fleet_risk_score").default(0).notNull(),
   intelligenceJson:        json("intelligence_json"),
-  generatedAt:             timestamp("generated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  generatedAt:             timestamp("generated_at", { mode: 'string' }).defaultNow().notNull(),
   generatedBy:             varchar("generated_by", { length: 100 }).default('system').notNull(),
 }, (table) => [
   index("idx_fis_fleet_id").on(table.fleetId),
@@ -6295,7 +6323,7 @@ export type SelectFleetIntelligenceSnapshot = typeof fleetIntelligenceSnapshots.
  * entity_type: 'vehicle' | 'driver' | 'fleet' | 'portfolio'
  */
 export const predictiveRiskScores = mysqlTable("predictive_risk_scores", {
-  id:              int().autoincrement().notNull(),
+  id:              int().autoincrement().notNull().primaryKey(),
   entityType:      mysqlEnum("entity_type", ['vehicle','driver','fleet','portfolio']).notNull(),
   entityId:        varchar("entity_id", { length: 100 }).notNull(),
   tenantId:        varchar("tenant_id", { length: 255 }),
@@ -6305,9 +6333,9 @@ export const predictiveRiskScores = mysqlTable("predictive_risk_scores", {
   confidenceLevel: decimal("confidence_level", { precision: 5, scale: 2 }).notNull(),
   modelVersion:    varchar("model_version", { length: 50 }).default('v1.0').notNull(),
   factorsJson:     json("factors_json"),
-  validFrom:       timestamp("valid_from", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  validFrom:       timestamp("valid_from", { mode: 'string' }).defaultNow().notNull(),
   validUntil:      timestamp("valid_until", { mode: 'string' }),
-  computedAt:      timestamp("computed_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  computedAt:      timestamp("computed_at", { mode: 'string' }).defaultNow().notNull(),
   computedBy:      varchar("computed_by", { length: 100 }).default('system').notNull(),
 }, (table) => [
   index("idx_prs_entity").on(table.entityType, table.entityId),
@@ -6326,7 +6354,7 @@ export const globalSearchHistory = mysqlTable("global_search_history", {
   tenantId:    varchar("tenant_id", { length: 255 }),
   query:       varchar("query", { length: 500 }).notNull(),
   resultCount: int("result_count").default(0).notNull(),
-  searchedAt:  timestamp("searched_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  searchedAt:  timestamp("searched_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
   index("idx_gsh_user_id").on(table.userId),
   index("idx_gsh_tenant_id").on(table.tenantId),
@@ -6343,7 +6371,7 @@ export const globalSearchAnalytics = mysqlTable("global_search_analytics", {
   clickedType:  varchar("clicked_type", { length: 50 }),
   clickedId:    varchar("clicked_id", { length: 100 }),
   userRole:     varchar("user_role", { length: 50 }),
-  searchedAt:   timestamp("searched_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  searchedAt:   timestamp("searched_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
   index("idx_gsa_tenant_id").on(table.tenantId),
   index("idx_gsa_searched_at").on(table.searchedAt),
@@ -6358,7 +6386,7 @@ export type SelectGlobalSearchAnalytics = typeof globalSearchAnalytics.$inferSel
  * Controls in-app, email, and SMS delivery + minimum priority threshold.
  */
 export const notificationPreferences = mysqlTable("notification_preferences", {
-  id: int().autoincrement().notNull(),
+  id: int().autoincrement().notNull().primaryKey(),
   userId: int("user_id").notNull(),
   tenantId: varchar("tenant_id", { length: 64 }).notNull(),
   /** Source module: claims | fraud | vehicle_passport | asset_passport | engineering | fleet | timeline | recoveries | portfolio | predictive */
@@ -6367,7 +6395,7 @@ export const notificationPreferences = mysqlTable("notification_preferences", {
   emailEnabled: tinyint("email_enabled").default(0).notNull(),
   smsEnabled: tinyint("sms_enabled").default(0).notNull(),
   minPriority: mysqlEnum("min_priority", ["low", "medium", "high", "urgent"]).default("low").notNull(),
-  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -6383,7 +6411,7 @@ export type InsertNotificationPreference = typeof notificationPreferences.$infer
 // FLEET FUEL RECORDS — M-02: Fuel tracking per vehicle
 // ============================================================================
 export const fuelRecords = mysqlTable("fuel_records", {
-  id:                 int().autoincrement().notNull(),
+  id:                 int().autoincrement().notNull().primaryKey(),
   fleetAccountId:     int("fleet_account_id").notNull(),
   vehicleRegistration: varchar("vehicle_registration", { length: 50 }).notNull(),
   vehicleMake:        varchar("vehicle_make", { length: 100 }),
@@ -6398,7 +6426,7 @@ export const fuelRecords = mysqlTable("fuel_records", {
   stationName:        varchar("station_name", { length: 255 }),
   notes:              text("notes"),
   createdBy:          int("created_by").notNull(),
-  createdAt:          timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt:          timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 });
 export type FuelRecord = typeof fuelRecords.$inferSelect;
 export type InsertFuelRecord = typeof fuelRecords.$inferInsert;
@@ -6407,7 +6435,7 @@ export type InsertFuelRecord = typeof fuelRecords.$inferInsert;
 // FLEET LICENSING RECORDS — M-03: Vehicle licensing and compliance tracking
 // ============================================================================
 export const licensingRecords = mysqlTable("licensing_records", {
-  id:                 int().autoincrement().notNull(),
+  id:                 int().autoincrement().notNull().primaryKey(),
   fleetAccountId:     int("fleet_account_id").notNull(),
   vehicleRegistration: varchar("vehicle_registration", { length: 50 }).notNull(),
   vehicleMake:        varchar("vehicle_make", { length: 100 }),
@@ -6422,7 +6450,7 @@ export const licensingRecords = mysqlTable("licensing_records", {
   documentUrl:        varchar("document_url", { length: 1000 }),
   notes:              text("notes"),
   createdBy:          int("created_by").notNull(),
-  createdAt:          timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt:          timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt:          timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 export type LicensingRecord = typeof licensingRecords.$inferSelect;
@@ -6433,7 +6461,7 @@ export type InsertLicensingRecord = typeof licensingRecords.$inferInsert;
 // Groups multiple inspections under a named project for engineering companies
 // ============================================================================
 export const inspectionProjects = mysqlTable("inspection_projects", {
-  id:                   int().autoincrement().notNull(),
+  id:                   int().autoincrement().notNull().primaryKey(),
   tenantId:             varchar("tenant_id", { length: 255 }),
   projectRef:           varchar("project_ref", { length: 50 }).notNull(),
   projectName:          varchar("project_name", { length: 255 }).notNull(),
@@ -6447,7 +6475,7 @@ export const inspectionProjects = mysqlTable("inspection_projects", {
   completedInspections: int("completed_inspections").default(0).notNull(),
   leadEngineerId:       int("lead_engineer_id"),
   createdBy:            int("created_by").notNull(),
-  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt:            timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 export type InspectionProject = typeof inspectionProjects.$inferSelect;
@@ -6457,7 +6485,7 @@ export type InsertInspectionProject = typeof inspectionProjects.$inferInsert;
 // Stores individual client-owned vehicles (distinct from corporate fleet vehicles).
 // Any authenticated user can register their personal vehicles here.
 export const personalVehicles = mysqlTable("personal_vehicles", {
-  id:               int().autoincrement().notNull(),
+  id:               int().autoincrement().notNull().primaryKey(),
   userId:           int("user_id").notNull(),
   registration:     varchar("registration", { length: 50 }),
   make:             varchar("make", { length: 100 }).notNull(),
@@ -6469,7 +6497,7 @@ export const personalVehicles = mysqlTable("personal_vehicles", {
   fuelType:         mysqlEnum("fuel_type_pv", ['petrol','diesel','electric','hybrid','other']).default('petrol'),
   notes:            text("notes"),
   isPrimary:        tinyint("is_primary").default(0).notNull(),
-  createdAt:        timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt:        timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt:        timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
@@ -6482,7 +6510,7 @@ export type InsertPersonalVehicle = typeof personalVehicles.$inferInsert;
 // Documents sent by agents to clients (policy schedules, cover notes, etc.)
 // Linked to a quotation request; client can view/download from their portal.
 export const quotationRequestDocuments = mysqlTable("quotation_request_documents", {
-  id:                  int().autoincrement().notNull(),
+  id:                  int().autoincrement().notNull().primaryKey(),
   quotationRequestId:  int("quotation_request_id").notNull(),
   clientUserId:        int("client_user_id"),
   documentType:        mysqlEnum("document_type_qrd", [
@@ -6500,7 +6528,7 @@ export const quotationRequestDocuments = mysqlTable("quotation_request_documents
   deliveredToClient:   tinyint("delivered_to_client").default(1).notNull(),
   emailedToClient:     tinyint("emailed_to_client").default(0).notNull(),
   notes:               text("notes"),
-  createdAt:           timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt:           timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
   index("qrd_quotation_request_id").on(table.quotationRequestId),
@@ -6521,8 +6549,8 @@ export const whatsappSessions = mysqlTable("whatsapp_sessions", {
   photoUrls:      json("photo_urls"),
   status:         mysqlEnum("status", ['active','paused','submitted','expired']).notNull().default('active'),
   resumeContext:  text("resume_context"),
-  lastMessageAt:  timestamp("last_message_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
-  createdAt:      timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  lastMessageAt:  timestamp("last_message_at", { mode: 'string' }).defaultNow().notNull(),
+  createdAt:      timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 },
 (table) => [
   index("idx_wa_phone").on(table.phoneNumber),

@@ -1,0 +1,182 @@
+{
+  "scope": "Source-derived Wave 3 scratch SQL selection only. No database connection, DDL execution, staging, production, migration account, or live-data operation occurred.",
+  "sourceSqlSha256": "9cd46b359fdc1c4ff0b2b8484ee5ed47d16eff3af91f016df0964842da601d9f",
+  "outputSqlSha256": "ccdca4a47d9d82c04cc9b9a12e6d49960d4271a052773a342282086a9aff9254",
+  "tableCount": 50,
+  "tableNames": [
+    "adjuster_sign_offs",
+    "agency_documents",
+    "ai_assessments",
+    "ai_prediction_logs",
+    "assessor_report_attachments",
+    "assessor_report_reviews",
+    "assessor_reports",
+    "automation_policies",
+    "claim_confidence_scores",
+    "claim_decision_lifecycle",
+    "claim_routing_decisions",
+    "component_repair_outcomes",
+    "cost_components",
+    "cost_learning_records",
+    "country_repair_index",
+    "currency_exchange_rates",
+    "customer_documents",
+    "decision_snapshots",
+    "document_naming_templates",
+    "extracted_document_data",
+    "extracted_repair_items",
+    "fleet_documents",
+    "fleet_incident_reports",
+    "fraud_alerts",
+    "fraud_indicators",
+    "fraud_rules",
+    "generated_reports",
+    "ingestion_documents",
+    "insurer_marketplace_links",
+    "insurer_marketplace_relationships",
+    "insurer_quote_requests",
+    "marketplace_profiles",
+    "panel_beater_quotes",
+    "pdf_reports",
+    "physics_validation_records",
+    "police_reports",
+    "policy_documents",
+    "pre_accident_damage",
+    "quotation_request_documents",
+    "quote_line_items",
+    "quote_optimisation_results",
+    "repair_cost_intelligence",
+    "repair_history",
+    "report_access_audit",
+    "report_links",
+    "report_snapshots",
+    "service_quotes",
+    "supplier_quote_line_items",
+    "supplier_quotes",
+    "valuation_comparable_evidence"
+  ],
+  "indexStatementCount": 111,
+  "foreignKeyCount": 26,
+  "foreignKeys": [
+    {
+      "source": "adjuster_sign_offs",
+      "target": "claims"
+    },
+    {
+      "source": "ai_assessments",
+      "target": "claims"
+    },
+    {
+      "source": "assessor_report_attachments",
+      "target": "assessor_reports"
+    },
+    {
+      "source": "assessor_report_reviews",
+      "target": "assessor_reports"
+    },
+    {
+      "source": "assessor_report_reviews",
+      "target": "claims"
+    },
+    {
+      "source": "assessor_report_reviews",
+      "target": "users"
+    },
+    {
+      "source": "assessor_reports",
+      "target": "claims"
+    },
+    {
+      "source": "assessor_reports",
+      "target": "users"
+    },
+    {
+      "source": "assessor_reports",
+      "target": "claim_assignments"
+    },
+    {
+      "source": "assessor_reports",
+      "target": "users"
+    },
+    {
+      "source": "claim_confidence_scores",
+      "target": "claims"
+    },
+    {
+      "source": "claim_routing_decisions",
+      "target": "claims"
+    },
+    {
+      "source": "claim_routing_decisions",
+      "target": "claim_confidence_scores"
+    },
+    {
+      "source": "claim_routing_decisions",
+      "target": "automation_policies"
+    },
+    {
+      "source": "component_repair_outcomes",
+      "target": "claims"
+    },
+    {
+      "source": "cost_learning_records",
+      "target": "claims"
+    },
+    {
+      "source": "fraud_alerts",
+      "target": "claims"
+    },
+    {
+      "source": "fraud_indicators",
+      "target": "claims"
+    },
+    {
+      "source": "generated_reports",
+      "target": "claims"
+    },
+    {
+      "source": "insurer_quote_requests",
+      "target": "claims"
+    },
+    {
+      "source": "panel_beater_quotes",
+      "target": "claims"
+    },
+    {
+      "source": "police_reports",
+      "target": "claims"
+    },
+    {
+      "source": "pre_accident_damage",
+      "target": "claims"
+    },
+    {
+      "source": "quote_optimisation_results",
+      "target": "claims"
+    },
+    {
+      "source": "repair_history",
+      "target": "claims"
+    },
+    {
+      "source": "report_snapshots",
+      "target": "claims"
+    }
+  ],
+  "foreignKeyNameNormalisations": [
+    {
+      "source": "claim_routing_decisions",
+      "target": "claim_confidence_scores",
+      "from": "claim_routing_decisions_confidence_score_id_claim_confidence_scores_id_fk",
+      "to": "fk_crd_confidence_score"
+    },
+    {
+      "source": "claim_routing_decisions",
+      "target": "automation_policies",
+      "from": "claim_routing_decisions_automation_policy_id_automation_policies_id_fk",
+      "to": "fk_crd_automation_policy"
+    }
+  ],
+  "statementCount": 187,
+  "status": "passed"
+}

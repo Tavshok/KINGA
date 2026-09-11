@@ -1,0 +1,13 @@
+{
+  "inspected": 75,
+  "originalFinalWaveTableCount": 78,
+  "alreadyWavedOperationalChannels": 3,
+  "keyGaps": 6,
+  "missingSourceDeclarations": 0,
+  "unresolvedDependencies": 0,
+  "sourceOrderDependencies": 0,
+  "heldOverlap": 0,
+  "emptyConfiguredIndexNames": 0,
+  "duplicateConfiguredIndexNames": 0,
+  "readyForSqlGeneration": false
+}

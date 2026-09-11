@@ -1,0 +1,8 @@
+{
+  "contract": "gate-c-claim-comment-read-canonicalization-v1",
+  "physicalTable": "claim_comment_reads",
+  "declaration": "claimCommentReads",
+  "sourceFile": "drizzle/claim-comments-schema.ts",
+  "normalizedDeclaration": "export const claimCommentReads = mysqlTable(\"claim_comment_reads\", { id: int(\"id\").autoincrement().primaryKey(), commentId: int(\"comment_id\").notNull(), userId: int(\"user_id\").notNull(), readAt: varchar(\"read_at\", { length: 50 }).notNull(), }, (table) => [ index(\"idx_ccr_comment_id\").on(table.commentId), index(\"idx_ccr_user_id\").on(table.userId), uniqueIndex(\"uq_ccr_comment_user\").on(table.commentId, table.userId), ]);",
+  "normalizedDeclarationSha256": "f4e26b005e772751aeea33de2da87aade190c41dc70b32ac12033e51967b9f7a"
+}

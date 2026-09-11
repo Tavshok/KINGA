@@ -1,0 +1,6 @@
+{
+  "tableCount": 50,
+  "indexCount": 111,
+  "foreignKeyCount": 26,
+  "status": "passed"
+}

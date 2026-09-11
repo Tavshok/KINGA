@@ -52,6 +52,13 @@ function correctedContent(tag, original) {
   }
   if (tag === "0058_claim_comments_extend") {
     return original
+      // The fresh baseline follows the approved live physical contract. This is
+      // an immutable-overlay correction only; historical migration bytes remain
+      // unchanged and no deployed database is contacted by this runner.
+      .replace(
+        "ALTER TABLE claim_comments\n  CHANGE COLUMN `userId` `author_user_id` INT NOT NULL,",
+        "ALTER TABLE claim_comments\n  CHANGE COLUMN `claim_id` `claimId` INT NOT NULL,\n  CHANGE COLUMN `userId` `author_user_id` INT NOT NULL,"
+      )
       .replaceAll("`userId`", "`user_id`")
       .replaceAll("`userRole`", "`user_role`")
       .replaceAll("`commentType`", "`comment_type`")
@@ -130,7 +137,7 @@ function assertCoreEvidence(metadata, expectedEntries) {
   const requiredColumns = {
     ai_assessments: ["stage2_raw_ocr_text", "narrative_analysis_json"],
     claims: ["kinga_ref"],
-    claim_comments: ["claim_id", "author_user_id", "author_role", "body", "to_roles", "to_user_ids", "to_emails", "parent_comment_id", "is_resolved", "resolved_by_user_id", "resolved_at", "requires_response", "response_deadline_at", "email_sent"],
+    claim_comments: ["claimId", "author_user_id", "author_role", "body", "to_roles", "to_user_ids", "to_emails", "parent_comment_id", "is_resolved", "resolved_by_user_id", "resolved_at", "requires_response", "response_deadline_at", "email_sent"],
     governance_notifications: ["tenant_id", "recipients", "read_at", "created_at"],
     rate_limit_tracking: ["user_id", "tenant_id", "action_type", "window_start", "action_count"],
   };
@@ -142,19 +149,19 @@ function assertCoreEvidence(metadata, expectedEntries) {
   const missingJournalTimes = expectedJournalTimes.filter((time) => !actualJournalTimes.includes(time));
   const unexpectedJournalTimes = actualJournalTimes.filter((time) => !expectedJournalTimes.includes(time));
   const unexpectedRecipientsIndex = indexesByTable.get("governance_notifications")?.has("idx_recipients") ?? false;
-  const unexpectedLegacyClaimId = columnsByTable.get("claim_comments")?.has("claimId") ?? false;
+  const unexpectedSnakeCaseClaimId = columnsByTable.get("claim_comments")?.has("claim_id") ?? false;
   const rateLimitIndexPresent = indexesByTable.get("rate_limit_tracking")?.has("idx_user_tenant_action_window") ?? false;
   return {
     requiredColumns,
     missingColumns,
     unexpectedRecipientsIndex,
-    unexpectedLegacyClaimId,
+    unexpectedSnakeCaseClaimId,
     rateLimitIndexPresent,
     expectedJournalEntryCount: expectedJournalTimes.length,
     actualJournalEntryCount: actualJournalTimes.length,
     missingJournalTimes,
     unexpectedJournalTimes,
-    pass: missingColumns.length === 0 && !unexpectedRecipientsIndex && !unexpectedLegacyClaimId && rateLimitIndexPresent && missingJournalTimes.length === 0 && unexpectedJournalTimes.length === 0,
+    pass: missingColumns.length === 0 && !unexpectedRecipientsIndex && !unexpectedSnakeCaseClaimId && rateLimitIndexPresent && missingJournalTimes.length === 0 && unexpectedJournalTimes.length === 0,
   };
 }
 

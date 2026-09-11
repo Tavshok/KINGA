@@ -1,22 +1,23 @@
 {
   "metadata": {
-    "generatedAt": "2026-09-10T20:30:00.000Z",
-    "sourceCommit": "484c8e1b483975acce7ae2b3e39c3e3f07b0e837",
+    "generatedAt": "2026-09-11T18:59:16.834Z",
+    "sourceCommit": "resolved at execution time; see shell record",
     "scope": "Repository-only static analysis. No database/environment connection or command is used.",
     "counts": {
-      "schemaDeclarations": 242,
-      "mysqlDeclarations": 226,
+      "schemaDeclarations": 241,
+      "mysqlDeclarations": 225,
       "mysqlDistinctPhysicalTableNames": 221,
       "postgresqlDeclarations": 16,
       "allDialectDistinctPhysicalTableNames": 226,
       "testFixtureOnlyDeclarationsExcludedFromSchemaLedger": 5,
-      "allRepositoryTableFactoryDeclarationsIncludingTestFixtures": 247,
+      "allRepositoryTableFactoryDeclarationsIncludingTestFixtures": 246,
       "migrationSqlArtifacts": 82,
       "journalEntries": 57
     },
     "checksums": {
-      "drizzleSchemaTs": "53cb1dfb54fb87cdc8e7a6b13797dc51f9469625c9963e5fdaf7afa8f46ba5f7",
-      "drizzleJournal": "7d03953ea06b31b5a17a6b25ce5c10a32e1f5c16fd59ed3213f7dbd28755c2ed"
+      "drizzleSchemaTs": "0d07fd920f1b260c75b85ec25ce224cef48d6deb4fe0fef47d6dc0ceec03a17c",
+      "drizzleJournal": "7d03953ea06b31b5a17a6b25ce5c10a32e1f5c16fd59ed3213f7dbd28755c2ed",
+      "gateCRuntimeCandidateDispositions": "5ad689838482a56443240848159f9fa534cde6b405e3299acbbca68b58defc64"
     }
   },
   "journalEntries": [

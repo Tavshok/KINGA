@@ -1,0 +1,522 @@
+{
+  "id": 5,
+  "title": "Intelligence and analytics",
+  "tableCount": 78,
+  "tables": [
+    {
+      "tableName": "access_denial_log",
+      "declarationId": "drizzle/schema.ts:4:accessDenialLog",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "anonymization_audit_log",
+      "declarationId": "drizzle/schema.ts:427:anonymizationAuditLog",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "appointments",
+      "declarationId": "drizzle/schema.ts:444:appointments",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "assessor_deviation_metrics",
+      "declarationId": "drizzle/schema.ts:484:assessorDeviationMetrics",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "assessor_evaluations",
+      "declarationId": "drizzle/schema.ts:507:assessorEvaluations",
+      "dependencies": [
+        "assessor_report_reviews",
+        "assessor_reports",
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "assessor_insurer_relationships",
+      "declarationId": "drizzle/schema.ts:535:assessorInsurerRelationships",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "assessor_subscriptions",
+      "declarationId": "drizzle/schema.ts:4369:assessorSubscriptions",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "assessors",
+      "declarationId": "drizzle/schema.ts:585:assessors",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "asset_registry",
+      "declarationId": "drizzle/schema.ts:6000:assetRegistry",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "audit_trail",
+      "declarationId": "drizzle/schema.ts:647:auditTrail",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "automation_audit_log",
+      "declarationId": "drizzle/schema.ts:667:automationAuditLog",
+      "dependencies": [
+        "automation_policies",
+        "claim_confidence_scores",
+        "claim_routing_decisions",
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "bias_detection_flags",
+      "declarationId": "drizzle/schema.ts:3605:biasDetectionFlags",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "calibration_overrides",
+      "declarationId": "drizzle/schema.ts:5375:calibrationOverrides",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "claim_approvals",
+      "declarationId": "drizzle/schema.ts:5438:claimApprovals",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "claim_events",
+      "declarationId": "drizzle/schema.ts:840:claimEvents",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "claim_intake_requests",
+      "declarationId": "drizzle/schema.ts:796:claimIntakeRequests",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "claim_intelligence_dataset",
+      "declarationId": "drizzle/schema.ts:956:claimIntelligenceDataset",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "claim_involvement_tracking",
+      "declarationId": "drizzle/schema.ts:1003:claimInvolvementTracking",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "claim_review_queue",
+      "declarationId": "drizzle/schema.ts:1016:claimReviewQueue",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "commission_records",
+      "declarationId": "drizzle/schema.ts:1314:commissionRecords",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "component_benchmarks",
+      "declarationId": "drizzle/schema.ts:5737:componentBenchmarks",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "cross_claim_signals",
+      "declarationId": "drizzle/schema.ts:4892:crossClaimSignals",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "customer_consent",
+      "declarationId": "drizzle/schema.ts:1392:customerConsent",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "dataset_access_grants",
+      "declarationId": "drizzle/schema.ts:1421:datasetAccessGrants",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "driver_claims",
+      "declarationId": "drizzle/schema.ts:4772:driverClaims",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "fast_track_config",
+      "declarationId": "drizzle/schema.ts:1579:fastTrackConfig",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "fast_track_routing_log",
+      "declarationId": "drizzle/schema.ts:1603:fastTrackRoutingLog",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "federated_learning_metadata",
+      "declarationId": "drizzle/schema.ts:1631:federatedLearningMetadata",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "final_approval_records",
+      "declarationId": "drizzle/schema.ts:1652:finalApprovalRecords",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "fuel_records",
+      "declarationId": "drizzle/schema.ts:6390:fuelRecords",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "global_anonymized_dataset",
+      "declarationId": "drizzle/schema.ts:1956:globalAnonymizedDataset",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "global_search_analytics",
+      "declarationId": "drizzle/schema.ts:6343:globalSearchAnalytics",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "global_search_history",
+      "declarationId": "drizzle/schema.ts:6328:globalSearchHistory",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "historical_claims",
+      "declarationId": "drizzle/schema.ts:2033:historicalClaims",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "historical_replay_results",
+      "declarationId": "drizzle/schema.ts:2083:historicalReplayResults",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "human_review_queue",
+      "declarationId": "drizzle/schema.ts:3619:humanReviewQueue",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "ingestion_batches",
+      "declarationId": "drizzle/schema.ts:2132:ingestionBatches",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "insurer_tenants",
+      "declarationId": "drizzle/schema.ts:2304:insurerTenants",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "iso_audit_logs",
+      "declarationId": "drizzle/schema.ts:2333:isoAuditLogs",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "licensing_records",
+      "declarationId": "drizzle/schema.ts:6414:licensingRecords",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "maintenance_alerts",
+      "declarationId": "drizzle/schema.ts:2354:maintenanceAlerts",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "maintenance_records",
+      "declarationId": "drizzle/schema.ts:2372:maintenanceRecords",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "maintenance_schedules",
+      "declarationId": "drizzle/schema.ts:2399:maintenanceSchedules",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "mismatch_annotations",
+      "declarationId": "drizzle/schema.ts:5170:mismatchAnnotations",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "model_training_queue",
+      "declarationId": "drizzle/schema.ts:2456:modelTrainingQueue",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "multi_reference_truth",
+      "declarationId": "drizzle/schema.ts:2507:multiReferenceTruth",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "narrative_versions",
+      "declarationId": "drizzle/schema.ts:5200:narrativeVersions",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "parts_pricing_baseline",
+      "declarationId": "drizzle/schema.ts:2669:partsPricingBaseline",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "personal_vehicles",
+      "declarationId": "drizzle/schema.ts:6464:personalVehicles",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "physical_measurements",
+      "declarationId": "drizzle/schema.ts:6099:physicalMeasurements",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "pipeline_jobs",
+      "declarationId": "drizzle/schema.ts:5798:pipelineJobs",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "pipeline_runs",
+      "declarationId": "drizzle/schema.ts:5773:pipelineRuns",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "policy_claim_links",
+      "declarationId": "drizzle/schema.ts:2777:policyClaimLinks",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "policy_endorsements",
+      "declarationId": "drizzle/schema.ts:2805:policyEndorsements",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "predictive_risk_scores",
+      "declarationId": "drizzle/schema.ts:6302:predictiveRiskScores",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "quotation_requests",
+      "declarationId": "drizzle/schema.ts:2855:quotationRequests",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "recovery_cases",
+      "declarationId": "drizzle/schema.ts:5600:recoveryCases",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "recovery_correspondence_log",
+      "declarationId": "drizzle/schema.ts:5679:recoveryCorrespondenceLog",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "replay_logs",
+      "declarationId": "drizzle/schema.ts:5058:replayLogs",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "risk_register",
+      "declarationId": "drizzle/schema.ts:3164:riskRegister",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "role_assignment_audit",
+      "declarationId": "drizzle/schema.ts:3186:roleAssignmentAudit",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "routing_history",
+      "declarationId": "drizzle/schema.ts:3207:routingHistory",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "routing_threshold_config",
+      "declarationId": "drizzle/schema.ts:3232:routingThresholdConfig",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "service_providers",
+      "declarationId": "drizzle/schema.ts:3250:serviceProviders",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "shadow_override_monitor",
+      "declarationId": "drizzle/schema.ts:5128:shadowOverrideMonitor",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "similar_claims_clusters",
+      "declarationId": "drizzle/schema.ts:3330:similarClaimsClusters",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "super_audit_sessions",
+      "declarationId": "drizzle/schema.ts:3351:superAuditSessions",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "supplier_performance_metrics",
+      "declarationId": "drizzle/schema.ts:3375:supplierPerformanceMetrics",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "system_errors",
+      "declarationId": "drizzle/schema.ts:4469:systemErrors",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "tenant_isolation_violations",
+      "declarationId": "drizzle/schema.ts:4399:tenantIsolationViolations",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "tenant_role_configs",
+      "declarationId": "drizzle/schema.ts:3464:tenantRoleConfigs",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "third_party_vehicles",
+      "declarationId": "drizzle/schema.ts:3528:thirdPartyVehicles",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "training_data_scores",
+      "declarationId": "drizzle/schema.ts:3557:trainingDataScores",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "training_dataset",
+      "declarationId": "drizzle/schema.ts:3584:trainingDataset",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "usage_events",
+      "declarationId": "drizzle/schema.ts:3651:usageEvents",
+      "dependencies": [
+        "claims"
+      ],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "variance_datasets",
+      "declarationId": "drizzle/schema.ts:3756:varianceDatasets",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "weight_adjustment_log",
+      "declarationId": "drizzle/schema.ts:5238:weightAdjustmentLog",
+      "dependencies": [],
+      "candidateStatus": null
+    },
+    {
+      "tableName": "whatsapp_sessions",
+      "declarationId": "drizzle/schema.ts:6520:whatsappSessions",
+      "dependencies": [],
+      "candidateStatus": null
+    }
+  ]
+}
