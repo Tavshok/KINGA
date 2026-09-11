@@ -1,0 +1,8 @@
+{
+  "scope": "Static Wave 2 source-generated SQL analysis only; no database connection was opened.",
+  "tableCount": 20,
+  "foreignKeyCount": 9,
+  "missingAutoIncrementPrimaryKeys": [],
+  "invalidForeignKeyTargets": [],
+  "status": "passed"
+}
