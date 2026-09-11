@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "generatedAt": "2026-09-11T18:14:55.708Z",
-    "sourceCommit": "2078957cfbc8fb2715bbf7be58d1cad7500b3a13",
+    "generatedAt": "2026-09-11T18:59:16.834Z",
+    "sourceCommit": "resolved at execution time; see shell record",
     "scope": "Repository-only static analysis. No database/environment connection or command is used.",
     "counts": {
       "schemaDeclarations": 241,
@@ -15,7 +15,7 @@
       "journalEntries": 57
     },
     "checksums": {
-      "drizzleSchemaTs": "ddd31b6add6c110e4ffaf68ecd62cde1e3af97c60321108900c9fbc60cba4a5d",
+      "drizzleSchemaTs": "0d07fd920f1b260c75b85ec25ce224cef48d6deb4fe0fef47d6dc0ceec03a17c",
       "drizzleJournal": "7d03953ea06b31b5a17a6b25ce5c10a32e1f5c16fd59ed3213f7dbd28755c2ed",
       "gateCRuntimeCandidateDispositions": "5ad689838482a56443240848159f9fa534cde6b405e3299acbbca68b58defc64"
     }

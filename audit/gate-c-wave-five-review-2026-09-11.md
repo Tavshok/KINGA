@@ -36,6 +36,8 @@ Four source-generated FK identifiers exceeded MySQL/TiDB’s 64-character limit.
 
 The static contract permits only `CREATE TABLE`, `CREATE [UNIQUE] INDEX`, and source-declared `ALTER TABLE ... ADD CONSTRAINT` foreign-key additions. It rejects data statements, `DROP`, arbitrary `ALTER`, unreviewed tables, unresolved targets, duplicate creation, and absent explicit keys. The identifier guard passed for all indexes, inline unique constraints, and FKs.
 
+The repository-only source manifest was regenerated and verified after the source reconciliation commit `4336a2961147877a373a11a706e2a7ee4604f754`. It reports 241 schema declarations, 221 distinct MySQL physical names, 82 migration SQL artefacts, and 57 journal entries. The manifest generator intentionally records its commit field as “resolved at execution time; see shell record”; the retained final manifest verification record binds that passed output to the exact source commit above.
+
 ## Two-run loopback scratch proof
 
 The runner accepts only a supplied `mysql://` target whose host is loopback and whose database name matches `kinga_gatec_*`. It does not read `DATABASE_URL` or `KINGA_STAGING_DATABASE_URL`. The collision-safe orchestrator checks that each target is absent before creating it; it drops only that exact generated name and stores a post-drop `information_schema` absence proof.
