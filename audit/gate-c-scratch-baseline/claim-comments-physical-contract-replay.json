@@ -1,0 +1,16 @@
+{
+  "scope": "Gate C scratch-only compatibility proof. No staging, production, migration account, application configuration, or application data was accessed or changed.",
+  "target": "A uniquely named loopback-only local scratch database matching kinga_gateb_*.",
+  "runner": "scripts/gate-b-immutable-overlay-replay.mjs",
+  "result": "passed",
+  "replayExitCode": 0,
+  "expectedJournalEntryCount": 61,
+  "actualJournalEntryCount": 61,
+  "missingColumns": [],
+  "claimComments": {
+    "physicalColumnRequired": "claimId",
+    "hasClaimId": true,
+    "hasClaimUnderscoreId": false
+  },
+  "interpretation": "The immutable scratch overlay can materialise the user-approved current physical claim_comments.claimId contract while preserving historical migration and journal bytes. This evidence permits only planning/generation of an equivalent scratch baseline; it does not authorise DDL against kinga_staging or production."
+}

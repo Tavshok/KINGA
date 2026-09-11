@@ -1,0 +1,140 @@
+{
+  "scope": "Gate C candidate verification only. This file records reviewed current-code-path evidence and holds. It neither generates nor authorises DDL and does not change staging or production.",
+  "candidateTables": [
+    {
+      "tableName": "claim_comment_reads",
+      "status": "verified_current_path",
+      "operationalState": "Current role-dashboard and claim-thread read-state path is wired through the registered claim communications router.",
+      "codePath": [
+        "client/src/components/ClaimCommentThread.tsx: trpc.claimComms.list, markRead, and resolve",
+        "client/src/components/NotificationsInbox.tsx: trpc.claimComms.myNotifications, markRead, markAllRead, resolve, and unreadCount",
+        "server/routers/claimComments.ts: registered claim communications procedures",
+        "server/claim-comments-db.ts: production SQL against claim_comment_reads"
+      ],
+      "action": "Eligible for the operational-portals baseline wave only after reviewed CREATE TABLE/index/foreign-key generation and a clean fresh-scratch replay."
+    },
+    {
+      "tableName": "tenant_usage_summary",
+      "status": "held_no_current_runtime_path",
+      "operationalState": "The declaration exists in drizzle/schema-usage-events.ts, but the current trace found no exact production router, service, worker, scheduled job, or UI path. The stated tier-crossover billing rationale is not established by current code.",
+      "codePath": [],
+      "action": "Hold for product/ownership decision; do not generate baseline DDL."
+    },
+    {
+      "tableName": "tenant_tier_history",
+      "status": "held_no_current_runtime_path",
+      "operationalState": "The declaration exists in drizzle/schema-usage-events.ts, but the current trace found no exact production router, service, worker, scheduled job, or UI path. The stated tier-crossover billing rationale is not established by current code.",
+      "codePath": [],
+      "action": "Hold for product/ownership decision; do not generate baseline DDL."
+    },
+    {
+      "tableName": "audit_logs",
+      "status": "held_no_current_runtime_path",
+      "operationalState": "No exact current production use of audit_logs was found. The source tree contains other audit-oriented tables, so name-level similarity is not evidence that this declaration is the active audit path.",
+      "codePath": [],
+      "action": "Hold for product/ownership decision and audit-table identity reconciliation; do not generate baseline DDL."
+    },
+    {
+      "tableName": "currency_exchange_rates",
+      "status": "verified_current_path",
+      "operationalState": "Current Stage 9 cost processing derives economic context from this table during assessment execution.",
+      "codePath": [
+        "server/pipeline-v2/orchestrator.ts: current assessment pipeline invokes Stage 9",
+        "server/pipeline-v2/stage-9-cost.ts: runCostOptimisationStage invokes deriveEconomicContext",
+        "server/pipeline-v2/economicContextEngine.ts: reads currency_exchange_rates"
+      ],
+      "action": "Eligible for the assessment/evidence/reporting baseline wave only after reviewed CREATE TABLE/index/foreign-key generation and a clean fresh-scratch replay."
+    },
+    {
+      "tableName": "benchmark_deviations",
+      "status": "held_no_current_runtime_path",
+      "operationalState": "No exact current production router, service, worker, pipeline stage, scheduled job, or UI consumer was found.",
+      "codePath": [],
+      "action": "Hold for product/ownership decision; do not generate baseline DDL."
+    },
+    {
+      "tableName": "adjuster_sign_offs",
+      "status": "verified_current_path",
+      "operationalState": "The claim-decision report route renders a sign-off panel that reads and saves through the registered claims procedures.",
+      "codePath": [
+        "client/src/App.tsx: current lazy ClaimDecisionReport route",
+        "client/src/pages/ClaimDecisionReport.page.tsx: getAdjusterSignOff query and rendered AdjusterSignOffPanel",
+        "client/src/components/Batch3ReportComponents.tsx: trpc.claims.saveAdjusterSignOff mutation",
+        "server/routers/claims-core.ts: claims sign-off procedures using adjuster_sign_offs"
+      ],
+      "action": "Eligible for the assessment/evidence/reporting baseline wave only after reviewed CREATE TABLE/index/foreign-key generation and a clean fresh-scratch replay."
+    },
+    {
+      "tableName": "photo_reextraction_jobs",
+      "status": "held_server_registered_but_client_unwired",
+      "operationalState": "The router and worker are registered, but the current source trace found no client invocation of trpc.photoReextraction.*. This is implemented server capability without demonstrated current user/automated activation.",
+      "codePath": [
+        "server/routers.ts: photoReextraction router registration",
+        "server/routers/photo-reextraction.ts and server/photo-reextraction-worker.ts: implemented server capability"
+      ],
+      "action": "Hold for product/operational decision; do not generate baseline DDL until a genuine enabled activation path is confirmed."
+    },
+    {
+      "tableName": "vehicle_models",
+      "status": "verified_current_path",
+      "operationalState": "The live Vision Geometry Engine matches vehicle profiles from this table during Stage 6.5A.",
+      "codePath": [
+        "server/pipeline-v2/orchestrator.ts: invokes runVGECalibration in Stage 6.5A",
+        "server/pipeline-v2/stage-6-5a-vge.ts: selects from vehicle_models"
+      ],
+      "action": "Eligible for the vehicle/claim-core baseline wave only after reviewed CREATE TABLE/index/foreign-key generation and a clean fresh-scratch replay."
+    },
+    {
+      "tableName": "measurement_types",
+      "status": "verified_current_path",
+      "operationalState": "The live Vision Geometry Engine uses measurement type reliability values during Stage 6.5A calibration.",
+      "codePath": [
+        "server/pipeline-v2/orchestrator.ts: invokes runVGECalibration in Stage 6.5A",
+        "server/pipeline-v2/stage-6-5a-vge.ts: reads measurement_types for calibration reliability"
+      ],
+      "action": "Eligible for the vehicle/claim-core baseline wave only after reviewed CREATE TABLE/index/foreign-key generation and a clean fresh-scratch replay."
+    },
+    {
+      "tableName": "vehicle_geometry_measurements",
+      "status": "verified_current_path",
+      "operationalState": "The live Vision Geometry Engine loads vehicle geometry measurements during Stage 6.5A calibration.",
+      "codePath": [
+        "server/pipeline-v2/orchestrator.ts: invokes runVGECalibration in Stage 6.5A",
+        "server/pipeline-v2/stage-6-5a-vge.ts: selects from vehicle_geometry_measurements"
+      ],
+      "action": "Eligible for the vehicle/claim-core baseline wave only after reviewed CREATE TABLE/index/foreign-key generation and a clean fresh-scratch replay."
+    },
+    {
+      "tableName": "vehicle_landmarks",
+      "status": "held_seed_only",
+      "operationalState": "The current source trace reaches this table only in server/vehicle-geometry-seed/ingest-seed.mts. Stage 6.5A does not query it during live calibration.",
+      "codePath": [
+        "server/vehicle-geometry-seed/ingest-seed.mts: manual seed ingestion only"
+      ],
+      "action": "Hold for product/data-owner decision; do not generate baseline DDL solely for an unwired seed path."
+    },
+    {
+      "tableName": "geometry_sources",
+      "status": "held_no_current_runtime_path",
+      "operationalState": "No exact current production router, service, worker, pipeline stage, scheduled job, or UI consumer was found.",
+      "codePath": [],
+      "action": "Hold for product/ownership decision; do not generate baseline DDL."
+    },
+    {
+      "tableName": "vision_calibration_results",
+      "status": "held_no_current_runtime_path",
+      "operationalState": "No exact current production router, service, worker, pipeline stage, scheduled job, or UI consumer was found. The current orchestrator records Stage 6.5A state in-memory/assessment flow rather than to this declared table.",
+      "codePath": [],
+      "action": "Hold for product/ownership decision; do not generate baseline DDL."
+    }
+  ],
+  "physicalNameDecisions": [
+    {
+      "tableName": "claim_comments",
+      "columnName": "claimId",
+      "status": "approved_current_runtime_contract",
+      "basis": "The configured current Drizzle schema, claim-comments helper schema, relations, and current managed-runtime/test target use the physical column name claimId. This is the selected baseline contract.",
+      "action": "A fresh Gate C baseline must materialise claim_comments.claimId. Do not rename it to claim_id or propose a live compatibility cutover without separate explicit approval. Historical migration inputs remain immutable."
+    }
+  ]
+}

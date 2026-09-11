@@ -1,0 +1,1393 @@
+{
+  "scope": "repository-only quoted CURRENT_TIMESTAMP default inventory",
+  "source": "drizzle/schema.ts",
+  "total": 173,
+  "waveOneCount": 0,
+  "outsideWaveOneCount": 173,
+  "occurrences": [
+    {
+      "line": 14,
+      "table": "access_denial_log",
+      "exportName": "accessDenialLog",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 158,
+      "table": "agency_documents",
+      "exportName": "agencyDocuments",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 180,
+      "table": "ai_assessments",
+      "exportName": "aiAssessments",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 420,
+      "table": "ai_prediction_logs",
+      "exportName": "aiPredictionLogs",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 436,
+      "table": "anonymization_audit_log",
+      "exportName": "anonymizationAuditLog",
+      "field": "anonymizedAt",
+      "scope": "outside_wave_one",
+      "source": "anonymizedAt: timestamp(\"anonymized_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 455,
+      "table": "appointments",
+      "exportName": "appointments",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 480,
+      "table": "approval_workflow",
+      "exportName": "approvalWorkflow",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 504,
+      "table": "assessor_deviation_metrics",
+      "exportName": "assessorDeviationMetrics",
+      "field": "calculatedAt",
+      "scope": "outside_wave_one",
+      "source": "calculatedAt: timestamp(\"calculated_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 514,
+      "table": "assessor_evaluations",
+      "exportName": "assessorEvaluations",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 551,
+      "table": "assessor_insurer_relationships",
+      "exportName": "assessorInsurerRelationships",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 575,
+      "table": "assessor_marketplace_reviews",
+      "exportName": "assessorMarketplaceReviews",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 618,
+      "table": "assessors",
+      "exportName": "assessors",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 643,
+      "table": "audit_logs",
+      "exportName": "auditLogs",
+      "field": "timestamp",
+      "scope": "outside_wave_one",
+      "source": "timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 659,
+      "table": "audit_trail",
+      "exportName": "auditTrail",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 688,
+      "table": "automation_audit_log",
+      "exportName": "automationAuditLog",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP'),"
+    },
+    {
+      "line": 716,
+      "table": "automation_policies",
+      "exportName": "automationPolicies",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP'),"
+    },
+    {
+      "line": 721,
+      "table": "automation_policies",
+      "exportName": "automationPolicies",
+      "field": "effectiveFrom",
+      "scope": "outside_wave_one",
+      "source": "effectiveFrom: timestamp(\"effective_from\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 780,
+      "table": "claim_confidence_scores",
+      "exportName": "claimConfidenceScores",
+      "field": "scoringTimestamp",
+      "scope": "outside_wave_one",
+      "source": "scoringTimestamp: timestamp(\"scoring_timestamp\", { mode: 'string' }).default('CURRENT_TIMESTAMP'),"
+    },
+    {
+      "line": 830,
+      "table": "claim_documents",
+      "exportName": "claimDocuments",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 848,
+      "table": "claim_events",
+      "exportName": "claimEvents",
+      "field": "emittedAt",
+      "scope": "outside_wave_one",
+      "source": "emittedAt: timestamp(\"emitted_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 987,
+      "table": "claim_intelligence_dataset",
+      "exportName": "claimIntelligenceDataset",
+      "field": "capturedAt",
+      "scope": "outside_wave_one",
+      "source": "capturedAt: timestamp(\"captured_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 988,
+      "table": "claim_intelligence_dataset",
+      "exportName": "claimIntelligenceDataset",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1009,
+      "table": "claim_involvement_tracking",
+      "exportName": "claimInvolvementTracking",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1032,
+      "table": "claim_review_queue",
+      "exportName": "claimReviewQueue",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1048,
+      "table": "claim_routing_decisions",
+      "exportName": "claimRoutingDecisions",
+      "field": "decisionTimestamp",
+      "scope": "outside_wave_one",
+      "source": "decisionTimestamp: timestamp(\"decision_timestamp\", { mode: 'string' }).default('CURRENT_TIMESTAMP'),"
+    },
+    {
+      "line": 1093,
+      "table": "claimant_history",
+      "exportName": "claimantHistory",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1142,
+      "table": "claims",
+      "exportName": "claims",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1328,
+      "table": "commission_records",
+      "exportName": "commissionRecords",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1342,
+      "table": "agency_product_commission_configs",
+      "exportName": "agencyProductCommissionConfigs",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1371,
+      "table": "cost_components",
+      "exportName": "costComponents",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1384,
+      "table": "currency_exchange_rates",
+      "exportName": "currencyExchangeRates",
+      "field": "lastUpdated",
+      "scope": "outside_wave_one",
+      "source": "lastUpdated: timestamp(\"last_updated\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1386,
+      "table": "currency_exchange_rates",
+      "exportName": "currencyExchangeRates",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1397,
+      "table": "customer_consent",
+      "exportName": "customerConsent",
+      "field": "consentDate",
+      "scope": "outside_wave_one",
+      "source": "consentDate: timestamp(\"consent_date\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1418,
+      "table": "customer_documents",
+      "exportName": "customerDocuments",
+      "field": "uploadedAt",
+      "scope": "outside_wave_one",
+      "source": "uploadedAt: timestamp(\"uploaded_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1433,
+      "table": "dataset_access_grants",
+      "exportName": "datasetAccessGrants",
+      "field": "grantedAt",
+      "scope": "outside_wave_one",
+      "source": "grantedAt: timestamp(\"granted_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1450,
+      "table": "document_naming_templates",
+      "exportName": "documentNamingTemplates",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1469,
+      "table": "document_versions",
+      "exportName": "documentVersions",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1486,
+      "table": "email_verification_tokens",
+      "exportName": "emailVerificationTokens",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1510,
+      "table": "entity_relationships",
+      "exportName": "entityRelationships",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1547,
+      "table": "extracted_document_data",
+      "exportName": "extractedDocumentData",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1573,
+      "table": "extracted_repair_items",
+      "exportName": "extractedRepairItems",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1592,
+      "table": "fast_track_config",
+      "exportName": "fastTrackConfig",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1620,
+      "table": "fast_track_routing_log",
+      "exportName": "fastTrackRoutingLog",
+      "field": "evaluatedAt",
+      "scope": "outside_wave_one",
+      "source": "evaluatedAt: timestamp(\"evaluated_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1644,
+      "table": "federated_learning_metadata",
+      "exportName": "federatedLearningMetadata",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1677,
+      "table": "final_approval_records",
+      "exportName": "finalApprovalRecords",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1696,
+      "table": "fleet_audit_logs",
+      "exportName": "fleetAuditLogs",
+      "field": "timestamp",
+      "scope": "outside_wave_one",
+      "source": "timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1715,
+      "table": "fleet_documents",
+      "exportName": "fleetDocuments",
+      "field": "uploadedAt",
+      "scope": "outside_wave_one",
+      "source": "uploadedAt: timestamp(\"uploaded_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1734,
+      "table": "fleet_drivers",
+      "exportName": "fleetDrivers",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1762,
+      "table": "fleet_incident_reports",
+      "exportName": "fleetIncidentReports",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1787,
+      "table": "fleet_risk_scores",
+      "exportName": "fleetRiskScores",
+      "field": "calculatedAt",
+      "scope": "outside_wave_one",
+      "source": "calculatedAt: timestamp(\"calculated_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1815,
+      "table": "fleet_vehicles",
+      "exportName": "fleetVehicles",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1856,
+      "table": "fleets",
+      "exportName": "fleets",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1883,
+      "table": "fraud_alerts",
+      "exportName": "fraudAlerts",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1926,
+      "table": "fraud_indicators",
+      "exportName": "fraudIndicators",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1949,
+      "table": "fraud_rules",
+      "exportName": "fraudRules",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 1981,
+      "table": "global_anonymized_dataset",
+      "exportName": "globalAnonymizedDataset",
+      "field": "anonymizedAt",
+      "scope": "outside_wave_one",
+      "source": "anonymizedAt: timestamp(\"anonymized_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2002,
+      "table": "governance_notifications",
+      "exportName": "governanceNotifications",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2023,
+      "table": "governance_violation_log",
+      "exportName": "governanceViolationLog",
+      "field": "violatedAt",
+      "scope": "outside_wave_one",
+      "source": "violatedAt: timestamp(\"violated_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2070,
+      "table": "historical_claims",
+      "exportName": "historicalClaims",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2088,
+      "table": "historical_replay_results",
+      "exportName": "historicalReplayResults",
+      "field": "replayedAt",
+      "scope": "outside_wave_one",
+      "source": "replayedAt: timestamp(\"replayed_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2122,
+      "table": "historical_replay_results",
+      "exportName": "historicalReplayResults",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2148,
+      "table": "ingestion_batches",
+      "exportName": "ingestionBatches",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2175,
+      "table": "ingestion_documents",
+      "exportName": "ingestionDocuments",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2190,
+      "table": "insurance_audit_logs",
+      "exportName": "insuranceAuditLogs",
+      "field": "timestamp",
+      "scope": "outside_wave_one",
+      "source": "timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2214,
+      "table": "insurance_carriers",
+      "exportName": "insuranceCarriers",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2243,
+      "table": "insurance_policies",
+      "exportName": "insurancePolicies",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2266,
+      "table": "insurance_products",
+      "exportName": "insuranceProducts",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2287,
+      "table": "insurance_quotes",
+      "exportName": "insuranceQuotes",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2318,
+      "table": "insurer_tenants",
+      "exportName": "insurerTenants",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2345,
+      "table": "iso_audit_logs",
+      "exportName": "isoAuditLogs",
+      "field": "timestamp",
+      "scope": "outside_wave_one",
+      "source": "timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2369,
+      "table": "maintenance_alerts",
+      "exportName": "maintenanceAlerts",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2394,
+      "table": "maintenance_records",
+      "exportName": "maintenanceRecords",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2415,
+      "table": "maintenance_schedules",
+      "exportName": "maintenanceSchedules",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2434,
+      "table": "marketplace_transactions",
+      "exportName": "marketplaceTransactions",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2452,
+      "table": "model_training_audit_log",
+      "exportName": "modelTrainingAuditLog",
+      "field": "performedAt",
+      "scope": "outside_wave_one",
+      "source": "performedAt: timestamp(\"performed_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2463,
+      "table": "model_training_queue",
+      "exportName": "modelTrainingQueue",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2500,
+      "table": "model_version_registry",
+      "exportName": "modelVersionRegistry",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2529,
+      "table": "multi_reference_truth",
+      "exportName": "multiReferenceTruth",
+      "field": "synthesizedAt",
+      "scope": "outside_wave_one",
+      "source": "synthesizedAt: timestamp(\"synthesized_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2553,
+      "table": "notifications",
+      "exportName": "notifications",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2568,
+      "table": "organizations",
+      "exportName": "organizations",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2598,
+      "table": "panel_beater_quotes",
+      "exportName": "panelBeaterQuotes",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2627,
+      "table": "panel_beaters",
+      "exportName": "panelBeaters",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2652,
+      "table": "part_stratification",
+      "exportName": "partStratification",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2653,
+      "table": "part_stratification",
+      "exportName": "partStratification",
+      "field": "updatedAt",
+      "scope": "outside_wave_one",
+      "source": "updatedAt: timestamp(\"updated_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2664,
+      "table": "parts_pricing_audit_log",
+      "exportName": "partsPricingAuditLog",
+      "field": "changedAt",
+      "scope": "outside_wave_one",
+      "source": "changedAt: timestamp(\"changed_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2683,
+      "table": "parts_pricing_baseline",
+      "exportName": "partsPricingBaseline",
+      "field": "lastUpdated",
+      "scope": "outside_wave_one",
+      "source": "lastUpdated: timestamp(\"last_updated\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2702,
+      "table": "parts_pricing_overrides",
+      "exportName": "partsPricingOverrides",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2711,
+      "table": "pdf_reports",
+      "exportName": "pdfReports",
+      "field": "generatedAt",
+      "scope": "outside_wave_one",
+      "source": "generatedAt: timestamp(\"generated_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2728,
+      "table": "platform_governance_limits",
+      "exportName": "platformGovernanceLimits",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2762,
+      "table": "police_reports",
+      "exportName": "policeReports",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2787,
+      "table": "policy_claim_links",
+      "exportName": "policyClaimLinks",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2802,
+      "table": "policy_documents",
+      "exportName": "policyDocuments",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2819,
+      "table": "policy_endorsements",
+      "exportName": "policyEndorsements",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2838,
+      "table": "pre_accident_damage",
+      "exportName": "preAccidentDamage",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2849,
+      "table": "quality_metrics",
+      "exportName": "qualityMetrics",
+      "field": "calculatedAt",
+      "scope": "outside_wave_one",
+      "source": "calculatedAt: timestamp(\"calculated_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 2899,
+      "table": "quotation_requests",
+      "exportName": "quotationRequests",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3015,
+      "table": "quote_line_items",
+      "exportName": "quoteLineItems",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3026,
+      "table": "rate_limit_tracking",
+      "exportName": "rateLimitTracking",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP'),"
+    },
+    {
+      "line": 3039,
+      "table": "reference_dataset",
+      "exportName": "referenceDataset",
+      "field": "includedAt",
+      "scope": "outside_wave_one",
+      "source": "includedAt: timestamp(\"included_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3066,
+      "table": "regional_benchmarks",
+      "exportName": "regionalBenchmarks",
+      "field": "lastUpdated",
+      "scope": "outside_wave_one",
+      "source": "lastUpdated: timestamp(\"last_updated\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3081,
+      "table": "regional_pricing_multipliers",
+      "exportName": "regionalPricingMultipliers",
+      "field": "lastUpdated",
+      "scope": "outside_wave_one",
+      "source": "lastUpdated: timestamp(\"last_updated\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3107,
+      "table": "registration_requests",
+      "exportName": "registrationRequests",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3117,
+      "table": "report_access_audit",
+      "exportName": "reportAccessAudit",
+      "field": "accessedAt",
+      "scope": "outside_wave_one",
+      "source": "accessedAt: timestamp(\"accessed_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3136,
+      "table": "report_links",
+      "exportName": "reportLinks",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3153,
+      "table": "report_snapshots",
+      "exportName": "reportSnapshots",
+      "field": "generatedAt",
+      "scope": "outside_wave_one",
+      "source": "generatedAt: timestamp(\"generated_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3176,
+      "table": "risk_register",
+      "exportName": "riskRegister",
+      "field": "identifiedAt",
+      "scope": "outside_wave_one",
+      "source": "identifiedAt: timestamp(\"identified_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3196,
+      "table": "role_assignment_audit",
+      "exportName": "roleAssignmentAudit",
+      "field": "timestamp",
+      "scope": "outside_wave_one",
+      "source": "timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3221,
+      "table": "routing_history",
+      "exportName": "routingHistory",
+      "field": "timestamp",
+      "scope": "outside_wave_one",
+      "source": "timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3240,
+      "table": "routing_threshold_config",
+      "exportName": "routingThresholdConfig",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3270,
+      "table": "service_providers",
+      "exportName": "serviceProviders",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3297,
+      "table": "service_quotes",
+      "exportName": "serviceQuotes",
+      "field": "submittedAt",
+      "scope": "outside_wave_one",
+      "source": "submittedAt: timestamp(\"submitted_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3319,
+      "table": "service_requests",
+      "exportName": "serviceRequests",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3347,
+      "table": "similar_claims_clusters",
+      "exportName": "similarClaimsClusters",
+      "field": "clusteredAt",
+      "scope": "outside_wave_one",
+      "source": "clusteredAt: timestamp(\"clustered_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3357,
+      "table": "super_audit_sessions",
+      "exportName": "superAuditSessions",
+      "field": "sessionStartedAt",
+      "scope": "outside_wave_one",
+      "source": "sessionStartedAt: timestamp(\"session_started_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3366,
+      "table": "super_audit_sessions",
+      "exportName": "superAuditSessions",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3388,
+      "table": "supplier_performance_metrics",
+      "exportName": "supplierPerformanceMetrics",
+      "field": "lastUpdated",
+      "scope": "outside_wave_one",
+      "source": "lastUpdated: timestamp(\"last_updated\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3411,
+      "table": "supplier_quote_line_items",
+      "exportName": "supplierQuoteLineItems",
+      "field": "extractedAt",
+      "scope": "outside_wave_one",
+      "source": "extractedAt: timestamp(\"extracted_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3439,
+      "table": "supplier_quotes",
+      "exportName": "supplierQuotes",
+      "field": "uploadedAt",
+      "scope": "outside_wave_one",
+      "source": "uploadedAt: timestamp(\"uploaded_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3470,
+      "table": "tenant_role_configs",
+      "exportName": "tenantRoleConfigs",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3482,
+      "table": "tenant_workflow_configs",
+      "exportName": "tenantWorkflowConfigs",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3553,
+      "table": "third_party_vehicles",
+      "exportName": "thirdPartyVehicles",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3577,
+      "table": "training_data_scores",
+      "exportName": "trainingDataScores",
+      "field": "scoredAt",
+      "scope": "outside_wave_one",
+      "source": "scoredAt: timestamp(\"scored_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3589,
+      "table": "training_dataset",
+      "exportName": "trainingDataset",
+      "field": "includedAt",
+      "scope": "outside_wave_one",
+      "source": "includedAt: timestamp(\"included_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3644,
+      "table": "training_records",
+      "exportName": "trainingRecords",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3657,
+      "table": "usage_events",
+      "exportName": "usageEvents",
+      "field": "timestamp",
+      "scope": "outside_wave_one",
+      "source": "timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3660,
+      "table": "usage_events",
+      "exportName": "usageEvents",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3686,
+      "table": "user_invitations",
+      "exportName": "userInvitations",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3780,
+      "table": "variance_datasets",
+      "exportName": "varianceDatasets",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3819,
+      "table": "vehicle_condition_assessment",
+      "exportName": "vehicleConditionAssessment",
+      "field": "assessmentDate",
+      "scope": "outside_wave_one",
+      "source": "assessmentDate: timestamp(\"assessment_date\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3822,
+      "table": "vehicle_condition_assessment",
+      "exportName": "vehicleConditionAssessment",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3847,
+      "table": "vehicle_history",
+      "exportName": "vehicleHistory",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3886,
+      "table": "vehicle_market_valuations",
+      "exportName": "vehicleMarketValuations",
+      "field": "valuationDate",
+      "scope": "outside_wave_one",
+      "source": "valuationDate: timestamp(\"valuation_date\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3890,
+      "table": "vehicle_market_valuations",
+      "exportName": "vehicleMarketValuations",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3903,
+      "table": "vehicle_mileage_logs",
+      "exportName": "vehicleMileageLogs",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3918,
+      "table": "workflow_audit_trail",
+      "exportName": "workflowAuditTrail",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3938,
+      "table": "workflow_configuration",
+      "exportName": "workflowConfiguration",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3952,
+      "table": "workflow_states",
+      "exportName": "workflowStates",
+      "field": "transitionedAt",
+      "scope": "outside_wave_one",
+      "source": "transitionedAt: timestamp(\"transitioned_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3980,
+      "table": "marketplace_profiles",
+      "exportName": "marketplaceProfiles",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 3998,
+      "table": "insurer_marketplace_links",
+      "exportName": "insurerMarketplaceLinks",
+      "field": "linkedAt",
+      "scope": "outside_wave_one",
+      "source": "linkedAt: timestamp(\"linked_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4001,
+      "table": "insurer_marketplace_links",
+      "exportName": "insurerMarketplaceLinks",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4034,
+      "table": "agency_clients",
+      "exportName": "agencyClients",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4187,
+      "table": "insurer_quote_requests",
+      "exportName": "insurerQuoteRequests",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4246,
+      "table": "fleet_accounts",
+      "exportName": "fleetAccounts",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4275,
+      "table": "fleet_manager_requests",
+      "exportName": "fleetManagerRequests",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4304,
+      "table": "insurer_marketplace_relationships",
+      "exportName": "insurerMarketplaceRelationships",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4598,
+      "table": "vehicle_registry",
+      "exportName": "vehicleRegistry",
+      "field": "firstSeenAt",
+      "scope": "outside_wave_one",
+      "source": "firstSeenAt: timestamp(\"first_seen_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4600,
+      "table": "vehicle_registry",
+      "exportName": "vehicleRegistry",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4677,
+      "table": "vehicle_damage_history",
+      "exportName": "vehicleDamageHistory",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4749,
+      "table": "drivers",
+      "exportName": "drivers",
+      "field": "firstSeenAt",
+      "scope": "outside_wave_one",
+      "source": "firstSeenAt: timestamp(\"first_seen_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4751,
+      "table": "drivers",
+      "exportName": "drivers",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4785,
+      "table": "driver_claims",
+      "exportName": "driverClaims",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4869,
+      "table": "repair_history",
+      "exportName": "repairHistory",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 4928,
+      "table": "cross_claim_signals",
+      "exportName": "crossClaimSignals",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 5658,
+      "table": "recovery_cases",
+      "exportName": "recoveryCases",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 5757,
+      "table": "component_benchmarks",
+      "exportName": "componentBenchmarks",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt: timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6026,
+      "table": "asset_registry",
+      "exportName": "assetRegistry",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt:            timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6080,
+      "table": "inspections",
+      "exportName": "inspections",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt:            timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6120,
+      "table": "physical_measurements",
+      "exportName": "physicalMeasurements",
+      "field": "capturedAt",
+      "scope": "outside_wave_one",
+      "source": "capturedAt:           timestamp(\"captured_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6130,
+      "table": "physical_measurements",
+      "exportName": "physicalMeasurements",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt:            timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6178,
+      "table": "engineer_observations",
+      "exportName": "engineerObservations",
+      "field": "authoredAt",
+      "scope": "outside_wave_one",
+      "source": "authoredAt:           timestamp(\"authored_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6179,
+      "table": "engineer_observations",
+      "exportName": "engineerObservations",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt:            timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6208,
+      "table": "engineer_profiles",
+      "exportName": "engineerProfiles",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt:            timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6254,
+      "table": "vehicle_passport_snapshots",
+      "exportName": "vehiclePassportSnapshots",
+      "field": "generatedAt",
+      "scope": "outside_wave_one",
+      "source": "generatedAt:           timestamp(\"generated_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6286,
+      "table": "fleet_intelligence_snapshots",
+      "exportName": "fleetIntelligenceSnapshots",
+      "field": "generatedAt",
+      "scope": "outside_wave_one",
+      "source": "generatedAt:             timestamp(\"generated_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6313,
+      "table": "predictive_risk_scores",
+      "exportName": "predictiveRiskScores",
+      "field": "validFrom",
+      "scope": "outside_wave_one",
+      "source": "validFrom:       timestamp(\"valid_from\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6315,
+      "table": "predictive_risk_scores",
+      "exportName": "predictiveRiskScores",
+      "field": "computedAt",
+      "scope": "outside_wave_one",
+      "source": "computedAt:      timestamp(\"computed_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6406,
+      "table": "fuel_records",
+      "exportName": "fuelRecords",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt:          timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6430,
+      "table": "licensing_records",
+      "exportName": "licensingRecords",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt:          timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6455,
+      "table": "inspection_projects",
+      "exportName": "inspectionProjects",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt:            timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6477,
+      "table": "personal_vehicles",
+      "exportName": "personalVehicles",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt:        timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6508,
+      "table": "quotation_request_documents",
+      "exportName": "quotationRequestDocuments",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt:           timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6529,
+      "table": "whatsapp_sessions",
+      "exportName": "whatsappSessions",
+      "field": "lastMessageAt",
+      "scope": "outside_wave_one",
+      "source": "lastMessageAt:  timestamp(\"last_message_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    },
+    {
+      "line": 6530,
+      "table": "whatsapp_sessions",
+      "exportName": "whatsappSessions",
+      "field": "createdAt",
+      "scope": "outside_wave_one",
+      "source": "createdAt:      timestamp(\"created_at\", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),"
+    }
+  ]
+}

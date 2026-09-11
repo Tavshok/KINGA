@@ -21,6 +21,10 @@ const knownRepairPrerequisites = new Map([
   ["governance_notifications", "Migration 0045 has a known TEXT-index failure requiring a corrected, reviewed chain repair."],
   ["rate_limit_tracking", "The checked-in SQL is manually maintained outside the numbered, journaled migration sequence."],
 ]);
+const gateCDispositionsPath = path.join(repoRoot, "docs", "staging-schema-reconciliation", "gate-c-runtime-candidate-dispositions.json");
+const gateCDispositions = JSON.parse(fs.readFileSync(gateCDispositionsPath, "utf8"));
+const gateCCandidateDispositions = new Map(gateCDispositions.candidateTables.map((entry) => [entry.tableName, entry]));
+const physicalNameDecisions = new Map(gateCDispositions.physicalNameDecisions.map((entry) => [entry.tableName, entry]));
 
 function walk(directory, predicate = () => true) {
   const result = [];
@@ -266,6 +270,7 @@ function decisionFor(declaration, allDeclarations, productionEvidence, migration
   const directProductionReference = productionEvidence.length > 0;
   const hasCreateEvidence = migrationEvidence.some((item) => item.createsTable);
   const hasMigrationMention = migrationEvidence.length > 0;
+  const gateCCandidateDisposition = gateCCandidateDispositions.get(declaration.tableName);
 
   if (declaration.dialect === "postgresql") {
     return {
@@ -279,6 +284,22 @@ function decisionFor(declaration, allDeclarations, productionEvidence, migration
       classification: "superseded_duplicate",
       basis: `Supplementary declaration ${duplicateOrdinal}/${sameName.length} for a table also declared in the configured Drizzle schema entrypoint (${sameName.find((item) => item.sourceFile === "drizzle/schema.ts")?.declarationId ?? "drizzle/schema.ts"}).`,
       action: "Do not generate duplicate CREATE TABLE SQL from this supplementary declaration; retain the configured primary declaration as the candidate only if its own evidence-ledger classification supports it.",
+    };
+  }
+  if (gateCCandidateDisposition) {
+    if (gateCCandidateDisposition.status === "verified_current_path") {
+      return {
+        classification: "required_baseline",
+        basis: `Gate C reviewed current-code-path evidence: ${gateCCandidateDisposition.operationalState} ${gateCCandidateDisposition.codePath.join("; ")}`,
+        action: gateCCandidateDisposition.action,
+        gateCCandidateVerification: gateCCandidateDisposition,
+      };
+    }
+    return {
+      classification: "active_but_ambiguous",
+      basis: `Gate C reviewed hold: ${gateCCandidateDisposition.operationalState}`,
+      action: gateCCandidateDisposition.action,
+      gateCCandidateVerification: gateCCandidateDisposition,
     };
   }
   if (repairReason) {
@@ -366,6 +387,7 @@ const ledger = allSchemaDeclarations.map((declaration) => {
     duplicateDeclarationCount: allSchemaDeclarations.filter((item) => item.dialect === declaration.dialect && item.tableName === declaration.tableName).length,
     nonTestApplicationEvidence: productionEvidence,
     migrationEvidence,
+    physicalNameDecision: physicalNameDecisions.get(declaration.tableName) ?? null,
     ...decision,
   };
 });
@@ -412,6 +434,7 @@ const manifestMetadata = {
   checksums: {
     drizzleSchemaTs: sha256(fs.readFileSync(path.join(repoRoot, "drizzle", "schema.ts"), "utf8")),
     drizzleJournal: sha256(fs.readFileSync(journalPath, "utf8")),
+    gateCRuntimeCandidateDispositions: sha256(fs.readFileSync(gateCDispositionsPath, "utf8")),
   },
 };
 
@@ -448,7 +471,12 @@ const readme = `# KINGA Staging Schema Manifest Package\n\n` +
   `\n\nThe earlier figure of **254 source tables is not reproducible from current GitHub main**. This package records the exact static universe instead: ${manifestMetadata.counts.mysqlDeclarations} MySQL declarations (${manifestMetadata.counts.mysqlDistinctPhysicalTableNames} distinct physical names), ${manifestMetadata.counts.postgresqlDeclarations} PostgreSQL auxiliary declarations, and ${manifestMetadata.counts.testFixtureOnlyDeclarationsExcludedFromSchemaLedger} test-only factory declarations excluded from the production schema ledger. The count difference must be reconciled before it is used as a delivery target; it is not silently rounded or fabricated.\n\n` +
   `## Provisional evidence-ledger classification\n\n` +
   markdownTable(summaryRows, ["Classification", "Declarations"]) +
-  `\n\nThe classification is deliberately conservative. A MySQL declaration is classified **required_baseline** only where the trace found direct non-test application-source evidence; no object is marked required merely because it appears in a schema file. PostgreSQL alternate-schema entries are excluded from TiDB baseline scope. Duplicate declarations are held until an owner selects the authoritative declaration. The five specifically known migration-chain cases are held until chain repair is replay-proven.\n\n` +
+  `\n\nThe classification is deliberately conservative. A MySQL declaration is classified **required_baseline** only where the trace found direct non-test application-source evidence or a separately recorded Gate C current-code-path review. No object is marked required merely because it appears in a schema file or because a provisional table list says it may be needed. PostgreSQL alternate-schema entries are excluded from TiDB baseline scope. Duplicate declarations are held until an owner selects the authoritative declaration. The five specifically known migration-chain cases remain held from automatic bootstrap until their reviewed path is incorporated in a later Gate C wave.\n\n` +
+  `## Gate C candidate verification\n\n` +
+  markdownTable(gateCDispositions.candidateTables.map((entry) => ({ Table: entry.tableName, Status: entry.status, "Operational state": entry.operationalState, Action: entry.action })), ["Table", "Status", "Operational state", "Action"]) +
+  `\n\n## Approved physical-name decisions\n\n` +
+  markdownTable(gateCDispositions.physicalNameDecisions.map((entry) => ({ Table: entry.tableName, Column: entry.columnName, Status: entry.status, Basis: entry.basis, Action: entry.action })), ["Table", "Column", "Status", "Basis", "Action"]) +
+  `\n\n` +
   `## Dependency inventory\n\n` +
   "The generated `foreign-key-dependency-manifest.json` covers " + dependencySummary.configuredMySqlDeclarationsAnalysed + " configured MySQL schema declarations, with " + dependencySummary.resolvedDependencyEdges + " resolved configured-schema foreign-key edges and " + dependencySummary.unresolvedOrExternalReferences + " unresolved/external-reference candidate(s). It is a sequencing aid; every generated SQL foreign key must still be checked against the approved source manifest and actual scratch metadata.\n\n" +
   `## Full ledger\n\n` + markdownTable(ledgerRows, ["Table", "Dialect", "Declaration", "Classification", "Direct non-test evidence", "Migration evidence", "Basis", "Required next action"]) + `\n`;
