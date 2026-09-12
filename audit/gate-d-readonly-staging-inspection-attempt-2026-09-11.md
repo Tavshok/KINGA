@@ -121,6 +121,14 @@ The owner supplied the first post-submission TiDB Cloud resource-list view. It c
 
 The rehearsal is not yet complete. No SQL, DDL, DML, migration, import, or application test must be run against the restored target until its status is **Active** and a separate verification plan is approved.
 
+## Successful restore completion
+
+The owner-supplied completion views show `kinga-staging-restore-rehearsal-20260911` as **Active** in the TiDB Cloud resource list, alongside separately active `KINGA-staging` and `KINGA-production` resources. The restored instance overview confirms the separate target is a Starter instance on AWS in Frankfurt (`eu-central-1`), running TiDB v8.5.3. Its overview showed zero used storage, consistent with the earlier read-only verification that the source staging identity had no visible tables.
+
+This proves the selected `2026-09-11 03:00:45 UTC` snapshot successfully restored to a new instance rather than modifying `KINGA-staging`. No SQL, DDL, DML, migration, import, or application test was issued against the restored target. The target is designated disposable, but its deletion requires separate owner confirmation and has not been requested or performed.
+
+The owner subsequently authorised deletion of **only** `kinga-staging-restore-rehearsal-20260911`. The deletion must be performed from the owner’s separately authenticated TiDB Cloud console; this task cannot operate that console session. Completion evidence must show the target absent while the original `KINGA-staging` and `KINGA-production` instances remain listed and Active. No SQL or application/schema action is authorised before or after deletion.
+
 ## Reference
 
 [1] [TiDB Cloud Starter or Essential Backup and Restore](https://docs.pingcap.com/tidbcloud/backup-and-restore-serverless/) — automatic backup, retention, restore modes, destination, and limitations.
