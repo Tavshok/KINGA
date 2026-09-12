@@ -32,10 +32,11 @@ The owner has approved preparation of this packet and is provisionally named as 
 | Limited rationale | D-01 is limited to three tables, has no foreign keys, is designed for an empty staging database, uses a SHA-256-pinned 11-statement `CREATE`-only artefact, and follows a successful restore-and-cleanup rehearsal. |
 | Scope limit | `D-01` only: `tenant_invitations`, `tenants`, and `users` in the explicitly approved `KINGA-staging` target. |
 | Controls that remain mandatory | Exact target identity, TLS/privilege proof, current recovery-point evidence, SQL/source hash validation, approved change window, preflight metadata, statement log, postflight metadata comparison, application smoke test, runner-account revocation/expiry, and documented closure. |
+| Application-validation roles | Tavonga Shoko may also act as D-01 application-validation owner and observer because no independent owner is currently available. The role is included in this same D-01-only exception; it provides no independent assurance. |
 | Expiry | The exception ends immediately when D-01 is closed, stopped, or abandoned. It cannot be carried to D-02–D-06, any recovery action, an application rollout, or production. |
 | Reopening rule | Any scope enlargement, target ambiguity, preflight/postflight difference, execution error, expired recovery record, or application smoke-test failure voids the exception and requires a new owner decision before further action. |
 
-This exception accepts the absence of separation of duties for D-01 only; it does not represent independent assurance. The retained evidence must therefore be sufficiently complete for a later independent review, and the owner must not rely on this exception to bypass any other D-01 stop condition.
+This exception accepts the absence of separation of duties for D-01 only, including the application-validation owner/observer assignment; it does not represent independent assurance. The retained evidence must therefore be sufficiently complete for a later independent review, and the owner must not rely on this exception to bypass any other D-01 stop condition.
 
 ## 2. Immutable source and SQL pins
 
@@ -134,7 +135,7 @@ No D-01 change window is scheduled or authorised by this draft. The following **
 | Named operator / reviewer | Tavonga Shoko, KINGA owner, under the dated D-01-only exception. | Confirm availability for the complete window and closure evidence. |
 | Stop authority | Tavonga Shoko, KINGA owner. | Confirm authority to stop immediately on any preflight, execution, postflight, or application-gate discrepancy. |
 | Application isolation owner | **Unassigned.** | Name the person accountable for determining whether application traffic must be paused or isolated for the window. |
-| Application validation owner and observer | **Unassigned.** | Name the person who will conduct and record the separately approved non-production smoke tests. |
+| Application validation owner and observer | Tavonga Shoko, KINGA owner, under the dated D-01-only exception. | Record the exact basic connectivity/read smoke observations and result; this is not independent assurance. |
 | Communication route | **Unassigned.** | Record the incident/escalation and completion route before the window. |
 | Network posture | Existing owner-managed TiDB Cloud public-endpoint settings are unchanged by this packet. | Confirm the narrow approved route; no access-list expansion/revocation is implied. |
 | Entry gate | No account creation, staging preflight query, or SQL command is authorised. | A separate owner decision must approve accounts and read-only preflight before execution may be considered. |
@@ -162,7 +163,7 @@ No D-01 execution decision may be requested until every item below is recorded a
 | Current recovery record | Latest successful snapshot UTC timestamp, successful status, expiry evidence, source target, and accepted same-day limitation. The verified current record is in Section 4B. | Complete for final preflight review; re-confirm immediately before any execution decision. |
 | Change window | UTC start/end, application isolation owner, communications route, operator, reviewer, observer, and stop authority. The review-only proposed record and capture checklist are in Section 4C. | Proposed as 14:00–20:00 UTC on 12 September 2026; not scheduled or authorised. |
 | Preflight metadata | Verifier-produced inventory showing the exact approved initial state, including zero D-01 tables or a separately approved reconciliation decision. | Missing; no staging metadata query is authorised by this draft. |
-| Application gate | Named non-production test identities, smoke-test scope, expected results, application owner, and observation record. | Missing. |
+| Application gate | Tavonga Shoko is the D-01 application-validation owner and observer under the dated exception. The basic connectivity/read smoke-test scope and observation record remain required. | Partially assigned; no smoke test has been run. |
 
 ## 5A. Final-preflight review status
 
@@ -179,7 +180,7 @@ The following matrix is the complete review package requested before any D-01 ex
 | Verifier/runner account design | Separate D-01-only capability matrices, lifecycle requirements, privilege exclusions, and evidence requirements in Section 4A. | Complete for review; no account exists or is authorised to be created. |
 | Target identity and grant proof | Historical verifier evidence exists, but execution-time target/TLS/account/grant evidence has not been collected. | Incomplete and prohibited until separately authorised. |
 | Metadata preflight and postflight | Exact required comparison method, fingerprints, and stop conditions are specified. | Incomplete and prohibited until separately authorised. |
-| Application-validation gate | Required ownership, test identities, scope, and pass/fail treatment are specified. | Incomplete: application owner/observer and test plan must be named before execution. |
+| Application-validation gate | Owner/observer exception, required basic connectivity/read scope, and pass/fail treatment are specified. | Incomplete: no smoke test has been run and its observations must be retained before closure. |
 | D-01 execution authority | No owner decision authorises staging DDL or account creation. | **Not authorised.** |
 
 ## 5B. Decision requested after final review
