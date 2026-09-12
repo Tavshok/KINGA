@@ -129,6 +129,25 @@ This proves the selected `2026-09-11 03:00:45 UTC` snapshot successfully restore
 
 The owner subsequently authorised deletion of **only** `kinga-staging-restore-rehearsal-20260911`. The deletion must be performed from the owner’s separately authenticated TiDB Cloud console; this task cannot operate that console session. Completion evidence must show the target absent while the original `KINGA-staging` and `KINGA-production` instances remain listed and Active. No SQL or application/schema action is authorised before or after deletion.
 
+## Successful cleanup and final invariance evidence
+
+The owner confirmed deletion of the disposable target and supplied a final TiDB Cloud **My TiDB** resource-list view. The visible resource total is **2** and the only listed instances are `KINGA-production` and `KINGA-staging`. Both display status **Active**, plan **Starter**, AWS Frankfurt (`eu-central-1`), and project `KINGA`. `kinga-staging-restore-rehearsal-20260911` is absent.
+
+| Rehearsal acceptance criterion | Final evidence | Result |
+|---|---|---|
+| Restore is isolated from source staging | Earlier completion evidence showed a distinct, Active target named `kinga-staging-restore-rehearsal-20260911` alongside the two originals. | Passed |
+| Source-instance invariance during restore | `KINGA-staging` and `KINGA-production` were separately Active before cleanup and remain separately Active in the final resource list. | Passed |
+| Disposable target cleanup | The final resource list has total `2` and does not list `kinga-staging-restore-rehearsal-20260911`. | Passed |
+| No application or database mutation | No SQL, DDL, DML, migration, import, account action, source-instance schema/data change, or production action was performed by this task. | Passed |
+
+The owner performed the deletion through the separately authenticated TiDB Cloud console under the specific target-only authority recorded above. This completes the **staging restore-and-cleanup rehearsal** end to end. It is evidence of recoverability from the selected Starter snapshot only; it does not authorise, prove, or execute any Gate D migration.
+
+## Remaining decision gates
+
+`KINGA-staging` remains an empty, free Starter target from the read-only verifier’s perspective. Before any Gate D staging change, the owner must separately approve a named Wave 1 change packet, designate the constrained migration account and operators/reviewer, and give explicit staging DDL authority. No such execution authority has been granted.
+
+Production is not in scope. Before any production migration planning, `KINGA-production` must be upgraded from free Starter to TiDB Cloud Essential or Dedicated with an appropriate real PITR posture, followed by a separate production recovery and change plan.
+
 ## Reference
 
 [1] [TiDB Cloud Starter or Essential Backup and Restore](https://docs.pingcap.com/tidbcloud/backup-and-restore-serverless/) — automatic backup, retention, restore modes, destination, and limitations.
