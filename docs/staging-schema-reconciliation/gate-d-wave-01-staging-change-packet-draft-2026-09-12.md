@@ -128,10 +128,11 @@ No D-01 change window is scheduled or authorised by this draft. The following **
 | Field | Draft value | Required decision before execution |
 |---|---|---|
 | Packet | `D-01` only; three tables and 11 SHA-pinned `CREATE` statements. | Confirm unchanged scope and hash. |
-| Proposed start / end | **12 September 2026, 14:00–20:00 UTC** (`16:00–22:00 GMT+2`). The owner-supplied snapshot evidence meets the timing criterion in Section 4B. | Owner must expressly accept the complete preflight package; this remains a proposal and is not an execution authority. |
+| Original proposed start / end | 12 September 2026, 14:00–20:00 UTC (`16:00–22:00 GMT+2`). | Replaced by the owner’s later revised window below; it is no longer the D-01 execution window. |
+| Revised authorised start / end | **Immediate start through 12 September 2026, 13:00 UTC**. | Explicitly authorised by the owner on 12 September 2026. All other scope, SQL pins, target, recovery, stop, and production-exclusion controls remain unchanged. |
 | Review buffer before window | Approximately 6 hours 48 minutes from the 07:11 UTC drafting reference time to the proposed 14:00 UTC start. | Use this time for review of the actual snapshot record, target/account controls, and final go/no-go decision. No preflight query or account action is implied. |
-| Protected postflight buffer | 17:00–20:00 UTC is reserved for verifier postflight, application smoke test, retained-evidence review, runner revocation/expiry, and closure decision; no D-02 activity may begin in this window. | If D-01 is not conclusively closed by 20:00 UTC, stop and carry no authority forward. |
-| Snapshot-expiry safety margin | The owner must confirm that the actual same-day snapshot remains valid for the full proposed window **plus at least two hours** after closure. | If the console-recorded expiry is before 22:00 UTC, or any timestamp is ambiguous, reject this window and schedule no execution. |
+| Protected postflight buffer | 10:00–13:00 UTC is reserved for verifier postflight, application smoke test, retained-evidence review, runner revocation/expiry, and closure decision; no D-02 activity may begin in this window. | If D-01 is not conclusively closed by 13:00 UTC, stop and carry no authority forward. |
+| Snapshot-expiry safety margin | The current same-day snapshot must remain valid for the full revised window **plus at least two hours** after closure, through 15:00 UTC. | If the console-recorded expiry is before 15:00 UTC, or any timestamp is ambiguous, stop D-01. |
 | Named operator / reviewer | Tavonga Shoko, KINGA owner, under the dated D-01-only exception. | Confirm availability for the complete window and closure evidence. |
 | Stop authority | Tavonga Shoko, KINGA owner. | Confirm authority to stop immediately on any preflight, execution, postflight, or application-gate discrepancy. |
 | Application isolation owner | **Unassigned.** | Name the person accountable for determining whether application traffic must be paused or isolated for the window. |
@@ -151,6 +152,12 @@ The current browser session reached the TiDB Cloud sign-in page rather than the 
 
 The owner did not press **Restore**, create a new snapshot, change retention, alter networking, create an account, or perform any database operation as part of this evidence capture. If the snapshot is no longer visible, no longer valid, or does not meet the same-day and safety-margin conditions at the actual go/no-go point, the correct result is **no D-01 execution** and a new review after the next available snapshot.
 
+### Immediate-before-execution Backup-page recheck
+
+At `2026-09-12 07:32:34 UTC`, the authenticated `KINGA-staging` Backup page was rechecked before any account, metadata, or SQL action. It still showed exactly one relevant snapshot: Backup time `2026-09-12 03:01:00 UTC±00:00`; Status **Succeeded**; Expires time `2026-09-13 03:01:00 UTC±00:00`; and a visible Restore action. The recheck was read-only: Restore was not selected and no console setting was changed.
+
+For the owner-authorised revised immediate-to-13:00 UTC window, the recheck left 5 hours 27 minutes 26 seconds of authorised time. The two-hour post-closure safety-margin endpoint is `2026-09-12 15:00 UTC`; the recorded snapshot expiry is 12 hours 1 minute after that endpoint. The snapshot and revised window end are on the same UTC date. **The recovery-point and timing stop gates passed.**
+
 ## 5. Preconditions that remain incomplete
 
 No D-01 execution decision may be requested until every item below is recorded and accepted.
@@ -161,7 +168,7 @@ No D-01 execution decision may be requested until every item below is recorded a
 | Reviewer-control exception | The dated D-01-only owner exception in Section 1A, including its strict scope and expiry, plus a commitment to retain complete preflight/execution/postflight evidence for later independent review. | Accepted by the owner for D-01 only; no exception exists for D-02–D-06 or production. |
 | Least-privilege accounts | Owner-created verifier and D-01-only schema runner, separate from runtime credentials; redacted grants proving no DML, no `DROP`, no user administration, and no cross-database or production scope. The specific design is in Section 4A. | Designed for review; creation is not authorised by this draft. |
 | Current recovery record | Latest successful snapshot UTC timestamp, successful status, expiry evidence, source target, and accepted same-day limitation. The verified current record is in Section 4B. | Complete for final preflight review; re-confirm immediately before any execution decision. |
-| Change window | UTC start/end, application isolation owner, communications route, operator, reviewer, observer, and stop authority. The review-only proposed record and capture checklist are in Section 4C. | Proposed as 14:00–20:00 UTC on 12 September 2026; not scheduled or authorised. |
+| Change window | UTC start/end, application isolation owner, communications route, operator, reviewer, observer, and stop authority. The current record and Backup-page recheck are in Section 4C. | Revised and authorised for immediate start through 13:00 UTC on 12 September 2026; recovery timing gate passed. |
 | Preflight metadata | Verifier-produced inventory showing the exact approved initial state, including zero D-01 tables or a separately approved reconciliation decision. | Missing; no staging metadata query is authorised by this draft. |
 | Application gate | Tavonga Shoko is the D-01 application-validation owner and observer under the dated exception. The basic connectivity/read smoke-test scope and observation record remain required. | Partially assigned; no smoke test has been run. |
 
@@ -186,6 +193,67 @@ The following matrix is the complete review package requested before any D-01 ex
 ## 5B. Decision requested after final review
 
 The only decision requested at this stage is approval or rejection of this **final-preflight review package**. Approval of the package would not authorise account creation, a staging connection, metadata collection, or D-01 SQL execution. Any later request must separately identify the exact next action, its operator, its target, and its authority boundary.
+
+## 5C. Execution-window target observation
+
+At `2026-09-12 07:28 UTC`, an authenticated TiDB Cloud console view of the selected resource showed `KINGA-staging` as **Active**, Starter, TiDB v8.5.3, AWS Frankfurt (`eu-central-1`), instance ID `10622508722732097493`, with row-based storage recorded as `0 MiB`. The same resource list showed only `KINGA-staging` and `KINGA-production`, both Active. This establishes that the authenticated session is on the intended non-production resource; it is **not** the required immediate Backup-page snapshot recheck, which must be completed before any account or SQL action.
+
+## 5D. D-01 existing-administrator access exception
+
+The intended design used separate restricted verifier and runner accounts. TiDB’s required `INDEX` privilege also permits `DROP INDEX`, so a runner capable of the eight D-01 index creations could not satisfy a literal no-destructive-capability requirement. Before any account was created, the owner selected **Option B** on 12 September 2026: use the already authenticated TiDB Cloud SQL Editor administrator account for D-01 rather than create either planned account.
+
+| Field | Recorded exception |
+|---|---|
+| Decision maker | Tavonga Shoko, KINGA owner |
+| Decision date | 12 September 2026 |
+| Account | Existing authenticated TiDB Cloud SQL Editor administrator account. A read-only `SHOW GRANTS FOR CURRENT_USER()` check recorded broad global privileges and `WITH GRANT OPTION`; its account identifier is intentionally not reproduced in this packet. |
+| Scope | D-01 only, targeting database `kinga_staging` and only the pinned three-table / eleven-statement SQL artefact. |
+| Explicitly not performed | No separate verifier or runner account was created, modified, or granted privileges. |
+| Residual risk | The console administrator has privileges broader than D-01. The operator must use only the exact preflight queries and SHA-pinned SQL stated in this packet; no additional statement may be added, edited, or executed. |
+| Retained controls | Immediate Backup-page recheck, exact target/database verification, preflight metadata inventory, SQL hash and statement-count verification, one-statement-at-a-time execution record, postflight comparison, application connectivity/read smoke test, and documented closure. |
+| Expiry | Ends immediately at D-01 closure, stop, or 13:00 UTC on 12 September 2026, whichever occurs first. It cannot carry to later waves, account administration, restore activity, application deployment, or production. |
+| Escalation rule | Any deviation, query error, unexpected object, unexpected data, source/hash mismatch, or timing breach stops D-01 immediately. |
+
+This exception does not reclassify the administrator as least privilege and does not waive the requirement to retain auditable evidence. The account-session `SHOW GRANTS` result is treated as privileged security evidence and is deliberately not copied into repository documentation.
+
+## 5E. Immediate D-01 metadata preflight evidence
+
+At `2026-09-12 07:33:58 UTC`, the authenticated SQL Editor session completed `SHOW GRANTS FOR CURRENT_USER()` as a read-only preflight. The result confirmed that the existing session has broad global administrative capability, including account-management and grant authority. This is the specific basis for the owner-approved Section 5D exception; no account, role, grant, or privilege was changed.
+
+At `2026-09-12 07:39:40 UTC`, the session ran the following read-only target inventory query:
+
+```sql
+SELECT table_name, table_type
+FROM information_schema.tables
+WHERE table_schema = 'kinga_staging'
+ORDER BY table_name;
+```
+
+The query completed successfully in 9 ms and returned an empty set. The `kinga_staging` schema therefore contains zero visible tables under the authenticated session at preflight. Together with the authenticated console’s confirmed `KINGA-staging` instance identity, active state, same-day successful snapshot, and revised execution window, the preflight target-state gate passed.
+
+The SQL Editor still displayed **No database used** after this schema-inventory query. Before any pinned D-01 statement is entered, the session must select `kinga_staging` as its active database through the console and then run a read-only `SELECT DATABASE()` confirmation. Any other active database, or failure to obtain an explicit `kinga_staging` result, is a mandatory stop.
+
+At `2026-09-12 07:40:44 UTC`, the session issued `USE kinga_staging;`. This is a non-DDL session-context selection and is not part of the SHA-pinned D-01 artefact or its eleven permitted DDL statements. At `2026-09-12 07:41:16 UTC`, `SELECT DATABASE() AS active_database;` returned exactly `kinga_staging` in 8 ms. The active-target stop gate therefore passed.
+
+Immediately before execution, the repository artefact was rehashed. Its SHA-256 was exactly `306797ab94529860bc9e88a69a955061916a94ddc3d08e3265229780ab08083c`; it contains exactly three `CREATE TABLE` statements (`tenant_invitations`, `tenants`, `users`), eight `CREATE INDEX` statements with the approved names, and zero statements matching the prohibited `DROP`, `ALTER`, `INSERT`, `UPDATE`, `DELETE`, `TRUNCATE`, `GRANT`, `REVOKE`, `CREATE USER`, `CREATE DATABASE`, or `USE` classes. **All D-01 preflight stop gates passed.**
+
+### Execution stop — SQL Editor input truncation
+
+At `2026-09-12 07:43 UTC`, before selecting **Run**, the attempt to load the first pinned `CREATE TABLE tenant_invitations` statement into the TiDB Cloud SQL Editor exceeded the browser input timeout. A subsequent readback of the editor buffer showed an incomplete statement: the `role` enum ended at the truncated value `'fleet_dri'`, and the remainder of the statement was absent. This does not match the SHA-pinned source artefact.
+
+No DDL was submitted, no table or index was created, and no data, account, privilege, backup, restore, network, or production action occurred. Under the packet’s hash/deviation stop rule, D-01 execution is **stopped before its first schema statement**. The incomplete editor buffer must be cleared or the console session closed without selecting Run. Any later execution attempt requires a new safe transfer mechanism that can verify the exact full statement text or the complete pinned artefact before each execution action, followed by renewed owner authority.
+
+At `2026-09-12 07:43:34 UTC`, the unexecuted incomplete buffer was cleared. The editor returned to its empty prompt and its query log still ended with the successful read-only `SELECT DATABASE()` result. The browser did not select Run after the truncation. D-01 remains stopped and no schema object has been created.
+
+The owner subsequently authorised use of TiDB Cloud **SQL Files** as the only transfer mechanism for a renewed D-01 attempt. The transfer is limited to the exact local file `wave-01-identity-tenant-roots.sql`, whose SHA-256 is `306797ab94529860bc9e88a69a955061916a94ddc3d08e3265229780ab08083c`. Uploading the file is not execution. Before any Run action, the SQL File content and loaded editor buffer must each be verified against the complete local artefact; any difference, unreadable content, automatic transformation, unexpected statement, or wrong active database is a mandatory stop. This renewed transfer authority does not change the preflight, snapshot, target, SQL-scope, exception-expiry, or production-exclusion controls.
+
+At `2026-09-12 07:45 UTC`, the authenticated TiDB Cloud **SQL Files** tab was inspected. Its only available control was **Create a new SQL file**; the resulting new-query editor did not expose a file upload control. A direct DOM check also found zero `input[type=file]` controls and no visible upload action. The selected transfer mechanism is therefore unavailable in this console interface. No local artefact was uploaded, no query content was loaded from the artefact, and no SQL statement was run. D-01 remains stopped pending renewed owner direction on a different verified full-content transfer method.
+
+The owner then authorised the replacement **A2 exact-content editor-paste** method. At `2026-09-12 07:49 UTC`, the immutable GitHub artefact at Gate C source revision `4336a2961147877a373a11a706e2a7ee4604f754` was retrieved in the authenticated browser and validated before loading: HTTP `200`, plain-text response, 4,253 characters, SHA-256 `306797ab94529860bc9e88a69a955061916a94ddc3d08e3265229780ab08083c`. The verified text was atomically inserted into the CodeMirror editor. A fresh browser-side SHA-256 over the complete resulting buffer exactly matched the expected value; it remained 4,253 characters with exactly 3 `CREATE TABLE` statements, 8 `CREATE INDEX` statements, and zero prohibited statement classes. The editor’s active database had been set to `kinga_staging` in the current SQL Files session. **The exact-content transfer and buffer-validation gates passed; no Run action had yet occurred at this point.**
+
+The console’s **Run** control did not add the atomically-inserted buffer to the query log, indicating that the editor application had not registered the programmatic buffer mutation as executable query state. To recover through a native paste event, the exact source was prepared for the browser clipboard after the same hash check. The browser clipboard write did not complete within its allowed operation time, and the attempted keyboard paste was interpreted by the editor as a single literal `V`, not clipboard content. The `V` residue was cleared at `2026-09-12 07:52:38 UTC`; the editor returned to its empty prompt and query log remained limited to `USE kinga_staging;`. No pinned statement was submitted or run.
+
+This is a second safe-transfer failure, not a database discrepancy. The complete D-01 artefact and its browser-buffer hash were verified, but the console has not provided a reliable route from that buffer into executable query state. D-01 is therefore **stopped before first DDL**. Further automated transfer attempts are prohibited in this window; any later resumption requires renewed owner authority for a different execution mechanism and a new immediate preflight.
 
 ## 6. Future preflight, execution, and postflight protocol
 
