@@ -84,6 +84,7 @@
 - [x] D-01 temporary-account cleanup: owner-confirmed `DROP USER` removed exactly the temporary runner and verifier identities at `2026-09-12 08:27 UTC`; TiDB returned Query OK. No other account, grant, schema, data, backup, restore, or production object changed.
 - [x] D-01 no-change closure: all attempted execution routes stopped before the first pinned schema statement. The zero-table preflight, snapshot timing, target context, and SQL hash passed; browser SQL transfer and dynamic direct-client egress prevented safe execution. Both temporary accounts, both temporary firewall rules, and all protected local credentials were removed. No D-01 table/index, data, backup/restore, or production object was changed.
 - [ ] Future D-01 execution decision: use a stable execution environment with a reserved egress IP or the owner’s own native TiDB Cloud session, then obtain fresh D-01 authority, immediate snapshot/target preflight, exact SQL/statement-hash verification, and an execution/cleanup plan. Do not reuse the abandoned browser or dynamic-sandbox direct-client paths.
+- [x] Owner-operated D-01 stable-console route: prepared a controlled runbook for Tavonga Shoko to execute the exact pinned source artefact through the owner’s native authenticated TiDB Cloud SQL Editor, one statement at a time, with fresh preflight and captured results. The runbook explicitly excludes the abandoned sandbox direct-client and browser-automation editor-transfer paths. Evidence: `docs/staging-schema-reconciliation/d01-owner-console-execution-runbook-2026-09-12.md`.
 
 ---
 
