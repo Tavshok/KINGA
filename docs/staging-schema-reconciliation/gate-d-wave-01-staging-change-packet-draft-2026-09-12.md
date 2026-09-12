@@ -282,6 +282,61 @@ The recommended recovery path is a local MySQL-compatible command-line client, n
 
 This approach avoids the defective browser-editor transfer path while preserving stronger evidence than manual pasting. It does not cure the TiDB privilege model’s lack of a create-index-only grant, and it does not eliminate the D-01-only single-person control exceptions. Production remains expressly excluded.
 
+### Direct-client credential preparation record
+
+Following owner approval of the direct-client route, separate runner and verifier temporary secrets were generated locally using the operating-system cryptographic random source. The raw secrets and their TiDB-compatible authentication verifiers are retained only in protected local files: directory permission `0700`, file permission `0600`. No plaintext, password verifier, host, connection string, or credential was printed, committed, placed in an environment file, or added to this packet. The secrets have not been used to create an account or initiate a connection. They must be destroyed after D-01 closure or immediately if the direct-client preflight stops.
+
+### Direct-client network preflight stop
+
+At `2026-09-12 08:03 UTC`, the authenticated TiDB Cloud **Connect** dialog confirmed the intended `KINGA-staging` public-endpoint route, TLS requirement, port `4000`, and TiDB Cloud username-prefix format. It also displayed an explicit firewall warning that the current browser client IP `54.87.139.152` is **not allowed to connect**. Earlier shell egress discovery returned a different sandbox public IP, `54.172.182.52`; this establishes that browser and local direct-client traffic cannot be assumed to share an egress identity.
+
+No temporary account was created and no direct client attempted a connection. The direct-client route is stopped at its dynamic network-allowance gate. Adding, changing, or removing a TiDB Cloud public-endpoint allow rule is a separate cloud-network change and is not implied by the D-01 SQL authority. Any resumption requires explicit owner authority for the exact current direct-client egress IP, a new immediate snapshot/target preflight after that network decision, and the same D-01 source/statement hash controls.
+
+### Existing authorised-network observation
+
+After the owner authorised a single-IP D-01 network allowance, the authenticated `KINGA-staging` Networking page was inspected at `2026-09-12 08:05 UTC` before making any change. It already contained a rule named `Allow_all_public_connections` whose configured start address is `54.172.182.52` and end address is `137.59.229.33`. The previously observed local direct-client egress `54.172.182.52` is the exact lower endpoint of that existing rule, so a duplicate exact-IP rule was neither necessary nor created.
+
+This inherited rule is materially broader than the requested temporary single-IP allowance and is not represented as a new narrow D-01 control. The task did not add, modify, or remove any network rule. The only D-01 conclusion is that the previously observed direct-client address falls within the existing owner-managed allow range. The direct-client preflight must still recheck actual shell egress immediately before connection; if it differs, D-01 stops unless the owner gives a separate network decision.
+
+At `2026-09-12 08:07 UTC`, the required immediate egress recheck returned local direct-client public IP `154.255.52.171`. It differs from the earlier `54.172.182.52` observation and is outside the visible existing `Allow_all_public_connections` range `54.172.182.52`–`137.59.229.33`. The required dynamic network-allowance gate therefore failed. No temporary account was created and no direct connection was attempted. D-01 is stopped at preflight pending a new explicit owner decision about this exact current IP; the owner’s previous exact-IP authority does not silently transfer to a changed address.
+
+The owner subsequently authorised the exact changed address, reviewed the completed rule form, and explicitly confirmed its submission. At `2026-09-12 08:09 UTC`, the TiDB Cloud Networking page reported **Added successfully** and listed one new public-endpoint rule: `D01_direct_client_20260912`, start `154.255.52.171`, end `154.255.52.171`. The total rule count changed from four to five. No existing rule was modified and no production setting was viewed or changed. This D-01-only rule must be removed at D-01 closure or immediately if the direct-client path stops.
+
+The owner later approved a bounded workaround range after the database observed a different dynamic direct-client egress. At `2026-09-12 08:25 UTC`, after the owner reviewed the completed form and explicitly confirmed Save, TiDB Cloud reported **Added successfully** for a new `KINGA-staging` public-endpoint rule named `D01_direct_natpool_2h`, start `54.90.169.0`, end `54.90.169.255` (`54.90.169.0/24`). The total rule count increased from five to six. This is a 256-address range containing the database-observed source `54.90.169.80`; it is neither a wildcard nor a broad cloud range. It is an owner-approved D-01 exception only and must be removed no later than two hours after approval, or immediately at D-01 closure. No existing rule or production setting was modified.
+
+At `2026-09-12 08:26 UTC`, the guarded direct TLS runner check was repeated after the `/24` rule became active. TiDB rejected it before SQL with `ERROR 1045 (28000): Access denied for user '289ZyKGJwbC2SkB.d01r120926'@'54.87.139.152'`. This third observed gateway source is outside the new `54.90.169.0/24` range and differs from both earlier direct-client addresses. No SQL, schema/data change, backup/restore action, or additional grant occurred. The observed pattern is dynamic egress, not a missing query privilege. A range broad enough to guess future sources would materially expand public access and is not a valid D-01 least-privilege control. D-01 direct-client execution is abandoned; all temporary D-01 accounts, credentials, and firewall rules require cleanup.
+
+At `2026-09-12 08:31 UTC`, the owner-confirmed deletion of temporary network rule `D01_direct_natpool_2h` completed successfully. The TiDB Cloud Networking page reported **Deleted successfully**, returned the total rule count from six to five, and showed the five pre-existing/single-IP entries only. No other existing rule or production setting changed. The remaining temporary single-IP rule `D01_direct_client_20260912` is still present and must be removed before closure.
+
+At `2026-09-12 08:32 UTC`, the owner-confirmed deletion of temporary network rule `D01_direct_client_20260912` completed successfully. TiDB Cloud again reported **Deleted successfully**. The staging authorised-network list now contains exactly four pre-existing owner-managed rules: `Allow_all_public_connections`, `Home`, `Manus_runtime_actual`, and `Any_public_AWS_service`. Both temporary D-01 firewall rules are absent; no other staging rule and no production setting changed.
+
+After account and network cleanup, the protected local D-01 credential directory was destroyed and an existence check passed (`credential_cleanup=PASS`). No raw secret or password verifier was printed, committed, retained in an environment file, or transferred outside the protected local material. D-01 has no remaining temporary client credential, account, or firewall access from this attempt.
+
+At `2026-09-12 08:27 UTC`, the owner reviewed and explicitly confirmed removal of the two temporary D-01 identities. The authenticated administrator executed `DROP USER` for exactly `289ZyKGJwbC2SkB.d01r120926@154.255.52.171` and `289ZyKGJwbC2SkB.d01v120926@154.255.52.171`; TiDB returned Query OK, 0 rows affected, 112 ms. No other account, grant, table, index, data, backup, restore, or production object was changed.
+
+### Temporary runner identity validation
+
+The first temporary-runner creation attempt at `2026-09-12 08:12 UTC` was rejected by TiDB before account creation because the proposed prefixed username exceeded the 32-character identifier limit. The server returned: **“String … is too long for user name (should be no longer than 32)”**. No user was created, no grant was issued, and no direct client connection was attempted. The failed password verifier will not be reused; a new protected runner secret and a shorter prefixed identity will be generated before any retry.
+
+At `2026-09-12 08:13–08:14 UTC`, after runner-secret rotation, the authenticated administrator created the following temporary accounts successfully, each with the exact current host `154.255.52.171` and `REQUIRE SSL`:
+
+| Identity | Creation result | Privileges at creation |
+|---|---|---|
+| `289ZyKGJwbC2SkB.d01r120926` | Query OK, 0 rows affected, 64 ms | None beyond connection/authentication. |
+| `289ZyKGJwbC2SkB.d01v120926` | Query OK, 0 rows affected, 43 ms | None beyond connection/authentication. |
+
+The previously rejected overlength identity does not exist. No grant, direct client connection, DDL/DML, schema change, backup/restore action, or production operation has occurred at this point. The two successful identities must remain temporary and be removed during D-01 closure even if later preflight fails.
+
+At `2026-09-12 08:15 UTC`, the owner-authorised temporary runner `289ZyKGJwbC2SkB.d01r120926` received `CREATE, INDEX` on `kinga_staging.*`; TiDB returned Query OK, 0 rows affected, 88 ms. This is limited to the approved D-01 database and carries the previously accepted unavoidable `INDEX`/`DROP INDEX` residual capability. The runner has not received DML, `ALTER`, table-drop, grant, account-management, cross-database, or production privilege. The verifier still has no grants at this point; no direct client connection or schema statement has occurred.
+
+At `2026-09-12 08:16 UTC`, the first table-specific `SELECT` grant for verifier `289ZyKGJwbC2SkB.d01v120926` was rejected because `kinga_staging.tenant_invitations` does not yet exist. This result confirms the zero-table preflight; it did not create a privilege or database object. TiDB does not permit this precise object-level grant before its table exists. To preserve the approved no-broader-data-access verifier design, no database-wide `SELECT` grant will be substituted. The three table-specific verifier grants must instead be issued after the three D-01 tables exist and before verifier postflight; this sequencing change does not alter the runner’s capability or D-01 SQL scope.
+
+### Direct-client connection stop — actual source IP differs from discovery IP
+
+At `2026-09-12 08:18 UTC`, a guarded local runner transport/identity check first confirmed `154.255.52.171` from the public-IP discovery service, matching the temporary exact-IP rule. It then used TLS with server-certificate verification, the TiDB Cloud standard gateway, the expected prefixed runner identity, and the protected local client configuration. TiDB rejected the connection before SQL execution: `ERROR 1045 (28000): Access denied for user '289ZyKGJwbC2SkB.d01r120926'@'54.90.169.80'`.
+
+The database’s observed source address, `54.90.169.80`, differs from the public-IP discovery result and is not one of the prior authorised exact addresses. No SQL was sent, no D-01 table/index was created, and no account/grant was changed by the direct client. This shows the sandbox’s connection path uses a different NAT egress for the TiDB gateway. D-01 is stopped at the transport firewall gate; do not add a broad rule or retry until the owner makes a new explicit decision for exactly `54.90.169.80` and an immediate recheck confirms the same database-observed source address.
+
 ## 6. Future preflight, execution, and postflight protocol
 
 The following sequence is retained for later review. It is procedural control text, **not** an instruction to execute now.
