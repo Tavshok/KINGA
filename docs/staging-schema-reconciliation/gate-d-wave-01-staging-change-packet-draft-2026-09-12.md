@@ -255,6 +255,33 @@ The console’s **Run** control did not add the atomically-inserted buffer to th
 
 This is a second safe-transfer failure, not a database discrepancy. The complete D-01 artefact and its browser-buffer hash were verified, but the console has not provided a reliable route from that buffer into executable query state. D-01 is therefore **stopped before first DDL**. Further automated transfer attempts are prohibited in this window; any later resumption requires renewed owner authority for a different execution mechanism and a new immediate preflight.
 
+## 5A. Proposed direct TLS-client workaround — review only
+
+The recommended recovery path is a local MySQL-compatible command-line client, not the TiDB Cloud browser SQL editor. TiDB Cloud Starter supports direct MySQL-protocol connections over public or private endpoints, and its public standard connection requires TLS.[6] [7] The local execution environment has a MariaDB-compatible `mysql` client with `--ssl`, `--ssl-ca`, and `--ssl-verify-server-cert` support. This proposal is not authority to create an account, obtain a password, establish a connection, or execute SQL.
+
+| Control | Proposed direct-client mechanism |
+|---|---|
+| Source integrity | Read only the local Wave 1 file. Recalculate SHA-256 and require exact equality with `306797ab94529860bc9e88a69a955061916a94ddc3d08e3265229780ab08083c` before any connection. |
+| Separator handling | Treat only the ten exact `--> statement-breakpoint` delimiters as non-SQL transport markers. Validate 11 resulting statements, their allowed class/name list, and a separate SHA-256 for each statement before sending it. Do not edit, regenerate, or substitute the source file. |
+| Transport | Use the exact host, port, and TiDB Cloud username format displayed in the **Connect** dialog; require TCP/TLS and server-certificate validation against the Ubuntu CA bundle. Do not reuse a runtime application URL or password. |
+| Runner identity | Create a temporary D-01 runner with a host restriction matching the then-current execution IP, TLS required, and only `CREATE` plus `INDEX` on `kinga_staging.*`. `INDEX` necessarily retains the previously disclosed `DROP INDEX` residual capability; D-01 must keep the short lifetime, exact-statement guard, and immediate stop rules as compensating controls. |
+| Verifier identity | Create a separate temporary D-01 verifier, TLS and same-host restricted, with read-only access only to the three empty D-01 tables and metadata required for preflight/postflight. It receives no DDL, DML, grant, or production scope. |
+| Credential handling | The TiDB console account-creation statement must use a password verifier rather than a plaintext secret if the exact supported authentication form is confirmed. The temporary cleartext secret must be supplied through an approved secure channel, kept in a mode-`0600` temporary client defaults file, never printed in command output or committed, and securely removed after the run. TiDB does not support random password generation, so no password can be safely assumed or invented.[8] |
+| Preflight | Reconfirm the current same-day snapshot, target/active database, public-network allowance for the then-current client IP, full source and statement hashes, runner/verifier effective grants, and zero D-01 tables. Any difference stops the run. |
+| Execution | Send exactly one verified statement at a time through the runner. Capture only statement ordinal, source hash, statement hash, server result, duration, and non-sensitive error details. A nonzero client result stops immediately; no later statement is sent. |
+| Postflight | Use the verifier for a machine-readable comparison of the three tables, three primary keys, two unique constraints, eight named indexes, and expected defaults. The three tables must remain empty. The owner then records the basic connectivity/read result under the D-01 exception. |
+| Closure | Remove the temporary credentials and separately authorised temporary accounts; preserve redacted grant, client version, TLS, statement, metadata, and smoke-test evidence. No later wave is implied. |
+
+### Required new owner decision before this workaround can run
+
+1. Approve the direct-client pathway and replace the browser-editor execution channel; this requires a **new immediate preflight**, even if the current snapshot is still valid.
+2. Authorise creation and later removal of the two short-lived D-01 identities, including the disclosed unavoidable `INDEX`/`DROP INDEX` residual capability for the runner.
+3. Supply or approve secure delivery of the temporary direct-client credentials and confirm the exact TiDB Cloud Connect host, port, and username-prefix format; no secret may be copied into chat, shell output, Git, or the audit document.
+4. Confirm the current sandbox public IP is permitted by the owner-managed TiDB Cloud public-endpoint rules at execution time. The IP may change after sandbox resume; a historical allow-list entry is not sufficient evidence.
+5. Re-authorise the exact D-01 source hash, the execution window, and account cleanup after reviewing the generated statement-hash manifest and client plan.
+
+This approach avoids the defective browser-editor transfer path while preserving stronger evidence than manual pasting. It does not cure the TiDB privilege model’s lack of a create-index-only grant, and it does not eliminate the D-01-only single-person control exceptions. Production remains expressly excluded.
+
 ## 6. Future preflight, execution, and postflight protocol
 
 The following sequence is retained for later review. It is procedural control text, **not** an instruction to execute now.
@@ -302,3 +329,6 @@ This packet can pass only if all the following are true after an explicitly auth
 3. `docs/staging-schema-reconciliation/gate-d-execution-readiness-plan.md` — Gate D access, recovery, independent review, execution, stop, and closure controls.
 4. [TiDB Cloud Starter or Essential Backup and Restore](https://docs.pingcap.com/tidbcloud/backup-and-restore-serverless/) — documented Starter snapshot and PITR limitations.
 5. [TiDB Privilege Management](https://docs.pingcap.com/tidb/stable/privilege-management/) — database privilege model and required privileges for `CREATE TABLE` and `CREATE INDEX`.
+6. [Connect to Your TiDB Cloud Starter or Essential Instance](https://docs.pingcap.com/tidbcloud/connect-to-tidb-cluster-serverless/) — supported direct MySQL-protocol connections and network paths.
+7. [TLS Connections to TiDB Cloud Starter or Essential](https://docs.pingcap.com/tidbcloud/secure-connections-to-serverless-clusters/) — public-endpoint TLS requirement and Connect-dialog connection details.
+8. [TiDB Security Compatibility with MySQL](https://docs.pingcap.com/tidb/stable/security-compatibility-with-mysql/) — TiDB’s unsupported random-password generation and supported authentication model.
