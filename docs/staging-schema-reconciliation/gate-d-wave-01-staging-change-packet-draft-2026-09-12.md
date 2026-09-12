@@ -101,8 +101,8 @@ The existing `kinga_verify` identity remains a useful read-only inspection ident
 |---|---|---|
 | Prior rehearsal snapshot | `2026-09-11 03:00:45 UTC`; console status was Succeeded; recorded expiry was `2026-09-12 03:00:45 UTC`. | Historical rehearsal evidence only. It cannot be reused as the D-01 recovery point because the recorded one-day Starter expiry has passed. |
 | Prior restore result | Restored to a separate new Starter instance, reached Active, and was removed. `KINGA-staging` and `KINGA-production` remained separate and Active. | Retained as evidence of the snapshot-to-new-instance recovery path only. |
-| D-01 recovery point | **Not recorded.** | Before an execution authority is requested, the owner must capture the then-current latest successful `KINGA-staging` snapshot from TiDB Cloud, including backup UTC timestamp, status, expiry/retention, selected restore action, exact source target, and console capture time. |
-| Recovery acceptance | Free Starter snapshot recovery was accepted for the rehearsal only. | The owner must expressly accept the actual D-01 recovery limitation and confirm the snapshot remains valid for the approved window. No automatic backup is treated as sufficient without this confirmation. |
+| D-01 recovery point | **Captured for final preflight review:** `2026-09-12 03:01:00 UTC+00:00`; status **Succeeded**; expiry `2026-09-13 03:01:00 UTC+00:00`; source selector `KINGA-staging`; Restore action visibly available. | This evidence supports review of the proposed window only. The owner must re-confirm it is still present and valid immediately before any future execution decision. |
+| Recovery acceptance | Free Starter snapshot recovery is accepted for D-01 only under the same-day limitation in the decision below. | The owner must expressly accept the final preflight package and confirm the evidenced snapshot remains valid for the proposed window. No automatic backup is treated as sufficient without this confirmation. |
 | Manual backup or PITR | Not proposed, requested, or authorised. Starter PITR is unavailable. | Any future manual-backup request or service-class change requires its own owner decision; neither is implied by D-01. |
 | Stop rule | Any absent, stale, expired, failed, or target-ambiguous snapshot record stops D-01. | Do not proceed, substitute an older snapshot, or create a backup without new explicit authority. |
 
@@ -114,7 +114,9 @@ The existing `kinga_verify` identity remains a useful read-only inspection ident
 | Decision date | 12 September 2026 |
 | Accepted limitation | Free Starter retains the available snapshot for one day; only a snapshot captured and still valid on the same UTC date as the proposed D-01 window can serve as its recovery point. |
 | Limited scope | D-01 only: the three-table identity/tenant-root packet for `KINGA-staging`. |
-| Required confirmation | The owner must review the current TiDB Cloud Backup record immediately before a future execution decision and expressly confirm its timestamp, successful status, expiry, source target, and validity for the proposed window. |
+| Current console evidence | Owner-supplied `KINGA-staging` Backup-page view: Backup time `2026-09-12 03:01:00 UTC+00:00`; Status **Succeeded**; Expires time `2026-09-13 03:01:00 UTC+00:00`; Restore visibly available. |
+| Window coverage assessment | The snapshot and 14:00–20:00 UTC proposed window are on the same UTC date. The snapshot precedes the proposed start by 10 hours 59 minutes, and its expiry is 5 hours 1 minute after the required 22:00 UTC window-plus-safety-margin endpoint. **Timing criterion passed for review.** |
+| Required confirmation | The owner must re-confirm the current TiDB Cloud Backup record immediately before a future execution decision and expressly confirm its timestamp, successful status, expiry, source target, and validity for the proposed window. |
 | Excluded scope | This decision does not permit an old snapshot, a manual backup, PITR, account creation, staging SQL, DDL/DML, later waves, recovery/cutover action, or production work. |
 | Expiry | The acceptance expires when D-01 is closed, stopped, abandoned, or moves outside the snapshot’s recorded validity; it is not transferable to D-02–D-06 or production. |
 
@@ -125,7 +127,7 @@ No D-01 change window is scheduled or authorised by this draft. The following **
 | Field | Draft value | Required decision before execution |
 |---|---|---|
 | Packet | `D-01` only; three tables and 11 SHA-pinned `CREATE` statements. | Confirm unchanged scope and hash. |
-| Proposed start / end | **12 September 2026, 14:00–20:00 UTC** (`16:00–22:00 GMT+2`). | Owner must expressly accept the window after current snapshot evidence is captured; the proposal is not an execution authority. |
+| Proposed start / end | **12 September 2026, 14:00–20:00 UTC** (`16:00–22:00 GMT+2`). The owner-supplied snapshot evidence meets the timing criterion in Section 4B. | Owner must expressly accept the complete preflight package; this remains a proposal and is not an execution authority. |
 | Review buffer before window | Approximately 6 hours 48 minutes from the 07:11 UTC drafting reference time to the proposed 14:00 UTC start. | Use this time for review of the actual snapshot record, target/account controls, and final go/no-go decision. No preflight query or account action is implied. |
 | Protected postflight buffer | 17:00–20:00 UTC is reserved for verifier postflight, application smoke test, retained-evidence review, runner revocation/expiry, and closure decision; no D-02 activity may begin in this window. | If D-01 is not conclusively closed by 20:00 UTC, stop and carry no authority forward. |
 | Snapshot-expiry safety margin | The owner must confirm that the actual same-day snapshot remains valid for the full proposed window **plus at least two hours** after closure. | If the console-recorded expiry is before 22:00 UTC, or any timestamp is ambiguous, reject this window and schedule no execution. |
@@ -138,16 +140,15 @@ No D-01 change window is scheduled or authorised by this draft. The following **
 | Entry gate | No account creation, staging preflight query, or SQL command is authorised. | A separate owner decision must approve accounts and read-only preflight before execution may be considered. |
 | Exit gate | No later Wave, application rollout, or production work is implied. | Close D-01 with evidence, runner revocation/expiry, and a fresh decision before considering D-02. |
 
-### Current snapshot capture checklist
+### Current snapshot capture record
 
-The current browser session reached the TiDB Cloud sign-in page rather than the owner-authenticated console, so no current backup information was read or changed. The owner must capture the following **read-only console evidence** from `KINGA-staging` → **Data** → **Backup** before the proposed window can be reviewed:
+The current browser session reached the TiDB Cloud sign-in page rather than the owner-authenticated console, so no current backup information was read or changed by this task. The owner supplied the following **read-only console evidence** from `KINGA-staging` → **Data** → **Backup**:
 
-1. the latest snapshot’s exact **Backup time** in UTC, **Status**, and **Expiry time**;
-2. the exact source instance name, the available **Restore** action, and evidence that the selected snapshot belongs to `KINGA-staging`;
-3. the console capture time in UTC and confirmation that the snapshot is still valid through the proposed window plus the two-hour safety margin; and
-4. the visible Starter service-class context and any warning affecting restore availability.
+1. latest snapshot **Backup time** `2026-09-12 03:01:00 UTC+00:00`, **Status** Succeeded, and **Expires time** `2026-09-13 03:01:00 UTC+00:00`;
+2. source instance selector `KINGA-staging` and a visible **Restore** action; and
+3. sufficient validity to cover the same-day proposed window through its two-hour safety margin, as quantified in Section 4B.
 
-The capture must not press **Restore**, create a new snapshot, change retention, alter networking, create an account, or perform any database operation. If the snapshot does not meet the same-day and safety-margin conditions, the correct result is **no D-01 execution** and a new review after the next available snapshot.
+The owner did not press **Restore**, create a new snapshot, change retention, alter networking, create an account, or perform any database operation as part of this evidence capture. If the snapshot is no longer visible, no longer valid, or does not meet the same-day and safety-margin conditions at the actual go/no-go point, the correct result is **no D-01 execution** and a new review after the next available snapshot.
 
 ## 5. Preconditions that remain incomplete
 
@@ -158,10 +159,32 @@ No D-01 execution decision may be requested until every item below is recorded a
 | Target identity proof | Owner-approved TiDB organisation, project, cluster ID/name, database `kinga_staging`, AWS Frankfurt region, Starter service class, and connection/TLS method. | Partially evidenced from prior read-only inspection; must be reconfirmed immediately before any action. |
 | Reviewer-control exception | The dated D-01-only owner exception in Section 1A, including its strict scope and expiry, plus a commitment to retain complete preflight/execution/postflight evidence for later independent review. | Accepted by the owner for D-01 only; no exception exists for D-02–D-06 or production. |
 | Least-privilege accounts | Owner-created verifier and D-01-only schema runner, separate from runtime credentials; redacted grants proving no DML, no `DROP`, no user administration, and no cross-database or production scope. The specific design is in Section 4A. | Designed for review; creation is not authorised by this draft. |
-| Current recovery record | Latest successful snapshot UTC timestamp, expiry/retention evidence, accepted RPO/RTO limitation, and recovery approver. The review-only record is in Section 4B. | Missing for future execution time; the prior rehearsal snapshot is expired. |
+| Current recovery record | Latest successful snapshot UTC timestamp, successful status, expiry evidence, source target, and accepted same-day limitation. The verified current record is in Section 4B. | Complete for final preflight review; re-confirm immediately before any execution decision. |
 | Change window | UTC start/end, application isolation owner, communications route, operator, reviewer, observer, and stop authority. The review-only proposed record and capture checklist are in Section 4C. | Proposed as 14:00–20:00 UTC on 12 September 2026; not scheduled or authorised. |
 | Preflight metadata | Verifier-produced inventory showing the exact approved initial state, including zero D-01 tables or a separately approved reconciliation decision. | Missing; no staging metadata query is authorised by this draft. |
 | Application gate | Named non-production test identities, smoke-test scope, expected results, application owner, and observation record. | Missing. |
+
+## 5A. Final-preflight review status
+
+The following matrix is the complete review package requested before any D-01 execution authority is considered. It does not convert incomplete live controls into approval to perform them.
+
+| Control | Evidence available for final review | Position |
+|---|---|---|
+| D-01 source scope and SQL pin | Three named tables, 11 `CREATE`-only statements, no FKs, Gate C two-run local scratch proof, and SQL SHA-256 `306797ab94529860bc9e88a69a955061916a94ddc3d08e3265229780ab08083c`. | Complete for review. |
+| Staging target/recovery rehearsal | Successful snapshot-to-new-instance rehearsal and target cleanup; final evidence shows original `KINGA-staging` and `KINGA-production` remain Active. | Complete for review. |
+| Same-day D-01 snapshot | `KINGA-staging` snapshot from `2026-09-12 03:01:00 UTC+00:00`, Succeeded, expiring `2026-09-13 03:01:00 UTC+00:00`; Restore action visible. | Complete for review; must be reconfirmed immediately before a future execution decision. |
+| D-01 same-day Starter limitation | Owner-accepted, dated 12 September 2026, and limited to D-01. | Complete for review. |
+| D-01 single-person operator/reviewer exception | Owner-accepted, dated 12 September 2026; limited to D-01 and expiring at D-01 closure. | Complete for review. |
+| Proposed change window | 12 September 2026, 14:00–20:00 UTC; current snapshot expiry exceeds the required 22:00 UTC safety-margin endpoint by 5 hours 1 minute. | Timing criterion passed for review; window itself remains unapproved. |
+| Verifier/runner account design | Separate D-01-only capability matrices, lifecycle requirements, privilege exclusions, and evidence requirements in Section 4A. | Complete for review; no account exists or is authorised to be created. |
+| Target identity and grant proof | Historical verifier evidence exists, but execution-time target/TLS/account/grant evidence has not been collected. | Incomplete and prohibited until separately authorised. |
+| Metadata preflight and postflight | Exact required comparison method, fingerprints, and stop conditions are specified. | Incomplete and prohibited until separately authorised. |
+| Application-validation gate | Required ownership, test identities, scope, and pass/fail treatment are specified. | Incomplete: application owner/observer and test plan must be named before execution. |
+| D-01 execution authority | No owner decision authorises staging DDL or account creation. | **Not authorised.** |
+
+## 5B. Decision requested after final review
+
+The only decision requested at this stage is approval or rejection of this **final-preflight review package**. Approval of the package would not authorise account creation, a staging connection, metadata collection, or D-01 SQL execution. Any later request must separately identify the exact next action, its operator, its target, and its authority boundary.
 
 ## 6. Future preflight, execution, and postflight protocol
 
@@ -195,6 +218,8 @@ This packet can pass only if all the following are true after an explicitly auth
 |---|---|
 | Approve this D-01 document as a planning/review packet | Pending owner review. |
 | Accept D-01-only single-person operator/reviewer exception | Accepted by Tavonga Shoko, KINGA owner, 12 September 2026. Expires at D-01 closure and does not apply to any later packet or production. |
+| Accept same-day Free Starter recovery limitation and current snapshot timing assessment | Accepted for D-01 only by Tavonga Shoko, KINGA owner, 12 September 2026. Snapshot timing meets the proposed window-plus-margin criterion; re-confirmation remains required before any execution decision. |
+| Approve the proposed 14:00–20:00 UTC D-01 window | Pending; the window is documented for review only. |
 | Name an independent reviewer for D-02–D-06 or production | Required before any later packet is considered. |
 | Authorise migration-account creation | Not requested and not approved. |
 | Authorise staging preflight access | Not requested and not approved. |
