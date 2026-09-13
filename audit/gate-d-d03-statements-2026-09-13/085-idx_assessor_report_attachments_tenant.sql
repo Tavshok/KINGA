@@ -1,0 +1,1 @@
+CREATE INDEX `idx_assessor_report_attachments_tenant` ON `assessor_report_attachments` (`tenant_id`);

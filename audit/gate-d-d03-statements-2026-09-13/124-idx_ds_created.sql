@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ds_created` ON `decision_snapshots` (`created_at`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_clr_vehicle_descriptor` ON `cost_learning_records` (`vehicle_descriptor`);

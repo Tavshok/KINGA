@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tenant_id` ON `report_links` (`tenant_id`);

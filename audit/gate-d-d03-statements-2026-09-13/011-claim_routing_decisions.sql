@@ -1,0 +1,21 @@
+CREATE TABLE `claim_routing_decisions` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`claim_id` int NOT NULL,
+	`tenant_id` varchar(255) NOT NULL,
+	`confidence_score_id` int NOT NULL,
+	`automation_policy_id` int NOT NULL,
+	`routed_workflow` enum('ai_only','hybrid','manual') NOT NULL,
+	`routing_reason` text NOT NULL,
+	`policy_thresholds_applied` json NOT NULL,
+	`decision_timestamp` timestamp DEFAULT (now()),
+	`decision_made_by_system` tinyint NOT NULL DEFAULT 1,
+	`decision_made_by_user_id` int,
+	`was_overridden` tinyint NOT NULL DEFAULT 0,
+	`override_reason` text,
+	`overridden_by_user_id` int,
+	`overridden_at` timestamp,
+	`policy_version` int NOT NULL DEFAULT 1,
+	`policy_snapshot_json` json NOT NULL,
+	`claim_version` int NOT NULL DEFAULT 1,
+	CONSTRAINT `claim_routing_decisions_id` PRIMARY KEY(`id`)
+);

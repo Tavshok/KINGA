@@ -1,0 +1,1 @@
+CREATE INDEX `idx_policy_name` ON `automation_policies` (`policy_name`);

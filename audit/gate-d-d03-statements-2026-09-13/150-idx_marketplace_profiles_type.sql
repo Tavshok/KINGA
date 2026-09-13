@@ -1,0 +1,1 @@
+CREATE INDEX `idx_marketplace_profiles_type` ON `marketplace_profiles` (`type`);

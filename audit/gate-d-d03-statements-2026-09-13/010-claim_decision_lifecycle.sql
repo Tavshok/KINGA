@@ -1,0 +1,21 @@
+CREATE TABLE `claim_decision_lifecycle` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`claim_id` varchar(50) NOT NULL,
+	`tenant_id` varchar(50) NOT NULL,
+	`lifecycle_state` varchar(20) NOT NULL DEFAULT 'DRAFT',
+	`is_final` tinyint NOT NULL DEFAULT 0,
+	`is_locked` tinyint NOT NULL DEFAULT 0,
+	`authoritative_snapshot_id` int,
+	`drafted_at` bigint,
+	`reviewed_at` bigint,
+	`reviewed_by_user_id` varchar(50),
+	`finalised_at` bigint,
+	`finalised_by_user_id` varchar(50),
+	`locked_at` bigint,
+	`locked_by_user_id` varchar(50),
+	`final_decision_choice` varchar(50),
+	`created_at` bigint NOT NULL,
+	`updated_at` bigint NOT NULL,
+	CONSTRAINT `claim_decision_lifecycle_id` PRIMARY KEY(`id`),
+	CONSTRAINT `idx_cdl_claim_unique` UNIQUE(`claim_id`)
+);

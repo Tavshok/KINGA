@@ -1,0 +1,1 @@
+CREATE INDEX `valuation_comparable_request_idx` ON `valuation_comparable_evidence` (`valuation_request_id`);
