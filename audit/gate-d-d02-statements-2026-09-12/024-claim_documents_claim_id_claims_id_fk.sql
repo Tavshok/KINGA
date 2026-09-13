@@ -1,0 +1,1 @@
+ALTER TABLE `claim_documents` ADD CONSTRAINT `claim_documents_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;

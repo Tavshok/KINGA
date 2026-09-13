@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vdh_tenant` ON `vehicle_damage_history` (`tenant_id`);

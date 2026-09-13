@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vehicle_registry_registration` ON `vehicle_registry` (`registration_number`);

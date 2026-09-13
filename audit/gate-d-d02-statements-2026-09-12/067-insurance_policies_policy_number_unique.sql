@@ -1,0 +1,1 @@
+CREATE INDEX `insurance_policies_policy_number_unique` ON `insurance_policies` (`policy_number`);

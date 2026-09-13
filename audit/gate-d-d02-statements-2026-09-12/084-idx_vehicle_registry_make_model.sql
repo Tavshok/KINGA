@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vehicle_registry_make_model` ON `vehicle_registry` (`make`,`model`);

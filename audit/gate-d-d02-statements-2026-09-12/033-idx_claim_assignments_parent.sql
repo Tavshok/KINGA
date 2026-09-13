@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claim_assignments_parent` ON `claim_assignments` (`parent_assignment_id`);

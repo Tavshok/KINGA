@@ -1,0 +1,1 @@
+CREATE INDEX `idx_drivers_phone` ON `drivers` (`phone`);

@@ -20,6 +20,21 @@
 | Change approver and stop authority | KINGA owner | Must issue a new written D-02 decision. |
 | Production | `KINGA-production` | Explicitly excluded. |
 
+### 1A. D-02-only owner-operated control exception
+
+| Field | Recorded exception |
+|---|---|
+| Decision maker | Tavonga Shoko, KINGA owner |
+| Decision date | 12 September 2026 |
+| Accepted deviation | Tavonga Shoko may act as the D-02 operator, reviewer, application-validation owner, and observer because no independent person is currently available. |
+| Scope limit | `D-02` only: the 20 approved Wave 2 tables, 9 named foreign keys, and 58 named explicit indexes in `KINGA-staging` database `kinga_staging`. |
+| Limited rationale | D-02 is constrained to one immutable reviewed artefact, an 87-statement ledger with complete per-statement SHA-256 values, fresh same-day Starter recovery evidence, read-only D-01 prerequisite/D-02 absence preflight, one-statement-at-a-time execution, independent catalogue comparison, and zero-row smoke checks. |
+| Controls that remain mandatory | Exact full-file and per-statement hashes, marker-aware split, target identity, current snapshot validity, execution window, D-01 prerequisite check, D-02 absence check, statement results, postflight metadata, zero-row smoke check, retained evidence, and a distinct decision before D-03. |
+| Expiry | Ends immediately when D-02 is closed, stopped, abandoned, or its approved window expires. It cannot apply to D-03–D-06, recovery/cutover, an application rollout, or production. |
+| Reopening rule | Any source/hash mismatch, parser discrepancy, failed statement, target/snapshot discrepancy, unexpected object, or smoke-test failure voids the exception and stops execution pending a new owner decision. |
+
+This exception accepts the absence of separation of duties for D-02 only; it does not provide independent assurance. Complete artefact, execution, and verification evidence must be retained for later independent review.
+
 ## 2. Immutable source pins
 
 | Control | Pinned value | Draft verification |
@@ -33,6 +48,21 @@
 | Gate C scratch structural metadata SHA-256 | `2b7b1ba33cc6fbb729824d1ab447c6920cfdc5e6f9ffb6d60720f0414abf7897` | Cross-check only; not a live staging preflight result. |
 
 Any source, schema, prerequisite, or SQL hash difference is a mandatory stop. The operator must not regenerate, edit, or substitute the source during a change window.
+
+### 2A. Generated marker-split statement ledger — owner-operated execution input
+
+The following D-02 execution inputs were generated locally without any TiDB connection or SQL execution. They are derived from the immutable Wave 2 source by splitting only on the exact `--> statement-breakpoint` literal and UTF-8-trimming each resulting SQL fragment. The generator then re-derives and compares the complete ledger before reporting success.
+
+| Artefact | Purpose | Immutable check |
+|---|---|---|
+| [`gate-d-d02-statement-hash-ledger-2026-09-12.json`](../../audit/gate-d-d02-statement-hash-ledger-2026-09-12.json) | Canonical 87-row machine-readable ledger, containing each exact emitted SQL statement and its individual SHA-256. | Full source SHA-256 `15661c69490a4360931ef5fc3d17e2b4521f692730b2d113f1342117b067e7b9`; ledger re-derivation `PASS`. |
+| [`d02-wave-02-statement-hash-ledger-2026-09-12.md`](d02-wave-02-statement-hash-ledger-2026-09-12.md) | Human-readable ordered statement number, phase, object, and per-statement SHA-256. | 20 tables, 9 FKs, 58 indexes; 87 rows. |
+| `audit/gate-d-d02-statements-2026-09-12/` | 87 exact one-statement `.sql` files for owner-operated, one-at-a-time execution. | Every file’s SHA-256 exactly matches its JSON-ledger row. |
+| [`generate-d02-statement-ledger.mjs`](../../scripts/generate-d02-statement-ledger.mjs) | Deterministic local generator and verifier; it does not connect to any database. | `verify` re-derived the ledger from the source and returned `PASS`. |
+
+The emitted-file set contains exactly 87 `.sql` files. Their deterministic ordered concatenation has SHA-256 `fa322b283f65ac3d3e4a4b1dcd1342b9e898a481596a896f8fbefddb133c623f`; this is a supplemental packing check, not a replacement for the original full-source hash or the required individual statement hashes.
+
+For owner-operated execution, Claude Code must read the JSON ledger and execute only `statements[1]` through `statements[87]` in ordinal order. Before each statement, it must calculate SHA-256 over the exact proposed SQL text and require equality with that row’s `sha256`. It must stop on the first failure, mismatch, changed source file, unrecognised statement class, or target/preflight discrepancy; it must never continue from a partial run without a separately reviewed recovery record.
 
 ## 3. Approved D-02 scope
 
@@ -78,10 +108,11 @@ The successful D-01 restore rehearsal remains evidence that a Starter snapshot c
 
 | Control | D-02 draft requirement |
 |---|---|
-| Current recovery record | A read-only Backup-page capture naming `KINGA-staging`, snapshot UTC timestamp, status **Succeeded**, expiry, and visible Restore action. |
-| Service-class limitation | Owner must expressly accept the same-day Starter-only recovery limitation for D-02; the D-01 acceptance is expired and cannot be reused. |
-| Proposed short window | **Four hours maximum:** first 90 minutes reserved for preflight and statement-by-statement execution, followed by 150 minutes for postflight, database-read smoke, evidence reconciliation, and closure. |
-| Window scheduling rule | No fixed date/time is proposed before a current snapshot exists. The named owner must later choose UTC start/end on the same UTC date, starting no earlier than one hour after snapshot confirmation and ending at least two hours before snapshot expiry. |
+| Current recovery record | **Captured for D-02 review:** authenticated `KINGA-staging` Backup page at `2026-09-13 09:27 UTC` showed Backup time `2026-09-13 03:01:00 UTC±00:00`, Status **Succeeded**, Expires time `2026-09-14 03:01:00 UTC±00:00`, and the Restore action. No Restore action or setting change was made. |
+| Service-class limitation | Owner accepted the same-day Starter-only recovery limitation for D-02 on 12 September 2026. A fresh D-02 snapshot remains mandatory; the former D-01 snapshot acceptance is not reused. |
+| Proposed short window | **13 September 2026, 10:30–14:30 UTC** (`12:30–16:30 GMT+2`), four hours maximum. First 90 minutes are reserved for preflight and one-at-a-time execution; the final 150 minutes are reserved for postflight, database-read smoke, evidence reconciliation, and closure. |
+| Window coverage | The snapshot precedes the proposed start by 7 hours 29 minutes. The two-hour post-closure safety endpoint is `2026-09-13 16:30 UTC`; the recorded snapshot expiry is 10 hours 30 minutes after that endpoint. **Timing criterion passed for review.** |
+| Window scheduling rule | The proposed window is not execution authority. Before owner-operated execution, recheck the same-day snapshot and require the currently visible expiry to cover the full window plus the two-hour post-closure margin. |
 | Stop rule | Missing, stale, failed, wrong-target, ambiguous, or insufficiently retained snapshot evidence stops D-02. Do not create a manual backup, substitute an older snapshot, or use production. |
 
 ## 5. Future preflight criteria — no live action authorised
@@ -95,7 +126,7 @@ Before any D-02 execution authority can be requested, a separate owner decision 
 | D-02 absence check | None of the 20 D-02 table names, 9 D-02 FK names, or 58 D-02 explicit-index names exists. | Existing or unexpected D-02 object. |
 | Source and separator proof | Full Wave 2 SHA-256 matches; marker count is 86; splitter ledger has exactly 87 ordered statements with 20 tables, 9 FKs, and 58 indexes. | Hash, class, count, ordering, or marker mismatch. |
 | Recovery record | Fresh same-day successful snapshot meets the proposed window and two-hour safety margin. | Missing or expired recovery point. |
-| Change roles | Named operator, **independent reviewer**, application-validation owner, observer, and stop authority. | Any missing role or an attempted carryover of a D-01 exception. |
+| Change roles | Tavonga Shoko is D-02 operator, reviewer, application-validation owner, observer, and stop authority under the dated D-02-only exception in Section 1A. | Any missing exception detail or attempted carryover beyond D-02. |
 
 ## 6. Future postflight and closure criteria
 

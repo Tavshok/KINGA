@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vehicle_registry_risk_score` ON `vehicle_registry` (`vehicle_risk_score`);

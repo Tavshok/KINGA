@@ -1,0 +1,1 @@
+CREATE INDEX `idx_inspections_tenant` ON `inspections` (`tenant_id`);

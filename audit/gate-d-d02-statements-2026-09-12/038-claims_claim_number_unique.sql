@@ -1,0 +1,1 @@
+CREATE INDEX `claims_claim_number_unique` ON `claims` (`claim_number`);

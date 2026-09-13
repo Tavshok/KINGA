@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vehicle_condition_snapshot_tenant_vehicle` ON `vehicle_condition_snapshots` (`tenant_id`,`vehicle_registry_id`);

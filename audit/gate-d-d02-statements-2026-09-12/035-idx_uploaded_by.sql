@@ -1,0 +1,1 @@
+CREATE INDEX `idx_uploaded_by` ON `claim_documents` (`uploaded_by`);

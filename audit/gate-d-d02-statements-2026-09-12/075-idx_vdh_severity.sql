@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vdh_severity` ON `vehicle_damage_history` (`severity`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_inspections_claim` ON `inspections` (`claim_id`);
