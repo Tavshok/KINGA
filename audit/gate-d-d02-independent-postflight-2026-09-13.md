@@ -1,6 +1,6 @@
 # Gate D — D-02 Independent Postflight Reconciliation
 
-**Status:** **Read-only reconciliation passed; D-02 is eligible for formal closure.** This record does not create authority for D-03, recovery/cutover, deployment, or production activity.
+**Status:** **Closed — read-only reconciliation passed.** This record does not create authority for D-03, recovery/cutover, deployment, or production activity.
 
 ## Scope and assurance boundary
 
@@ -42,7 +42,7 @@ The authenticated console target was `KINGA-staging` / `kinga_staging`. The Back
 
 ## Independent conclusion
 
-The final staging state exactly matches the pinned D-01 plus D-02 source-derived schema: **23 tables, 586 columns, 9 foreign keys, 58 explicit indexes, all declared primary/unique key structures, and zero rows in every table**. No unexpected source-to-live schema mismatch was found. On this evidence, D-02 is eligible for formal closure.
+The final staging state exactly matches the pinned D-01 plus D-02 source-derived schema: **23 tables, 586 columns, 9 foreign keys, 58 explicit indexes, all declared primary/unique key structures, and zero rows in every table**. No unexpected source-to-live schema mismatch was found. On this evidence, **D-02 is formally closed**.
 
 > The D-02-only exception allowing Tavonga Shoko to act as operator, reviewer, application-validation owner, and observer expires with closure. It created no independent assurance and does not carry to D-03 through D-06, recovery/cutover, deployment, or production.
 
