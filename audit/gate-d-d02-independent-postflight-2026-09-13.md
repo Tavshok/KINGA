@@ -48,9 +48,9 @@ The final staging state exactly matches the pinned D-01 plus D-02 source-derived
 
 ## Runner-account lifecycle finding
 
-The requested exact-principal inspection does not support the premise that `d01_runner` remains available with cumulative D-01/D-02 privileges. `SHOW GRANTS FOR 'd01_runner'@'%'` returned no such host-qualified principal, and `SELECT User, Host FROM mysql.user WHERE User='d01_runner'` returned an empty set. Therefore there is **no currently defined `d01_runner` account to retain, reuse, or drop**. No account or grant change was made, and no differently named historical runner was inferred.
+The earlier read-only inspection queried the **unprefixed** principal `d01_runner` and therefore produced a false negative. The owner subsequently confirmed the actual tenant-prefixed principal is `289ZyKGJwbC2SkB.d01_runner` at host `%`; its `SHOW GRANTS` output records `SELECT`, `CREATE`, `REFERENCES`, `ALTER`, and `INDEX` on `kinga_staging.*`.
 
-If a D-03 execution identity is later authorised, create or designate it through a separate least-privilege decision rather than assuming this absent account can be reused.
+The owner has decided to retain this existing staging-scoped principal for D-03 through D-06 rather than retire and recreate it per wave. No account or grant change was made by this correction. Each later packet must independently recheck the exact tenant-prefixed principal and compare its grants with that wave's source-derived minimum before execution authority is considered.
 
 ## References
 
