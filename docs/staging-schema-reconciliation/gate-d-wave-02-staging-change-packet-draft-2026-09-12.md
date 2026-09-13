@@ -14,9 +14,9 @@
 | Purpose | Add the approved Wave 2 vehicle, claimant, driver, policy, inspection, and claim-core baseline after D-01. | Not authorised |
 | Target | `KINGA-staging`, database `kinga_staging`, AWS Frankfurt (`eu-central-1`), Starter | Reconfirm only after a separate read-only-access decision. |
 | Prerequisite | Completed D-01 root structures and D-01 postflight record. | Must be revalidated before D-02. |
-| Operator | Unassigned | Must be named in a later execution authority. |
-| Independent reviewer | Unassigned | Mandatory. The D-01 exception is unavailable. |
-| Application-validation owner | Unassigned | Must be separately named before execution. |
+| Operator | Tavonga Shoko, KINGA owner | Recorded under the D-02-only exception in Section 1A. This assignment is not execution authority. |
+| Reviewer | Tavonga Shoko, KINGA owner | Recorded under the D-02-only exception in Section 1A because no independent reviewer is available. It is not independent assurance. |
+| Application-validation owner and observer | Tavonga Shoko, KINGA owner | Recorded under the D-02-only exception in Section 1A; the required smoke evidence remains mandatory before closure. |
 | Change approver and stop authority | KINGA owner | Must issue a new written D-02 decision. |
 | Production | `KINGA-production` | Explicitly excluded. |
 
@@ -84,7 +84,7 @@ The reviewed D-02 artefact contains **87 Wave 2 statements**: 20 `CREATE TABLE`,
 
 The exact pinned file contains **86** markers: 20 standalone marker lines following table statements and 66 inline terminators following the 9 foreign-key and 58 index statements. These delimit **87** executable statements but are not themselves executable statements.
 
-If D-02 is later authorised, the original file remains immutable. The approved future operator method must perform an auditable, non-mutating marker split into exactly 87 semicolon-terminated statements, retain the original full-file SHA-256, calculate a separate hash for every emitted statement, and have the named independent reviewer compare the ordered statement ledger to this packet before any statement runs. A raw `mysql < wave-02-vehicle-claim-core.sql` invocation is prohibited because it would treat these markers as invalid SQL, as occurred in D-01.
+If D-02 is later authorised, the original file remains immutable. The approved future operator method must perform an auditable, non-mutating marker split into exactly 87 semicolon-terminated statements, retain the original full-file SHA-256, calculate a separate hash for every emitted statement, and have Tavonga Shoko compare the ordered statement ledger to this packet under the dated D-02-only exception in Section 1A before any statement runs. A raw `mysql < wave-02-vehicle-claim-core.sql` invocation is prohibited because it would treat these markers as invalid SQL, as occurred in D-01.
 
 Execution must be one statement at a time in this order: 20 tables, 9 foreign keys, then 58 indexes. Any parser error, omitted statement, unexpected extra statement, order change, source-hash difference, per-statement-hash difference, or server error stops D-02 immediately; no later statement may be sent.
 
@@ -130,11 +130,11 @@ Before any D-02 execution authority can be requested, a separate owner decision 
 
 ## 6. Future postflight and closure criteria
 
-If—and only if—future D-02 execution completes all 87 approved statements without a deviation, the independent verifier must compare current metadata with the pinned source and retained Wave 2 scratch fingerprint. The expected server state is exactly 23 tables, 9 named foreign keys, 58 named explicit secondary indexes, and the primary/unique/default/column structures in the source definitions.
+If—and only if—future D-02 execution completes all 87 approved statements without a deviation, Tavonga Shoko must compare current metadata with the pinned source and retained Wave 2 scratch fingerprint under the dated D-02-only exception in Section 1A. The expected server state is exactly 23 tables, 9 named foreign keys, 58 named explicit secondary indexes, and the primary/unique/default/column structures in the source definitions.
 
 The database smoke test is limited to authenticated non-production connectivity and `COUNT(*)` reads over the three D-01 plus 20 D-02 tables. No data seed or write test is authorised. Because staging is not a deployed application runtime target, this is not an end-user application deployment test.
 
-Closure requires redacted statement-result records, expected-versus-actual metadata comparison, zero-row results for all 23 tables, application-validation record, runner/verifier revocation evidence, no unresolved unexpected object, and a distinct owner decision before D-03 is considered.
+Closure requires redacted statement-result records, expected-versus-actual metadata comparison, zero-row results for all 23 tables, an application-validation record, any applicable runner/verifier revocation evidence, no unresolved unexpected object, and a distinct owner decision before D-03 is considered. The D-02 exception expires at that closure point.
 
 ## Appendix A — explicit index inventory
 
