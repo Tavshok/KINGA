@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ep_region` ON `engineer_profiles` (`region`);

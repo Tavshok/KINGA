@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claim_id` ON `governance_notifications` (`claim_id`);

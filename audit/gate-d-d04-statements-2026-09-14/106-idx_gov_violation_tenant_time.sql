@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gov_violation_tenant_time` ON `governance_violation_log` (`tenant_id`,`violated_at`);

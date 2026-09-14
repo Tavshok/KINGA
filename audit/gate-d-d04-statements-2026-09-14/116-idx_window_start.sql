@@ -1,0 +1,1 @@
+CREATE INDEX `idx_window_start` ON `rate_limit_tracking` (`window_start`);

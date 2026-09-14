@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fleet_accounts_status` ON `fleet_accounts` (`status`);

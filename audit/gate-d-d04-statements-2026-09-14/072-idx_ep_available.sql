@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ep_available` ON `engineer_profiles` (`is_available`);
