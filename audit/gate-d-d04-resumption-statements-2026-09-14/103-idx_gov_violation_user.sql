@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gov_violation_user` ON `governance_violation_log` (`user_id`);

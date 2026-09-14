@@ -1,0 +1,1 @@
+CREATE INDEX `idx_workflow_audit_claim_state_time` ON `workflow_audit_trail` (`claim_id`,`new_state`,`created_at`);

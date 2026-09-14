@@ -1,0 +1,20 @@
+CREATE TABLE `fleet_intelligence_snapshots` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`fleet_id` int NOT NULL,
+	`tenant_id` varchar(255) NOT NULL,
+	`snapshot_version` int NOT NULL DEFAULT 1,
+	`total_vehicles` int NOT NULL DEFAULT 0,
+	`total_drivers` int NOT NULL DEFAULT 0,
+	`total_claims` int NOT NULL DEFAULT 0,
+	`open_claims` int NOT NULL DEFAULT 0,
+	`total_settlement_cents` int NOT NULL DEFAULT 0,
+	`avg_settlement_cents` int NOT NULL DEFAULT 0,
+	`total_fraud_signals` int NOT NULL DEFAULT 0,
+	`high_risk_vehicle_count` int NOT NULL DEFAULT 0,
+	`high_risk_driver_count` int NOT NULL DEFAULT 0,
+	`fleet_risk_score` int NOT NULL DEFAULT 0,
+	`intelligence_json` json,
+	`generated_at` timestamp NOT NULL DEFAULT (now()),
+	`generated_by` varchar(100) NOT NULL DEFAULT 'system',
+	CONSTRAINT `fleet_intelligence_snapshots_id` PRIMARY KEY(`id`)
+);

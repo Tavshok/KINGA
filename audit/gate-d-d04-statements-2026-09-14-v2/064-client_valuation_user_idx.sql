@@ -1,0 +1,1 @@
+CREATE INDEX `client_valuation_user_idx` ON `client_vehicle_valuation_requests` (`user_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `client_insurance_service_user_idx` ON `client_insurance_service_requests` (`user_id`);

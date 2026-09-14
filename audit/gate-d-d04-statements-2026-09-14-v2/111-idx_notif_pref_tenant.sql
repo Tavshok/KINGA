@@ -1,0 +1,1 @@
+CREATE INDEX `idx_notif_pref_tenant` ON `notification_preferences` (`tenant_id`);

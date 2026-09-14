@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ne_event_type` ON `notification_events` (`event_type`);

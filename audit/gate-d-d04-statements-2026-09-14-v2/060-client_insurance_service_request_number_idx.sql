@@ -1,0 +1,1 @@
+CREATE INDEX `client_insurance_service_request_number_idx` ON `client_insurance_service_requests` (`request_number`);
