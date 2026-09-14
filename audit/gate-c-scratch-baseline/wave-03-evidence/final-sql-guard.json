@@ -1,0 +1,7 @@
+{
+  "tables": 50,
+  "statements": 187,
+  "foreignKeys": 26,
+  "indexes": 111,
+  "status": "passed"
+}

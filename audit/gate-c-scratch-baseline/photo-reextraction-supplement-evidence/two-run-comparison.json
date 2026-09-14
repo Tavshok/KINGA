@@ -1,0 +1,27 @@
+{
+  "scope": "Independent comparison of two Gate C final photo-reextraction supplemental local loopback scratch replays.",
+  "runA": "kinga_gatec_photo_reextract_a_20260911194150_19009435",
+  "runB": "kinga_gatec_photo_reextract_b_20260911194150_19009435",
+  "host": "127.0.0.1",
+  "port": "3317",
+  "statementCounts": {
+    "waveOne": 11,
+    "waveTwo": 87,
+    "waveThree": 187,
+    "waveFour": 135,
+    "waveFive": 290,
+    "photoReextractionSupplement": 5,
+    "total": 715
+  },
+  "createdTableCount": 189,
+  "matchingFingerprints": {
+    "waveOneSqlSha256": "306797ab94529860bc9e88a69a955061916a94ddc3d08e3265229780ab08083c",
+    "waveTwoSqlSha256": "15661c69490a4360931ef5fc3d17e2b4521f692730b2d113f1342117b067e7b9",
+    "waveThreeSqlSha256": "ccdca4a47d9d82c04cc9b9a12e6d49960d4271a052773a342282086a9aff9254",
+    "waveFourSqlSha256": "c6d4f6bb2f7984dd381630651d9520db59c14c873617492fc7e5ed3035915139",
+    "waveFiveSqlSha256": "f552c1df891de5816d05d43cdf777d315c7d7a829cf27bede0debd5224f6ad24",
+    "supplementSqlSha256": "2a63ee8920611fafda605968e250b688049732427399dc643942ed5de39588e9",
+    "structuralMetadataSha256": "a0db4496896701a47a7415af60a4f4db72dea28356e47741ed5757d667c9297d"
+  },
+  "status": "matched"
+}

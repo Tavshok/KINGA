@@ -80,6 +80,7 @@ describe("Package B shared quote-evidence presentation", () => {
     expect(html).toContain("Not quoted");
     expect(html).toContain("$1,150.00");
     expect(html).toContain("$1,090.00");
+    expect(html).toContain("KINGA Optimised (L2)");
     expect(html).toContain("test canonical selection");
     expect(html).toContain("continuation 2");
     expect(html.match(/<th[^>]*>Component<\/th>/g)).toHaveLength(2);

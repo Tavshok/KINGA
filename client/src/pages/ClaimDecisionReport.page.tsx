@@ -194,7 +194,15 @@ export default function ClaimDecisionReport() {
   const [reportView, setReportView] = useState<ReportView>(_initialReport);
   const forensicPrintRef = useRef<ForensicAuditReportPrintHandle>(null);
   const printActiveReport = () => {
-    if (reportView === 'forensic' && forensicPrintRef.current?.printReport()) return;
+    if (reportView === 'forensic') {
+      const attempt = forensicPrintRef.current?.printReport();
+      if (!attempt?.started) {
+        toast.error('Unable to open the Forensic Audit Report print window', {
+          description: attempt?.failure?.message ?? 'Wait for the report to finish loading and try again.',
+        });
+      }
+      return;
+    }
     window.print();
   };
   const { data: auditLog = [], refetch: refetchAuditLog } = trpc.aiAssessments.getAuditLog.useQuery(

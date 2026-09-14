@@ -1,0 +1,761 @@
+{
+  "generatedAt": "2026-09-11T07:35:50.877Z",
+  "scope": {
+    "databaseAccessed": false,
+    "ddlGenerated": false,
+    "rootsScanned": [
+      "server",
+      "client",
+      "shared",
+      "drizzle"
+    ],
+    "excludedFromRuntimeProof": [
+      "docs",
+      "audit",
+      "drizzle",
+      "*.test.*",
+      "*.spec.*"
+    ]
+  },
+  "entries": [
+    {
+      "tableName": "claim_comment_reads",
+      "schemaIdentifiers": [],
+      "sourceHits": [
+        {
+          "path": "server/claim-comments-db.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "drizzle-orm",
+            "drizzle-orm/mysql2",
+            "mysql2/promise",
+            "./_core/env"
+          ]
+        },
+        {
+          "path": "server/claimCommentsTenantAuthority.p1.test.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "vitest",
+            "drizzle-orm",
+            "../drizzle/schema",
+            "./db",
+            "./claim-comments-db"
+          ]
+        },
+        {
+          "path": "drizzle/claim-comments-schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "drizzle-orm/mysql-core"
+          ]
+        }
+      ],
+      "productionCandidateHits": [
+        {
+          "path": "server/claim-comments-db.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "drizzle-orm",
+            "drizzle-orm/mysql2",
+            "mysql2/promise",
+            "./_core/env"
+          ]
+        }
+      ]
+    },
+    {
+      "tableName": "tenant_usage_summary",
+      "schemaIdentifiers": [],
+      "sourceHits": [
+        {
+          "path": "drizzle/schema-usage-events.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "drizzle-orm/mysql-core"
+          ]
+        }
+      ],
+      "productionCandidateHits": []
+    },
+    {
+      "tableName": "tenant_tier_history",
+      "schemaIdentifiers": [],
+      "sourceHits": [
+        {
+          "path": "drizzle/schema-usage-events.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "drizzle-orm/mysql-core"
+          ]
+        }
+      ],
+      "productionCandidateHits": []
+    },
+    {
+      "tableName": "audit_logs",
+      "schemaIdentifiers": [
+        "auditLogs"
+      ],
+      "sourceHits": [
+        {
+          "path": "server/reporting/p0IntakeEvidenceVisibility.test.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": false,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "vitest",
+            "drizzle-orm",
+            "../../drizzle/schema",
+            "../db",
+            "../services/canonicalClaimIntake",
+            "./claimsIntelligenceReport",
+            "./forensicDecisionReport",
+            "./resolvedReportRecord"
+          ]
+        },
+        {
+          "path": "drizzle/schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "drizzle-orm/mysql-core",
+            "drizzle-orm"
+          ]
+        }
+      ],
+      "productionCandidateHits": []
+    },
+    {
+      "tableName": "currency_exchange_rates",
+      "schemaIdentifiers": [
+        "currencyExchangeRates"
+      ],
+      "sourceHits": [
+        {
+          "path": "server/pipeline-v2/economicContextEngine.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": false,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "../db"
+          ]
+        },
+        {
+          "path": "server/pricing/parts-pricing-engine.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": false,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "../db",
+            "../../drizzle/schema",
+            "drizzle-orm"
+          ]
+        },
+        {
+          "path": "drizzle/schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "drizzle-orm/mysql-core",
+            "drizzle-orm"
+          ]
+        }
+      ],
+      "productionCandidateHits": [
+        {
+          "path": "server/pipeline-v2/economicContextEngine.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": false,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "../db"
+          ]
+        },
+        {
+          "path": "server/pricing/parts-pricing-engine.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": false,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "../db",
+            "../../drizzle/schema",
+            "drizzle-orm"
+          ]
+        }
+      ]
+    },
+    {
+      "tableName": "benchmark_deviations",
+      "schemaIdentifiers": [
+        "benchmarkDeviations"
+      ],
+      "sourceHits": [
+        {
+          "path": "drizzle/schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "drizzle-orm/mysql-core",
+            "drizzle-orm"
+          ]
+        }
+      ],
+      "productionCandidateHits": []
+    },
+    {
+      "tableName": "adjuster_sign_offs",
+      "schemaIdentifiers": [
+        "adjusterSignOffs"
+      ],
+      "sourceHits": [
+        {
+          "path": "server/routers/claims-core.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": false,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "@shared/const",
+            "@trpc/server",
+            "zod",
+            "../_core/trpc",
+            "../db",
+            "../agency/agencyAssistedClaimantIdentity",
+            "../types/physics-validation",
+            "../../drizzle/schema",
+            "drizzle-orm",
+            "../db",
+            "../db",
+            "../db",
+            "../notifications",
+            "../claim-form-extractor",
+            "../apiResponseValidator",
+            "../claim-pdf-export",
+            "../logger",
+            "nanoid",
+            "@shared/role-permissions",
+            "../assessor-role-authority",
+            "../services/canonicalClaimIntake",
+            "../services/canonicalIntakeAdapters"
+          ]
+        },
+        {
+          "path": "drizzle/schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "drizzle-orm/mysql-core",
+            "drizzle-orm"
+          ]
+        }
+      ],
+      "productionCandidateHits": [
+        {
+          "path": "server/routers/claims-core.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": false,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "@shared/const",
+            "@trpc/server",
+            "zod",
+            "../_core/trpc",
+            "../db",
+            "../agency/agencyAssistedClaimantIdentity",
+            "../types/physics-validation",
+            "../../drizzle/schema",
+            "drizzle-orm",
+            "../db",
+            "../db",
+            "../db",
+            "../notifications",
+            "../claim-form-extractor",
+            "../apiResponseValidator",
+            "../claim-pdf-export",
+            "../logger",
+            "nanoid",
+            "@shared/role-permissions",
+            "../assessor-role-authority",
+            "../services/canonicalClaimIntake",
+            "../services/canonicalIntakeAdapters"
+          ]
+        }
+      ]
+    },
+    {
+      "tableName": "photo_reextraction_jobs",
+      "schemaIdentifiers": [
+        "photoReextractionJobs"
+      ],
+      "sourceHits": [
+        {
+          "path": "server/photo-reextraction-worker.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "./db",
+            "./logger"
+          ]
+        },
+        {
+          "path": "server/photo-reextraction.test.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": false,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "vitest"
+          ]
+        },
+        {
+          "path": "server/routers/photo-reextraction.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "zod",
+            "../_core/trpc",
+            "../db",
+            "../photo-reextraction-worker",
+            "mysql2/promise",
+            "../_core/llm",
+            "@trpc/server"
+          ]
+        },
+        {
+          "path": "drizzle/schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "drizzle-orm/mysql-core",
+            "drizzle-orm"
+          ]
+        }
+      ],
+      "productionCandidateHits": [
+        {
+          "path": "server/photo-reextraction-worker.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "./db",
+            "./logger"
+          ]
+        },
+        {
+          "path": "server/routers/photo-reextraction.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "zod",
+            "../_core/trpc",
+            "../db",
+            "../photo-reextraction-worker",
+            "mysql2/promise",
+            "../_core/llm",
+            "@trpc/server"
+          ]
+        }
+      ]
+    },
+    {
+      "tableName": "vehicle_models",
+      "schemaIdentifiers": [
+        "vehicleModels"
+      ],
+      "sourceHits": [
+        {
+          "path": "server/pipeline-v2/stage-6-5a-vge.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "../_core/llm",
+            "./types",
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/scripts/check-vge-match.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/scripts/query-vehicle-profiles.mjs",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/vehicle-geometry-seed/ingest-seed.mts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "fs",
+            "path",
+            "url",
+            "drizzle-orm/mysql2",
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "drizzle/schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "drizzle-orm/mysql-core",
+            "drizzle-orm"
+          ]
+        }
+      ],
+      "productionCandidateHits": [
+        {
+          "path": "server/pipeline-v2/stage-6-5a-vge.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "../_core/llm",
+            "./types",
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/scripts/check-vge-match.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/scripts/query-vehicle-profiles.mjs",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/vehicle-geometry-seed/ingest-seed.mts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "fs",
+            "path",
+            "url",
+            "drizzle-orm/mysql2",
+            "mysql2/promise"
+          ]
+        }
+      ]
+    },
+    {
+      "tableName": "measurement_types",
+      "schemaIdentifiers": [
+        "measurementTypes"
+      ],
+      "sourceHits": [
+        {
+          "path": "server/pipeline-v2/stage-6-5a-vge.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "../_core/llm",
+            "./types",
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/vehicle-geometry-seed/ingest-seed.mts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "fs",
+            "path",
+            "url",
+            "drizzle-orm/mysql2",
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "drizzle/schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "drizzle-orm/mysql-core",
+            "drizzle-orm"
+          ]
+        }
+      ],
+      "productionCandidateHits": [
+        {
+          "path": "server/pipeline-v2/stage-6-5a-vge.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "../_core/llm",
+            "./types",
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/vehicle-geometry-seed/ingest-seed.mts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "fs",
+            "path",
+            "url",
+            "drizzle-orm/mysql2",
+            "mysql2/promise"
+          ]
+        }
+      ]
+    },
+    {
+      "tableName": "vehicle_geometry_measurements",
+      "schemaIdentifiers": [
+        "vehicleGeometryMeasurements"
+      ],
+      "sourceHits": [
+        {
+          "path": "server/pipeline-v2/stage-6-5a-vge.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "../_core/llm",
+            "./types",
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/scripts/check-vge-match.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/scripts/query-measurement-types.mjs",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "mysql2/promise",
+            "fs"
+          ]
+        },
+        {
+          "path": "server/scripts/query-vehicle-profiles.mjs",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/vehicle-geometry-seed/ingest-seed.mts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "fs",
+            "path",
+            "url",
+            "drizzle-orm/mysql2",
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "drizzle/schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "drizzle-orm/mysql-core",
+            "drizzle-orm"
+          ]
+        }
+      ],
+      "productionCandidateHits": [
+        {
+          "path": "server/pipeline-v2/stage-6-5a-vge.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "../_core/llm",
+            "./types",
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/scripts/check-vge-match.ts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/scripts/query-measurement-types.mjs",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "mysql2/promise",
+            "fs"
+          ]
+        },
+        {
+          "path": "server/scripts/query-vehicle-profiles.mjs",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "server/vehicle-geometry-seed/ingest-seed.mts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "fs",
+            "path",
+            "url",
+            "drizzle-orm/mysql2",
+            "mysql2/promise"
+          ]
+        }
+      ]
+    },
+    {
+      "tableName": "vehicle_landmarks",
+      "schemaIdentifiers": [
+        "vehicleLandmarks"
+      ],
+      "sourceHits": [
+        {
+          "path": "server/vehicle-geometry-seed/ingest-seed.mts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "fs",
+            "path",
+            "url",
+            "drizzle-orm/mysql2",
+            "mysql2/promise"
+          ]
+        },
+        {
+          "path": "drizzle/schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "drizzle-orm/mysql-core",
+            "drizzle-orm"
+          ]
+        }
+      ],
+      "productionCandidateHits": [
+        {
+          "path": "server/vehicle-geometry-seed/ingest-seed.mts",
+          "productionCandidate": true,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": false,
+          "imports": [
+            "fs",
+            "path",
+            "url",
+            "drizzle-orm/mysql2",
+            "mysql2/promise"
+          ]
+        }
+      ]
+    },
+    {
+      "tableName": "geometry_sources",
+      "schemaIdentifiers": [
+        "geometrySources"
+      ],
+      "sourceHits": [
+        {
+          "path": "drizzle/schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "drizzle-orm/mysql-core",
+            "drizzle-orm"
+          ]
+        }
+      ],
+      "productionCandidateHits": []
+    },
+    {
+      "tableName": "vision_calibration_results",
+      "schemaIdentifiers": [
+        "visionCalibrationResults"
+      ],
+      "sourceHits": [
+        {
+          "path": "drizzle/schema.ts",
+          "productionCandidate": false,
+          "mentionsPhysicalName": true,
+          "mentionsSchemaIdentifier": true,
+          "imports": [
+            "drizzle-orm/mysql-core",
+            "drizzle-orm"
+          ]
+        }
+      ],
+      "productionCandidateHits": []
+    }
+  ]
+}

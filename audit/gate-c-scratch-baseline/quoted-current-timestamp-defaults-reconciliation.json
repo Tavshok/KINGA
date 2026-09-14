@@ -1,0 +1,1051 @@
+{
+  "scope": "Gate C source-metadata reconciliation only; no database or migration operation was performed.",
+  "inputSchemaSha256": "74ccc7fea4ac294c92759868ba705918a2968612f59a9f695cd484b3f5cb3c5e",
+  "outputSchemaSha256": "e26ecd156d74f5746929cc709b608b1654ddee5bbc6a23cf06ff5a928c81251e",
+  "reviewedInventorySha256": "bfe893722b8cb3f683119f502cbed6f65e3002c2d8ca4c8cc418f790989f65ba",
+  "approvedOccurrenceCount": 208,
+  "astVerifiedOccurrenceCount": 208,
+  "remainingQuotedTimestampDefaults": 0,
+  "changedOccurrences": [
+    {
+      "table": "access_denial_log",
+      "field": "createdAt",
+      "line": 14
+    },
+    {
+      "table": "claim_evidence_findings",
+      "field": "createdAt",
+      "line": 64
+    },
+    {
+      "table": "quote_evidence_ledger",
+      "field": "createdAt",
+      "line": 99
+    },
+    {
+      "table": "quote_evidence_gaps",
+      "field": "createdAt",
+      "line": 138
+    },
+    {
+      "table": "agency_documents",
+      "field": "createdAt",
+      "line": 158
+    },
+    {
+      "table": "ai_assessments",
+      "field": "createdAt",
+      "line": 180
+    },
+    {
+      "table": "ai_prediction_logs",
+      "field": "createdAt",
+      "line": 420
+    },
+    {
+      "table": "anonymization_audit_log",
+      "field": "anonymizedAt",
+      "line": 436
+    },
+    {
+      "table": "appointments",
+      "field": "createdAt",
+      "line": 455
+    },
+    {
+      "table": "approval_workflow",
+      "field": "createdAt",
+      "line": 480
+    },
+    {
+      "table": "assessor_deviation_metrics",
+      "field": "calculatedAt",
+      "line": 504
+    },
+    {
+      "table": "assessor_evaluations",
+      "field": "createdAt",
+      "line": 514
+    },
+    {
+      "table": "assessor_insurer_relationships",
+      "field": "createdAt",
+      "line": 551
+    },
+    {
+      "table": "assessor_marketplace_reviews",
+      "field": "createdAt",
+      "line": 575
+    },
+    {
+      "table": "assessors",
+      "field": "createdAt",
+      "line": 618
+    },
+    {
+      "table": "audit_logs",
+      "field": "timestamp",
+      "line": 643
+    },
+    {
+      "table": "audit_trail",
+      "field": "createdAt",
+      "line": 659
+    },
+    {
+      "table": "automation_audit_log",
+      "field": "createdAt",
+      "line": 688
+    },
+    {
+      "table": "automation_policies",
+      "field": "createdAt",
+      "line": 716
+    },
+    {
+      "table": "automation_policies",
+      "field": "effectiveFrom",
+      "line": 721
+    },
+    {
+      "table": "claim_confidence_scores",
+      "field": "scoringTimestamp",
+      "line": 780
+    },
+    {
+      "table": "claim_intake_requests",
+      "field": "createdAt",
+      "line": 805
+    },
+    {
+      "table": "claim_documents",
+      "field": "createdAt",
+      "line": 830
+    },
+    {
+      "table": "claim_events",
+      "field": "emittedAt",
+      "line": 848
+    },
+    {
+      "table": "claim_assignments",
+      "field": "assignedAt",
+      "line": 875
+    },
+    {
+      "table": "claim_assignments",
+      "field": "createdAt",
+      "line": 880
+    },
+    {
+      "table": "assessor_reports",
+      "field": "createdAt",
+      "line": 911
+    },
+    {
+      "table": "assessor_report_attachments",
+      "field": "createdAt",
+      "line": 931
+    },
+    {
+      "table": "assessor_report_reviews",
+      "field": "createdAt",
+      "line": 948
+    },
+    {
+      "table": "claim_intelligence_dataset",
+      "field": "capturedAt",
+      "line": 987
+    },
+    {
+      "table": "claim_intelligence_dataset",
+      "field": "createdAt",
+      "line": 988
+    },
+    {
+      "table": "claim_involvement_tracking",
+      "field": "createdAt",
+      "line": 1009
+    },
+    {
+      "table": "claim_review_queue",
+      "field": "createdAt",
+      "line": 1032
+    },
+    {
+      "table": "claim_routing_decisions",
+      "field": "decisionTimestamp",
+      "line": 1048
+    },
+    {
+      "table": "claimant_history",
+      "field": "createdAt",
+      "line": 1093
+    },
+    {
+      "table": "claims",
+      "field": "createdAt",
+      "line": 1142
+    },
+    {
+      "table": "commission_records",
+      "field": "createdAt",
+      "line": 1328
+    },
+    {
+      "table": "agency_product_commission_configs",
+      "field": "createdAt",
+      "line": 1342
+    },
+    {
+      "table": "cost_components",
+      "field": "createdAt",
+      "line": 1371
+    },
+    {
+      "table": "currency_exchange_rates",
+      "field": "lastUpdated",
+      "line": 1384
+    },
+    {
+      "table": "currency_exchange_rates",
+      "field": "createdAt",
+      "line": 1386
+    },
+    {
+      "table": "customer_consent",
+      "field": "consentDate",
+      "line": 1397
+    },
+    {
+      "table": "customer_documents",
+      "field": "uploadedAt",
+      "line": 1418
+    },
+    {
+      "table": "dataset_access_grants",
+      "field": "grantedAt",
+      "line": 1433
+    },
+    {
+      "table": "document_naming_templates",
+      "field": "createdAt",
+      "line": 1450
+    },
+    {
+      "table": "document_versions",
+      "field": "createdAt",
+      "line": 1469
+    },
+    {
+      "table": "email_verification_tokens",
+      "field": "createdAt",
+      "line": 1486
+    },
+    {
+      "table": "entity_relationships",
+      "field": "createdAt",
+      "line": 1510
+    },
+    {
+      "table": "extracted_document_data",
+      "field": "createdAt",
+      "line": 1547
+    },
+    {
+      "table": "extracted_repair_items",
+      "field": "createdAt",
+      "line": 1573
+    },
+    {
+      "table": "fast_track_config",
+      "field": "createdAt",
+      "line": 1592
+    },
+    {
+      "table": "fast_track_routing_log",
+      "field": "evaluatedAt",
+      "line": 1620
+    },
+    {
+      "table": "federated_learning_metadata",
+      "field": "createdAt",
+      "line": 1644
+    },
+    {
+      "table": "final_approval_records",
+      "field": "createdAt",
+      "line": 1677
+    },
+    {
+      "table": "fleet_audit_logs",
+      "field": "timestamp",
+      "line": 1696
+    },
+    {
+      "table": "fleet_documents",
+      "field": "uploadedAt",
+      "line": 1715
+    },
+    {
+      "table": "fleet_drivers",
+      "field": "createdAt",
+      "line": 1734
+    },
+    {
+      "table": "fleet_incident_reports",
+      "field": "createdAt",
+      "line": 1762
+    },
+    {
+      "table": "fleet_risk_scores",
+      "field": "calculatedAt",
+      "line": 1787
+    },
+    {
+      "table": "fleet_vehicles",
+      "field": "createdAt",
+      "line": 1815
+    },
+    {
+      "table": "fleets",
+      "field": "createdAt",
+      "line": 1856
+    },
+    {
+      "table": "fraud_alerts",
+      "field": "createdAt",
+      "line": 1883
+    },
+    {
+      "table": "fraud_indicators",
+      "field": "createdAt",
+      "line": 1926
+    },
+    {
+      "table": "fraud_rules",
+      "field": "createdAt",
+      "line": 1949
+    },
+    {
+      "table": "global_anonymized_dataset",
+      "field": "anonymizedAt",
+      "line": 1981
+    },
+    {
+      "table": "governance_notifications",
+      "field": "createdAt",
+      "line": 2002
+    },
+    {
+      "table": "governance_violation_log",
+      "field": "violatedAt",
+      "line": 2023
+    },
+    {
+      "table": "historical_claims",
+      "field": "createdAt",
+      "line": 2070
+    },
+    {
+      "table": "historical_replay_results",
+      "field": "replayedAt",
+      "line": 2088
+    },
+    {
+      "table": "historical_replay_results",
+      "field": "createdAt",
+      "line": 2122
+    },
+    {
+      "table": "ingestion_batches",
+      "field": "createdAt",
+      "line": 2148
+    },
+    {
+      "table": "ingestion_documents",
+      "field": "createdAt",
+      "line": 2175
+    },
+    {
+      "table": "insurance_audit_logs",
+      "field": "timestamp",
+      "line": 2190
+    },
+    {
+      "table": "insurance_carriers",
+      "field": "createdAt",
+      "line": 2214
+    },
+    {
+      "table": "insurance_policies",
+      "field": "createdAt",
+      "line": 2243
+    },
+    {
+      "table": "insurance_products",
+      "field": "createdAt",
+      "line": 2266
+    },
+    {
+      "table": "insurance_quotes",
+      "field": "createdAt",
+      "line": 2287
+    },
+    {
+      "table": "insurer_tenants",
+      "field": "createdAt",
+      "line": 2318
+    },
+    {
+      "table": "iso_audit_logs",
+      "field": "timestamp",
+      "line": 2345
+    },
+    {
+      "table": "maintenance_alerts",
+      "field": "createdAt",
+      "line": 2369
+    },
+    {
+      "table": "maintenance_records",
+      "field": "createdAt",
+      "line": 2394
+    },
+    {
+      "table": "maintenance_schedules",
+      "field": "createdAt",
+      "line": 2415
+    },
+    {
+      "table": "marketplace_transactions",
+      "field": "createdAt",
+      "line": 2434
+    },
+    {
+      "table": "model_training_audit_log",
+      "field": "performedAt",
+      "line": 2452
+    },
+    {
+      "table": "model_training_queue",
+      "field": "createdAt",
+      "line": 2463
+    },
+    {
+      "table": "model_version_registry",
+      "field": "createdAt",
+      "line": 2500
+    },
+    {
+      "table": "multi_reference_truth",
+      "field": "synthesizedAt",
+      "line": 2529
+    },
+    {
+      "table": "notifications",
+      "field": "createdAt",
+      "line": 2553
+    },
+    {
+      "table": "organizations",
+      "field": "createdAt",
+      "line": 2568
+    },
+    {
+      "table": "panel_beater_quotes",
+      "field": "createdAt",
+      "line": 2598
+    },
+    {
+      "table": "panel_beaters",
+      "field": "createdAt",
+      "line": 2627
+    },
+    {
+      "table": "part_stratification",
+      "field": "createdAt",
+      "line": 2652
+    },
+    {
+      "table": "part_stratification",
+      "field": "updatedAt",
+      "line": 2653
+    },
+    {
+      "table": "parts_pricing_audit_log",
+      "field": "changedAt",
+      "line": 2664
+    },
+    {
+      "table": "parts_pricing_baseline",
+      "field": "lastUpdated",
+      "line": 2683
+    },
+    {
+      "table": "parts_pricing_overrides",
+      "field": "createdAt",
+      "line": 2702
+    },
+    {
+      "table": "pdf_reports",
+      "field": "generatedAt",
+      "line": 2711
+    },
+    {
+      "table": "platform_governance_limits",
+      "field": "createdAt",
+      "line": 2728
+    },
+    {
+      "table": "police_reports",
+      "field": "createdAt",
+      "line": 2762
+    },
+    {
+      "table": "policy_claim_links",
+      "field": "createdAt",
+      "line": 2787
+    },
+    {
+      "table": "policy_documents",
+      "field": "createdAt",
+      "line": 2802
+    },
+    {
+      "table": "policy_endorsements",
+      "field": "createdAt",
+      "line": 2819
+    },
+    {
+      "table": "pre_accident_damage",
+      "field": "createdAt",
+      "line": 2838
+    },
+    {
+      "table": "quality_metrics",
+      "field": "calculatedAt",
+      "line": 2849
+    },
+    {
+      "table": "quotation_requests",
+      "field": "createdAt",
+      "line": 2899
+    },
+    {
+      "table": "client_vehicle_valuation_requests",
+      "field": "createdAt",
+      "line": 2930
+    },
+    {
+      "table": "valuation_comparable_evidence",
+      "field": "createdAt",
+      "line": 2954
+    },
+    {
+      "table": "client_insurance_service_requests",
+      "field": "createdAt",
+      "line": 2978
+    },
+    {
+      "table": "quote_line_items",
+      "field": "createdAt",
+      "line": 3015
+    },
+    {
+      "table": "rate_limit_tracking",
+      "field": "createdAt",
+      "line": 3026
+    },
+    {
+      "table": "reference_dataset",
+      "field": "includedAt",
+      "line": 3039
+    },
+    {
+      "table": "regional_benchmarks",
+      "field": "lastUpdated",
+      "line": 3066
+    },
+    {
+      "table": "regional_pricing_multipliers",
+      "field": "lastUpdated",
+      "line": 3081
+    },
+    {
+      "table": "registration_requests",
+      "field": "createdAt",
+      "line": 3107
+    },
+    {
+      "table": "report_access_audit",
+      "field": "accessedAt",
+      "line": 3117
+    },
+    {
+      "table": "report_links",
+      "field": "createdAt",
+      "line": 3136
+    },
+    {
+      "table": "report_snapshots",
+      "field": "generatedAt",
+      "line": 3153
+    },
+    {
+      "table": "risk_register",
+      "field": "identifiedAt",
+      "line": 3176
+    },
+    {
+      "table": "role_assignment_audit",
+      "field": "timestamp",
+      "line": 3196
+    },
+    {
+      "table": "routing_history",
+      "field": "timestamp",
+      "line": 3221
+    },
+    {
+      "table": "routing_threshold_config",
+      "field": "createdAt",
+      "line": 3240
+    },
+    {
+      "table": "service_providers",
+      "field": "createdAt",
+      "line": 3270
+    },
+    {
+      "table": "service_quotes",
+      "field": "submittedAt",
+      "line": 3297
+    },
+    {
+      "table": "service_requests",
+      "field": "createdAt",
+      "line": 3319
+    },
+    {
+      "table": "similar_claims_clusters",
+      "field": "clusteredAt",
+      "line": 3347
+    },
+    {
+      "table": "super_audit_sessions",
+      "field": "sessionStartedAt",
+      "line": 3357
+    },
+    {
+      "table": "super_audit_sessions",
+      "field": "createdAt",
+      "line": 3366
+    },
+    {
+      "table": "supplier_performance_metrics",
+      "field": "lastUpdated",
+      "line": 3388
+    },
+    {
+      "table": "supplier_quote_line_items",
+      "field": "extractedAt",
+      "line": 3411
+    },
+    {
+      "table": "supplier_quotes",
+      "field": "uploadedAt",
+      "line": 3439
+    },
+    {
+      "table": "tenant_role_configs",
+      "field": "createdAt",
+      "line": 3470
+    },
+    {
+      "table": "tenant_workflow_configs",
+      "field": "createdAt",
+      "line": 3482
+    },
+    {
+      "table": "third_party_vehicles",
+      "field": "createdAt",
+      "line": 3553
+    },
+    {
+      "table": "training_data_scores",
+      "field": "scoredAt",
+      "line": 3577
+    },
+    {
+      "table": "training_dataset",
+      "field": "includedAt",
+      "line": 3589
+    },
+    {
+      "table": "training_records",
+      "field": "createdAt",
+      "line": 3644
+    },
+    {
+      "table": "usage_events",
+      "field": "timestamp",
+      "line": 3657
+    },
+    {
+      "table": "usage_events",
+      "field": "createdAt",
+      "line": 3660
+    },
+    {
+      "table": "user_invitations",
+      "field": "createdAt",
+      "line": 3686
+    },
+    {
+      "table": "variance_datasets",
+      "field": "createdAt",
+      "line": 3780
+    },
+    {
+      "table": "vehicle_condition_assessment",
+      "field": "assessmentDate",
+      "line": 3819
+    },
+    {
+      "table": "vehicle_condition_assessment",
+      "field": "createdAt",
+      "line": 3822
+    },
+    {
+      "table": "vehicle_history",
+      "field": "createdAt",
+      "line": 3847
+    },
+    {
+      "table": "vehicle_market_valuations",
+      "field": "valuationDate",
+      "line": 3886
+    },
+    {
+      "table": "vehicle_market_valuations",
+      "field": "createdAt",
+      "line": 3890
+    },
+    {
+      "table": "vehicle_mileage_logs",
+      "field": "createdAt",
+      "line": 3903
+    },
+    {
+      "table": "workflow_audit_trail",
+      "field": "createdAt",
+      "line": 3918
+    },
+    {
+      "table": "workflow_configuration",
+      "field": "createdAt",
+      "line": 3938
+    },
+    {
+      "table": "workflow_states",
+      "field": "transitionedAt",
+      "line": 3952
+    },
+    {
+      "table": "marketplace_profiles",
+      "field": "createdAt",
+      "line": 3980
+    },
+    {
+      "table": "insurer_marketplace_links",
+      "field": "linkedAt",
+      "line": 3998
+    },
+    {
+      "table": "insurer_marketplace_links",
+      "field": "createdAt",
+      "line": 4001
+    },
+    {
+      "table": "agency_clients",
+      "field": "createdAt",
+      "line": 4034
+    },
+    {
+      "table": "agency_insurance_service_requests",
+      "field": "createdAt",
+      "line": 4074
+    },
+    {
+      "table": "agency_insurance_service_request_insurers",
+      "field": "createdAt",
+      "line": 4090
+    },
+    {
+      "table": "agency_insurance_valuation_deviations",
+      "field": "createdAt",
+      "line": 4107
+    },
+    {
+      "table": "vehicle_condition_snapshots",
+      "field": "createdAt",
+      "line": 4138
+    },
+    {
+      "table": "agency_assisted_claimant_identities",
+      "field": "createdAt",
+      "line": 4159
+    },
+    {
+      "table": "insurer_quote_requests",
+      "field": "createdAt",
+      "line": 4187
+    },
+    {
+      "table": "fleet_rfq_client_instructions",
+      "field": "createdAt",
+      "line": 4216
+    },
+    {
+      "table": "fleet_accounts",
+      "field": "createdAt",
+      "line": 4246
+    },
+    {
+      "table": "fleet_manager_requests",
+      "field": "createdAt",
+      "line": 4275
+    },
+    {
+      "table": "insurer_marketplace_relationships",
+      "field": "createdAt",
+      "line": 4304
+    },
+    {
+      "table": "quote_optimisation_results",
+      "field": "triggeredAt",
+      "line": 4324
+    },
+    {
+      "table": "quote_optimisation_results",
+      "field": "createdAt",
+      "line": 4352
+    },
+    {
+      "table": "assessor_subscriptions",
+      "field": "createdAt",
+      "line": 4376
+    },
+    {
+      "table": "tenant_isolation_violations",
+      "field": "occurredAt",
+      "line": 4416
+    },
+    {
+      "table": "notification_events",
+      "field": "createdAt",
+      "line": 4452
+    },
+    {
+      "table": "system_errors",
+      "field": "occurredAt",
+      "line": 4484
+    },
+    {
+      "table": "country_repair_index",
+      "field": "createdAt",
+      "line": 4509
+    },
+    {
+      "table": "repair_cost_intelligence",
+      "field": "createdAt",
+      "line": 4535
+    },
+    {
+      "table": "vehicle_registry",
+      "field": "firstSeenAt",
+      "line": 4598
+    },
+    {
+      "table": "vehicle_registry",
+      "field": "createdAt",
+      "line": 4600
+    },
+    {
+      "table": "vehicle_damage_history",
+      "field": "createdAt",
+      "line": 4677
+    },
+    {
+      "table": "drivers",
+      "field": "firstSeenAt",
+      "line": 4749
+    },
+    {
+      "table": "drivers",
+      "field": "createdAt",
+      "line": 4751
+    },
+    {
+      "table": "driver_claims",
+      "field": "createdAt",
+      "line": 4785
+    },
+    {
+      "table": "repair_history",
+      "field": "createdAt",
+      "line": 4869
+    },
+    {
+      "table": "cross_claim_signals",
+      "field": "createdAt",
+      "line": 4928
+    },
+    {
+      "table": "benchmark_deviations",
+      "field": "createdAt",
+      "line": 5302
+    },
+    {
+      "table": "cost_learning_records",
+      "field": "recordedAt",
+      "line": 5357
+    },
+    {
+      "table": "cost_learning_records",
+      "field": "createdAt",
+      "line": 5358
+    },
+    {
+      "table": "calibration_overrides",
+      "field": "createdAt",
+      "line": 5398
+    },
+    {
+      "table": "workflow_templates",
+      "field": "createdAt",
+      "line": 5426
+    },
+    {
+      "table": "claim_approvals",
+      "field": "actedAt",
+      "line": 5454
+    },
+    {
+      "table": "recovery_cases",
+      "field": "createdAt",
+      "line": 5658
+    },
+    {
+      "table": "component_benchmarks",
+      "field": "createdAt",
+      "line": 5757
+    },
+    {
+      "table": "asset_registry",
+      "field": "createdAt",
+      "line": 6026
+    },
+    {
+      "table": "inspections",
+      "field": "createdAt",
+      "line": 6080
+    },
+    {
+      "table": "physical_measurements",
+      "field": "capturedAt",
+      "line": 6120
+    },
+    {
+      "table": "physical_measurements",
+      "field": "createdAt",
+      "line": 6130
+    },
+    {
+      "table": "engineer_observations",
+      "field": "authoredAt",
+      "line": 6178
+    },
+    {
+      "table": "engineer_observations",
+      "field": "createdAt",
+      "line": 6179
+    },
+    {
+      "table": "engineer_profiles",
+      "field": "createdAt",
+      "line": 6208
+    },
+    {
+      "table": "vehicle_passport_snapshots",
+      "field": "generatedAt",
+      "line": 6254
+    },
+    {
+      "table": "fleet_intelligence_snapshots",
+      "field": "generatedAt",
+      "line": 6286
+    },
+    {
+      "table": "predictive_risk_scores",
+      "field": "validFrom",
+      "line": 6313
+    },
+    {
+      "table": "predictive_risk_scores",
+      "field": "computedAt",
+      "line": 6315
+    },
+    {
+      "table": "global_search_history",
+      "field": "searchedAt",
+      "line": 6334
+    },
+    {
+      "table": "global_search_analytics",
+      "field": "searchedAt",
+      "line": 6351
+    },
+    {
+      "table": "notification_preferences",
+      "field": "createdAt",
+      "line": 6375
+    },
+    {
+      "table": "fuel_records",
+      "field": "createdAt",
+      "line": 6406
+    },
+    {
+      "table": "licensing_records",
+      "field": "createdAt",
+      "line": 6430
+    },
+    {
+      "table": "inspection_projects",
+      "field": "createdAt",
+      "line": 6455
+    },
+    {
+      "table": "personal_vehicles",
+      "field": "createdAt",
+      "line": 6477
+    },
+    {
+      "table": "quotation_request_documents",
+      "field": "createdAt",
+      "line": 6508
+    },
+    {
+      "table": "whatsapp_sessions",
+      "field": "lastMessageAt",
+      "line": 6529
+    },
+    {
+      "table": "whatsapp_sessions",
+      "field": "createdAt",
+      "line": 6530
+    }
+  ]
+}

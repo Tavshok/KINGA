@@ -1,0 +1,903 @@
+{
+  "scope": "Authoritative drizzle/schema.ts static inventory only; no database connection, SQL generation, or source modification.",
+  "completedWaveTablesExcluded": [
+    "claim_assignments",
+    "claim_documents",
+    "claims",
+    "drivers",
+    "inspections",
+    "insurance_audit_logs",
+    "insurance_carriers",
+    "insurance_policies",
+    "insurance_products",
+    "insurance_quotes",
+    "measurement_types",
+    "tenant_invitations",
+    "tenants",
+    "users",
+    "vehicle_condition_assessment",
+    "vehicle_condition_snapshots",
+    "vehicle_damage_history",
+    "vehicle_geometry_measurements",
+    "vehicle_market_valuations",
+    "vehicle_mileage_logs",
+    "vehicle_models",
+    "vehicle_passport_snapshots",
+    "vehicle_registry"
+  ],
+  "allUnkeyedAutoIncrementIdentityCount": 145,
+  "futureWaveUnkeyedAutoIncrementIdentityCount": 145,
+  "futureWaveGaps": [
+    {
+      "tableName": "report_provenance_snapshots",
+      "declaration": "reportProvenanceSnapshots",
+      "line": 18,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "claim_evidence_findings",
+      "declaration": "claimEvidenceFindings",
+      "line": 39,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "quote_evidence_ledger",
+      "declaration": "quoteEvidenceLedger",
+      "line": 77,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "quote_evidence_gaps",
+      "declaration": "quoteEvidenceGaps",
+      "line": 113,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "agency_documents",
+      "declaration": "agencyDocuments",
+      "line": 147,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "ai_assessments",
+      "declaration": "aiAssessments",
+      "line": 162,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "ai_prediction_logs",
+      "declaration": "aiPredictionLogs",
+      "line": 398,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "anonymization_audit_log",
+      "declaration": "anonymizationAuditLog",
+      "line": 428,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "appointments",
+      "declaration": "appointments",
+      "line": 445,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "approval_workflow",
+      "declaration": "approvalWorkflow",
+      "line": 461,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "assessor_deviation_metrics",
+      "declaration": "assessorDeviationMetrics",
+      "line": 485,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "assessor_evaluations",
+      "declaration": "assessorEvaluations",
+      "line": 508,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "assessor_insurer_relationships",
+      "declaration": "assessorInsurerRelationships",
+      "line": 536,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "assessor_marketplace_reviews",
+      "declaration": "assessorMarketplaceReviews",
+      "line": 563,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "assessors",
+      "declaration": "assessors",
+      "line": 586,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "audit_trail",
+      "declaration": "auditTrail",
+      "line": 648,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "automation_audit_log",
+      "declaration": "automationAuditLog",
+      "line": 668,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "automation_policies",
+      "declaration": "automationPolicies",
+      "line": 700,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "claim_comments",
+      "declaration": "claimComments",
+      "line": 733,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "declaration": "claimConfidenceScores",
+      "line": 769,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "claim_intake_requests",
+      "declaration": "claimIntakeRequests",
+      "line": 797,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "claim_events",
+      "declaration": "claimEvents",
+      "line": 841,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "assessor_reports",
+      "declaration": "assessorReports",
+      "line": 890,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "assessor_report_attachments",
+      "declaration": "assessorReportAttachments",
+      "line": 921,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "declaration": "assessorReportReviews",
+      "line": 938,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "claim_intelligence_dataset",
+      "declaration": "claimIntelligenceDataset",
+      "line": 957,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "claim_involvement_tracking",
+      "declaration": "claimInvolvementTracking",
+      "line": 1004,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "claim_review_queue",
+      "declaration": "claimReviewQueue",
+      "line": 1017,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "declaration": "claimRoutingDecisions",
+      "line": 1040,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "claimant_history",
+      "declaration": "claimantHistory",
+      "line": 1067,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "commission_records",
+      "declaration": "commissionRecords",
+      "line": 1315,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "agency_product_commission_configs",
+      "declaration": "agencyProductCommissionConfigs",
+      "line": 1336,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "cost_components",
+      "declaration": "costComponents",
+      "line": 1350,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "currency_exchange_rates",
+      "declaration": "currencyExchangeRates",
+      "line": 1378,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "customer_consent",
+      "declaration": "customerConsent",
+      "line": 1393,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "customer_documents",
+      "declaration": "customerDocuments",
+      "line": 1405,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "dataset_access_grants",
+      "declaration": "datasetAccessGrants",
+      "line": 1422,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "email_verification_tokens",
+      "declaration": "emailVerificationTokens",
+      "line": 1478,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "entity_relationships",
+      "declaration": "entityRelationships",
+      "line": 1493,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "extracted_document_data",
+      "declaration": "extractedDocumentData",
+      "line": 1515,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "extracted_repair_items",
+      "declaration": "extractedRepairItems",
+      "line": 1552,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fast_track_config",
+      "declaration": "fastTrackConfig",
+      "line": 1580,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fast_track_routing_log",
+      "declaration": "fastTrackRoutingLog",
+      "line": 1604,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "federated_learning_metadata",
+      "declaration": "federatedLearningMetadata",
+      "line": 1632,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "final_approval_records",
+      "declaration": "finalApprovalRecords",
+      "line": 1653,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fleet_audit_logs",
+      "declaration": "fleetAuditLogs",
+      "line": 1685,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fleet_documents",
+      "declaration": "fleetDocuments",
+      "line": 1700,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fleet_drivers",
+      "declaration": "fleetDrivers",
+      "line": 1719,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fleet_incident_reports",
+      "declaration": "fleetIncidentReports",
+      "line": 1744,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fleet_risk_scores",
+      "declaration": "fleetRiskScores",
+      "line": 1774,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fleet_vehicles",
+      "declaration": "fleetVehicles",
+      "line": 1795,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fleets",
+      "declaration": "fleets",
+      "line": 1847,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fraud_alerts",
+      "declaration": "fraudAlerts",
+      "line": 1865,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fraud_indicators",
+      "declaration": "fraudIndicators",
+      "line": 1888,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fraud_rules",
+      "declaration": "fraudRules",
+      "line": 1932,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "global_anonymized_dataset",
+      "declaration": "globalAnonymizedDataset",
+      "line": 1957,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "governance_notifications",
+      "declaration": "governanceNotifications",
+      "line": 1994,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "governance_violation_log",
+      "declaration": "governanceViolationLog",
+      "line": 2014,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "historical_claims",
+      "declaration": "historicalClaims",
+      "line": 2034,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "historical_replay_results",
+      "declaration": "historicalReplayResults",
+      "line": 2084,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "ingestion_batches",
+      "declaration": "ingestionBatches",
+      "line": 2133,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "ingestion_documents",
+      "declaration": "ingestionDocuments",
+      "line": 2152,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "maintenance_alerts",
+      "declaration": "maintenanceAlerts",
+      "line": 2355,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "maintenance_records",
+      "declaration": "maintenanceRecords",
+      "line": 2373,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "maintenance_schedules",
+      "declaration": "maintenanceSchedules",
+      "line": 2400,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "marketplace_transactions",
+      "declaration": "marketplaceTransactions",
+      "line": 2420,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "model_training_audit_log",
+      "declaration": "modelTrainingAuditLog",
+      "line": 2445,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "model_training_queue",
+      "declaration": "modelTrainingQueue",
+      "line": 2457,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "model_version_registry",
+      "declaration": "modelVersionRegistry",
+      "line": 2473,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "multi_reference_truth",
+      "declaration": "multiReferenceTruth",
+      "line": 2508,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "notifications",
+      "declaration": "notifications",
+      "line": 2535,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "organizations",
+      "declaration": "organizations",
+      "line": 2557,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "panel_beater_quotes",
+      "declaration": "panelBeaterQuotes",
+      "line": 2573,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "panel_beaters",
+      "declaration": "panelBeaters",
+      "line": 2617,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "part_stratification",
+      "declaration": "partStratification",
+      "line": 2645,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "parts_pricing_audit_log",
+      "declaration": "partsPricingAuditLog",
+      "line": 2657,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "parts_pricing_baseline",
+      "declaration": "partsPricingBaseline",
+      "line": 2670,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "parts_pricing_overrides",
+      "declaration": "partsPricingOverrides",
+      "line": 2690,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "platform_governance_limits",
+      "declaration": "platformGovernanceLimits",
+      "line": 2721,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "police_reports",
+      "declaration": "policeReports",
+      "line": 2737,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "policy_claim_links",
+      "declaration": "policyClaimLinks",
+      "line": 2778,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "policy_documents",
+      "declaration": "policyDocuments",
+      "line": 2791,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "policy_endorsements",
+      "declaration": "policyEndorsements",
+      "line": 2806,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "pre_accident_damage",
+      "declaration": "preAccidentDamage",
+      "line": 2826,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "quotation_requests",
+      "declaration": "quotationRequests",
+      "line": 2856,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "quote_line_items",
+      "declaration": "quoteLineItems",
+      "line": 2986,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "rate_limit_tracking",
+      "declaration": "rateLimitTracking",
+      "line": 3020,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "reference_dataset",
+      "declaration": "referenceDataset",
+      "line": 3035,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "regional_benchmarks",
+      "declaration": "regionalBenchmarks",
+      "line": 3050,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "regional_pricing_multipliers",
+      "declaration": "regionalPricingMultipliers",
+      "line": 3071,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "registration_requests",
+      "declaration": "registrationRequests",
+      "line": 3090,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "report_access_audit",
+      "declaration": "reportAccessAudit",
+      "line": 3112,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "role_assignment_audit",
+      "declaration": "roleAssignmentAudit",
+      "line": 3187,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "service_providers",
+      "declaration": "serviceProviders",
+      "line": 3251,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "service_quotes",
+      "declaration": "serviceQuotes",
+      "line": 3275,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "service_requests",
+      "declaration": "serviceRequests",
+      "line": 3302,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "similar_claims_clusters",
+      "declaration": "similarClaimsClusters",
+      "line": 3331,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "super_audit_sessions",
+      "declaration": "superAuditSessions",
+      "line": 3352,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "supplier_performance_metrics",
+      "declaration": "supplierPerformanceMetrics",
+      "line": 3376,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "supplier_quote_line_items",
+      "declaration": "supplierQuoteLineItems",
+      "line": 3395,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "supplier_quotes",
+      "declaration": "supplierQuotes",
+      "line": 3421,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "third_party_vehicles",
+      "declaration": "thirdPartyVehicles",
+      "line": 3529,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "training_data_scores",
+      "declaration": "trainingDataScores",
+      "line": 3558,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "training_dataset",
+      "declaration": "trainingDataset",
+      "line": 3585,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "usage_events",
+      "declaration": "usageEvents",
+      "line": 3652,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "user_invitations",
+      "declaration": "userInvitations",
+      "line": 3676,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "variance_datasets",
+      "declaration": "varianceDatasets",
+      "line": 3757,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "vehicle_history",
+      "declaration": "vehicleHistory",
+      "line": 3827,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "workflow_audit_trail",
+      "declaration": "workflowAuditTrail",
+      "line": 3907,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "workflow_configuration",
+      "declaration": "workflowConfiguration",
+      "line": 3930,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "workflow_states",
+      "declaration": "workflowStates",
+      "line": 3946,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "insurer_marketplace_links",
+      "declaration": "insurerMarketplaceLinks",
+      "line": 3993,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "agency_clients",
+      "declaration": "agencyClients",
+      "line": 4020,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "agency_insurance_service_requests",
+      "declaration": "agencyInsuranceServiceRequests",
+      "line": 4052,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "agency_insurance_service_request_insurers",
+      "declaration": "agencyInsuranceServiceRequestInsurers",
+      "line": 4085,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "agency_insurance_valuation_deviations",
+      "declaration": "agencyInsuranceValuationDeviations",
+      "line": 4099,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "agency_assisted_claimant_identities",
+      "declaration": "agencyAssistedClaimantIdentities",
+      "line": 4148,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "declaration": "insurerQuoteRequests",
+      "line": 4167,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fleet_rfq_client_instructions",
+      "declaration": "fleetRfqClientInstructions",
+      "line": 4207,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fleet_accounts",
+      "declaration": "fleetAccounts",
+      "line": 4232,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fleet_manager_requests",
+      "declaration": "fleetManagerRequests",
+      "line": 4264,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "insurer_marketplace_relationships",
+      "declaration": "insurerMarketplaceRelationships",
+      "line": 4297,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "quote_optimisation_results",
+      "declaration": "quoteOptimisationResults",
+      "line": 4322,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "country_repair_index",
+      "declaration": "countryRepairIndex",
+      "line": 4501,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "declaration": "repairCostIntelligence",
+      "line": 4523,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "driver_claims",
+      "declaration": "driverClaims",
+      "line": 4773,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "repair_history",
+      "declaration": "repairHistory",
+      "line": 4805,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "cross_claim_signals",
+      "declaration": "crossClaimSignals",
+      "line": 4893,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "benchmark_deviations",
+      "declaration": "benchmarkDeviations",
+      "line": 5266,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "cost_learning_records",
+      "declaration": "costLearningRecords",
+      "line": 5320,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "component_benchmarks",
+      "declaration": "componentBenchmarks",
+      "line": 5738,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "pipeline_runs",
+      "declaration": "pipelineRuns",
+      "line": 5774,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "pipeline_jobs",
+      "declaration": "pipelineJobs",
+      "line": 5799,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "asset_registry",
+      "declaration": "assetRegistry",
+      "line": 6001,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "physical_measurements",
+      "declaration": "physicalMeasurements",
+      "line": 6100,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "engineer_observations",
+      "declaration": "engineerObservations",
+      "line": 6147,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "engineer_profiles",
+      "declaration": "engineerProfiles",
+      "line": 6196,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fleet_intelligence_snapshots",
+      "declaration": "fleetIntelligenceSnapshots",
+      "line": 6271,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "predictive_risk_scores",
+      "declaration": "predictiveRiskScores",
+      "line": 6303,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "notification_preferences",
+      "declaration": "notificationPreferences",
+      "line": 6366,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "fuel_records",
+      "declaration": "fuelRecords",
+      "line": 6391,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "licensing_records",
+      "declaration": "licensingRecords",
+      "line": 6415,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "inspection_projects",
+      "declaration": "inspectionProjects",
+      "line": 6441,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "personal_vehicles",
+      "declaration": "personalVehicles",
+      "line": 6465,
+      "excludedAsCompletedWave": false
+    },
+    {
+      "tableName": "quotation_request_documents",
+      "declaration": "quotationRequestDocuments",
+      "line": 6490,
+      "excludedAsCompletedWave": false
+    }
+  ],
+  "status": "inventory_complete"
+}

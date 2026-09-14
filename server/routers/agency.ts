@@ -102,7 +102,7 @@ export const agencyRouter = router({
         status: "pending",
       }).$returningId();
 
-      return { success: true, requestNumber, id: (result as Array<{id: number}>)[0]?.id };
+      return { success: true, requestNumber, id: result?.id };
     }),
 
   /**
@@ -298,7 +298,7 @@ export const agencyRouter = router({
         })();
       }
 
-      return { success: true, documentId: (result as Array<{id: number}>)[0]?.id, fileUrl };
+      return { success: true, documentId: result?.id, fileUrl };
     }),
 
   /**
@@ -509,7 +509,7 @@ export const agencyRouter = router({
             mileage: v.mileage,
             valuationDate,
           });
-          return { rowIndex: v.rowIndex, ...v, ...result, valuationDate: valuationDate.toISOString() };
+          return { ...v, ...result, rowIndex: v.rowIndex, valuationDate: valuationDate.toISOString() };
         })
       );
       return results.map((r, i) =>

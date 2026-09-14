@@ -1,0 +1,28 @@
+{
+  "scope": "Gate C Wave 3 source-only required-string-ID primary-key reconciliation; no database, SQL generation, DDL, staging, production, migration-account, or data operation occurred.",
+  "dryRun": false,
+  "appliedCount": 5,
+  "applied": [
+    {
+      "declaration": "documentNamingTemplates",
+      "tableName": "document_naming_templates"
+    },
+    {
+      "declaration": "pdfReports",
+      "tableName": "pdf_reports"
+    },
+    {
+      "declaration": "reportLinks",
+      "tableName": "report_links"
+    },
+    {
+      "declaration": "reportSnapshots",
+      "tableName": "report_snapshots"
+    },
+    {
+      "declaration": "marketplaceProfiles",
+      "tableName": "marketplace_profiles"
+    }
+  ],
+  "status": "passed"
+}

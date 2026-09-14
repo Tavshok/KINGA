@@ -1,0 +1,10 @@
+{
+  "scope": "Gate C Wave 2 identifier validation only; no database connection was opened.",
+  "sqlPath": "audit/gate-c-scratch-baseline/wave-02-generated/wave-02-vehicle-claim-core.sql",
+  "indexCount": 58,
+  "foreignKeyCount": 36,
+  "emptyIndexes": [],
+  "duplicateIndexColumns": [],
+  "overlongForeignKeys": [],
+  "status": "passed"
+}

@@ -1,0 +1,20 @@
+{
+  "scope": "Gate C Wave 5 exact-base TypeScript comparison with DATABASE_URL and KINGA_STAGING_DATABASE_URL deliberately empty; no external database was accessed.",
+  "branch": {
+    "revision": "uncommitted Wave 5 reconciliation worktree at comparison time",
+    "exitCode": 2,
+    "diagnosticCount": 998,
+    "uniqueDiagnosticCount": 998
+  },
+  "exactBase": {
+    "commit": "ab47cfcc9c0abc280545c3f6f5047f3b1173e9ed",
+    "exitCode": 2,
+    "diagnosticCount": 998,
+    "uniqueDiagnosticCount": 998
+  },
+  "errorCodeCountsMatch": true,
+  "diagnosticPathSetsMatch": true,
+  "waveFiveTouchedPathDiagnostics": [],
+  "note": "Rendered diagnostic text differed in inherited type-context formatting, producing 90 branch-only and 90 base-only text lines, but no error-code or path-set divergence.",
+  "status": "no-new-wave-five-diagnostic-path"
+}

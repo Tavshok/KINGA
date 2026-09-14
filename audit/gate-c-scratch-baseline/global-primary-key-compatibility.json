@@ -1,0 +1,787 @@
+{
+  "scope": "Repository-only source compatibility proof. No database connection, SQL generation, DDL, source write, environment access, staging, or production operation occurred.",
+  "expectedResidualCount": 111,
+  "compatibleAutoIncrementIdCount": 111,
+  "conflictCount": 0,
+  "compatible": [
+    {
+      "declaration": "reportProvenanceSnapshots",
+      "tableName": "report_provenance_snapshots",
+      "line": 18,
+      "idExpression": "bigint({ mode: \"number\", unsigned: true }).autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "claimEvidenceFindings",
+      "tableName": "claim_evidence_findings",
+      "line": 39,
+      "idExpression": "bigint({ mode: \"number\", unsigned: true }).autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "quoteEvidenceLedger",
+      "tableName": "quote_evidence_ledger",
+      "line": 77,
+      "idExpression": "bigint({ mode: \"number\", unsigned: true }).autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "quoteEvidenceGaps",
+      "tableName": "quote_evidence_gaps",
+      "line": 113,
+      "idExpression": "bigint({ mode: \"number\", unsigned: true }).autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "agencyDocuments",
+      "tableName": "agency_documents",
+      "line": 147,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "aiAssessments",
+      "tableName": "ai_assessments",
+      "line": 162,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "aiPredictionLogs",
+      "tableName": "ai_prediction_logs",
+      "line": 398,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "anonymizationAuditLog",
+      "tableName": "anonymization_audit_log",
+      "line": 428,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "appointments",
+      "tableName": "appointments",
+      "line": 445,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "approvalWorkflow",
+      "tableName": "approval_workflow",
+      "line": 461,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "assessorDeviationMetrics",
+      "tableName": "assessor_deviation_metrics",
+      "line": 485,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "assessorEvaluations",
+      "tableName": "assessor_evaluations",
+      "line": 508,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "assessorInsurerRelationships",
+      "tableName": "assessor_insurer_relationships",
+      "line": 536,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "assessorMarketplaceReviews",
+      "tableName": "assessor_marketplace_reviews",
+      "line": 563,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "assessors",
+      "tableName": "assessors",
+      "line": 586,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "auditTrail",
+      "tableName": "audit_trail",
+      "line": 648,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "automationAuditLog",
+      "tableName": "automation_audit_log",
+      "line": 668,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "automationPolicies",
+      "tableName": "automation_policies",
+      "line": 700,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "claimComments",
+      "tableName": "claim_comments",
+      "line": 733,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "claimConfidenceScores",
+      "tableName": "claim_confidence_scores",
+      "line": 769,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "claimIntakeRequests",
+      "tableName": "claim_intake_requests",
+      "line": 797,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "claimEvents",
+      "tableName": "claim_events",
+      "line": 841,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "assessorReports",
+      "tableName": "assessor_reports",
+      "line": 890,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "assessorReportAttachments",
+      "tableName": "assessor_report_attachments",
+      "line": 921,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "assessorReportReviews",
+      "tableName": "assessor_report_reviews",
+      "line": 938,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "claimIntelligenceDataset",
+      "tableName": "claim_intelligence_dataset",
+      "line": 957,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "claimInvolvementTracking",
+      "tableName": "claim_involvement_tracking",
+      "line": 1004,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "claimReviewQueue",
+      "tableName": "claim_review_queue",
+      "line": 1017,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "claimRoutingDecisions",
+      "tableName": "claim_routing_decisions",
+      "line": 1040,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "commissionRecords",
+      "tableName": "commission_records",
+      "line": 1314,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "agencyProductCommissionConfigs",
+      "tableName": "agency_product_commission_configs",
+      "line": 1335,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "costComponents",
+      "tableName": "cost_components",
+      "line": 1349,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "customerConsent",
+      "tableName": "customer_consent",
+      "line": 1392,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "customerDocuments",
+      "tableName": "customer_documents",
+      "line": 1404,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "datasetAccessGrants",
+      "tableName": "dataset_access_grants",
+      "line": 1421,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "entityRelationships",
+      "tableName": "entity_relationships",
+      "line": 1492,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "extractedRepairItems",
+      "tableName": "extracted_repair_items",
+      "line": 1551,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fastTrackConfig",
+      "tableName": "fast_track_config",
+      "line": 1579,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fastTrackRoutingLog",
+      "tableName": "fast_track_routing_log",
+      "line": 1603,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "finalApprovalRecords",
+      "tableName": "final_approval_records",
+      "line": 1652,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fleetAuditLogs",
+      "tableName": "fleet_audit_logs",
+      "line": 1684,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fleetDocuments",
+      "tableName": "fleet_documents",
+      "line": 1699,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fleetDrivers",
+      "tableName": "fleet_drivers",
+      "line": 1718,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fleetIncidentReports",
+      "tableName": "fleet_incident_reports",
+      "line": 1743,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fleetRiskScores",
+      "tableName": "fleet_risk_scores",
+      "line": 1773,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fleetVehicles",
+      "tableName": "fleet_vehicles",
+      "line": 1794,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fleets",
+      "tableName": "fleets",
+      "line": 1846,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fraudAlerts",
+      "tableName": "fraud_alerts",
+      "line": 1864,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fraudIndicators",
+      "tableName": "fraud_indicators",
+      "line": 1887,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "governanceNotifications",
+      "tableName": "governance_notifications",
+      "line": 1993,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "governanceViolationLog",
+      "tableName": "governance_violation_log",
+      "line": 2013,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "historicalClaims",
+      "tableName": "historical_claims",
+      "line": 2033,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "historicalReplayResults",
+      "tableName": "historical_replay_results",
+      "line": 2083,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "ingestionBatches",
+      "tableName": "ingestion_batches",
+      "line": 2132,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "ingestionDocuments",
+      "tableName": "ingestion_documents",
+      "line": 2151,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "maintenanceAlerts",
+      "tableName": "maintenance_alerts",
+      "line": 2354,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "maintenanceRecords",
+      "tableName": "maintenance_records",
+      "line": 2372,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "maintenanceSchedules",
+      "tableName": "maintenance_schedules",
+      "line": 2399,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "marketplaceTransactions",
+      "tableName": "marketplace_transactions",
+      "line": 2419,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "modelTrainingAuditLog",
+      "tableName": "model_training_audit_log",
+      "line": 2444,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "modelTrainingQueue",
+      "tableName": "model_training_queue",
+      "line": 2456,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "notifications",
+      "tableName": "notifications",
+      "line": 2534,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "panelBeaterQuotes",
+      "tableName": "panel_beater_quotes",
+      "line": 2572,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "panelBeaters",
+      "tableName": "panel_beaters",
+      "line": 2616,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "policyClaimLinks",
+      "tableName": "policy_claim_links",
+      "line": 2777,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "policyDocuments",
+      "tableName": "policy_documents",
+      "line": 2790,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "policyEndorsements",
+      "tableName": "policy_endorsements",
+      "line": 2805,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "quotationRequests",
+      "tableName": "quotation_requests",
+      "line": 2855,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "rateLimitTracking",
+      "tableName": "rate_limit_tracking",
+      "line": 3019,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "referenceDataset",
+      "tableName": "reference_dataset",
+      "line": 3034,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "reportAccessAudit",
+      "tableName": "report_access_audit",
+      "line": 3111,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "roleAssignmentAudit",
+      "tableName": "role_assignment_audit",
+      "line": 3186,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "serviceQuotes",
+      "tableName": "service_quotes",
+      "line": 3274,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "serviceRequests",
+      "tableName": "service_requests",
+      "line": 3301,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "similarClaimsClusters",
+      "tableName": "similar_claims_clusters",
+      "line": 3330,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "superAuditSessions",
+      "tableName": "super_audit_sessions",
+      "line": 3351,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "trainingDataScores",
+      "tableName": "training_data_scores",
+      "line": 3557,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "trainingDataset",
+      "tableName": "training_dataset",
+      "line": 3584,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "usageEvents",
+      "tableName": "usage_events",
+      "line": 3651,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "userInvitations",
+      "tableName": "user_invitations",
+      "line": 3675,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "varianceDatasets",
+      "tableName": "variance_datasets",
+      "line": 3756,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "workflowAuditTrail",
+      "tableName": "workflow_audit_trail",
+      "line": 3906,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "workflowStates",
+      "tableName": "workflow_states",
+      "line": 3945,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "insurerMarketplaceLinks",
+      "tableName": "insurer_marketplace_links",
+      "line": 3992,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "agencyInsuranceServiceRequests",
+      "tableName": "agency_insurance_service_requests",
+      "line": 4051,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "agencyInsuranceServiceRequestInsurers",
+      "tableName": "agency_insurance_service_request_insurers",
+      "line": 4084,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "agencyInsuranceValuationDeviations",
+      "tableName": "agency_insurance_valuation_deviations",
+      "line": 4098,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "agencyAssistedClaimantIdentities",
+      "tableName": "agency_assisted_claimant_identities",
+      "line": 4147,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "insurerQuoteRequests",
+      "tableName": "insurer_quote_requests",
+      "line": 4166,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fleetRfqClientInstructions",
+      "tableName": "fleet_rfq_client_instructions",
+      "line": 4206,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fleetAccounts",
+      "tableName": "fleet_accounts",
+      "line": 4231,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fleetManagerRequests",
+      "tableName": "fleet_manager_requests",
+      "line": 4263,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "insurerMarketplaceRelationships",
+      "tableName": "insurer_marketplace_relationships",
+      "line": 4296,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "quoteOptimisationResults",
+      "tableName": "quote_optimisation_results",
+      "line": 4321,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "repairCostIntelligence",
+      "tableName": "repair_cost_intelligence",
+      "line": 4522,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "driverClaims",
+      "tableName": "driver_claims",
+      "line": 4772,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "repairHistory",
+      "tableName": "repair_history",
+      "line": 4804,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "crossClaimSignals",
+      "tableName": "cross_claim_signals",
+      "line": 4892,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "benchmarkDeviations",
+      "tableName": "benchmark_deviations",
+      "line": 5265,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "costLearningRecords",
+      "tableName": "cost_learning_records",
+      "line": 5319,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "pipelineRuns",
+      "tableName": "pipeline_runs",
+      "line": 5773,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "pipelineJobs",
+      "tableName": "pipeline_jobs",
+      "line": 5798,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "assetRegistry",
+      "tableName": "asset_registry",
+      "line": 6006,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "physicalMeasurements",
+      "tableName": "physical_measurements",
+      "line": 6105,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "engineerObservations",
+      "tableName": "engineer_observations",
+      "line": 6152,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "engineerProfiles",
+      "tableName": "engineer_profiles",
+      "line": 6201,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "fleetIntelligenceSnapshots",
+      "tableName": "fleet_intelligence_snapshots",
+      "line": 6276,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "predictiveRiskScores",
+      "tableName": "predictive_risk_scores",
+      "line": 6308,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "notificationPreferences",
+      "tableName": "notification_preferences",
+      "line": 6371,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "inspectionProjects",
+      "tableName": "inspection_projects",
+      "line": 6446,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    },
+    {
+      "declaration": "quotationRequestDocuments",
+      "tableName": "quotation_request_documents",
+      "line": 6495,
+      "idExpression": "int().autoincrement().notNull()",
+      "problems": []
+    }
+  ],
+  "conflicts": [],
+  "status": "all_compatible"
+}

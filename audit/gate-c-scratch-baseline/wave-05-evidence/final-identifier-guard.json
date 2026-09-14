@@ -1,0 +1,8 @@
+{
+  "scope": "Gate C Wave 5 identifier-only static validation; no database was opened.",
+  "tableCount": 75,
+  "indexCount": 190,
+  "inlineUniqueCount": 7,
+  "foreignKeyCount": 25,
+  "status": "passed"
+}

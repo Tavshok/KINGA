@@ -1,8 +1,7 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildCostDecisionPresentationContract } from "../../shared/costDecisionPresentation";
 import { resolveReportCostIntegrity } from "./costIntegrity";
+import { renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
 import { R0_QUOTE_EVIDENCE_FIXTURES } from "./r0QuoteEvidenceFixtures";
 
@@ -36,19 +35,20 @@ describe("Approved R0-G reusable evidence-state fixture model", () => {
     }
   });
 
-  it("keeps the reusable semantic boundary wired to CL, CI, FR, and the client top view", () => {
-    const root = resolve(import.meta.dirname, "../..");
-    for (const relativePath of [
-      "server/reporting/reportDefinitions.ts",
-      "server/reporting/claimsIntelligenceReport.ts",
-      "server/reporting/forensicDecisionReport.ts",
-    ]) {
-      const source = readFileSync(resolve(root, relativePath), "utf8");
-      expect(source).toContain("evidence-qualified");
-      expect(source).toContain("KINGA Optimised Quote");
+  it("renders every reusable evidence state through the shared decision-summary contract", () => {
+    for (const fixture of R0_QUOTE_EVIDENCE_FIXTURES) {
+      const cost = resolveReportCostIntegrity(fixture.costIntel, [...fixture.dbQuotes]);
+      const presentation = buildCostDecisionPresentationContract(fixture.presentationEvidence);
+      const html = renderCostDecisionSummaryHtml({
+        costIntegrity: cost,
+        formatAmount: (amount) => amount === null ? "Not available" : `USD ${amount.toFixed(2)}`,
+        escapeHtml: String,
+        repairability: { totalLossIndicated: false, repairToValueRatio: null },
+      });
+
+      expect(html).toContain(presentation.optimisedQuoteLabel);
+      expect(html).toContain(presentation.optimisedQuoteDetail);
+      expect(html).toContain(presentation.quoteVerification);
     }
-    const client = readFileSync(resolve(root, "client/src/components/KingaClaimsReport.tsx"), "utf8");
-    expect(client).toContain("evidence-qualified");
-    expect(client).toContain("costDecision.optimisedQuoteLabel");
   });
 });

@@ -1,0 +1,14 @@
+{
+  "inspected": 40,
+  "keyGaps": 0,
+  "outsideConfiguredGenerationSource": 0,
+  "duplicatePhysicalTableDeclarations": 0,
+  "unresolvedDependencies": 0,
+  "sourceOrderDependencies": 0,
+  "heldOverlap": 0,
+  "emptyConfiguredIndexNames": 0,
+  "duplicateConfiguredIndexNames": 0,
+  "repeatedNamesAcrossTables": 1,
+  "inlineUniqueColumns": 1,
+  "readyForSqlGeneration": true
+}

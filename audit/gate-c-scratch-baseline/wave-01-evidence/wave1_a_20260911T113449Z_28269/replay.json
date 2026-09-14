@@ -1,0 +1,18 @@
+{
+  "scope": "Gate C Wave 1 local scratch-only replay",
+  "target": {
+    "database": "kinga_gatec_wave1_a_20260911T113449Z_28269",
+    "host": "127.0.0.1",
+    "port": "3317"
+  },
+  "statementCount": 11,
+  "sqlSha256": "306797ab94529860bc9e88a69a955061916a94ddc3d08e3265229780ab08083c",
+  "structuralMetadataSha256": "e4d52b9f4ed2de6ffd00c6a184fdef807d8450b64edd1d1b604c08be06dc2a50",
+  "createdTableCount": 3,
+  "createdTableNames": [
+    "tenant_invitations",
+    "tenants",
+    "users"
+  ],
+  "status": "passed"
+}

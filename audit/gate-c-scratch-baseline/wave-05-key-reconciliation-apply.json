@@ -1,0 +1,38 @@
+{
+  "scope": "Gate C Wave 5 source-only approved primary-key reconciliation; no database, SQL generation, DDL, staging, production, migration-account, or data operation occurred.",
+  "dryRun": false,
+  "appliedCount": 6,
+  "applied": [
+    {
+      "declaration": "insurerTenants",
+      "tableName": "insurer_tenants",
+      "key": "id"
+    },
+    {
+      "declaration": "isoAuditLogs",
+      "tableName": "iso_audit_logs",
+      "key": "id"
+    },
+    {
+      "declaration": "riskRegister",
+      "tableName": "risk_register",
+      "key": "id"
+    },
+    {
+      "declaration": "routingHistory",
+      "tableName": "routing_history",
+      "key": "id"
+    },
+    {
+      "declaration": "routingThresholdConfig",
+      "tableName": "routing_threshold_config",
+      "key": "id"
+    },
+    {
+      "declaration": "tenantRoleConfigs",
+      "tableName": "tenant_role_configs",
+      "key": "tenantId,roleKey"
+    }
+  ],
+  "status": "passed"
+}

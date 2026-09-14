@@ -1,0 +1,3353 @@
+{
+  "scope": "Repository-only AST classification of future-wave auto-increment id declarations. No database connection, SQL generation, or source modification was performed.",
+  "rule": "safe_sole_identifier requires no source-declared alternative primary/unique identity outside id and fewer than two identifier-like *Id/*_id columns; all other candidates are held for a separate contract decision.",
+  "source": "drizzle/schema.ts",
+  "completedWaveTablesExcluded": [
+    "claim_assignments",
+    "claim_documents",
+    "claims",
+    "drivers",
+    "inspections",
+    "insurance_audit_logs",
+    "insurance_carriers",
+    "insurance_policies",
+    "insurance_products",
+    "insurance_quotes",
+    "measurement_types",
+    "tenant_invitations",
+    "tenants",
+    "users",
+    "vehicle_condition_assessment",
+    "vehicle_condition_snapshots",
+    "vehicle_damage_history",
+    "vehicle_geometry_measurements",
+    "vehicle_market_valuations",
+    "vehicle_mileage_logs",
+    "vehicle_models",
+    "vehicle_passport_snapshots",
+    "vehicle_registry"
+  ],
+  "candidateCount": 145,
+  "safeSoleIdentifierCount": 34,
+  "heldForContractDecisionCount": 111,
+  "safeSoleIdentifiers": [
+    {
+      "tableName": "claimant_history",
+      "declaration": "claimantHistory",
+      "line": 1067,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "claimantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "currency_exchange_rates",
+      "declaration": "currencyExchangeRates",
+      "line": 1377,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "email_verification_tokens",
+      "declaration": "emailVerificationTokens",
+      "line": 1477,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "userId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "extracted_document_data",
+      "declaration": "extractedDocumentData",
+      "line": 1514,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "documentId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "federated_learning_metadata",
+      "declaration": "federatedLearningMetadata",
+      "line": 1631,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fraud_rules",
+      "declaration": "fraudRules",
+      "line": 1931,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "global_anonymized_dataset",
+      "declaration": "globalAnonymizedDataset",
+      "line": 1956,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "anonymousRecordId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "model_version_registry",
+      "declaration": "modelVersionRegistry",
+      "line": 2472,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "multi_reference_truth",
+      "declaration": "multiReferenceTruth",
+      "line": 2507,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "historicalClaimId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "organizations",
+      "declaration": "organizations",
+      "line": 2556,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "ownerId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "part_stratification",
+      "declaration": "partStratification",
+      "line": 2644,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "parts_pricing_audit_log",
+      "declaration": "partsPricingAuditLog",
+      "line": 2656,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "recordId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "parts_pricing_baseline",
+      "declaration": "partsPricingBaseline",
+      "line": 2669,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "parts_pricing_overrides",
+      "declaration": "partsPricingOverrides",
+      "line": 2689,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "platform_governance_limits",
+      "declaration": "platformGovernanceLimits",
+      "line": 2720,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "police_reports",
+      "declaration": "policeReports",
+      "line": 2736,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "pre_accident_damage",
+      "declaration": "preAccidentDamage",
+      "line": 2825,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "quote_line_items",
+      "declaration": "quoteLineItems",
+      "line": 2985,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "quoteId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "regional_benchmarks",
+      "declaration": "regionalBenchmarks",
+      "line": 3049,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "regional_pricing_multipliers",
+      "declaration": "regionalPricingMultipliers",
+      "line": 3070,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "registration_requests",
+      "declaration": "registrationRequests",
+      "line": 3089,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "createdUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "service_providers",
+      "declaration": "serviceProviders",
+      "line": 3250,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "supplier_performance_metrics",
+      "declaration": "supplierPerformanceMetrics",
+      "line": 3375,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "supplier_quote_line_items",
+      "declaration": "supplierQuoteLineItems",
+      "line": 3394,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "quoteId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "supplier_quotes",
+      "declaration": "supplierQuotes",
+      "line": 3420,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "third_party_vehicles",
+      "declaration": "thirdPartyVehicles",
+      "line": 3528,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "vehicle_history",
+      "declaration": "vehicleHistory",
+      "line": 3826,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "currentOwnerId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "workflow_configuration",
+      "declaration": "workflowConfiguration",
+      "line": 3929,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "agency_clients",
+      "declaration": "agencyClients",
+      "line": 4019,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "agencyTenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "country_repair_index",
+      "declaration": "countryRepairIndex",
+      "line": 4500,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "component_benchmarks",
+      "declaration": "componentBenchmarks",
+      "line": 5737,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "componentId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fuel_records",
+      "declaration": "fuelRecords",
+      "line": 6396,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "fleetAccountId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "licensing_records",
+      "declaration": "licensingRecords",
+      "line": 6420,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "fleetAccountId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "personal_vehicles",
+      "declaration": "personalVehicles",
+      "line": 6470,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "userId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "safe_sole_identifier",
+      "heldReasons": [],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    }
+  ],
+  "heldForContractDecision": [
+    {
+      "tableName": "report_provenance_snapshots",
+      "declaration": "reportProvenanceSnapshots",
+      "line": 18,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "jobId",
+        "tenantId",
+        "claimId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "report_provenance_snapshots_job_id_uq"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: bigint({ mode: \"number\", unsigned: true }).autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "claim_evidence_findings",
+      "declaration": "claimEvidenceFindings",
+      "line": 39,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "claimId",
+        "assessmentId",
+        "sourceDocumentId",
+        "quoteId",
+        "quoteLineItemId",
+        "reviewedByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: bigint({ mode: \"number\", unsigned: true }).autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "quote_evidence_ledger",
+      "declaration": "quoteEvidenceLedger",
+      "line": 77,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "claimId",
+        "quoteId",
+        "quoteLineItemId",
+        "sourceDocumentId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: bigint({ mode: \"number\", unsigned: true }).autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "quote_evidence_gaps",
+      "declaration": "quoteEvidenceGaps",
+      "line": 113,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "claimId",
+        "quoteId",
+        "quoteLineItemId",
+        "sourceDocumentId",
+        "reviewedByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: bigint({ mode: \"number\", unsigned: true }).autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "agency_documents",
+      "declaration": "agencyDocuments",
+      "line": 147,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "quotationRequestId",
+        "policyId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "ai_assessments",
+      "declaration": "aiAssessments",
+      "line": 162,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId",
+        "previousAssessmentId",
+        "humanOverrideUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "ai_prediction_logs",
+      "declaration": "aiPredictionLogs",
+      "line": 398,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "historicalClaimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "anonymization_audit_log",
+      "declaration": "anonymizationAuditLog",
+      "line": 428,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "sourceRecordId",
+        "anonymousRecordId",
+        "anonymizedByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "appointments",
+      "declaration": "appointments",
+      "line": 445,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "assessorId",
+        "claimantId",
+        "panelBeaterId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "approval_workflow",
+      "declaration": "approvalWorkflow",
+      "line": 461,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "approverId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "assessor_deviation_metrics",
+      "declaration": "assessorDeviationMetrics",
+      "line": 485,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "assessorId",
+        "panelBeaterId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "assessor_evaluations",
+      "declaration": "assessorEvaluations",
+      "line": 508,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId",
+        "sourceReportId",
+        "acceptedReviewId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "assessorId",
+        "tenantId",
+        "sourceReportId",
+        "acceptedReviewId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "assessor_insurer_relationships",
+      "declaration": "assessorInsurerRelationships",
+      "line": 536,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "assessorId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "assessor_marketplace_reviews",
+      "declaration": "assessorMarketplaceReviews",
+      "line": 563,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "assessorId",
+        "claimId",
+        "tenantId",
+        "reviewerUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "assessors",
+      "declaration": "assessors",
+      "line": 586,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "userId",
+        "primaryTenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "audit_trail",
+      "declaration": "auditTrail",
+      "line": 648,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "userId",
+        "entityId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "automation_audit_log",
+      "declaration": "automationAuditLog",
+      "line": 668,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId",
+        "confidenceScoreId",
+        "routingDecisionId",
+        "automationPolicyId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId",
+        "confidenceScoreId",
+        "routingDecisionId",
+        "automationPolicyId",
+        "overriddenByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "automation_policies",
+      "declaration": "automationPolicies",
+      "line": 700,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "createdByUserId",
+        "supersededByPolicyId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "claim_comments",
+      "declaration": "claimComments",
+      "line": 733,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId",
+        "userId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "userId",
+        "parentCommentId",
+        "resolvedByUserId",
+        "tenantId",
+        "findingId",
+        "pipelineRunId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "declaration": "claimConfidenceScores",
+      "line": 769,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "claim_intake_requests",
+      "declaration": "claimIntakeRequests",
+      "line": 797,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "userId",
+        "claimId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "uq_claim_intake_request_actor"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "claim_events",
+      "declaration": "claimEvents",
+      "line": 841,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "userId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "assessor_reports",
+      "declaration": "assessorReports",
+      "line": 890,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId",
+        "assessorUserId",
+        "assignmentId",
+        "attestedByUserId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId",
+        "assessorUserId",
+        "assignmentId",
+        "parentReportId",
+        "attestedByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "uq_assessor_reports_claim_version"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "assessor_report_attachments",
+      "declaration": "assessorReportAttachments",
+      "line": 921,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "reportId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "reportId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "declaration": "assessorReportReviews",
+      "line": 938,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "reportId",
+        "claimId",
+        "reviewerUserId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "reportId",
+        "claimId",
+        "tenantId",
+        "reviewerUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "claim_intelligence_dataset",
+      "declaration": "claimIntelligenceDataset",
+      "line": 957,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId",
+        "assessorId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "idx_cid_claim_id_unique"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "claim_involvement_tracking",
+      "declaration": "claimInvolvementTracking",
+      "line": 1004,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "userId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "claim_review_queue",
+      "declaration": "claimReviewQueue",
+      "line": 1017,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "historicalClaimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "declaration": "claimRoutingDecisions",
+      "line": 1040,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId",
+        "confidenceScoreId",
+        "automationPolicyId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId",
+        "confidenceScoreId",
+        "automationPolicyId",
+        "decisionMadeByUserId",
+        "overriddenByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "commission_records",
+      "declaration": "commissionRecords",
+      "line": 1314,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "policyId",
+        "carrierId",
+        "productId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "agency_product_commission_configs",
+      "declaration": "agencyProductCommissionConfigs",
+      "line": 1335,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "agencyTenantId",
+        "productId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "uq_agency_product_commission"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "cost_components",
+      "declaration": "costComponents",
+      "line": 1349,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "historicalClaimId",
+        "documentId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "customer_consent",
+      "declaration": "customerConsent",
+      "line": 1392,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "customerId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "customer_documents",
+      "declaration": "customerDocuments",
+      "line": 1404,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "customerId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "dataset_access_grants",
+      "declaration": "datasetAccessGrants",
+      "line": 1421,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "grantedToUserId",
+        "grantedByUserId",
+        "revokedByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "entity_relationships",
+      "declaration": "entityRelationships",
+      "line": 1492,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "entityAId",
+        "entityBId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "extracted_repair_items",
+      "declaration": "extractedRepairItems",
+      "line": 1551,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "historicalClaimId",
+        "documentId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fast_track_config",
+      "declaration": "fastTrackConfig",
+      "line": 1579,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "productId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fast_track_routing_log",
+      "declaration": "fastTrackRoutingLog",
+      "line": 1603,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId",
+        "configId",
+        "productId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "final_approval_records",
+      "declaration": "finalApprovalRecords",
+      "line": 1652,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "historicalClaimId",
+        "tenantId",
+        "capturedByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fleet_audit_logs",
+      "declaration": "fleetAuditLogs",
+      "line": 1684,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "entityId",
+        "userId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fleet_documents",
+      "declaration": "fleetDocuments",
+      "line": 1699,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "fleetId",
+        "vehicleId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fleet_drivers",
+      "declaration": "fleetDrivers",
+      "line": 1718,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "fleetId",
+        "tenantId",
+        "userId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fleet_incident_reports",
+      "declaration": "fleetIncidentReports",
+      "line": 1743,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "vehicleId",
+        "driverId",
+        "fleetId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fleet_risk_scores",
+      "declaration": "fleetRiskScores",
+      "line": 1773,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "vehicleId",
+        "fleetId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fleet_vehicles",
+      "declaration": "fleetVehicles",
+      "line": 1794,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "ownerId",
+        "tenantId",
+        "fleetId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fleets",
+      "declaration": "fleets",
+      "line": 1846,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "ownerId",
+        "tenantId",
+        "preferredInsurerId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fraud_alerts",
+      "declaration": "fraudAlerts",
+      "line": 1864,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "triggeredRuleId",
+        "relatedEntityId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fraud_indicators",
+      "declaration": "fraudIndicators",
+      "line": 1887,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "governance_notifications",
+      "declaration": "governanceNotifications",
+      "line": 1993,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "claimId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "governance_violation_log",
+      "declaration": "governanceViolationLog",
+      "line": 2013,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "userId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "historical_claims",
+      "declaration": "historicalClaims",
+      "line": 2033,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "batchId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "historical_replay_results",
+      "declaration": "historicalReplayResults",
+      "line": 2083,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "historicalClaimId",
+        "replayedByUserId",
+        "policyVersionId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "ingestion_batches",
+      "declaration": "ingestionBatches",
+      "line": 2132,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "uploadedByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "ingestion_documents",
+      "declaration": "ingestionDocuments",
+      "line": 2151,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "batchId",
+        "documentId",
+        "validatedByUserId",
+        "historicalClaimId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "maintenance_alerts",
+      "declaration": "maintenanceAlerts",
+      "line": 2354,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "vehicleId",
+        "scheduleId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "maintenance_records",
+      "declaration": "maintenanceRecords",
+      "line": 2372,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "vehicleId",
+        "scheduleId",
+        "tenantId",
+        "relatedClaimId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "maintenance_schedules",
+      "declaration": "maintenanceSchedules",
+      "line": 2399,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "vehicleId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "marketplace_transactions",
+      "declaration": "marketplaceTransactions",
+      "line": 2419,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "assignmentId",
+        "assessorId",
+        "tenantId",
+        "claimId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "model_training_audit_log",
+      "declaration": "modelTrainingAuditLog",
+      "line": 2444,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "modelVersionId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "model_training_queue",
+      "declaration": "modelTrainingQueue",
+      "line": 2456,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "datasetRecordId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "idx_mtq_claim_id_unique"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "notifications",
+      "declaration": "notifications",
+      "line": 2534,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "userId",
+        "tenantId",
+        "claimId",
+        "entityId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "panel_beater_quotes",
+      "declaration": "panelBeaterQuotes",
+      "line": 2572,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "panelBeaterId",
+        "modifiedByAssessorId",
+        "parentQuoteId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "panel_beaters",
+      "declaration": "panelBeaters",
+      "line": 2616,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "userId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "policy_claim_links",
+      "declaration": "policyClaimLinks",
+      "line": 2777,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "policyId",
+        "claimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "policy_documents",
+      "declaration": "policyDocuments",
+      "line": 2790,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "policyId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "policy_endorsements",
+      "declaration": "policyEndorsements",
+      "line": 2805,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "policyId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "quotation_requests",
+      "declaration": "quotationRequests",
+      "line": 2855,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "userId",
+        "assignedAgentId",
+        "paymentIntentId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "rate_limit_tracking",
+      "declaration": "rateLimitTracking",
+      "line": 3019,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "userId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "reference_dataset",
+      "declaration": "referenceDataset",
+      "line": 3034,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "historicalClaimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "report_access_audit",
+      "declaration": "reportAccessAudit",
+      "line": 3111,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "reportId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "role_assignment_audit",
+      "declaration": "roleAssignmentAudit",
+      "line": 3186,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "userId",
+        "changedByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "service_quotes",
+      "declaration": "serviceQuotes",
+      "line": 3274,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "requestId",
+        "providerId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "service_requests",
+      "declaration": "serviceRequests",
+      "line": 3301,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "vehicleId",
+        "fleetId",
+        "ownerId",
+        "tenantId",
+        "selectedQuoteId",
+        "selectedProviderId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "similar_claims_clusters",
+      "declaration": "similarClaimsClusters",
+      "line": 3330,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "historicalClaimId",
+        "clusterId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "super_audit_sessions",
+      "declaration": "superAuditSessions",
+      "line": 3351,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "superAdminUserId",
+        "auditedTenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "training_data_scores",
+      "declaration": "trainingDataScores",
+      "line": 3557,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "historicalClaimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "training_dataset",
+      "declaration": "trainingDataset",
+      "line": 3584,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "historicalClaimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "usage_events",
+      "declaration": "usageEvents",
+      "line": 3651,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "claimId",
+        "referenceId",
+        "userId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "user_invitations",
+      "declaration": "userInvitations",
+      "line": 3675,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "organizationId",
+        "acceptedUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "variance_datasets",
+      "declaration": "varianceDatasets",
+      "line": 3756,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "historicalClaimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "workflow_audit_trail",
+      "declaration": "workflowAuditTrail",
+      "line": 3906,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "userId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "workflow_states",
+      "declaration": "workflowStates",
+      "line": 3945,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "insurer_marketplace_links",
+      "declaration": "insurerMarketplaceLinks",
+      "line": 3992,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "insurerTenantId",
+        "marketplaceProfileId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "unique_insurer_marketplace_link"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "agency_insurance_service_requests",
+      "declaration": "agencyInsuranceServiceRequests",
+      "line": 4051,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "agencyTenantId",
+        "agencyClientId",
+        "vehicleRegistryId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "uq_agency_insurance_service_request_number"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "agency_insurance_service_request_insurers",
+      "declaration": "agencyInsuranceServiceRequestInsurers",
+      "line": 4084,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "serviceRequestId",
+        "agencyTenantId",
+        "insurerTenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "uq_agency_service_request_insurer"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "agency_insurance_valuation_deviations",
+      "declaration": "agencyInsuranceValuationDeviations",
+      "line": 4098,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "serviceRequestId",
+        "agencyTenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "uq_agency_insurance_valuation_deviation_request"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "agency_assisted_claimant_identities",
+      "declaration": "agencyAssistedClaimantIdentities",
+      "line": 4147,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "agencyTenantId",
+        "agencyClientId",
+        "insurerTenantId",
+        "restrictedClaimantUserId",
+        "verifiedClaimantUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "uq_agency_assisted_claimant_identity"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "declaration": "insurerQuoteRequests",
+      "line": 4166,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "insurerTenantId",
+        "agencyTenantId",
+        "fleetAccountId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "unique_claim_insurer_quote"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "fleet_rfq_client_instructions",
+      "declaration": "fleetRfqClientInstructions",
+      "line": 4206,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "quoteRequestId",
+        "agencyTenantId",
+        "fleetAccountId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "uq_fleet_rfq_client_instruction"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "fleet_accounts",
+      "declaration": "fleetAccounts",
+      "line": 4231,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "ownerUserId",
+        "linkedInsurerTenantId",
+        "linkedAgencyId",
+        "verifiedByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "fleet_manager_requests",
+      "declaration": "fleetManagerRequests",
+      "line": 4263,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "userId",
+        "fleetAccountId",
+        "reviewedByUserId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "insurer_marketplace_relationships",
+      "declaration": "insurerMarketplaceRelationships",
+      "line": 4296,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "insurerTenantId",
+        "marketplaceProfileId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "unique_insurer_relationship"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "quote_optimisation_results",
+      "declaration": "quoteOptimisationResults",
+      "line": 4321,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "recommendedProfileId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "declaration": "repairCostIntelligence",
+      "line": 4522,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "idx_rci_unique"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "driver_claims",
+      "declaration": "driverClaims",
+      "line": 4772,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "driverId",
+        "claimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "idx_dc_unique"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "repair_history",
+      "declaration": "repairHistory",
+      "line": 4804,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "repairerId",
+        "vehicleId",
+        "claimId",
+        "originalRepairId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "cross_claim_signals",
+      "declaration": "crossClaimSignals",
+      "line": 4892,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "idx_ccs_claim_signal_unique"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "benchmark_deviations",
+      "declaration": "benchmarkDeviations",
+      "line": 5265,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "cost_learning_records",
+      "declaration": "costLearningRecords",
+      "line": 5319,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [
+        "claimId"
+      ],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "pipeline_runs",
+      "declaration": "pipelineRuns",
+      "line": 5773,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "runId",
+        "claimId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "pipeline_jobs",
+      "declaration": "pipelineJobs",
+      "line": 5798,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "claimId",
+        "runId",
+        "stageId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "idx_pj_run_stage"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "asset_registry",
+      "declaration": "assetRegistry",
+      "line": 6006,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "ownerId",
+        "lastInspectionId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "idx_ar_ref"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "physical_measurements",
+      "declaration": "physicalMeasurements",
+      "line": 6105,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "inspectionId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "engineer_observations",
+      "declaration": "engineerObservations",
+      "line": 6152,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "inspectionId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "engineer_profiles",
+      "declaration": "engineerProfiles",
+      "line": 6201,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "userId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "idx_ep_user_id"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "fleet_intelligence_snapshots",
+      "declaration": "fleetIntelligenceSnapshots",
+      "line": 6276,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "fleetId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "predictive_risk_scores",
+      "declaration": "predictiveRiskScores",
+      "line": 6308,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "entityId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "notification_preferences",
+      "declaration": "notificationPreferences",
+      "line": 6371,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "userId",
+        "tenantId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [
+        "uq_notif_pref_user_module"
+      ],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns",
+        "configured_unique_identity_constraint_outside_id"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": true
+    },
+    {
+      "tableName": "inspection_projects",
+      "declaration": "inspectionProjects",
+      "line": 6446,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "tenantId",
+        "leadEngineerId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": false,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    },
+    {
+      "tableName": "quotation_request_documents",
+      "declaration": "quotationRequestDocuments",
+      "line": 6495,
+      "autoIncrementColumn": "id",
+      "foreignKeyColumns": [],
+      "identifierLikeReferenceColumns": [
+        "quotationRequestId",
+        "clientUserId",
+        "sentByAgentId"
+      ],
+      "directUniqueColumns": [],
+      "configuredUniqueIndexNames": [],
+      "hasConfiguredPrimaryKey": false,
+      "tableConfigPresent": true,
+      "classification": "held_for_contract_decision",
+      "heldReasons": [
+        "two_or_more_identifier_like_reference_columns"
+      ],
+      "sourceExcerpt": "id: int().autoincrement().notNull()",
+      "configUsesUniqueIndex": false
+    }
+  ],
+  "heldTablesByReason": {
+    "configured_unique_identity_constraint_outside_id": [
+      "report_provenance_snapshots",
+      "claim_intake_requests",
+      "assessor_reports",
+      "claim_intelligence_dataset",
+      "agency_product_commission_configs",
+      "model_training_queue",
+      "insurer_marketplace_links",
+      "agency_insurance_service_requests",
+      "agency_insurance_service_request_insurers",
+      "agency_insurance_valuation_deviations",
+      "agency_assisted_claimant_identities",
+      "insurer_quote_requests",
+      "fleet_rfq_client_instructions",
+      "insurer_marketplace_relationships",
+      "repair_cost_intelligence",
+      "driver_claims",
+      "cross_claim_signals",
+      "pipeline_jobs",
+      "asset_registry",
+      "engineer_profiles",
+      "notification_preferences"
+    ],
+    "two_or_more_identifier_like_reference_columns": [
+      "report_provenance_snapshots",
+      "claim_evidence_findings",
+      "quote_evidence_ledger",
+      "quote_evidence_gaps",
+      "agency_documents",
+      "ai_assessments",
+      "ai_prediction_logs",
+      "anonymization_audit_log",
+      "appointments",
+      "approval_workflow",
+      "assessor_deviation_metrics",
+      "assessor_evaluations",
+      "assessor_insurer_relationships",
+      "assessor_marketplace_reviews",
+      "assessors",
+      "audit_trail",
+      "automation_audit_log",
+      "automation_policies",
+      "claim_comments",
+      "claim_confidence_scores",
+      "claim_intake_requests",
+      "claim_events",
+      "assessor_reports",
+      "assessor_report_attachments",
+      "assessor_report_reviews",
+      "claim_intelligence_dataset",
+      "claim_involvement_tracking",
+      "claim_review_queue",
+      "claim_routing_decisions",
+      "commission_records",
+      "agency_product_commission_configs",
+      "cost_components",
+      "customer_consent",
+      "customer_documents",
+      "dataset_access_grants",
+      "entity_relationships",
+      "extracted_repair_items",
+      "fast_track_config",
+      "fast_track_routing_log",
+      "final_approval_records",
+      "fleet_audit_logs",
+      "fleet_documents",
+      "fleet_drivers",
+      "fleet_incident_reports",
+      "fleet_risk_scores",
+      "fleet_vehicles",
+      "fleets",
+      "fraud_alerts",
+      "fraud_indicators",
+      "governance_notifications",
+      "governance_violation_log",
+      "historical_claims",
+      "historical_replay_results",
+      "ingestion_batches",
+      "ingestion_documents",
+      "maintenance_alerts",
+      "maintenance_records",
+      "maintenance_schedules",
+      "marketplace_transactions",
+      "model_training_audit_log",
+      "model_training_queue",
+      "notifications",
+      "panel_beater_quotes",
+      "panel_beaters",
+      "policy_claim_links",
+      "policy_documents",
+      "policy_endorsements",
+      "quotation_requests",
+      "rate_limit_tracking",
+      "reference_dataset",
+      "report_access_audit",
+      "role_assignment_audit",
+      "service_quotes",
+      "service_requests",
+      "similar_claims_clusters",
+      "super_audit_sessions",
+      "training_data_scores",
+      "training_dataset",
+      "usage_events",
+      "user_invitations",
+      "variance_datasets",
+      "workflow_audit_trail",
+      "workflow_states",
+      "insurer_marketplace_links",
+      "agency_insurance_service_requests",
+      "agency_insurance_service_request_insurers",
+      "agency_insurance_valuation_deviations",
+      "agency_assisted_claimant_identities",
+      "insurer_quote_requests",
+      "fleet_rfq_client_instructions",
+      "fleet_accounts",
+      "fleet_manager_requests",
+      "insurer_marketplace_relationships",
+      "quote_optimisation_results",
+      "driver_claims",
+      "repair_history",
+      "cross_claim_signals",
+      "benchmark_deviations",
+      "cost_learning_records",
+      "pipeline_runs",
+      "pipeline_jobs",
+      "asset_registry",
+      "physical_measurements",
+      "engineer_observations",
+      "engineer_profiles",
+      "fleet_intelligence_snapshots",
+      "predictive_risk_scores",
+      "notification_preferences",
+      "inspection_projects",
+      "quotation_request_documents"
+    ]
+  },
+  "status": "classification_complete"
+}

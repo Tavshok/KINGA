@@ -1,0 +1,14 @@
+{
+  "result": "passed",
+  "sourceCommit": "2078957cfbc8fb2715bbf7be58d1cad7500b3a13",
+  "sourceDeclarations": 241,
+  "mysqlDistinctPhysicalTableNames": 221,
+  "migrationArtifacts": 82,
+  "classificationCounts": {
+    "active_but_ambiguous": 8,
+    "compatibility_legacy": 41,
+    "needs_migration_chain_repair_first": 5,
+    "required_baseline": 183,
+    "superseded_duplicate": 4
+  }
+}

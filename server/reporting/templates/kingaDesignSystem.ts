@@ -52,8 +52,14 @@ export const KINGA_REPORT_CSS = `
     .page{margin:0; box-shadow:none; width:auto; min-height:auto;}
     .no-print{display:none;}
     .page-break{break-before:page; page-break-before:always;}
-    /* Prevent sentence fragments at page breaks */
-    p, li, tr, .box, .callout, .kv-row { page-break-inside: avoid; orphans: 3; widows: 3; }
+    /* Preserve readable short content without forcing large containers onto sparse pages. */
+    p, li, .callout, .kv-row { break-inside:avoid-page; page-break-inside:avoid; orphans:3; widows:3; }
+    tr { break-inside:avoid-page; page-break-inside:avoid; }
+    table { break-inside:auto; page-break-inside:auto; }
+    thead { display:table-header-group; }
+    tfoot { display:table-footer-group; }
+    .vehicle-passport-evidence { break-inside:avoid-page; page-break-inside:avoid; }
+    .vehicle-passport-evidence table { break-inside:auto; page-break-inside:auto; }
     h4, h3, h2 { page-break-after: avoid; }
   }
   @page{ size:A4; margin:12mm; }
@@ -149,6 +155,11 @@ export const KINGA_REPORT_CSS = `
     margin:7px 0 0; padding-top:6px; border-top:1px solid var(--hairline);
     font-family:'Helvetica Neue',Arial,sans-serif; font-size:8.5px; line-height:1.35; color:var(--ink-soft);
   }
+  .vehicle-passport-evidence{border-top-color:var(--teal); background:var(--grey-50);}
+  .vehicle-passport-evidence-heading{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px solid var(--hairline);padding-bottom:5px;margin-bottom:7px;}
+  .vehicle-passport-evidence h4{margin:0;border:0;padding:0;color:var(--ink-soft);}
+  .vehicle-passport-evidence-heading span{font-family:'Helvetica Neue',Arial,sans-serif;font-size:8.5px;color:var(--ink-faint);white-space:nowrap;}
+  .vehicle-passport-evidence-table td.v{text-align:left;font-weight:600;}
 
   table{border-collapse:collapse; width:100%; font-size:11.5px;}
   table.kv td{padding:3px 0; vertical-align:top;}

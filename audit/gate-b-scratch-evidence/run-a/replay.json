@@ -1,0 +1,5 @@
+{
+  "exitCode": 0,
+  "stdout": "Reading config file '/tmp/kinga_gateb_20260910T231315Z_176992/evidence-kinga_gateb_overlay_a_20260910232419_178272/immutable-overlay/drizzle.config.ts'\n[⣷] applying migrations...\u001b[2K\u001b[1G[⣯] applying migrations...\u001b[2K\u001b[1G[⣟] applying migrations...\u001b[2K\u001b[1G[⡿] applying migrations...\u001b[2K\u001b[1G[⢿] applying migrations...\u001b[2K\u001b[1G[⣻] applying migrations...\u001b[2K\u001b[1G[⣽] applying migrations...\u001b[2K\u001b[1G[⣷] applying migrations...\u001b[2K\u001b[1G[⣯] applying migrations...\u001b[2K\u001b[1G[✓] migrations applied successfully!",
+  "stderr": "[WARN] The \"pnpm\" field in package.json is no longer read by pnpm. The following keys were ignored: \"pnpm.patchedDependencies\", \"pnpm.overrides\". See https://pnpm.io/settings for the new home of each setting.\n"
+}

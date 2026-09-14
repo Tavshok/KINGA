@@ -1,0 +1,40 @@
+{
+  "scope": "Gate C Wave 2 local scratch-only replay",
+  "target": {
+    "database": "kinga_gatec_wave2_run_b_20260911t13571789135056z_5240",
+    "host": "127.0.0.1",
+    "port": "3317"
+  },
+  "prerequisiteStatementCount": 11,
+  "statementCount": 98,
+  "prerequisiteSqlSha256": "306797ab94529860bc9e88a69a955061916a94ddc3d08e3265229780ab08083c",
+  "sqlSha256": "15661c69490a4360931ef5fc3d17e2b4521f692730b2d113f1342117b067e7b9",
+  "structuralMetadataSha256": "2b7b1ba33cc6fbb729824d1ab447c6920cfdc5e6f9ffb6d60720f0414abf7897",
+  "createdTableCount": 23,
+  "createdTableNames": [
+    "claim_assignments",
+    "claim_documents",
+    "claims",
+    "drivers",
+    "inspections",
+    "insurance_audit_logs",
+    "insurance_carriers",
+    "insurance_policies",
+    "insurance_products",
+    "insurance_quotes",
+    "measurement_types",
+    "tenant_invitations",
+    "tenants",
+    "users",
+    "vehicle_condition_assessment",
+    "vehicle_condition_snapshots",
+    "vehicle_damage_history",
+    "vehicle_geometry_measurements",
+    "vehicle_market_valuations",
+    "vehicle_mileage_logs",
+    "vehicle_models",
+    "vehicle_passport_snapshots",
+    "vehicle_registry"
+  ],
+  "status": "passed"
+}

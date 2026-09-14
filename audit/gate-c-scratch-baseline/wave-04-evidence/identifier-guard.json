@@ -1,0 +1,7 @@
+{
+  "tableCount": 40,
+  "indexCount": 88,
+  "inlineUniqueConstraintCount": 10,
+  "foreignKeyCount": 7,
+  "status": "passed"
+}

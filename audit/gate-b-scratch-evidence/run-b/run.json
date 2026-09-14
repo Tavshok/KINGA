@@ -1,0 +1,22 @@
+{
+  "purpose": "Gate B immutable corrected migration replay",
+  "target": {
+    "database": "kinga_gateb_overlay_b_20260910232431_178356",
+    "url": "mysql://root@127.0.0.1:3317/kinga_gateb_overlay_b_20260910232431_178356",
+    "loopbackOnly": true,
+    "stagingConnectionUsed": false,
+    "productionConnectionUsed": false
+  },
+  "preflight": {
+    "tableCount": 0
+  },
+  "engine": {
+    "version": "10.11.14-MariaDB-0ubuntu0.24.04.1",
+    "version_comment": "Ubuntu 24.04",
+    "sql_mode": "IGNORE_SPACE,STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION",
+    "character_set_server": "latin1",
+    "collation_server": "latin1_swedish_ci"
+  },
+  "nodeVersion": "v22.13.0",
+  "overlayJournalEntryCount": 61
+}

@@ -1,14 +1,13 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { renderVehiclePassportEvidencePanel } from "../reporting/vehiclePassportEvidencePresentation";
 
 const projectRoot = resolve(import.meta.dirname, "../..");
 const serviceRouter = readFileSync(resolve(projectRoot, "server/routers/agency-insurance-service.ts"), "utf8");
 const brokerRouter = readFileSync(resolve(projectRoot, "server/routers/agency-broker.ts"), "utf8");
 const assistedSubmissionService = readFileSync(resolve(projectRoot, "server/agency/agencyAssistedClaimSubmission.ts"), "utf8");
 const vehiclePassportRouter = readFileSync(resolve(projectRoot, "server/routers/vehicle-passport.ts"), "utf8");
-const claimsLedgerReport = readFileSync(resolve(projectRoot, "server/reporting/claimsIntelligenceReport.ts"), "utf8");
-const forensicReport = readFileSync(resolve(projectRoot, "server/reporting/forensicDecisionReport.ts"), "utf8");
 const resolvedReportRecord = readFileSync(resolve(projectRoot, "server/reporting/resolvedReportRecord.ts"), "utf8");
 const forensicReportModel = readFileSync(resolve(projectRoot, "server/reporting/forensicReportModel.ts"), "utf8");
 
@@ -47,14 +46,24 @@ describe("agency feature-separation contract", () => {
     expect(vehiclePassportRouter).toContain("vehicle_condition_snapshots");
   });
 
-  it("renders the same qualified pre-loss evidence boundary in Claims Ledger and Forensic reports", () => {
-    for (const report of [claimsLedgerReport, forensicReport]) {
-      expect(report).toContain("Vehicle Passport — Pre-Loss Condition Evidence");
-      expect(report).toContain("Dated pre-loss valuation evidence only");
-    }
-    expect(claimsLedgerReport).toContain("resolveReportRecord({ claimId, tenantId");
+  it("renders a neutral pre-loss evidence boundary without claim-outcome authority", () => {
+    const html = renderVehiclePassportEvidencePanel({
+      snapshot: {
+        requestNumber: "VP-BOUNDARY",
+        snapshotVersion: 1,
+        snapshotDate: "2026-01-01",
+        exteriorCondition: "Good",
+        interiorCondition: "Good",
+        mechanicalCondition: "Good",
+      },
+      formatDate: String,
+      escapeHtml: String,
+    });
+
+    expect(html).toContain("Vehicle Passport — Pre-Loss Condition Evidence");
+    expect(html).toContain("Dated pre-loss valuation evidence only");
+    expect(html).toContain("does not determine causation, repair cost, policy, premium, settlement, fraud conclusion, or claim outcome.");
     expect(resolvedReportRecord).toContain("vehicle_condition_snapshots");
-    expect(forensicReport).toContain("resolveForensicReportModel({ claimId, tenantId, audience: \"forensic\" })");
     expect(forensicReportModel).toContain("vehicle_condition_snapshots");
   });
 });

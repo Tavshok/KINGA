@@ -1,0 +1,3244 @@
+{
+  "target": {
+    "database": "kinga_gatec_wave3_a_20260911t164726871436203_221402",
+    "host": "127.0.0.1",
+    "port": "3317"
+  },
+  "tables": [
+    {
+      "tableName": "adjuster_sign_offs"
+    },
+    {
+      "tableName": "agency_documents"
+    },
+    {
+      "tableName": "ai_assessments"
+    },
+    {
+      "tableName": "ai_prediction_logs"
+    },
+    {
+      "tableName": "assessor_reports"
+    },
+    {
+      "tableName": "assessor_report_attachments"
+    },
+    {
+      "tableName": "assessor_report_reviews"
+    },
+    {
+      "tableName": "automation_policies"
+    },
+    {
+      "tableName": "claims"
+    },
+    {
+      "tableName": "claim_assignments"
+    },
+    {
+      "tableName": "claim_confidence_scores"
+    },
+    {
+      "tableName": "claim_decision_lifecycle"
+    },
+    {
+      "tableName": "claim_documents"
+    },
+    {
+      "tableName": "claim_routing_decisions"
+    },
+    {
+      "tableName": "component_repair_outcomes"
+    },
+    {
+      "tableName": "cost_components"
+    },
+    {
+      "tableName": "cost_learning_records"
+    },
+    {
+      "tableName": "country_repair_index"
+    },
+    {
+      "tableName": "currency_exchange_rates"
+    },
+    {
+      "tableName": "customer_documents"
+    },
+    {
+      "tableName": "decision_snapshots"
+    },
+    {
+      "tableName": "document_naming_templates"
+    },
+    {
+      "tableName": "drivers"
+    },
+    {
+      "tableName": "extracted_document_data"
+    },
+    {
+      "tableName": "extracted_repair_items"
+    },
+    {
+      "tableName": "fleet_documents"
+    },
+    {
+      "tableName": "fleet_incident_reports"
+    },
+    {
+      "tableName": "fraud_alerts"
+    },
+    {
+      "tableName": "fraud_indicators"
+    },
+    {
+      "tableName": "fraud_rules"
+    },
+    {
+      "tableName": "generated_reports"
+    },
+    {
+      "tableName": "ingestion_documents"
+    },
+    {
+      "tableName": "inspections"
+    },
+    {
+      "tableName": "insurance_audit_logs"
+    },
+    {
+      "tableName": "insurance_carriers"
+    },
+    {
+      "tableName": "insurance_policies"
+    },
+    {
+      "tableName": "insurance_products"
+    },
+    {
+      "tableName": "insurance_quotes"
+    },
+    {
+      "tableName": "insurer_marketplace_links"
+    },
+    {
+      "tableName": "insurer_marketplace_relationships"
+    },
+    {
+      "tableName": "insurer_quote_requests"
+    },
+    {
+      "tableName": "marketplace_profiles"
+    },
+    {
+      "tableName": "measurement_types"
+    },
+    {
+      "tableName": "panel_beater_quotes"
+    },
+    {
+      "tableName": "pdf_reports"
+    },
+    {
+      "tableName": "physics_validation_records"
+    },
+    {
+      "tableName": "police_reports"
+    },
+    {
+      "tableName": "policy_documents"
+    },
+    {
+      "tableName": "pre_accident_damage"
+    },
+    {
+      "tableName": "quotation_request_documents"
+    },
+    {
+      "tableName": "quote_line_items"
+    },
+    {
+      "tableName": "quote_optimisation_results"
+    },
+    {
+      "tableName": "repair_cost_intelligence"
+    },
+    {
+      "tableName": "repair_history"
+    },
+    {
+      "tableName": "report_access_audit"
+    },
+    {
+      "tableName": "report_links"
+    },
+    {
+      "tableName": "report_snapshots"
+    },
+    {
+      "tableName": "service_quotes"
+    },
+    {
+      "tableName": "supplier_quotes"
+    },
+    {
+      "tableName": "supplier_quote_line_items"
+    },
+    {
+      "tableName": "tenants"
+    },
+    {
+      "tableName": "tenant_invitations"
+    },
+    {
+      "tableName": "users"
+    },
+    {
+      "tableName": "valuation_comparable_evidence"
+    },
+    {
+      "tableName": "vehicle_condition_assessment"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots"
+    },
+    {
+      "tableName": "vehicle_damage_history"
+    },
+    {
+      "tableName": "vehicle_geometry_measurements"
+    },
+    {
+      "tableName": "vehicle_market_valuations"
+    },
+    {
+      "tableName": "vehicle_mileage_logs"
+    },
+    {
+      "tableName": "vehicle_models"
+    },
+    {
+      "tableName": "vehicle_passport_snapshots"
+    },
+    {
+      "tableName": "vehicle_registry"
+    }
+  ],
+  "constraints": [
+    {
+      "tableName": "adjuster_sign_offs",
+      "constraintName": "adjuster_sign_offs_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "adjuster_sign_offs",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "agency_documents",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "ai_assessments",
+      "constraintName": "ai_assessments_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "ai_assessments",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "ai_prediction_logs",
+      "constraintName": "prediction_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "ai_prediction_logs",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "assessor_reports",
+      "constraintName": "assessor_reports_assessor_user_id_users_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "assessor_reports",
+      "constraintName": "assessor_reports_assignment_id_claim_assignments_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "assessor_reports",
+      "constraintName": "assessor_reports_attested_by_user_id_users_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "assessor_reports",
+      "constraintName": "assessor_reports_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "assessor_reports",
+      "constraintName": "kinga_extraction_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "assessor_reports",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "assessor_reports",
+      "constraintName": "report_payload",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "assessor_reports",
+      "constraintName": "uq_assessor_reports_claim_version",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "assessor_report_attachments",
+      "constraintName": "assessor_report_attachments_report_id_assessor_reports_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "assessor_report_attachments",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "constraintName": "assessor_report_reviews_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "constraintName": "assessor_report_reviews_report_id_assessor_reports_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "constraintName": "assessor_report_reviews_reviewer_user_id_users_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "automation_policies",
+      "constraintName": "eligible_claim_types",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "automation_policies",
+      "constraintName": "eligible_vehicle_categories",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "automation_policies",
+      "constraintName": "excluded_claim_types",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "automation_policies",
+      "constraintName": "excluded_vehicle_makes",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "automation_policies",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "claims",
+      "constraintName": "idx_claims_source_document_id",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "claims",
+      "constraintName": "metadata",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "claims",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "claim_assignments",
+      "constraintName": "claim_assignments_assigned_by_user_id_users_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "claim_assignments",
+      "constraintName": "claim_assignments_assigned_to_user_id_users_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "claim_assignments",
+      "constraintName": "claim_assignments_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "claim_assignments",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "constraintName": "claim_confidence_scores_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "constraintName": "damage_certainty_breakdown",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "constraintName": "data_completeness_details",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "constraintName": "fraud_analysis_details",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "constraintName": "historical_accuracy_details",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "constraintName": "physics_validation_details",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "constraintName": "vehicle_risk_details",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "claim_decision_lifecycle",
+      "constraintName": "idx_cdl_claim_unique",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "claim_decision_lifecycle",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "claim_documents",
+      "constraintName": "claim_documents_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "claim_documents",
+      "constraintName": "claim_documents_inspection_id_inspections_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "claim_documents",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "constraintName": "claim_routing_decisions_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "constraintName": "fk_crd_automation_policy",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "constraintName": "fk_crd_confidence_score",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "constraintName": "policy_snapshot_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "constraintName": "policy_thresholds_applied",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "constraintName": "component_repair_outcomes_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "cost_components",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "constraintName": "cost_learning_records_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "country_repair_index",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "currency_exchange_rates",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "customer_documents",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "decision_snapshots",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "document_naming_templates",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "drivers",
+      "constraintName": "idx_drivers_license_number",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "drivers",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "extracted_document_data",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "extracted_document_data",
+      "constraintName": "repair_parts_list",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "extracted_repair_items",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "fleet_documents",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "fleet_incident_reports",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "fraud_alerts",
+      "constraintName": "fraud_alerts_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "fraud_alerts",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "fraud_indicators",
+      "constraintName": "fraud_indicators_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "fraud_indicators",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "fraud_rules",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "generated_reports",
+      "constraintName": "generated_reports_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "generated_reports",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "ingestion_documents",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "inspections",
+      "constraintName": "ai_analysis_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "inspections",
+      "constraintName": "idx_inspections_ref",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "inspections",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "insurance_audit_logs",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "insurance_carriers",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "insurance_policies",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "insurance_products",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "insurance_quotes",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "insurer_marketplace_links",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "insurer_marketplace_links",
+      "constraintName": "unique_insurer_marketplace_link",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "insurer_marketplace_relationships",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "insurer_marketplace_relationships",
+      "constraintName": "unique_insurer_relationship",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "constraintName": "insurer_quote_requests_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "constraintName": "unique_claim_insurer_quote",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "marketplace_profiles",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "marketplace_profiles",
+      "constraintName": "specializations",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "measurement_types",
+      "constraintName": "measurement_types_code_unique",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "measurement_types",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "panel_beater_quotes",
+      "constraintName": "panel_beater_quotes_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "panel_beater_quotes",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "pdf_reports",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "physics_validation_records",
+      "constraintName": "calibration_feedback_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "physics_validation_records",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "police_reports",
+      "constraintName": "police_reports_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "police_reports",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "policy_documents",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "pre_accident_damage",
+      "constraintName": "pre_accident_damage_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "pre_accident_damage",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "quotation_request_documents",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "quote_line_items",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "quote_optimisation_results",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "quote_optimisation_results",
+      "constraintName": "quote_analysis",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "quote_optimisation_results",
+      "constraintName": "quote_optimisation_results_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "quote_optimisation_results",
+      "constraintName": "raw_llm_response",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "constraintName": "idx_rci_unique",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "repair_history",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "repair_history",
+      "constraintName": "repair_history_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "report_access_audit",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "report_links",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "report_snapshots",
+      "constraintName": "intelligence_data",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "report_snapshots",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "report_snapshots",
+      "constraintName": "report_snapshots_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "service_quotes",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "supplier_quotes",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "supplier_quote_line_items",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "tenants",
+      "constraintName": "config_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "tenants",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "constraintName": "tenant_invitations_token_unique",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "users",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "users",
+      "constraintName": "secondary_roles",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "users",
+      "constraintName": "users_openId_unique",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "valuation_comparable_evidence",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "vehicle_condition_assessment",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "vehicle_condition_assessment",
+      "constraintName": "vehicle_condition_assessment_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "constraintName": "evidence_sources_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "constraintName": "modifications_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "constraintName": "photographs_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "constraintName": "uq_vehicle_condition_snapshot_version",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "vehicle_damage_history",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "vehicle_damage_history",
+      "constraintName": "vehicle_damage_history_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "vehicle_geometry_measurements",
+      "constraintName": "fk_vgm_vehicle_model",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "vehicle_geometry_measurements",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "vehicle_market_valuations",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "vehicle_market_valuations",
+      "constraintName": "vehicle_market_valuations_claim_id_claims_id_fk",
+      "constraintType": "FOREIGN KEY"
+    },
+    {
+      "tableName": "vehicle_mileage_logs",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "vehicle_models",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "vehicle_models",
+      "constraintName": "profile_cache_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "vehicle_passport_snapshots",
+      "constraintName": "intelligence_json",
+      "constraintType": "CHECK"
+    },
+    {
+      "tableName": "vehicle_passport_snapshots",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "constraintName": "idx_vehicle_registry_vin",
+      "constraintType": "UNIQUE"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "constraintName": "vehicle_registry_vin_unique",
+      "constraintType": "UNIQUE"
+    }
+  ],
+  "indexes": [
+    {
+      "tableName": "adjuster_sign_offs",
+      "indexName": "idx_aso_adjuster_user_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "adjuster_user_id"
+    },
+    {
+      "tableName": "adjuster_sign_offs",
+      "indexName": "idx_aso_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "adjuster_sign_offs",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "agency_documents",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "ai_assessments",
+      "indexName": "idx_ai_assessments_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "ai_assessments",
+      "indexName": "idx_ai_claim_confidence",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "ai_assessments",
+      "indexName": "idx_ai_claim_confidence",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "confidence_score"
+    },
+    {
+      "tableName": "ai_assessments",
+      "indexName": "idx_ai_tenant_fraud",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "ai_assessments",
+      "indexName": "idx_ai_tenant_fraud",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "fraud_risk_level"
+    },
+    {
+      "tableName": "ai_assessments",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "ai_prediction_logs",
+      "indexName": "idx_apl_claim",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "historical_claim_id"
+    },
+    {
+      "tableName": "ai_prediction_logs",
+      "indexName": "idx_apl_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "ai_prediction_logs",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "assessor_reports",
+      "indexName": "assessor_reports_assignment_id_claim_assignments_id_fk",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "assignment_id"
+    },
+    {
+      "tableName": "assessor_reports",
+      "indexName": "assessor_reports_attested_by_user_id_users_id_fk",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "attested_by_user_id"
+    },
+    {
+      "tableName": "assessor_reports",
+      "indexName": "idx_assessor_reports_assessor_state",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "assessor_user_id"
+    },
+    {
+      "tableName": "assessor_reports",
+      "indexName": "idx_assessor_reports_assessor_state",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "status"
+    },
+    {
+      "tableName": "assessor_reports",
+      "indexName": "idx_assessor_reports_claim_state",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "assessor_reports",
+      "indexName": "idx_assessor_reports_claim_state",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "status"
+    },
+    {
+      "tableName": "assessor_reports",
+      "indexName": "idx_assessor_reports_tenant_state",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "assessor_reports",
+      "indexName": "idx_assessor_reports_tenant_state",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "status"
+    },
+    {
+      "tableName": "assessor_reports",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "assessor_reports",
+      "indexName": "uq_assessor_reports_claim_version",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "assessor_reports",
+      "indexName": "uq_assessor_reports_claim_version",
+      "nonUnique": 0,
+      "sequence": 2,
+      "columnName": "version_number"
+    },
+    {
+      "tableName": "assessor_report_attachments",
+      "indexName": "idx_assessor_report_attachments_report",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "report_id"
+    },
+    {
+      "tableName": "assessor_report_attachments",
+      "indexName": "idx_assessor_report_attachments_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "assessor_report_attachments",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "indexName": "assessor_report_reviews_report_id_assessor_reports_id_fk",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "report_id"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "indexName": "idx_assessor_report_reviews_claim_state",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "indexName": "idx_assessor_report_reviews_claim_state",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "status"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "indexName": "idx_assessor_report_reviews_reviewer_state",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "reviewer_user_id"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "indexName": "idx_assessor_report_reviews_reviewer_state",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "status"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "indexName": "idx_assessor_report_reviews_tenant_state",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "indexName": "idx_assessor_report_reviews_tenant_state",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "status"
+    },
+    {
+      "tableName": "assessor_report_reviews",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "automation_policies",
+      "indexName": "idx_policy_name",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "policy_name"
+    },
+    {
+      "tableName": "automation_policies",
+      "indexName": "idx_tenant_active",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "automation_policies",
+      "indexName": "idx_tenant_active",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "is_active"
+    },
+    {
+      "tableName": "automation_policies",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "claims_claim_number_unique",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_number"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_assigned_assessor_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "assigned_assessor_id"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_claimant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claimant_id"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_created_at",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "created_at"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_fleet_driver_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "fleet_driver_id"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_source_document_id",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "source_document_id"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_status",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "status"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_tenant_created",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_tenant_created",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "created_at"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_tenant_status",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_tenant_status",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "status"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_tenant_workflow_created",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_tenant_workflow_created",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "workflow_state"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_tenant_workflow_created",
+      "nonUnique": 1,
+      "sequence": 3,
+      "columnName": "created_at"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_claims_vehicle_registry_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_registry_id"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_confidence_score",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "confidence_score"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_fraud_risk_score",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "fraud_risk_score"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_policy_version_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "policy_version_id"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "idx_routing_decision",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "routing_decision"
+    },
+    {
+      "tableName": "claims",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "claim_assignments",
+      "indexName": "claim_assignments_assigned_by_user_id_users_id_fk",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "assigned_by_user_id"
+    },
+    {
+      "tableName": "claim_assignments",
+      "indexName": "idx_claim_assignments_assignee_active",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "assigned_to_user_id"
+    },
+    {
+      "tableName": "claim_assignments",
+      "indexName": "idx_claim_assignments_assignee_active",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "status"
+    },
+    {
+      "tableName": "claim_assignments",
+      "indexName": "idx_claim_assignments_claim_active",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "claim_assignments",
+      "indexName": "idx_claim_assignments_claim_active",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "status"
+    },
+    {
+      "tableName": "claim_assignments",
+      "indexName": "idx_claim_assignments_parent",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "parent_assignment_id"
+    },
+    {
+      "tableName": "claim_assignments",
+      "indexName": "idx_claim_assignments_tenant_role",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "claim_assignments",
+      "indexName": "idx_claim_assignments_tenant_role",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "assignment_role"
+    },
+    {
+      "tableName": "claim_assignments",
+      "indexName": "idx_claim_assignments_tenant_role",
+      "nonUnique": 1,
+      "sequence": 3,
+      "columnName": "status"
+    },
+    {
+      "tableName": "claim_assignments",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "indexName": "idx_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "indexName": "idx_composite_score",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "composite_confidence_score"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "indexName": "idx_scoring_timestamp",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "scoring_timestamp"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "indexName": "idx_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "claim_confidence_scores",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "claim_decision_lifecycle",
+      "indexName": "idx_cdl_claim_unique",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "claim_decision_lifecycle",
+      "indexName": "idx_cdl_state",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "lifecycle_state"
+    },
+    {
+      "tableName": "claim_decision_lifecycle",
+      "indexName": "idx_cdl_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "claim_decision_lifecycle",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "claim_documents",
+      "indexName": "idx_category",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "document_category"
+    },
+    {
+      "tableName": "claim_documents",
+      "indexName": "idx_cd_inspection_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "inspection_id"
+    },
+    {
+      "tableName": "claim_documents",
+      "indexName": "idx_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "claim_documents",
+      "indexName": "idx_uploaded_by",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "uploaded_by"
+    },
+    {
+      "tableName": "claim_documents",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "indexName": "fk_crd_automation_policy",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "automation_policy_id"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "indexName": "fk_crd_confidence_score",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "confidence_score_id"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "indexName": "idx_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "indexName": "idx_decision_timestamp",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "decision_timestamp"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "indexName": "idx_routed_workflow",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "routed_workflow"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "indexName": "idx_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "claim_routing_decisions",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_component_severity",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "component_name"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_component_severity",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "severity_at_decision"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_make_model",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_make"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_make_model",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "vehicle_model"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_market_currency",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "market_region"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_market_currency",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "currency_code"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_market_currency",
+      "nonUnique": 1,
+      "sequence": 3,
+      "columnName": "evidence_quality"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_outcome",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "outcome"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_vehicle_precision",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "component_name"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_vehicle_precision",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "vehicle_make"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_vehicle_precision",
+      "nonUnique": 1,
+      "sequence": 3,
+      "columnName": "vehicle_model"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "idx_cro_vehicle_precision",
+      "nonUnique": 1,
+      "sequence": 4,
+      "columnName": "vehicle_year"
+    },
+    {
+      "tableName": "component_repair_outcomes",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "cost_components",
+      "indexName": "idx_cc_claim",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "historical_claim_id"
+    },
+    {
+      "tableName": "cost_components",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "idx_clr_case_signature",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "case_signature"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "idx_clr_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "idx_clr_collision_direction",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "collision_direction"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "idx_clr_market_currency",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "market_region"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "idx_clr_market_currency",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "currency"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "idx_clr_recorded_at",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "recorded_at"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "idx_clr_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "idx_clr_vehicle_descriptor",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_descriptor"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "idx_clr_vehicle_precision",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_make"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "idx_clr_vehicle_precision",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "vehicle_model"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "idx_clr_vehicle_precision",
+      "nonUnique": 1,
+      "sequence": 3,
+      "columnName": "vehicle_year"
+    },
+    {
+      "tableName": "cost_learning_records",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "country_repair_index",
+      "indexName": "idx_cri_country",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "country_code"
+    },
+    {
+      "tableName": "country_repair_index",
+      "indexName": "idx_cri_effective",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "effective_from"
+    },
+    {
+      "tableName": "country_repair_index",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "currency_exchange_rates",
+      "indexName": "currency_exchange_rates_currency_code_unique",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "currency_code"
+    },
+    {
+      "tableName": "currency_exchange_rates",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "customer_documents",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "decision_snapshots",
+      "indexName": "idx_ds_claim",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "decision_snapshots",
+      "indexName": "idx_ds_created",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "created_at"
+    },
+    {
+      "tableName": "decision_snapshots",
+      "indexName": "idx_ds_lifecycle",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "lifecycle_state"
+    },
+    {
+      "tableName": "decision_snapshots",
+      "indexName": "idx_ds_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "decision_snapshots",
+      "indexName": "idx_ds_verdict",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "verdict_decision"
+    },
+    {
+      "tableName": "decision_snapshots",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "document_naming_templates",
+      "indexName": "document_naming_templates_tenant_id_doc_type_unique",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "document_naming_templates",
+      "indexName": "document_naming_templates_tenant_id_doc_type_unique",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "doc_type"
+    },
+    {
+      "tableName": "document_naming_templates",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "drivers",
+      "indexName": "idx_drivers_email",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "email"
+    },
+    {
+      "tableName": "drivers",
+      "indexName": "idx_drivers_full_name",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "full_name"
+    },
+    {
+      "tableName": "drivers",
+      "indexName": "idx_drivers_license_number",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "license_number"
+    },
+    {
+      "tableName": "drivers",
+      "indexName": "idx_drivers_national_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "national_id_number"
+    },
+    {
+      "tableName": "drivers",
+      "indexName": "idx_drivers_phone",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "phone"
+    },
+    {
+      "tableName": "drivers",
+      "indexName": "idx_drivers_repeat_claimer",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "is_repeat_claimer"
+    },
+    {
+      "tableName": "drivers",
+      "indexName": "idx_drivers_risk_score",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "driver_risk_score"
+    },
+    {
+      "tableName": "drivers",
+      "indexName": "idx_drivers_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "drivers",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "extracted_document_data",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "extracted_repair_items",
+      "indexName": "idx_eri_claim",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "historical_claim_id"
+    },
+    {
+      "tableName": "extracted_repair_items",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "fleet_documents",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "fleet_incident_reports",
+      "indexName": "idx_fleet_incident_reports_driver_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "driver_id"
+    },
+    {
+      "tableName": "fleet_incident_reports",
+      "indexName": "idx_fleet_incident_reports_fleet_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "fleet_id"
+    },
+    {
+      "tableName": "fleet_incident_reports",
+      "indexName": "idx_fleet_incident_reports_status",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "status"
+    },
+    {
+      "tableName": "fleet_incident_reports",
+      "indexName": "idx_fleet_incident_reports_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "fleet_incident_reports",
+      "indexName": "idx_fleet_incident_reports_vehicle_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_id"
+    },
+    {
+      "tableName": "fleet_incident_reports",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "fraud_alerts",
+      "indexName": "fraud_alerts_claim_id_claims_id_fk",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "fraud_alerts",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "fraud_indicators",
+      "indexName": "fraud_indicators_claim_id_claims_id_fk",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "fraud_indicators",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "fraud_rules",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "fraud_rules",
+      "indexName": "rule_name",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "rule_name"
+    },
+    {
+      "tableName": "generated_reports",
+      "indexName": "idx_gr_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "generated_reports",
+      "indexName": "idx_gr_created_at",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "created_at"
+    },
+    {
+      "tableName": "generated_reports",
+      "indexName": "idx_gr_generated_by",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "generated_by_user_id"
+    },
+    {
+      "tableName": "generated_reports",
+      "indexName": "idx_gr_report_type",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "report_type"
+    },
+    {
+      "tableName": "generated_reports",
+      "indexName": "idx_gr_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "generated_reports",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "ingestion_documents",
+      "indexName": "document_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "document_id"
+    },
+    {
+      "tableName": "ingestion_documents",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "inspections",
+      "indexName": "idx_inspections_asset",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "asset_registry_id"
+    },
+    {
+      "tableName": "inspections",
+      "indexName": "idx_inspections_claim",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "inspections",
+      "indexName": "idx_inspections_engineer",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "assigned_engineer_id"
+    },
+    {
+      "tableName": "inspections",
+      "indexName": "idx_inspections_project",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "project_id"
+    },
+    {
+      "tableName": "inspections",
+      "indexName": "idx_inspections_ref",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "inspection_ref"
+    },
+    {
+      "tableName": "inspections",
+      "indexName": "idx_inspections_status",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "status"
+    },
+    {
+      "tableName": "inspections",
+      "indexName": "idx_inspections_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "inspections",
+      "indexName": "idx_inspections_vehicle",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_registration"
+    },
+    {
+      "tableName": "inspections",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "insurance_audit_logs",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "insurance_carriers",
+      "indexName": "insurance_carriers_short_code_unique",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "short_code"
+    },
+    {
+      "tableName": "insurance_carriers",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "insurance_policies",
+      "indexName": "insurance_policies_policy_number_unique",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "policy_number"
+    },
+    {
+      "tableName": "insurance_policies",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "insurance_products",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "insurance_quotes",
+      "indexName": "insurance_quotes_quote_number_unique",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "quote_number"
+    },
+    {
+      "tableName": "insurance_quotes",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "insurer_marketplace_links",
+      "indexName": "idx_insurer_marketplace_links_profile",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "marketplace_profile_id"
+    },
+    {
+      "tableName": "insurer_marketplace_links",
+      "indexName": "idx_insurer_marketplace_links_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "insurer_tenant_id"
+    },
+    {
+      "tableName": "insurer_marketplace_links",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "insurer_marketplace_links",
+      "indexName": "unique_insurer_marketplace_link",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "insurer_tenant_id"
+    },
+    {
+      "tableName": "insurer_marketplace_links",
+      "indexName": "unique_insurer_marketplace_link",
+      "nonUnique": 0,
+      "sequence": 2,
+      "columnName": "marketplace_profile_id"
+    },
+    {
+      "tableName": "insurer_marketplace_relationships",
+      "indexName": "idx_imr_profile",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "marketplace_profile_id"
+    },
+    {
+      "tableName": "insurer_marketplace_relationships",
+      "indexName": "idx_imr_status",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "relationship_status"
+    },
+    {
+      "tableName": "insurer_marketplace_relationships",
+      "indexName": "idx_imr_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "insurer_tenant_id"
+    },
+    {
+      "tableName": "insurer_marketplace_relationships",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "insurer_marketplace_relationships",
+      "indexName": "unique_insurer_relationship",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "insurer_tenant_id"
+    },
+    {
+      "tableName": "insurer_marketplace_relationships",
+      "indexName": "unique_insurer_relationship",
+      "nonUnique": 0,
+      "sequence": 2,
+      "columnName": "marketplace_profile_id"
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "indexName": "idx_iqr_agency_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "agency_tenant_id"
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "indexName": "idx_iqr_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "indexName": "idx_iqr_insurer_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "insurer_tenant_id"
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "indexName": "idx_iqr_status",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "status"
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "indexName": "unique_claim_insurer_quote",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "insurer_quote_requests",
+      "indexName": "unique_claim_insurer_quote",
+      "nonUnique": 0,
+      "sequence": 2,
+      "columnName": "insurer_tenant_id"
+    },
+    {
+      "tableName": "marketplace_profiles",
+      "indexName": "idx_marketplace_profiles_approval_status",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "approval_status"
+    },
+    {
+      "tableName": "marketplace_profiles",
+      "indexName": "idx_marketplace_profiles_country_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "country_id"
+    },
+    {
+      "tableName": "marketplace_profiles",
+      "indexName": "idx_marketplace_profiles_type",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "type"
+    },
+    {
+      "tableName": "marketplace_profiles",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "measurement_types",
+      "indexName": "measurement_types_code_unique",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "code"
+    },
+    {
+      "tableName": "measurement_types",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "panel_beater_quotes",
+      "indexName": "idx_panel_beater_quotes_panel_beater_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "panel_beater_id"
+    },
+    {
+      "tableName": "panel_beater_quotes",
+      "indexName": "idx_quotes_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "panel_beater_quotes",
+      "indexName": "idx_quotes_panel_beater_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "panel_beater_id"
+    },
+    {
+      "tableName": "panel_beater_quotes",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "pdf_reports",
+      "indexName": "idx_snapshot_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "snapshot_id"
+    },
+    {
+      "tableName": "pdf_reports",
+      "indexName": "idx_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "pdf_reports",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "physics_validation_records",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "police_reports",
+      "indexName": "police_reports_claim_id_claims_id_fk",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "police_reports",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "policy_documents",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "pre_accident_damage",
+      "indexName": "pre_accident_damage_claim_id_claims_id_fk",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "pre_accident_damage",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "quotation_request_documents",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "quotation_request_documents",
+      "indexName": "qrd_client_user_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "client_user_id"
+    },
+    {
+      "tableName": "quotation_request_documents",
+      "indexName": "qrd_quotation_request_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "quotation_request_id"
+    },
+    {
+      "tableName": "quote_line_items",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "quote_optimisation_results",
+      "indexName": "idx_qor_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "quote_optimisation_results",
+      "indexName": "idx_qor_risk",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "overall_risk_score"
+    },
+    {
+      "tableName": "quote_optimisation_results",
+      "indexName": "idx_qor_status",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "status"
+    },
+    {
+      "tableName": "quote_optimisation_results",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "indexName": "idx_rci_country",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "country"
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "indexName": "idx_rci_damage_category",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "damage_category"
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "indexName": "idx_rci_make_model",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_make"
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "indexName": "idx_rci_make_model",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "vehicle_model"
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "indexName": "idx_rci_unique",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "vehicle_make"
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "indexName": "idx_rci_unique",
+      "nonUnique": 0,
+      "sequence": 2,
+      "columnName": "vehicle_model"
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "indexName": "idx_rci_unique",
+      "nonUnique": 0,
+      "sequence": 3,
+      "columnName": "damage_category"
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "indexName": "idx_rci_unique",
+      "nonUnique": 0,
+      "sequence": 4,
+      "columnName": "country"
+    },
+    {
+      "tableName": "repair_cost_intelligence",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "repair_history",
+      "indexName": "idx_rh_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "repair_history",
+      "indexName": "idx_rh_fraud_flagged",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "is_fraud_flagged"
+    },
+    {
+      "tableName": "repair_history",
+      "indexName": "idx_rh_quality_score",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "repair_quality_score"
+    },
+    {
+      "tableName": "repair_history",
+      "indexName": "idx_rh_repairer_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "repairer_id"
+    },
+    {
+      "tableName": "repair_history",
+      "indexName": "idx_rh_repair_date",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "repair_date"
+    },
+    {
+      "tableName": "repair_history",
+      "indexName": "idx_rh_repeat_damage",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "repeat_damage_within_12_months"
+    },
+    {
+      "tableName": "repair_history",
+      "indexName": "idx_rh_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "repair_history",
+      "indexName": "idx_rh_vehicle_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_id"
+    },
+    {
+      "tableName": "repair_history",
+      "indexName": "idx_rh_warranty_repair",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "is_warranty_repair"
+    },
+    {
+      "tableName": "repair_history",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "report_access_audit",
+      "indexName": "idx_accessed_at",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "accessed_at"
+    },
+    {
+      "tableName": "report_access_audit",
+      "indexName": "idx_accessed_by",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "accessed_by"
+    },
+    {
+      "tableName": "report_access_audit",
+      "indexName": "idx_report_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "report_id"
+    },
+    {
+      "tableName": "report_access_audit",
+      "indexName": "idx_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "report_access_audit",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "report_links",
+      "indexName": "idx_access_token",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "access_token"
+    },
+    {
+      "tableName": "report_links",
+      "indexName": "idx_snapshot_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "snapshot_id"
+    },
+    {
+      "tableName": "report_links",
+      "indexName": "idx_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "report_links",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "report_snapshots",
+      "indexName": "idx_audit_hash",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "audit_hash"
+    },
+    {
+      "tableName": "report_snapshots",
+      "indexName": "idx_claim_version",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "report_snapshots",
+      "indexName": "idx_claim_version",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "version"
+    },
+    {
+      "tableName": "report_snapshots",
+      "indexName": "idx_generated_by",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "generated_by"
+    },
+    {
+      "tableName": "report_snapshots",
+      "indexName": "idx_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "report_snapshots",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "service_quotes",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "supplier_quotes",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "supplier_quote_line_items",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "tenants",
+      "indexName": "idx_tenants_name",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "name"
+    },
+    {
+      "tableName": "tenants",
+      "indexName": "idx_tenants_status",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "status"
+    },
+    {
+      "tableName": "tenants",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "indexName": "email_idx",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "email"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "indexName": "expires_at_idx",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "expires_at"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "indexName": "tenant_id_idx",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "tenant_invitations",
+      "indexName": "tenant_invitations_token_unique",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "token"
+    },
+    {
+      "tableName": "users",
+      "indexName": "idx_users_is_active",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "is_active"
+    },
+    {
+      "tableName": "users",
+      "indexName": "idx_users_phone_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "phone_number"
+    },
+    {
+      "tableName": "users",
+      "indexName": "idx_users_phone_tenant",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "users",
+      "indexName": "idx_users_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "users",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "users",
+      "indexName": "users_openId_unique",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "openId"
+    },
+    {
+      "tableName": "valuation_comparable_evidence",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "valuation_comparable_evidence",
+      "indexName": "valuation_comparable_request_idx",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "valuation_request_id"
+    },
+    {
+      "tableName": "valuation_comparable_evidence",
+      "indexName": "valuation_comparable_source_idx",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "source_type"
+    },
+    {
+      "tableName": "valuation_comparable_evidence",
+      "indexName": "valuation_comparable_source_idx",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "source_reference"
+    },
+    {
+      "tableName": "vehicle_condition_assessment",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "vehicle_condition_assessment",
+      "indexName": "vehicle_condition_assessment_claim_id_claims_id_fk",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "indexName": "idx_vehicle_condition_snapshot_tenant_vehicle",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "indexName": "idx_vehicle_condition_snapshot_tenant_vehicle",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "vehicle_registry_id"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "indexName": "idx_vehicle_condition_snapshot_vehicle_date",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_registry_id"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "indexName": "idx_vehicle_condition_snapshot_vehicle_date",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "snapshot_date"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "indexName": "uq_vehicle_condition_snapshot_version",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "insurance_service_request_id"
+    },
+    {
+      "tableName": "vehicle_condition_snapshots",
+      "indexName": "uq_vehicle_condition_snapshot_version",
+      "nonUnique": 0,
+      "sequence": 2,
+      "columnName": "snapshot_version"
+    },
+    {
+      "tableName": "vehicle_damage_history",
+      "indexName": "idx_vdh_claim_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "vehicle_damage_history",
+      "indexName": "idx_vdh_damage_zone",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "damage_zone"
+    },
+    {
+      "tableName": "vehicle_damage_history",
+      "indexName": "idx_vdh_repairer",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "repairer_id"
+    },
+    {
+      "tableName": "vehicle_damage_history",
+      "indexName": "idx_vdh_repeat_zone",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "is_repeat_zone"
+    },
+    {
+      "tableName": "vehicle_damage_history",
+      "indexName": "idx_vdh_severity",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "severity"
+    },
+    {
+      "tableName": "vehicle_damage_history",
+      "indexName": "idx_vdh_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "vehicle_damage_history",
+      "indexName": "idx_vdh_vehicle_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_id"
+    },
+    {
+      "tableName": "vehicle_damage_history",
+      "indexName": "idx_vdh_vehicle_reg",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_registration"
+    },
+    {
+      "tableName": "vehicle_damage_history",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "vehicle_geometry_measurements",
+      "indexName": "fk_vgm_vehicle_model",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_model_id"
+    },
+    {
+      "tableName": "vehicle_geometry_measurements",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "vehicle_market_valuations",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "vehicle_market_valuations",
+      "indexName": "vehicle_market_valuations_claim_id_claims_id_fk",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "claim_id"
+    },
+    {
+      "tableName": "vehicle_mileage_logs",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "vehicle_models",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "vehicle_passport_snapshots",
+      "indexName": "idx_vps_generated_at",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "generated_at"
+    },
+    {
+      "tableName": "vehicle_passport_snapshots",
+      "indexName": "idx_vps_registration_number",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "registration_number"
+    },
+    {
+      "tableName": "vehicle_passport_snapshots",
+      "indexName": "idx_vps_tenant_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "vehicle_passport_snapshots",
+      "indexName": "idx_vps_vehicle_registry_id",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_registry_id"
+    },
+    {
+      "tableName": "vehicle_passport_snapshots",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "indexName": "idx_vehicle_registry_make_model",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "make"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "indexName": "idx_vehicle_registry_make_model",
+      "nonUnique": 1,
+      "sequence": 2,
+      "columnName": "model"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "indexName": "idx_vehicle_registry_registration",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "registration_number"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "indexName": "idx_vehicle_registry_repeat_claimer",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "is_repeat_claimer"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "indexName": "idx_vehicle_registry_risk_score",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "vehicle_risk_score"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "indexName": "idx_vehicle_registry_tenant",
+      "nonUnique": 1,
+      "sequence": 1,
+      "columnName": "tenant_id"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "indexName": "idx_vehicle_registry_vin",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "vin"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "indexName": "PRIMARY",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "id"
+    },
+    {
+      "tableName": "vehicle_registry",
+      "indexName": "vehicle_registry_vin_unique",
+      "nonUnique": 0,
+      "sequence": 1,
+      "columnName": "vin"
+    }
+  ]
+}

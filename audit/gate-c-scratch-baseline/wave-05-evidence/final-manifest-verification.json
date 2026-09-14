@@ -1,0 +1,11 @@
+{
+  "scope": "Repository-only source-manifest regeneration and verification after the committed Gate C Wave 5 source reconciliation; no database or external target was accessed.",
+  "sourceCommit": "4336a2961147877a373a11a706e2a7ee4604f754",
+  "schemaDeclarations": 241,
+  "mysqlDistinctPhysicalTableNames": 221,
+  "migrationSqlArtifacts": 82,
+  "journalEntries": 57,
+  "verificationResult": "passed",
+  "manifestGeneratorSourceCommitField": "resolved at execution time; see shell record",
+  "status": "passed"
+}

@@ -1,0 +1,22 @@
+{
+  "scope": "Approved Gate C photo-reextraction supplemental source selection only; no database connection or DDL execution occurred.",
+  "sourceSqlSha256": "8aad7291c96684e0f2cbf93a8286741308c4100b32c94a5508d5ddf5dd8f1bac",
+  "outputSqlSha256": "2a63ee8920611fafda605968e250b688049732427399dc643942ed5de39588e9",
+  "tableCount": 1,
+  "tableNames": [
+    "photo_reextraction_jobs"
+  ],
+  "statementCount": 5,
+  "indexStatementCount": 3,
+  "inlineUniqueConstraintCount": 0,
+  "totalSourceDeclaredIndexAndUniqueConstraintCount": 3,
+  "foreignKeyCount": 1,
+  "foreignKeys": [
+    {
+      "source": "photo_reextraction_jobs",
+      "name": "photo_reextraction_jobs_claim_id_claims_id_fk",
+      "target": "claims"
+    }
+  ],
+  "status": "passed"
+}
