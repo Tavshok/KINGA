@@ -1,0 +1,1 @@
+CREATE INDEX `idx_agency_product_commission_tenant` ON `agency_product_commission_configs` (`agency_tenant_id`);

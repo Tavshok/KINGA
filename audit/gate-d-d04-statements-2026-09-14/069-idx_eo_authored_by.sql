@@ -1,0 +1,1 @@
+CREATE INDEX `idx_eo_authored_by` ON `engineer_observations` (`authored_by`);

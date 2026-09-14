@@ -1,0 +1,1 @@
+CREATE INDEX `idx_agency_assisted_claimant_insurer` ON `agency_assisted_claimant_identities` (`insurer_tenant_id`,`status`);

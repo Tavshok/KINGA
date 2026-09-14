@@ -1,0 +1,1 @@
+CREATE INDEX `idx_agency_insurance_valuation_deviation_tenant` ON `agency_insurance_valuation_deviations` (`agency_tenant_id`);

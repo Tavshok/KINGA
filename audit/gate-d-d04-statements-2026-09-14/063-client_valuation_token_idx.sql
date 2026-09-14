@@ -1,0 +1,1 @@
+CREATE INDEX `client_valuation_token_idx` ON `client_vehicle_valuation_requests` (`submission_token`);

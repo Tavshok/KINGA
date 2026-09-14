@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fis_tenant_id` ON `fleet_intelligence_snapshots` (`tenant_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gal_timestamp` ON `governance_audit_log` (`timestamp_ms`);

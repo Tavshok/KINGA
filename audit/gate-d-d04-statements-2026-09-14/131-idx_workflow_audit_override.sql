@@ -1,0 +1,1 @@
+CREATE INDEX `idx_workflow_audit_override` ON `workflow_audit_trail` (`executive_override`,`created_at`);

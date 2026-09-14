@@ -1,0 +1,1 @@
+CREATE INDEX `idx_wa_phone` ON `whatsapp_sessions` (`phone_number`);
