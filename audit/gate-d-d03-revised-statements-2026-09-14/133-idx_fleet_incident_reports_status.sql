@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fleet_incident_reports_status` ON `fleet_incident_reports` (`status`);

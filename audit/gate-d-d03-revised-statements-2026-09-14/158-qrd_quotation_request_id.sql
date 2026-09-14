@@ -1,0 +1,1 @@
+CREATE INDEX `qrd_quotation_request_id` ON `quotation_request_documents` (`quotation_request_id`);

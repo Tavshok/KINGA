@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cro_claim_id` ON `component_repair_outcomes` (`claim_id`);

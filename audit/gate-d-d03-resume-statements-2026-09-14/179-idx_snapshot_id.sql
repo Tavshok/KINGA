@@ -1,0 +1,1 @@
+CREATE INDEX `idx_snapshot_id` ON `report_links` (`snapshot_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_quotes_panel_beater_id` ON `panel_beater_quotes` (`panel_beater_id`);

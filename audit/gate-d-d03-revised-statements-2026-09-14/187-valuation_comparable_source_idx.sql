@@ -1,0 +1,1 @@
+CREATE INDEX `valuation_comparable_source_idx` ON `valuation_comparable_evidence` (`source_type`,`source_reference`);

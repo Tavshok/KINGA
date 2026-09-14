@@ -1,0 +1,1542 @@
+{
+  "schema": "kinga-d03-resume-ledger/v1",
+  "source_ledger": "audit/gate-d-d03-revised-statement-hash-ledger-2026-09-14.json",
+  "source_ledger_sha256": "fae70dd948b828038687334cc256f488bb8f92a1b54e0773ec08570f7908c06b",
+  "source_sha256": "0c45f9ea613381185fd8afecfd99da1bd1d5f3275467c7286e892ab32745e59a",
+  "statement_count": 174,
+  "first_pending_ordinal": 14,
+  "last_pending_ordinal": 187,
+  "accepted_prior_statement_range": "1-13",
+  "execution_boundary": "Statements 1-13 are owner-reported as already executed successfully and must not be retried. Execute only ordinals 14-187, in order, after independently verifying the revised source, full ledger, and this resume ledger.",
+  "statements": [
+    {
+      "ordinal": 14,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "cost_learning_records",
+      "sha256": "082052db3bbe4acc4dd72f10f2d043a2ed7c60f82adca4ea2328db39a00ab3be",
+      "sql": "CREATE TABLE `cost_learning_records` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`claim_id` int,\n\t`tenant_id` varchar(255),\n\t`vehicle_descriptor` varchar(255) NOT NULL,\n\t`vehicle_make` varchar(100),\n\t`vehicle_model` varchar(100),\n\t`vehicle_year` int,\n\t`vehicle_variant` varchar(100),\n\t`vehicle_body_type` varchar(60),\n\t`collision_direction` varchar(50) NOT NULL,\n\t`market_region` varchar(10) NOT NULL DEFAULT 'DEFAULT',\n\t`case_signature` varchar(100) NOT NULL,\n\t`component_count` int NOT NULL DEFAULT 0,\n\t`structural_component_count` int NOT NULL DEFAULT 0,\n\t`currency` varchar(10) NOT NULL DEFAULT 'USD',\n\t`final_cost_usd_cents` int,\n\t`cost_is_agreed` tinyint NOT NULL DEFAULT 0,\n\t`quote_coverage_ratio_pct` int NOT NULL DEFAULT 0,\n\t`high_cost_drivers_json` text NOT NULL DEFAULT (JSON_ARRAY()),\n\t`component_weighting_json` text NOT NULL DEFAULT (JSON_OBJECT()),\n\t`component_detail_json` text NOT NULL DEFAULT (JSON_ARRAY()),\n\t`quality_flags_json` text NOT NULL DEFAULT (JSON_ARRAY()),\n\t`recorded_at` timestamp NOT NULL DEFAULT (now()),\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `cost_learning_records_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 15,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "country_repair_index",
+      "sha256": "4d0d1a10be5448ede2f3aad531d5f81c0b0aa9cbf1218452cc6f37077bbf337b",
+      "sql": "CREATE TABLE `country_repair_index` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`country_code` varchar(10) NOT NULL,\n\t`country_name` varchar(100) NOT NULL,\n\t`vat_rate` decimal(5,4) NOT NULL,\n\t`import_duty_rate` decimal(5,4) NOT NULL,\n\t`avg_labour_rate_per_hour` int NOT NULL,\n\t`currency_code` varchar(10) NOT NULL,\n\t`effective_from` varchar(10) NOT NULL,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `country_repair_index_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 16,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "currency_exchange_rates",
+      "sha256": "4c0e8be93087f0205eeda92b3e654151d8adb5dc59abc9381b2ca68ce0c65456",
+      "sql": "CREATE TABLE `currency_exchange_rates` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`currency_code` varchar(3) NOT NULL,\n\t`currency_name` varchar(100),\n\t`currency_symbol` varchar(10),\n\t`rate_to_usd` decimal(18,6) NOT NULL,\n\t`source` varchar(100) DEFAULT 'manual',\n\t`last_updated` timestamp NOT NULL DEFAULT (now()),\n\t`is_active` tinyint NOT NULL DEFAULT 1,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `currency_exchange_rates_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 17,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "customer_documents",
+      "sha256": "0a213d475d103e19d783c733fbb1e39ce008f1b2d7f63daf9dd0631f2478cf52",
+      "sql": "CREATE TABLE `customer_documents` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`customer_id` int NOT NULL,\n\t`document_type` enum('id_document','drivers_license','proof_of_residence','vehicle_registration','other') NOT NULL,\n\t`document_url` varchar(500) NOT NULL,\n\t`s3_key` varchar(500) NOT NULL,\n\t`verification_status` enum('pending','verified','rejected') NOT NULL DEFAULT 'pending',\n\t`verified_at` timestamp,\n\t`verified_by` int,\n\t`rejection_reason` text,\n\t`file_name` varchar(255),\n\t`file_size` int,\n\t`mime_type` varchar(100),\n\t`tenant_id` varchar(255),\n\t`uploaded_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `customer_documents_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 18,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "decision_snapshots",
+      "sha256": "f1bb6d49569f7d0f3437403f105484c81e47f9bd6b106c5aca76d1bc396a8f54",
+      "sql": "CREATE TABLE `decision_snapshots` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`claim_id` varchar(50) NOT NULL,\n\t`tenant_id` varchar(50) NOT NULL,\n\t`snapshot_version` int NOT NULL DEFAULT 1,\n\t`created_at` bigint NOT NULL,\n\t`created_by_user_id` varchar(50),\n\t`verdict_decision` varchar(50) NOT NULL,\n\t`verdict_primary_reason` text NOT NULL,\n\t`verdict_confidence` int NOT NULL,\n\t`cost_ai_estimate` int NOT NULL,\n\t`cost_quoted` int NOT NULL DEFAULT 0,\n\t`cost_deviation_percent` int NOT NULL DEFAULT 0,\n\t`cost_fair_range_min` int NOT NULL,\n\t`cost_fair_range_max` int NOT NULL,\n\t`cost_verdict` varchar(20) NOT NULL,\n\t`fraud_score` int NOT NULL,\n\t`fraud_level` varchar(20) NOT NULL,\n\t`fraud_contributions_json` text NOT NULL,\n\t`physics_delta_v` int NOT NULL DEFAULT 0,\n\t`physics_velocity_range` varchar(50) NOT NULL DEFAULT '',\n\t`physics_energy_kj` int NOT NULL DEFAULT 0,\n\t`physics_force_kn` int NOT NULL DEFAULT 0,\n\t`physics_estimated` tinyint NOT NULL DEFAULT 0,\n\t`damage_zones_json` text NOT NULL,\n\t`damage_severity` varchar(30) NOT NULL,\n\t`damage_consistency_score` int NOT NULL DEFAULT 0,\n\t`enforcement_trace_json` text NOT NULL,\n\t`confidence_breakdown_json` text NOT NULL,\n\t`missing_fields_json` text NOT NULL,\n\t`estimated_fields_json` text NOT NULL,\n\t`extraction_confidence` int NOT NULL DEFAULT 0,\n\t`snapshot_json` text,\n\t`lifecycle_state` varchar(20) NOT NULL DEFAULT 'DRAFT',\n\t`is_final_snapshot` tinyint NOT NULL DEFAULT 0,\n\tCONSTRAINT `decision_snapshots_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 19,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "document_naming_templates",
+      "sha256": "a8b9b67d24d880314eb939cd5fcc468bc5cfa4e23d555b17f3f04ab8afa0944d",
+      "sql": "CREATE TABLE `document_naming_templates` (\n\t`id` varchar(64) NOT NULL,\n\t`tenant_id` varchar(64) NOT NULL,\n\t`doc_type` enum('claim','assessment','report','approval') NOT NULL,\n\t`template` varchar(500) NOT NULL,\n\t`description` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `document_naming_templates_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 20,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "extracted_document_data",
+      "sha256": "b100845cbd7802c51271701873bfb228b567814490494bb90be9aa0170206828",
+      "sql": "CREATE TABLE `extracted_document_data` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`document_id` int NOT NULL,\n\t`policy_number` varchar(100),\n\t`claim_number` varchar(100),\n\t`insured_name` varchar(255),\n\t`insured_id_number` varchar(50),\n\t`insured_phone` varchar(50),\n\t`insured_email` varchar(320),\n\t`insured_address` text,\n\t`incident_date` date,\n\t`incident_time` time,\n\t`incident_location` text,\n\t`incident_description` text,\n\t`vehicle_make` varchar(100),\n\t`vehicle_model` varchar(100),\n\t`vehicle_year` int,\n\t`vehicle_vin` varchar(50),\n\t`vehicle_license_plate` varchar(20),\n\t`vehicle_mass` int,\n\t`repair_cost_estimate` decimal(10,2),\n\t`repair_parts_list` json,\n\t`repair_labor_hours` decimal(6,2),\n\t`repair_labor_rate` decimal(10,2),\n\t`assessor_name` varchar(255),\n\t`assessor_license_number` varchar(100),\n\t`assessor_observations` text,\n\t`damage_severity` enum('minor','moderate','severe','total_loss'),\n\t`extraction_confidence` decimal(5,4),\n\t`fields_extracted_count` int,\n\t`fields_missing_count` int,\n\t`full_text` longtext,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `extracted_document_data_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 21,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "extracted_repair_items",
+      "sha256": "313cfe359bf1f37dad1c1c3bbd2eceb87bfce831c74299058f9220d1425ac8c3",
+      "sql": "CREATE TABLE `extracted_repair_items` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`historical_claim_id` int NOT NULL,\n\t`document_id` int,\n\t`source_type` enum('panel_beater_quote','assessor_report','ai_estimate') NOT NULL,\n\t`item_number` int,\n\t`description` varchar(500) NOT NULL,\n\t`part_number` varchar(100),\n\t`category` enum('parts','labor','paint','diagnostic','sundries','sublet','other') NOT NULL,\n\t`damage_location` varchar(200),\n\t`repair_action` enum('repair','replace','refinish','blend','remove_refit'),\n\t`quantity` decimal(10,2) DEFAULT '1.00',\n\t`unit_price` decimal(10,2),\n\t`line_total` decimal(10,2),\n\t`labor_hours` decimal(6,2),\n\t`labor_rate` decimal(10,2),\n\t`parts_quality` enum('oem','genuine','aftermarket','used','reconditioned'),\n\t`betterment_percent` decimal(5,2),\n\t`betterment_amount` decimal(10,2),\n\t`extraction_confidence` decimal(5,4),\n\t`is_handwritten` tinyint DEFAULT 0,\n\t`manually_verified` tinyint DEFAULT 0,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `extracted_repair_items_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 22,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "fleet_documents",
+      "sha256": "3ff91d5698ad11d88a8b5a7823528fda8be4648be6334930d45f546130b0bcef",
+      "sql": "CREATE TABLE `fleet_documents` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`fleet_id` int,\n\t`vehicle_id` int,\n\t`tenant_id` varchar(64),\n\t`document_type` enum('registration_book','ownership_certificate','inspection_report','insurance_policy','service_history','photo','valuation_report','other') NOT NULL,\n\t`document_name` varchar(255) NOT NULL,\n\t`s3_key` varchar(500) NOT NULL,\n\t`s3_url` text NOT NULL,\n\t`file_size` int,\n\t`mime_type` varchar(100),\n\t`verification_status` enum('pending','verified','rejected') DEFAULT 'pending',\n\t`verified_by` int,\n\t`verified_at` timestamp,\n\t`rejection_reason` text,\n\t`uploaded_by` int NOT NULL,\n\t`uploaded_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `fleet_documents_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 23,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "fleet_incident_reports",
+      "sha256": "0894e278f383c773d6f8b3ecad579e23b1664b4b5c0e1d9b576cd96eb7d60e7f",
+      "sql": "CREATE TABLE `fleet_incident_reports` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`vehicle_id` int NOT NULL,\n\t`driver_id` int NOT NULL,\n\t`fleet_id` int NOT NULL,\n\t`tenant_id` varchar(64) NOT NULL,\n\t`incident_date` timestamp NOT NULL,\n\t`location` text NOT NULL,\n\t`description` text NOT NULL,\n\t`severity` enum('minor','moderate','major','critical') NOT NULL DEFAULT 'minor',\n\t`status` enum('submitted','under_review','approved','rejected','claim_filed') NOT NULL DEFAULT 'submitted',\n\t`police_report_number` varchar(100),\n\t`witness_name` varchar(255),\n\t`witness_phone` varchar(50),\n\t`estimated_damage` decimal(10,2),\n\t`vehicle_driveable` tinyint DEFAULT 1,\n\t`reviewed_by` int,\n\t`reviewed_at` timestamp,\n\t`review_notes` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `fleet_incident_reports_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 24,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "fraud_alerts",
+      "sha256": "749f58361b22245f8201e4a7cd2bfb44df08ddd57da31712a9c4ce4fb3425b3b",
+      "sql": "CREATE TABLE `fraud_alerts` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`claim_id` int NOT NULL,\n\t`alert_type` varchar(100) NOT NULL,\n\t`alert_severity` enum('low','medium','high','critical') NOT NULL,\n\t`alert_title` varchar(255) NOT NULL,\n\t`alert_description` text NOT NULL,\n\t`triggered_rule_id` int,\n\t`triggered_rule_name` varchar(255),\n\t`related_entity_type` varchar(50),\n\t`related_entity_id` int,\n\t`alert_data` text,\n\t`fraud_score` int,\n\t`status` enum('new','acknowledged','investigating','resolved','false_alarm') NOT NULL DEFAULT 'new',\n\t`assigned_to` int,\n\t`resolution_notes` text,\n\t`resolution_date` timestamp,\n\t`is_fraud_confirmed` tinyint,\n\t`actions_taken` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `fraud_alerts_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 25,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "fraud_indicators",
+      "sha256": "3865d2f283c1a4e5a304a27fb31a044be939fce74710755e6f0b7e151f9ddf9a",
+      "sql": "CREATE TABLE `fraud_indicators` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`claim_id` int NOT NULL,\n\t`overall_fraud_score` int NOT NULL,\n\t`fraud_risk_level` enum('low','medium','moderate','high','critical','elevated') NOT NULL,\n\t`delayed_submission_days` int,\n\t`delayed_submission_score` int,\n\t`is_non_owner_driver` tinyint DEFAULT 0,\n\t`non_owner_driver_score` int,\n\t`is_sole_party_night_accident` tinyint DEFAULT 0,\n\t`sole_party_night_score` int,\n\t`policy_age_days` int,\n\t`new_policy_write_off_score` int,\n\t`previous_insurer_count` int,\n\t`insurer_hopping_score` int,\n\t`claimant_history_score` int,\n\t`quote_similarity_score` int,\n\t`has_copy_quotations` tinyint DEFAULT 0,\n\t`inflated_parts_cost_score` int,\n\t`inflated_labor_time_score` int,\n\t`exaggerated_damage_score` int,\n\t`replacement_vs_repair_ratio` int,\n\t`replacement_ratio_score` int,\n\t`damage_scope_creep_score` int,\n\t`assessor_collusion_score` int,\n\t`assessor_bias_score` int,\n\t`rubber_stamping_score` int,\n\t`photo_metadata_score` int,\n\t`reused_photo_score` int,\n\t`document_consistency_score` int,\n\t`staged_accident_score` int,\n\t`geographic_risk_score` int,\n\t`temporal_anomaly_score` int,\n\t`detected_patterns` text,\n\t`fraud_evidence` text,\n\t`requires_investigation` tinyint NOT NULL DEFAULT 0,\n\t`investigation_priority` enum('low','medium','high','urgent'),\n\t`investigation_status` enum('pending','in_progress','completed','closed') DEFAULT 'pending',\n\t`investigation_notes` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\t`tenant_id` varchar(255),\n\tCONSTRAINT `fraud_indicators_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 26,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "fraud_rules",
+      "sha256": "ff48eafdd63f3fc643d26120bc640b6aa0dcd32bd939abe953a59c5d5b8a2a8b",
+      "sql": "CREATE TABLE `fraud_rules` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`rule_name` varchar(255) NOT NULL,\n\t`rule_description` text,\n\t`rule_category` enum('claimant','panel_beater','assessor','vehicle','document','temporal','geographic','network') NOT NULL,\n\t`is_active` tinyint NOT NULL DEFAULT 1,\n\t`severity` enum('low','medium','high','critical') NOT NULL,\n\t`score_weight` int NOT NULL DEFAULT 10,\n\t`threshold_value` int,\n\t`threshold_unit` varchar(50),\n\t`rule_logic` text,\n\t`auto_flag` tinyint DEFAULT 1,\n\t`requires_manual_review` tinyint DEFAULT 0,\n\t`notify_investigator` tinyint DEFAULT 0,\n\t`times_triggered` int DEFAULT 0,\n\t`true_positive_count` int DEFAULT 0,\n\t`false_positive_count` int DEFAULT 0,\n\t`accuracy` int DEFAULT 0,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `fraud_rules_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 27,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "generated_reports",
+      "sha256": "0335314fe40beacef7fb62f09160b03bbd53840e63c437e471fdcce0555538aa",
+      "sql": "CREATE TABLE `generated_reports` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`tenant_id` int NOT NULL,\n\t`claim_id` int,\n\t`report_type` enum('claims_assessment','portfolio_summary','fraud_intelligence','executive_summary','risk_portfolio','processor_performance','assessor_performance','panel_beater_performance') NOT NULL,\n\t`tier` enum('process','protect','prove') NOT NULL DEFAULT 'process',\n\t`s3_key` varchar(500) NOT NULL,\n\t`url` varchar(1000) NOT NULL,\n\t`generated_by_user_id` int NOT NULL,\n\t`generated_at` varchar(50) NOT NULL,\n\t`file_size_bytes` int,\n\t`page_count` int,\n\t`status` enum('generating','ready','failed') NOT NULL DEFAULT 'ready',\n\t`error_message` text,\n\t`created_at` varchar(50) NOT NULL,\n\tCONSTRAINT `generated_reports_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 28,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "ingestion_documents",
+      "sha256": "414aa8a889f1ae55df64640a0c84360f400a98cbfb9728e7de069d43311f6a50",
+      "sql": "CREATE TABLE `ingestion_documents` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`tenant_id` varchar(64) NOT NULL,\n\t`batch_id` int NOT NULL,\n\t`document_id` varchar(36) NOT NULL,\n\t`original_filename` varchar(500) NOT NULL,\n\t`file_size_bytes` int NOT NULL,\n\t`mime_type` varchar(100) NOT NULL,\n\t`s3_bucket` varchar(255) NOT NULL,\n\t`s3_key` varchar(1024) NOT NULL,\n\t`s3_url` varchar(2048) NOT NULL,\n\t`sha256_hash` varchar(64) NOT NULL,\n\t`hash_verified` tinyint NOT NULL DEFAULT 0,\n\t`document_type` enum('claim_form','police_report','damage_image','repair_quote','assessor_report','supporting_evidence','unknown'),\n\t`classification_confidence` decimal(5,4),\n\t`classification_method` enum('ai_model','rule_based','manual_override'),\n\t`extraction_status` enum('pending','processing','completed','failed') NOT NULL DEFAULT 'pending',\n\t`extraction_started_at` timestamp,\n\t`extraction_completed_at` timestamp,\n\t`validation_status` enum('pending','in_review','approved','rejected') NOT NULL DEFAULT 'pending',\n\t`validated_by_user_id` int,\n\t`validated_at` timestamp,\n\t`page_count` int,\n\t`language_detected` varchar(10),\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`p_hash` varchar(64),\n\t`historical_claim_id` int,\n\tCONSTRAINT `ingestion_documents_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 29,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "insurer_marketplace_links",
+      "sha256": "10c634f88dc1329ddf4c0841e59c7fca9f8bf2d367dd3afbc9a75d0846a3ac1d",
+      "sql": "CREATE TABLE `insurer_marketplace_links` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`insurer_tenant_id` varchar(64) NOT NULL,\n\t`marketplace_profile_id` varchar(36) NOT NULL,\n\t`status` enum('active','suspended') NOT NULL DEFAULT 'active',\n\t`linked_by` int,\n\t`linked_at` timestamp NOT NULL DEFAULT (now()),\n\t`suspended_at` timestamp,\n\t`suspension_reason` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `insurer_marketplace_links_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `unique_insurer_marketplace_link` UNIQUE(`insurer_tenant_id`,`marketplace_profile_id`)\n);"
+    },
+    {
+      "ordinal": 30,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "insurer_marketplace_relationships",
+      "sha256": "85e6cc6e71582054b4d39d3ca02774325daf4e353224fd41ead9f4197ee6d3ad",
+      "sql": "CREATE TABLE `insurer_marketplace_relationships` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`insurer_tenant_id` varchar(255) NOT NULL,\n\t`marketplace_profile_id` varchar(36) NOT NULL,\n\t`relationship_status` enum('approved','suspended','blacklisted') NOT NULL DEFAULT 'approved',\n\t`sla_signed` tinyint NOT NULL DEFAULT 0,\n\t`preferred` tinyint NOT NULL DEFAULT 0,\n\t`notes` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `insurer_marketplace_relationships_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `unique_insurer_relationship` UNIQUE(`insurer_tenant_id`,`marketplace_profile_id`)\n);"
+    },
+    {
+      "ordinal": 31,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "insurer_quote_requests",
+      "sha256": "4fe5eaf04c074d53d895d939bae88b277aa13bebd1087d46205b800fd9dc77c5",
+      "sql": "CREATE TABLE `insurer_quote_requests` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`claim_id` int NOT NULL,\n\t`insurer_tenant_id` varchar(64) NOT NULL,\n\t`agency_tenant_id` varchar(64) NOT NULL,\n\t`status` enum('pending','sent','quoted','accepted','rejected','expired') NOT NULL DEFAULT 'pending',\n\t`quote_amount` decimal(12,2),\n\t`quote_currency` varchar(10) DEFAULT 'USD',\n\t`quote_notes` text,\n\t`quote_valid_until` timestamp,\n\t`sent_at` timestamp,\n\t`quoted_at` timestamp,\n\t`responded_at` timestamp,\n\t`request_type` enum('standard_claim','fleet_policy') NOT NULL DEFAULT 'standard_claim',\n\t`claim_source` varchar(50) NOT NULL DEFAULT 'direct',\n\t`fleet_account_id` int,\n\t`vehicle_count` int,\n\t`estimated_total_value` decimal(14,2),\n\t`claims_history_summary` text,\n\t`commission_estimate` decimal(12,2),\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `insurer_quote_requests_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `unique_claim_insurer_quote` UNIQUE(`claim_id`,`insurer_tenant_id`)\n);"
+    },
+    {
+      "ordinal": 32,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "marketplace_profiles",
+      "sha256": "57e12680fd2730f7472692d199e22b6a20d09bbb69e512531422f45bc33dd3af",
+      "sql": "CREATE TABLE `marketplace_profiles` (\n\t`id` varchar(36) NOT NULL,\n\t`type` enum('assessor','panel_beater') NOT NULL,\n\t`company_name` varchar(255) NOT NULL,\n\t`country_id` varchar(10) NOT NULL DEFAULT 'ZA',\n\t`contact_email` varchar(320),\n\t`contact_phone` varchar(50),\n\t`address` text,\n\t`license_number` varchar(100),\n\t`specializations` json,\n\t`approval_status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',\n\t`rejection_reason` text,\n\t`approved_by` int,\n\t`approved_at` timestamp,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `marketplace_profiles_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 33,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "panel_beater_quotes",
+      "sha256": "8cbf40f4ecb509dcdc5dd8da0685d505f6f4d0299fa4a4e7b17bf1e4ebe1e24e",
+      "sql": "CREATE TABLE `panel_beater_quotes` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`claim_id` int NOT NULL,\n\t`panel_beater_id` int NOT NULL,\n\t`quoted_amount` int NOT NULL,\n\t`labor_cost` int,\n\t`parts_cost` int,\n\t`estimated_duration` int,\n\t`labor_hours` int,\n\t`itemized_breakdown` text,\n\t`notes` text,\n\t`modified` tinyint DEFAULT 0,\n\t`original_quoted_amount` int,\n\t`modification_reason` text,\n\t`modified_by_assessor_id` int,\n\t`panel_beater_agreed` tinyint,\n\t`quote_type` enum('original','strip_requote','assessor_adjusted','supplementary','revised') NOT NULL DEFAULT 'original',\n\t`parent_quote_id` int,\n\t`status` enum('draft','submitted','modified','accepted','rejected') NOT NULL DEFAULT 'draft',\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\t`components_json` text,\n\t`parts_quality` enum('aftermarket','oem','genuine','used') DEFAULT 'aftermarket',\n\t`warranty_months` int DEFAULT 12,\n\t`tenant_id` varchar(255),\n\t`currency_code` varchar(10) DEFAULT 'USD',\n\t`quote_audit_json` text,\n\t`quote_congruency_score` decimal(5,2),\n\tCONSTRAINT `panel_beater_quotes_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 34,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "pdf_reports",
+      "sha256": "70a57d8c569d34615ecc480cab0ef2b880508e5158078795364617258e1d395e",
+      "sql": "CREATE TABLE `pdf_reports` (\n\t`id` varchar(255) NOT NULL,\n\t`snapshot_id` varchar(255) NOT NULL,\n\t`s3_url` text NOT NULL,\n\t`file_size_bytes` int NOT NULL,\n\t`generated_at` timestamp NOT NULL DEFAULT (now()),\n\t`deleted_at` timestamp,\n\t`tenant_id` varchar(255) NOT NULL,\n\tCONSTRAINT `pdf_reports_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 35,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "physics_validation_records",
+      "sha256": "3bf7c1d2d889d979cfec56bcd4c93107233cf82eb4a1bd2ee1590a407feb42b1",
+      "sql": "CREATE TABLE `physics_validation_records` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`claim_id` varchar(50) NOT NULL,\n\t`assessment_id` int,\n\t`predicted_speed_kmh` decimal(6,2),\n\t`predicted_speed_low_kmh` decimal(6,2),\n\t`predicted_speed_high_kmh` decimal(6,2),\n\t`predicted_crush_depth_mm` decimal(7,2),\n\t`predicted_repair_cost_local` decimal(12,2),\n\t`predicted_delta_v_kmh` decimal(6,2),\n\t`uncertainty_grade` varchar(1),\n\t`integrity_score` int,\n\t`actual_speed_kmh` decimal(6,2),\n\t`actual_repair_cost_local` decimal(12,2),\n\t`actual_damage_zone` varchar(50),\n\t`actual_settlement_amount` decimal(12,2),\n\t`adjuster_override_reason` text,\n\t`speed_deviation_pct` decimal(7,3),\n\t`cost_deviation_pct` decimal(7,3),\n\t`speed_within_ci` tinyint,\n\t`calibration_feedback_json` json,\n\t`validation_status` varchar(30) NOT NULL DEFAULT 'pending',\n\t`validated_at` timestamp,\n\t`created_at` timestamp DEFAULT CURRENT_TIMESTAMP,\n\t`updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `physics_validation_records_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 36,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "police_reports",
+      "sha256": "fe67a55b4b2b0c083db10a7d2ead5f7ee46eabb74d055121a13c4ba943c1ddb3",
+      "sql": "CREATE TABLE `police_reports` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`claim_id` int NOT NULL,\n\t`report_number` varchar(100) NOT NULL,\n\t`police_station` varchar(200),\n\t`officer_name` varchar(200),\n\t`officer_badge_number` varchar(100),\n\t`report_date` timestamp,\n\t`reported_speed` int,\n\t`reported_weather` varchar(100),\n\t`reported_road_condition` varchar(100),\n\t`reported_visibility` varchar(100),\n\t`accident_location` text,\n\t`accident_description` text,\n\t`violations_issued` text,\n\t`citation_numbers` text,\n\t`witness_statements` text,\n\t`witness_count` int DEFAULT 0,\n\t`police_photos` text,\n\t`accident_diagram` varchar(500),\n\t`report_document_url` varchar(500),\n\t`speed_discrepancy` int,\n\t`location_mismatch` tinyint DEFAULT 0,\n\t`weather_mismatch` tinyint DEFAULT 0,\n\t`description_inconsistent` tinyint DEFAULT 0,\n\t`notes` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\t`road_surface` varchar(100),\n\t`vehicle1_mass` int,\n\t`vehicle2_mass` int,\n\t`skid_mark_length` decimal(10,2),\n\t`impact_speed` int,\n\t`road_gradient` decimal(5,2),\n\t`lighting_condition` varchar(100),\n\t`traffic_condition` varchar(100),\n\t`ocr_extracted` tinyint DEFAULT 0,\n\t`ocr_confidence` int,\n\t`ocr_notes` text,\n\tCONSTRAINT `police_reports_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 37,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "policy_documents",
+      "sha256": "af6c8b7bfdb1a5186638cf1840054c82ce709987f30ea88d0785cf4edb19a1c3",
+      "sql": "CREATE TABLE `policy_documents` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`policy_id` int NOT NULL,\n\t`document_type` enum('policy_schedule','certificate_of_insurance','endorsement','cancellation_notice','renewal_notice','other') NOT NULL,\n\t`document_url` varchar(500) NOT NULL,\n\t`s3_key` varchar(500) NOT NULL,\n\t`version` int NOT NULL DEFAULT 1,\n\t`file_name` varchar(255),\n\t`file_size` int,\n\t`mime_type` varchar(100),\n\t`uploaded_by` int,\n\t`tenant_id` varchar(255),\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `policy_documents_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 38,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "pre_accident_damage",
+      "sha256": "145ee9d2955eb81a81124c23e1c29c366d5232f9e8a0fb328d573db2ef4c123e",
+      "sql": "CREATE TABLE `pre_accident_damage` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`claim_id` int NOT NULL,\n\t`damage_type` enum('rust','dent','scratch','paint_damage','mechanical','glass','interior','other') NOT NULL,\n\t`location` varchar(200) NOT NULL,\n\t`severity` enum('minor','moderate','severe') NOT NULL,\n\t`description` text,\n\t`photo_url` varchar(500),\n\t`documented_date` timestamp,\n\t`estimated_age` varchar(100),\n\t`is_related_to_current_claim` tinyint DEFAULT 0,\n\t`assessor_notes` text,\n\t`documented_by` int,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `pre_accident_damage_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 39,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "quotation_request_documents",
+      "sha256": "875681dc5fe22712f403ddc67bc152df7bf0f470fd7fa3d7cb9171552401c2fe",
+      "sql": "CREATE TABLE `quotation_request_documents` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`quotation_request_id` int NOT NULL,\n\t`client_user_id` int,\n\t`document_type_qrd` enum('policy_schedule','certificate_of_insurance','endorsement','renewal_notice','cancellation_notice','cover_note','debit_note','claim_form','proposal_form','other') NOT NULL DEFAULT 'other',\n\t`title` varchar(255) NOT NULL,\n\t`file_name` varchar(255) NOT NULL,\n\t`file_url` text NOT NULL,\n\t`s3_key` varchar(500) NOT NULL,\n\t`file_size` int,\n\t`mime_type` varchar(100),\n\t`sent_by_agent_id` int,\n\t`delivered_to_client` tinyint NOT NULL DEFAULT 1,\n\t`emailed_to_client` tinyint NOT NULL DEFAULT 0,\n\t`notes` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `quotation_request_documents_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 40,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "quote_line_items",
+      "sha256": "c978068f7715a586dbf0732218c4a289a1bde1094059c3ff85f25b1a82d5c1da",
+      "sql": "CREATE TABLE `quote_line_items` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`quote_id` int NOT NULL,\n\t`item_number` int,\n\t`description` varchar(500) NOT NULL,\n\t`part_number` varchar(100),\n\t`category` enum('parts','labor','paint','diagnostic','sundries','other') NOT NULL,\n\t`quantity` decimal(10,2) NOT NULL,\n\t`unit_price` decimal(10,2) NOT NULL,\n\t`line_total` decimal(10,2) NOT NULL,\n\t`currency` varchar(10) NOT NULL DEFAULT 'USD',\n\t`vat_rate` decimal(5,2) DEFAULT '15.00',\n\t`vat_amount` decimal(10,2),\n\t`total_with_vat` decimal(10,2),\n\t`is_repair` tinyint DEFAULT 0,\n\t`is_replacement` tinyint DEFAULT 1,\n\t`betterment_amount` decimal(10,2),\n\t`net_cost` decimal(10,2),\n\t`is_price_inflated` tinyint DEFAULT 0,\n\t`is_unrelated_damage` tinyint DEFAULT 0,\n\t`is_missing_in_other_quotes` tinyint DEFAULT 0,\n\t`notes` text,\n\t`ai_review` varchar(50),\n\t`part_origin` enum('oem','aftermarket','reconditioned','used','unknown') DEFAULT 'unknown',\n\t`repairer_name` varchar(255),\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `quote_line_items_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 41,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "quote_optimisation_results",
+      "sha256": "a727dc3e4d5fe0254d16240e4512a54159e8854818edfb99d9fd0b9d3777e270",
+      "sql": "CREATE TABLE `quote_optimisation_results` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`claim_id` int NOT NULL,\n\t`triggered_at` timestamp NOT NULL DEFAULT (now()),\n\t`triggered_by` int,\n\t`status` enum('pending','processing','completed','failed') NOT NULL DEFAULT 'pending',\n\t`quote_analysis` json,\n\t`recommended_profile_id` varchar(36),\n\t`recommended_company_name` varchar(255),\n\t`overall_risk_score` enum('low','medium','high','critical'),\n\t`risk_score_numeric` decimal(5,2),\n\t`overpricing_detected` tinyint NOT NULL DEFAULT 0,\n\t`parts_inflation_detected` tinyint NOT NULL DEFAULT 0,\n\t`labour_inflation_detected` tinyint NOT NULL DEFAULT 0,\n\t`optimisation_summary` text,\n\t`raw_llm_response` json,\n\t`insurer_accepted_recommendation` tinyint,\n\t`insurer_decision_by` int,\n\t`insurer_decision_at` timestamp,\n\t`insurer_override_reason` text,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `quote_optimisation_results_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 42,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "repair_cost_intelligence",
+      "sha256": "41ec19263e5f7a26e1517604bf5fa5aa5b0849d571455b4b8a205cf3273ec31c",
+      "sql": "CREATE TABLE `repair_cost_intelligence` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`vehicle_make` varchar(100) NOT NULL,\n\t`vehicle_model` varchar(100) NOT NULL,\n\t`vehicle_year` int,\n\t`damage_category` varchar(100) NOT NULL,\n\t`country` varchar(10) NOT NULL DEFAULT 'ZA',\n\t`median_repair_cost` int NOT NULL,\n\t`min_repair_cost` int NOT NULL,\n\t`max_repair_cost` int NOT NULL,\n\t`claim_count` int NOT NULL DEFAULT 0,\n\t`intelligence_confidence` enum('low','medium','high') NOT NULL DEFAULT 'low',\n\t`last_updated` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `repair_cost_intelligence_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `idx_rci_unique` UNIQUE(`vehicle_make`,`vehicle_model`,`damage_category`,`country`)\n);"
+    },
+    {
+      "ordinal": 43,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "repair_history",
+      "sha256": "eefe3a0c500b2cb63bd6391936b56c7207395aa956c7f15254fef6059141303c",
+      "sql": "CREATE TABLE `repair_history` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`repairer_id` int NOT NULL,\n\t`vehicle_id` int,\n\t`claim_id` int NOT NULL,\n\t`components_repaired_json` text,\n\t`component_count` int NOT NULL DEFAULT 0,\n\t`component_match_score` int NOT NULL DEFAULT 100,\n\t`repair_cost_cents` int NOT NULL DEFAULT 0,\n\t`labour_cost_cents` int NOT NULL DEFAULT 0,\n\t`parts_cost_cents` int NOT NULL DEFAULT 0,\n\t`ai_estimated_cost_cents` int NOT NULL DEFAULT 0,\n\t`cost_deviation_pct` decimal(7,2),\n\t`approval_date` varchar(20),\n\t`repair_date` varchar(20),\n\t`repair_duration_days` int,\n\t`repeat_damage_within_12_months` tinyint NOT NULL DEFAULT 0,\n\t`repair_cost_ratio` decimal(6,3),\n\t`repair_quality_score` int NOT NULL DEFAULT 0,\n\t`is_warranty_repair` tinyint NOT NULL DEFAULT 0,\n\t`original_repair_id` int,\n\t`is_fraud_flagged` tinyint NOT NULL DEFAULT 0,\n\t`fraud_signals_json` text,\n\t`damage_history_ids_json` text,\n\t`damage_history_link_count` int NOT NULL DEFAULT 0,\n\t`tenant_id` varchar(255),\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `repair_history_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 44,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "report_access_audit",
+      "sha256": "0e2ed5a1e727e1053f9c3347ceaf5de0afa94d9476dce2dd17793d07a277d822",
+      "sql": "CREATE TABLE `report_access_audit` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`report_id` varchar(255) NOT NULL,\n\t`report_type` enum('pdf','interactive') NOT NULL,\n\t`accessed_by` int NOT NULL,\n\t`access_type` enum('view','download','export','create') NOT NULL,\n\t`accessed_at` timestamp NOT NULL DEFAULT (now()),\n\t`ip_address` varchar(45),\n\t`user_agent` text,\n\t`tenant_id` varchar(255) NOT NULL,\n\tCONSTRAINT `report_access_audit_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 45,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "report_links",
+      "sha256": "9760a97fab33d5128e6d2b924cb77da63bf250dce512a36542bf4d5556bbea1d",
+      "sql": "CREATE TABLE `report_links` (\n\t`id` varchar(255) NOT NULL,\n\t`snapshot_id` varchar(255) NOT NULL,\n\t`interactive_url` text NOT NULL,\n\t`access_token` varchar(255) NOT NULL,\n\t`qr_code_data` text,\n\t`expires_at` timestamp,\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\t`tenant_id` varchar(255) NOT NULL,\n\tCONSTRAINT `report_links_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 46,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "report_snapshots",
+      "sha256": "13bb82163ba250420bb6ce2d534303d1c75a8063e4ad2baf9acf58d9434d2e04",
+      "sql": "CREATE TABLE `report_snapshots` (\n\t`id` varchar(255) NOT NULL,\n\t`claim_id` int NOT NULL,\n\t`version` int NOT NULL,\n\t`report_type` enum('insurer','assessor','regulatory') NOT NULL,\n\t`intelligence_data` json NOT NULL,\n\t`audit_hash` varchar(64) NOT NULL,\n\t`generated_by` int NOT NULL,\n\t`generated_at` timestamp NOT NULL DEFAULT (now()),\n\t`is_immutable` tinyint NOT NULL DEFAULT 1,\n\t`tenant_id` varchar(255) NOT NULL,\n\tCONSTRAINT `report_snapshots_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 47,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "service_quotes",
+      "sha256": "0ba54ba721d5ed80cc01f507002936a4aa6cb1623958f8f4da93a16c54b65f1d",
+      "sql": "CREATE TABLE `service_quotes` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`request_id` int NOT NULL,\n\t`provider_id` int NOT NULL,\n\t`tenant_id` varchar(64),\n\t`quoted_amount` int NOT NULL,\n\t`labor_cost` int,\n\t`parts_cost` int,\n\t`additional_costs` int,\n\t`estimated_duration` int,\n\t`availability_date` timestamp,\n\t`completion_date` timestamp,\n\t`quote_line_items` text,\n\t`parts_required` text,\n\t`provider_name` varchar(255) NOT NULL,\n\t`provider_location` varchar(255),\n\t`provider_rating` decimal(3,2),\n\t`provider_completed_jobs` int,\n\t`ai_cost_score` int,\n\t`cost_deviation_percent` decimal(5,2),\n\t`recommendation_score` int,\n\t`status` enum('pending','accepted','rejected','expired') DEFAULT 'pending',\n\t`valid_until` timestamp,\n\t`submitted_at` timestamp NOT NULL DEFAULT (now()),\n\t`accepted_at` timestamp,\n\tCONSTRAINT `service_quotes_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 48,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "supplier_quote_line_items",
+      "sha256": "5ca2220c9ee9a37e35d6630e0c3b7f575cf08d9283730c262c066caeb68c1cc8",
+      "sql": "CREATE TABLE `supplier_quote_line_items` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`quote_id` int NOT NULL,\n\t`part_name` varchar(255) NOT NULL,\n\t`part_number` varchar(100),\n\t`part_description` text,\n\t`part_category` varchar(100),\n\t`vehicle_make` varchar(100),\n\t`vehicle_model` varchar(100),\n\t`vehicle_year_from` int,\n\t`vehicle_year_to` int,\n\t`price` decimal(10,2) NOT NULL,\n\t`currency` varchar(3) NOT NULL,\n\t`part_type` enum('OEM','OEM_Equivalent','Aftermarket','Used','Unknown') DEFAULT 'Unknown',\n\t`quantity` int DEFAULT 1,\n\t`approved` tinyint DEFAULT 0,\n\t`rejection_reason` text,\n\t`extracted_at` timestamp NOT NULL DEFAULT (now()),\n\t`line_number` int,\n\t`shipping_cost` decimal(10,2),\n\t`customs_duty` decimal(10,2),\n\t`clearing_fees` decimal(10,2),\n\t`forex_charges` decimal(10,2),\n\t`lead_time_days` int,\n\tCONSTRAINT `supplier_quote_line_items_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 49,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "supplier_quotes",
+      "sha256": "b8c42daf93836358b900836a33b565b51a231a7197e4a2ce1e5366e7c19cecac",
+      "sql": "CREATE TABLE `supplier_quotes` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`supplier_name` varchar(255) NOT NULL,\n\t`supplier_country` varchar(100) NOT NULL,\n\t`supplier_contact` varchar(255),\n\t`quote_date` date NOT NULL,\n\t`quote_number` varchar(100),\n\t`quote_valid_until` date,\n\t`document_url` text NOT NULL,\n\t`document_type` enum('pdf','excel','image') NOT NULL,\n\t`status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',\n\t`extracted_at` timestamp,\n\t`reviewed_at` timestamp,\n\t`reviewed_by` int,\n\t`extraction_confidence` decimal(5,2),\n\t`extraction_notes` text,\n\t`uploaded_by` int NOT NULL,\n\t`uploaded_at` timestamp NOT NULL DEFAULT (now()),\n\t`notes` text,\n\tCONSTRAINT `supplier_quotes_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 50,
+      "phase": "tables",
+      "kind": "CREATE TABLE",
+      "object_name": "valuation_comparable_evidence",
+      "sha256": "004aa499a1f31401e7277b670415380288943f42e14e22c40acc39df5c451618",
+      "sql": "CREATE TABLE `valuation_comparable_evidence` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`valuation_request_id` int NOT NULL,\n\t`source_type` enum('market_valuation_record','historical_claim') NOT NULL,\n\t`source_reference` varchar(255) NOT NULL,\n\t`observed_value_cents` int NOT NULL,\n\t`observed_at` timestamp,\n\t`vehicle_year` int,\n\t`vehicle_match_json` longtext NOT NULL,\n\t`adjustment_json` longtext,\n\t`limitation` text,\n\t`inclusion_status` enum('included','excluded','review_required') NOT NULL DEFAULT 'included',\n\t`created_at` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `valuation_comparable_evidence_id` PRIMARY KEY(`id`)\n);"
+    },
+    {
+      "ordinal": 51,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "adjuster_sign_offs_claim_id_claims_id_fk",
+      "table_name": "adjuster_sign_offs",
+      "sha256": "c20db2c6fc19045f86ef95ad5511424c305bc895f95e5efcf718f70e2ed89521",
+      "sql": "ALTER TABLE `adjuster_sign_offs` ADD CONSTRAINT `adjuster_sign_offs_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 52,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "ai_assessments_claim_id_claims_id_fk",
+      "table_name": "ai_assessments",
+      "sha256": "b764d07ac96c0b31c4c1eccab46c204f2b59059e0ca0114aacc6d0d41eb48287",
+      "sql": "ALTER TABLE `ai_assessments` ADD CONSTRAINT `ai_assessments_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 53,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "assessor_report_attachments_report_id_assessor_reports_id_fk",
+      "table_name": "assessor_report_attachments",
+      "sha256": "cbf38a63a9f338fbfa1c4d17a8d0642bec932ef622fa6e2e34b3cc0df26f5508",
+      "sql": "ALTER TABLE `assessor_report_attachments` ADD CONSTRAINT `assessor_report_attachments_report_id_assessor_reports_id_fk` FOREIGN KEY (`report_id`) REFERENCES `assessor_reports`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 54,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "assessor_report_reviews_report_id_assessor_reports_id_fk",
+      "table_name": "assessor_report_reviews",
+      "sha256": "d37ebf23d44b8c169648df89e53795125f803940eea9f94d390035a3b8e5740e",
+      "sql": "ALTER TABLE `assessor_report_reviews` ADD CONSTRAINT `assessor_report_reviews_report_id_assessor_reports_id_fk` FOREIGN KEY (`report_id`) REFERENCES `assessor_reports`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 55,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "assessor_report_reviews_claim_id_claims_id_fk",
+      "table_name": "assessor_report_reviews",
+      "sha256": "45cd63af87f421ee8242f19a22203c924bff544c6872eb99054afd636d3ef094",
+      "sql": "ALTER TABLE `assessor_report_reviews` ADD CONSTRAINT `assessor_report_reviews_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 56,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "assessor_report_reviews_reviewer_user_id_users_id_fk",
+      "table_name": "assessor_report_reviews",
+      "sha256": "8a6ab0a28b57d5fd6f3dd88ff4772c9158a9f57f807c70b8a0cc8ae4711980af",
+      "sql": "ALTER TABLE `assessor_report_reviews` ADD CONSTRAINT `assessor_report_reviews_reviewer_user_id_users_id_fk` FOREIGN KEY (`reviewer_user_id`) REFERENCES `users`(`id`) ON DELETE restrict ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 57,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "assessor_reports_claim_id_claims_id_fk",
+      "table_name": "assessor_reports",
+      "sha256": "f29c91274d1a57bf9dda68cd02f576c91adfae4db400850ec6bd78a1d65d298e",
+      "sql": "ALTER TABLE `assessor_reports` ADD CONSTRAINT `assessor_reports_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 58,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "assessor_reports_assessor_user_id_users_id_fk",
+      "table_name": "assessor_reports",
+      "sha256": "8699d633675378fc7e0118f1e8fc1c40971bc9fd2d57ff2c88ca8968944fe1c3",
+      "sql": "ALTER TABLE `assessor_reports` ADD CONSTRAINT `assessor_reports_assessor_user_id_users_id_fk` FOREIGN KEY (`assessor_user_id`) REFERENCES `users`(`id`) ON DELETE restrict ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 59,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "assessor_reports_assignment_id_claim_assignments_id_fk",
+      "table_name": "assessor_reports",
+      "sha256": "b7942ee07182fe281d20f98243655b52eb0b46f4d85d399d4f9d3b306692b973",
+      "sql": "ALTER TABLE `assessor_reports` ADD CONSTRAINT `assessor_reports_assignment_id_claim_assignments_id_fk` FOREIGN KEY (`assignment_id`) REFERENCES `claim_assignments`(`id`) ON DELETE restrict ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 60,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "assessor_reports_attested_by_user_id_users_id_fk",
+      "table_name": "assessor_reports",
+      "sha256": "86a2e249f52c105b1bdf1fd25dc448c8fe3714c18a71386257ec47bf8ce621af",
+      "sql": "ALTER TABLE `assessor_reports` ADD CONSTRAINT `assessor_reports_attested_by_user_id_users_id_fk` FOREIGN KEY (`attested_by_user_id`) REFERENCES `users`(`id`) ON DELETE set null ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 61,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "claim_confidence_scores_claim_id_claims_id_fk",
+      "table_name": "claim_confidence_scores",
+      "sha256": "d0cd099f77740ec7713ea5ecb5447f9f8b43dbfc8ee476d43a34a5d1add0e11e",
+      "sql": "ALTER TABLE `claim_confidence_scores` ADD CONSTRAINT `claim_confidence_scores_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 62,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "claim_routing_decisions_claim_id_claims_id_fk",
+      "table_name": "claim_routing_decisions",
+      "sha256": "a40945c0a3458c79a6f8191ea608664b2ac19d1370982ed94338ccec6c46d3d7",
+      "sql": "ALTER TABLE `claim_routing_decisions` ADD CONSTRAINT `claim_routing_decisions_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 63,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "fk_crd_confidence_score",
+      "table_name": "claim_routing_decisions",
+      "sha256": "2c7481e2b7e4ee5460309d7f9689ccba3206d6822bb82d238302f6f4d33fdd9a",
+      "sql": "ALTER TABLE `claim_routing_decisions` ADD CONSTRAINT `fk_crd_confidence_score` FOREIGN KEY (`confidence_score_id`) REFERENCES `claim_confidence_scores`(`id`) ON DELETE no action ON UPDATE no action;"
+    },
+    {
+      "ordinal": 64,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "fk_crd_automation_policy",
+      "table_name": "claim_routing_decisions",
+      "sha256": "330124e4c835e2fae66556268453e4b531e77b572460ba840dbe69443317c7d9",
+      "sql": "ALTER TABLE `claim_routing_decisions` ADD CONSTRAINT `fk_crd_automation_policy` FOREIGN KEY (`automation_policy_id`) REFERENCES `automation_policies`(`id`) ON DELETE no action ON UPDATE no action;"
+    },
+    {
+      "ordinal": 65,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "component_repair_outcomes_claim_id_claims_id_fk",
+      "table_name": "component_repair_outcomes",
+      "sha256": "b30769e977951e54d4e53031ff481085c7f4ecb1fffbd1f7fc8473a12a53fce3",
+      "sql": "ALTER TABLE `component_repair_outcomes` ADD CONSTRAINT `component_repair_outcomes_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 66,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "cost_learning_records_claim_id_claims_id_fk",
+      "table_name": "cost_learning_records",
+      "sha256": "0433928590430248d551e508cb3456038d44b7e028583684812f12a706c479f2",
+      "sql": "ALTER TABLE `cost_learning_records` ADD CONSTRAINT `cost_learning_records_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE set null ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 67,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "fraud_alerts_claim_id_claims_id_fk",
+      "table_name": "fraud_alerts",
+      "sha256": "6cca4660861bbf995b186a8f789111252783b6ad988c0aa3054723c413fb8377",
+      "sql": "ALTER TABLE `fraud_alerts` ADD CONSTRAINT `fraud_alerts_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 68,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "fraud_indicators_claim_id_claims_id_fk",
+      "table_name": "fraud_indicators",
+      "sha256": "08f2b7c7724d337435a805a60dcd49d744b10622a1349d125d2a3aa6f4aac222",
+      "sql": "ALTER TABLE `fraud_indicators` ADD CONSTRAINT `fraud_indicators_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 69,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "generated_reports_claim_id_claims_id_fk",
+      "table_name": "generated_reports",
+      "sha256": "5230d5b4f9b4246526c04e0bc1fa77229ff1c928b7608a3b5d617ab5e5e0027d",
+      "sql": "ALTER TABLE `generated_reports` ADD CONSTRAINT `generated_reports_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 70,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "insurer_quote_requests_claim_id_claims_id_fk",
+      "table_name": "insurer_quote_requests",
+      "sha256": "674d7527c634eada7d2a492dcc33422c7f506582d7b0af336cb7376dc9912c4f",
+      "sql": "ALTER TABLE `insurer_quote_requests` ADD CONSTRAINT `insurer_quote_requests_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 71,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "panel_beater_quotes_claim_id_claims_id_fk",
+      "table_name": "panel_beater_quotes",
+      "sha256": "69919457ed9fa685c2cb5cc15bf04093104ef2c6e827c05f1c1e8a62e99384e2",
+      "sql": "ALTER TABLE `panel_beater_quotes` ADD CONSTRAINT `panel_beater_quotes_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 72,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "police_reports_claim_id_claims_id_fk",
+      "table_name": "police_reports",
+      "sha256": "3b3ab405f963d16ca4fc1842e99d4e928cdd2af82704487c99a021322ee332a3",
+      "sql": "ALTER TABLE `police_reports` ADD CONSTRAINT `police_reports_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 73,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "pre_accident_damage_claim_id_claims_id_fk",
+      "table_name": "pre_accident_damage",
+      "sha256": "132a6a35f917c64d7119a7185e467f3c22e7cf107882b394adf38bedf7b84e59",
+      "sql": "ALTER TABLE `pre_accident_damage` ADD CONSTRAINT `pre_accident_damage_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 74,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "quote_optimisation_results_claim_id_claims_id_fk",
+      "table_name": "quote_optimisation_results",
+      "sha256": "62130ee87038457bcfd8e129acbdb7728adc6400eddac66fa189af3e1d0fdab3",
+      "sql": "ALTER TABLE `quote_optimisation_results` ADD CONSTRAINT `quote_optimisation_results_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 75,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "repair_history_claim_id_claims_id_fk",
+      "table_name": "repair_history",
+      "sha256": "b2f331d938cdcea006e72288ae4c9e1938ff3e9d63a9ea1d55b4cc2678f52ec2",
+      "sql": "ALTER TABLE `repair_history` ADD CONSTRAINT `repair_history_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 76,
+      "phase": "foreign_keys",
+      "kind": "ADD FOREIGN KEY",
+      "object_name": "report_snapshots_claim_id_claims_id_fk",
+      "table_name": "report_snapshots",
+      "sha256": "77262dc555981124bf7e983371aa1665f26d9a4657460b92b73e06ce76c505e3",
+      "sql": "ALTER TABLE `report_snapshots` ADD CONSTRAINT `report_snapshots_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;"
+    },
+    {
+      "ordinal": 77,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_aso_claim_id",
+      "table_name": "adjuster_sign_offs",
+      "sha256": "c5fa3ed3d609caec7c7ac0a40e5b9a6ba774568454cb9f67213eb1d383bdc321",
+      "sql": "CREATE INDEX `idx_aso_claim_id` ON `adjuster_sign_offs` (`claim_id`);"
+    },
+    {
+      "ordinal": 78,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_aso_adjuster_user_id",
+      "table_name": "adjuster_sign_offs",
+      "sha256": "53e1d177f94e4be8638a1242e9c5952ee89ff91261e403067b94de6cdf4385d0",
+      "sql": "CREATE INDEX `idx_aso_adjuster_user_id` ON `adjuster_sign_offs` (`adjuster_user_id`);"
+    },
+    {
+      "ordinal": 79,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ai_assessments_claim_id",
+      "table_name": "ai_assessments",
+      "sha256": "60d6a399e4cb9834ba2c05a86c83791c13f4723b086c2aef056f6d1f316d17ad",
+      "sql": "CREATE INDEX `idx_ai_assessments_claim_id` ON `ai_assessments` (`claim_id`);"
+    },
+    {
+      "ordinal": 80,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ai_claim_confidence",
+      "table_name": "ai_assessments",
+      "sha256": "7db3db13e161a69e60c082b68e520d12379189f4ab323ca29d5dc26c44d01260",
+      "sql": "CREATE INDEX `idx_ai_claim_confidence` ON `ai_assessments` (`claim_id`,`confidence_score`);"
+    },
+    {
+      "ordinal": 81,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ai_tenant_fraud",
+      "table_name": "ai_assessments",
+      "sha256": "9a0cb5d9f4abf8d72ff6d805203e0eccc143d27b00aab098d508b0ffa12b5882",
+      "sql": "CREATE INDEX `idx_ai_tenant_fraud` ON `ai_assessments` (`tenant_id`,`fraud_risk_level`);"
+    },
+    {
+      "ordinal": 82,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_apl_claim",
+      "table_name": "ai_prediction_logs",
+      "sha256": "fdf3ec0e88d384c2da4602f43260b224752f5f2df1c9addd010f87ff23c5ef5c",
+      "sql": "CREATE INDEX `idx_apl_claim` ON `ai_prediction_logs` (`historical_claim_id`);"
+    },
+    {
+      "ordinal": 83,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_apl_tenant",
+      "table_name": "ai_prediction_logs",
+      "sha256": "77d0443564fe329dbaf480e5776596b9e734831f0602a30bde94ec64f91926df",
+      "sql": "CREATE INDEX `idx_apl_tenant` ON `ai_prediction_logs` (`tenant_id`);"
+    },
+    {
+      "ordinal": 84,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_assessor_report_attachments_report",
+      "table_name": "assessor_report_attachments",
+      "sha256": "43e914b7f5e59fd83d2e2f70aaac3df0093aba83c4423d4b743ce7038c3b8d51",
+      "sql": "CREATE INDEX `idx_assessor_report_attachments_report` ON `assessor_report_attachments` (`report_id`);"
+    },
+    {
+      "ordinal": 85,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_assessor_report_attachments_tenant",
+      "table_name": "assessor_report_attachments",
+      "sha256": "8951b26a5b09692c22f441554d0c09c03f916fd59f0ec90ee361653afe96e89c",
+      "sql": "CREATE INDEX `idx_assessor_report_attachments_tenant` ON `assessor_report_attachments` (`tenant_id`);"
+    },
+    {
+      "ordinal": 86,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_assessor_report_reviews_reviewer_state",
+      "table_name": "assessor_report_reviews",
+      "sha256": "15cc18e0d4b7b76b6c5a5da089a5ad30e960eecfb4ec9de291c8edda1ee95e2d",
+      "sql": "CREATE INDEX `idx_assessor_report_reviews_reviewer_state` ON `assessor_report_reviews` (`reviewer_user_id`,`status`);"
+    },
+    {
+      "ordinal": 87,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_assessor_report_reviews_claim_state",
+      "table_name": "assessor_report_reviews",
+      "sha256": "2464dee718386f2bdc62ff290c599ca9ddd9530352c05603bdd39cf28d098503",
+      "sql": "CREATE INDEX `idx_assessor_report_reviews_claim_state` ON `assessor_report_reviews` (`claim_id`,`status`);"
+    },
+    {
+      "ordinal": 88,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_assessor_report_reviews_tenant_state",
+      "table_name": "assessor_report_reviews",
+      "sha256": "7eedc4d1eef8106461a0e4e6d50f4f3d54f889ca19358158bb7f03fa175f402d",
+      "sql": "CREATE INDEX `idx_assessor_report_reviews_tenant_state` ON `assessor_report_reviews` (`tenant_id`,`status`);"
+    },
+    {
+      "ordinal": 89,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_assessor_reports_claim_state",
+      "table_name": "assessor_reports",
+      "sha256": "f656b643b1d8877b8c4646ae961ea9cc9fc17c164d7944309771a30488fdad6c",
+      "sql": "CREATE INDEX `idx_assessor_reports_claim_state` ON `assessor_reports` (`claim_id`,`status`);"
+    },
+    {
+      "ordinal": 90,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_assessor_reports_assessor_state",
+      "table_name": "assessor_reports",
+      "sha256": "972948e186a856eb1bfac42716bddba84a7872245a3e0c52b5f6002016b250e3",
+      "sql": "CREATE INDEX `idx_assessor_reports_assessor_state` ON `assessor_reports` (`assessor_user_id`,`status`);"
+    },
+    {
+      "ordinal": 91,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_assessor_reports_tenant_state",
+      "table_name": "assessor_reports",
+      "sha256": "088cad499ed1e806de7c85d2db09d41b515d7c9991877ef3c00aa671ac2e1fbc",
+      "sql": "CREATE INDEX `idx_assessor_reports_tenant_state` ON `assessor_reports` (`tenant_id`,`status`);"
+    },
+    {
+      "ordinal": 92,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_tenant_active",
+      "table_name": "automation_policies",
+      "sha256": "c8cf40a91844e07f68853a00a10d2aff66213e799768e2544d025014aa812afa",
+      "sql": "CREATE INDEX `idx_tenant_active` ON `automation_policies` (`tenant_id`,`is_active`);"
+    },
+    {
+      "ordinal": 93,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_policy_name",
+      "table_name": "automation_policies",
+      "sha256": "356fd3978f8da734e78cbbddaa5ce5b1971aca015f721e9a8296468d931a6e7e",
+      "sql": "CREATE INDEX `idx_policy_name` ON `automation_policies` (`policy_name`);"
+    },
+    {
+      "ordinal": 94,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_claim_id",
+      "table_name": "claim_confidence_scores",
+      "sha256": "cd0fca08abb303561addeeca00f7b7a63e6facc4e6c3b4502de3cd4aae9e5e0b",
+      "sql": "CREATE INDEX `idx_claim_id` ON `claim_confidence_scores` (`claim_id`);"
+    },
+    {
+      "ordinal": 95,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_tenant_id",
+      "table_name": "claim_confidence_scores",
+      "sha256": "722e38399249202bf0445cf38bfa00ac2f07053a1d00a90becbbd2e7cb796805",
+      "sql": "CREATE INDEX `idx_tenant_id` ON `claim_confidence_scores` (`tenant_id`);"
+    },
+    {
+      "ordinal": 96,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_composite_score",
+      "table_name": "claim_confidence_scores",
+      "sha256": "910ecb01cfaa6c0a7d8d01a16e5ca059da0ddd44df8f5b90c61c63336bd31b6a",
+      "sql": "CREATE INDEX `idx_composite_score` ON `claim_confidence_scores` (`composite_confidence_score`);"
+    },
+    {
+      "ordinal": 97,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_scoring_timestamp",
+      "table_name": "claim_confidence_scores",
+      "sha256": "c4da7e545983feff5f9d9f8b2f1798ef86bf0dab50bbf1c48efcd8c0244d1aa2",
+      "sql": "CREATE INDEX `idx_scoring_timestamp` ON `claim_confidence_scores` (`scoring_timestamp`);"
+    },
+    {
+      "ordinal": 98,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_cdl_tenant",
+      "table_name": "claim_decision_lifecycle",
+      "sha256": "cf128c8e9dca82203789bc9471bb254d5c3e167cd8b420125704813995780567",
+      "sql": "CREATE INDEX `idx_cdl_tenant` ON `claim_decision_lifecycle` (`tenant_id`);"
+    },
+    {
+      "ordinal": 99,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_cdl_state",
+      "table_name": "claim_decision_lifecycle",
+      "sha256": "e4eb55b221ec2769d305e12894a4a1a49672320fa2905b1daf9e47b1a8aec623",
+      "sql": "CREATE INDEX `idx_cdl_state` ON `claim_decision_lifecycle` (`lifecycle_state`);"
+    },
+    {
+      "ordinal": 100,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_claim_id",
+      "table_name": "claim_routing_decisions",
+      "sha256": "1ec38f0e7f2cbf70744fb1e1ef93da93cfdd926a02757991b8766010d298d812",
+      "sql": "CREATE INDEX `idx_claim_id` ON `claim_routing_decisions` (`claim_id`);"
+    },
+    {
+      "ordinal": 101,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_tenant_id",
+      "table_name": "claim_routing_decisions",
+      "sha256": "9a6ea11fb5a5bb5001e991a8948261a09e21fda93221089a1f94ef0f9cb8b79b",
+      "sql": "CREATE INDEX `idx_tenant_id` ON `claim_routing_decisions` (`tenant_id`);"
+    },
+    {
+      "ordinal": 102,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_routed_workflow",
+      "table_name": "claim_routing_decisions",
+      "sha256": "b78e5f6883761581e1a2d6430c16569ec7c365a9b4c7eed60cc7be6212178803",
+      "sql": "CREATE INDEX `idx_routed_workflow` ON `claim_routing_decisions` (`routed_workflow`);"
+    },
+    {
+      "ordinal": 103,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_decision_timestamp",
+      "table_name": "claim_routing_decisions",
+      "sha256": "db150abf2eb8c8f65264808c2b6fa900c4af0b818a04e7b8a8214e8f89f4c664",
+      "sql": "CREATE INDEX `idx_decision_timestamp` ON `claim_routing_decisions` (`decision_timestamp`);"
+    },
+    {
+      "ordinal": 104,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_cro_claim_id",
+      "table_name": "component_repair_outcomes",
+      "sha256": "fe8969839e5700f6cf1d95fe12164ea4511a7e55551ee6473a5cf79955286954",
+      "sql": "CREATE INDEX `idx_cro_claim_id` ON `component_repair_outcomes` (`claim_id`);"
+    },
+    {
+      "ordinal": 105,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_cro_component_severity",
+      "table_name": "component_repair_outcomes",
+      "sha256": "4bde10765257df3f0115819e3880d767c499925b85f963b899a22790f475db5f",
+      "sql": "CREATE INDEX `idx_cro_component_severity` ON `component_repair_outcomes` (`component_name`,`severity_at_decision`);"
+    },
+    {
+      "ordinal": 106,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_cro_make_model",
+      "table_name": "component_repair_outcomes",
+      "sha256": "465c3c8d0c03838de5611bba0baf52e50188a9dd9756048608c5e9926512d2e0",
+      "sql": "CREATE INDEX `idx_cro_make_model` ON `component_repair_outcomes` (`vehicle_make`,`vehicle_model`);"
+    },
+    {
+      "ordinal": 107,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_cro_vehicle_precision",
+      "table_name": "component_repair_outcomes",
+      "sha256": "9306c07b77dc0e63dc06918e9b59e8c7edf6337b14848e0de4159f9019de5129",
+      "sql": "CREATE INDEX `idx_cro_vehicle_precision` ON `component_repair_outcomes` (`component_name`,`vehicle_make`,`vehicle_model`,`vehicle_year`);"
+    },
+    {
+      "ordinal": 108,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_cro_market_currency",
+      "table_name": "component_repair_outcomes",
+      "sha256": "64ff35801232d5a681ae2a8611f99458b063ceda2b891d489eaf71724c2c5c6a",
+      "sql": "CREATE INDEX `idx_cro_market_currency` ON `component_repair_outcomes` (`market_region`,`currency_code`,`evidence_quality`);"
+    },
+    {
+      "ordinal": 109,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_cro_outcome",
+      "table_name": "component_repair_outcomes",
+      "sha256": "0a446e5a577f1b21073ccd85ec1f1cd14e2f77ee6fc29a8af833e8df7daee7ea",
+      "sql": "CREATE INDEX `idx_cro_outcome` ON `component_repair_outcomes` (`outcome`);"
+    },
+    {
+      "ordinal": 110,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_cc_claim",
+      "table_name": "cost_components",
+      "sha256": "df513b6f94c332984ded61900ea8c7853aaf804f349a2c9a616cd490ac6ad405",
+      "sql": "CREATE INDEX `idx_cc_claim` ON `cost_components` (`historical_claim_id`);"
+    },
+    {
+      "ordinal": 111,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_clr_claim_id",
+      "table_name": "cost_learning_records",
+      "sha256": "220645fa24dcdd03db86683d9d37a0530e1ec397bbc18c6f21f3b3b0f71ac423",
+      "sql": "CREATE INDEX `idx_clr_claim_id` ON `cost_learning_records` (`claim_id`);"
+    },
+    {
+      "ordinal": 112,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_clr_tenant_id",
+      "table_name": "cost_learning_records",
+      "sha256": "85609ef0c44f9728e3a170375295799bb825c70dd33ecf0ae65bb425dc7d9133",
+      "sql": "CREATE INDEX `idx_clr_tenant_id` ON `cost_learning_records` (`tenant_id`);"
+    },
+    {
+      "ordinal": 113,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_clr_case_signature",
+      "table_name": "cost_learning_records",
+      "sha256": "a7f07bc975bfb93cc8d1bc4f2171288e0bbbc7f9d91071f0b92a0c3612d4e994",
+      "sql": "CREATE INDEX `idx_clr_case_signature` ON `cost_learning_records` (`case_signature`);"
+    },
+    {
+      "ordinal": 114,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_clr_vehicle_descriptor",
+      "table_name": "cost_learning_records",
+      "sha256": "dc37ab7493bc2052a43e28c1f00cbed5e581018eaddf61e985dc4ed5ad30b090",
+      "sql": "CREATE INDEX `idx_clr_vehicle_descriptor` ON `cost_learning_records` (`vehicle_descriptor`);"
+    },
+    {
+      "ordinal": 115,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_clr_vehicle_precision",
+      "table_name": "cost_learning_records",
+      "sha256": "da9630e50ea8763d5fa00384b318e7695e1050820036195afe498c0d70233137",
+      "sql": "CREATE INDEX `idx_clr_vehicle_precision` ON `cost_learning_records` (`vehicle_make`,`vehicle_model`,`vehicle_year`);"
+    },
+    {
+      "ordinal": 116,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_clr_market_currency",
+      "table_name": "cost_learning_records",
+      "sha256": "7bd1e51b42c643708efdb72c7073be48ee76b7d1e0eb782de2d606a9c4fa9ebc",
+      "sql": "CREATE INDEX `idx_clr_market_currency` ON `cost_learning_records` (`market_region`,`currency`);"
+    },
+    {
+      "ordinal": 117,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_clr_collision_direction",
+      "table_name": "cost_learning_records",
+      "sha256": "155db64c1e426c774b28dede94a3bf291bbefa00a84b1c8f09ac6b9fce360bd7",
+      "sql": "CREATE INDEX `idx_clr_collision_direction` ON `cost_learning_records` (`collision_direction`);"
+    },
+    {
+      "ordinal": 118,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_clr_recorded_at",
+      "table_name": "cost_learning_records",
+      "sha256": "3ec696519593c3e8d453f216b29da5875bc07513e8175dc226ef4151405723c7",
+      "sql": "CREATE INDEX `idx_clr_recorded_at` ON `cost_learning_records` (`recorded_at`);"
+    },
+    {
+      "ordinal": 119,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_cri_country",
+      "table_name": "country_repair_index",
+      "sha256": "f75b1aa7eef60d33257809ae86aba587d054e4e656287541a0a716ae24dd4833",
+      "sql": "CREATE INDEX `idx_cri_country` ON `country_repair_index` (`country_code`);"
+    },
+    {
+      "ordinal": 120,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_cri_effective",
+      "table_name": "country_repair_index",
+      "sha256": "2ae8ac29e4a3037cee2a290f2f6513ef6fbddb7fc262e127a0d857a254e6619f",
+      "sql": "CREATE INDEX `idx_cri_effective` ON `country_repair_index` (`effective_from`);"
+    },
+    {
+      "ordinal": 121,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "currency_exchange_rates_currency_code_unique",
+      "table_name": "currency_exchange_rates",
+      "sha256": "47fd7e37fbe33923cfa7496761739e5d68519f27bc1c91e9029d4c81ee567a56",
+      "sql": "CREATE INDEX `currency_exchange_rates_currency_code_unique` ON `currency_exchange_rates` (`currency_code`);"
+    },
+    {
+      "ordinal": 122,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ds_claim",
+      "table_name": "decision_snapshots",
+      "sha256": "1797c19b1cfd92d01060bd7b02e1feabd5dacea31e627fe3b6b75d5562f08dfd",
+      "sql": "CREATE INDEX `idx_ds_claim` ON `decision_snapshots` (`claim_id`);"
+    },
+    {
+      "ordinal": 123,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ds_tenant",
+      "table_name": "decision_snapshots",
+      "sha256": "83b025375c81ef5a7047c4596987ce3cc2d50a224a2a27f4aea5242fb7e8ff88",
+      "sql": "CREATE INDEX `idx_ds_tenant` ON `decision_snapshots` (`tenant_id`);"
+    },
+    {
+      "ordinal": 124,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ds_created",
+      "table_name": "decision_snapshots",
+      "sha256": "6df23539a0c365aa68be453905053dbad8f17760c2deb1e19c90a1a755773c68",
+      "sql": "CREATE INDEX `idx_ds_created` ON `decision_snapshots` (`created_at`);"
+    },
+    {
+      "ordinal": 125,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ds_verdict",
+      "table_name": "decision_snapshots",
+      "sha256": "b7550c267096d20217b1bd468898651b0043a480064a9b7d2708125ea7df2356",
+      "sql": "CREATE INDEX `idx_ds_verdict` ON `decision_snapshots` (`verdict_decision`);"
+    },
+    {
+      "ordinal": 126,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ds_lifecycle",
+      "table_name": "decision_snapshots",
+      "sha256": "ebff519db2508ef9d93b7fa0636247924444b434276013ae71f49fb49e5b24ea",
+      "sql": "CREATE INDEX `idx_ds_lifecycle` ON `decision_snapshots` (`lifecycle_state`);"
+    },
+    {
+      "ordinal": 127,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "document_naming_templates_tenant_id_doc_type_unique",
+      "table_name": "document_naming_templates",
+      "sha256": "f830f0898e2e5691b0f7e08ed83d4b86681fd649965e5ec8360e23fd5198fde0",
+      "sql": "CREATE INDEX `document_naming_templates_tenant_id_doc_type_unique` ON `document_naming_templates` (`tenant_id`,`doc_type`);"
+    },
+    {
+      "ordinal": 128,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_eri_claim",
+      "table_name": "extracted_repair_items",
+      "sha256": "0d8b467c0f365f6782ab7876f89155263e88d299ae9cd19d565eb0fe93952a26",
+      "sql": "CREATE INDEX `idx_eri_claim` ON `extracted_repair_items` (`historical_claim_id`);"
+    },
+    {
+      "ordinal": 129,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_fleet_incident_reports_tenant_id",
+      "table_name": "fleet_incident_reports",
+      "sha256": "3e220eed23ceb7db5e3cb15d151d715d3e4fa69a2a4d9b43f1bffe3b83877f54",
+      "sql": "CREATE INDEX `idx_fleet_incident_reports_tenant_id` ON `fleet_incident_reports` (`tenant_id`);"
+    },
+    {
+      "ordinal": 130,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_fleet_incident_reports_fleet_id",
+      "table_name": "fleet_incident_reports",
+      "sha256": "fa19c824c38d04dc76fc9028b8d688c32d4ba7cf067a1a3c9ff2c99abf1636be",
+      "sql": "CREATE INDEX `idx_fleet_incident_reports_fleet_id` ON `fleet_incident_reports` (`fleet_id`);"
+    },
+    {
+      "ordinal": 131,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_fleet_incident_reports_vehicle_id",
+      "table_name": "fleet_incident_reports",
+      "sha256": "8d4050d95d5515b2b1a32946b494af4329e4c5cbcd37e1716927f27e170a9702",
+      "sql": "CREATE INDEX `idx_fleet_incident_reports_vehicle_id` ON `fleet_incident_reports` (`vehicle_id`);"
+    },
+    {
+      "ordinal": 132,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_fleet_incident_reports_driver_id",
+      "table_name": "fleet_incident_reports",
+      "sha256": "1444618fb358caea883d2ea1f3d3938ee14460b8fad22397872d6656565fdb34",
+      "sql": "CREATE INDEX `idx_fleet_incident_reports_driver_id` ON `fleet_incident_reports` (`driver_id`);"
+    },
+    {
+      "ordinal": 133,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_fleet_incident_reports_status",
+      "table_name": "fleet_incident_reports",
+      "sha256": "099aef75c92b10e080689669f0b9d7d5465d63b263b3f20e06b2bc371b363e81",
+      "sql": "CREATE INDEX `idx_fleet_incident_reports_status` ON `fleet_incident_reports` (`status`);"
+    },
+    {
+      "ordinal": 134,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "rule_name",
+      "table_name": "fraud_rules",
+      "sha256": "6e2901798ec5ff608b479088fc58eb3e7cf7e7fa143d9428f92643473701f150",
+      "sql": "CREATE INDEX `rule_name` ON `fraud_rules` (`rule_name`);"
+    },
+    {
+      "ordinal": 135,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gr_tenant_id",
+      "table_name": "generated_reports",
+      "sha256": "6b849b113942e48c96a6466e71898d4962c706c161d45a557a99f34071946589",
+      "sql": "CREATE INDEX `idx_gr_tenant_id` ON `generated_reports` (`tenant_id`);"
+    },
+    {
+      "ordinal": 136,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gr_claim_id",
+      "table_name": "generated_reports",
+      "sha256": "ca3cd2ac637d0fa7549035049a7d793bffbd4f6f50fdd1d4e2ade06878bc915f",
+      "sql": "CREATE INDEX `idx_gr_claim_id` ON `generated_reports` (`claim_id`);"
+    },
+    {
+      "ordinal": 137,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gr_report_type",
+      "table_name": "generated_reports",
+      "sha256": "6bf1cddb456655d03efeb790b74bb43b8797364eeed38500b892ab4527e14d5a",
+      "sql": "CREATE INDEX `idx_gr_report_type` ON `generated_reports` (`report_type`);"
+    },
+    {
+      "ordinal": 138,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gr_generated_by",
+      "table_name": "generated_reports",
+      "sha256": "a6336bd9a70d8e7ebff109bc3e0bf989ba33d7fa5dc205a0b78c82cb0d61bef0",
+      "sql": "CREATE INDEX `idx_gr_generated_by` ON `generated_reports` (`generated_by_user_id`);"
+    },
+    {
+      "ordinal": 139,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gr_created_at",
+      "table_name": "generated_reports",
+      "sha256": "71c0fa52bc6a395ceec4b8c7ef91c088216b9947e15bd14e15a46280c0414026",
+      "sql": "CREATE INDEX `idx_gr_created_at` ON `generated_reports` (`created_at`);"
+    },
+    {
+      "ordinal": 140,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "document_id",
+      "table_name": "ingestion_documents",
+      "sha256": "d014f8fbf587c54d054055736f84307693dbb512ac4ab50d2c2c14eaf56716fd",
+      "sql": "CREATE INDEX `document_id` ON `ingestion_documents` (`document_id`);"
+    },
+    {
+      "ordinal": 141,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_insurer_marketplace_links_tenant",
+      "table_name": "insurer_marketplace_links",
+      "sha256": "29b04612aa1571612ad9aa892de8fb5c0dde1de98142bc310281794515783836",
+      "sql": "CREATE INDEX `idx_insurer_marketplace_links_tenant` ON `insurer_marketplace_links` (`insurer_tenant_id`);"
+    },
+    {
+      "ordinal": 142,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_insurer_marketplace_links_profile",
+      "table_name": "insurer_marketplace_links",
+      "sha256": "c4a6388cb506467a6634142633c4565a8d5a44537ddabb41480e8316d9ffff5e",
+      "sql": "CREATE INDEX `idx_insurer_marketplace_links_profile` ON `insurer_marketplace_links` (`marketplace_profile_id`);"
+    },
+    {
+      "ordinal": 143,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_imr_tenant",
+      "table_name": "insurer_marketplace_relationships",
+      "sha256": "097d5aa24a74eaf594a1f6cdbb795c7bcff16a26a93d8480ed05ccfadf0ce06e",
+      "sql": "CREATE INDEX `idx_imr_tenant` ON `insurer_marketplace_relationships` (`insurer_tenant_id`);"
+    },
+    {
+      "ordinal": 144,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_imr_profile",
+      "table_name": "insurer_marketplace_relationships",
+      "sha256": "8ad13ce0fd3a102d0a4d69c37adb53b844e5952d4f70a36d345e81fd654a23a1",
+      "sql": "CREATE INDEX `idx_imr_profile` ON `insurer_marketplace_relationships` (`marketplace_profile_id`);"
+    },
+    {
+      "ordinal": 145,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_imr_status",
+      "table_name": "insurer_marketplace_relationships",
+      "sha256": "aea622a5dc0a5219fd745760580a289388786cdf5b5c47dd3c367bac08c71fc7",
+      "sql": "CREATE INDEX `idx_imr_status` ON `insurer_marketplace_relationships` (`relationship_status`);"
+    },
+    {
+      "ordinal": 146,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_iqr_claim_id",
+      "table_name": "insurer_quote_requests",
+      "sha256": "192d01c9799d1bea4a9322a0a021c91b1f7501e8ee2aa220ef44394d45dd26b4",
+      "sql": "CREATE INDEX `idx_iqr_claim_id` ON `insurer_quote_requests` (`claim_id`);"
+    },
+    {
+      "ordinal": 147,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_iqr_insurer_tenant",
+      "table_name": "insurer_quote_requests",
+      "sha256": "79b7e8e8e089f93a06a479893adc649628e67ef33ccb87b1b5e99be8cb438f0c",
+      "sql": "CREATE INDEX `idx_iqr_insurer_tenant` ON `insurer_quote_requests` (`insurer_tenant_id`);"
+    },
+    {
+      "ordinal": 148,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_iqr_agency_tenant",
+      "table_name": "insurer_quote_requests",
+      "sha256": "63e5edfe9cdd33306c218fee73dfdb238ad1a028e8c81651370a0cd542c35361",
+      "sql": "CREATE INDEX `idx_iqr_agency_tenant` ON `insurer_quote_requests` (`agency_tenant_id`);"
+    },
+    {
+      "ordinal": 149,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_iqr_status",
+      "table_name": "insurer_quote_requests",
+      "sha256": "13b1a565f9c0797a4ba80914abfd3b8ade12610cb04ba8523550a6b2ada73947",
+      "sql": "CREATE INDEX `idx_iqr_status` ON `insurer_quote_requests` (`status`);"
+    },
+    {
+      "ordinal": 150,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_marketplace_profiles_type",
+      "table_name": "marketplace_profiles",
+      "sha256": "772ab954f85a83c40fca5e46f7d98de0a3d7d4a8e088d4ecdf1af611f9626186",
+      "sql": "CREATE INDEX `idx_marketplace_profiles_type` ON `marketplace_profiles` (`type`);"
+    },
+    {
+      "ordinal": 151,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_marketplace_profiles_approval_status",
+      "table_name": "marketplace_profiles",
+      "sha256": "a352c83f6b301ce37066f588c69272c9572a6dece5ec014c6b0e4489f9424f03",
+      "sql": "CREATE INDEX `idx_marketplace_profiles_approval_status` ON `marketplace_profiles` (`approval_status`);"
+    },
+    {
+      "ordinal": 152,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_marketplace_profiles_country_id",
+      "table_name": "marketplace_profiles",
+      "sha256": "fd0db956ec7145b07d005402cf18924c93094badd144915b406432e5fa6c5fbe",
+      "sql": "CREATE INDEX `idx_marketplace_profiles_country_id` ON `marketplace_profiles` (`country_id`);"
+    },
+    {
+      "ordinal": 153,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_quotes_claim_id",
+      "table_name": "panel_beater_quotes",
+      "sha256": "0025185fdc8d19afc1f0243572a2791e9c7ca47d75d0118a6ec362b6e6e99b07",
+      "sql": "CREATE INDEX `idx_quotes_claim_id` ON `panel_beater_quotes` (`claim_id`);"
+    },
+    {
+      "ordinal": 154,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_quotes_panel_beater_id",
+      "table_name": "panel_beater_quotes",
+      "sha256": "21adc65cfca03772d2413baa63fa0404b02c0c323026f7d6acb0c56f0dfa90d3",
+      "sql": "CREATE INDEX `idx_quotes_panel_beater_id` ON `panel_beater_quotes` (`panel_beater_id`);"
+    },
+    {
+      "ordinal": 155,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_panel_beater_quotes_panel_beater_id",
+      "table_name": "panel_beater_quotes",
+      "sha256": "5c0fb4ff805a1d79fd1c3a58ec6d3b09487ebff779efe372e1668e7670293b52",
+      "sql": "CREATE INDEX `idx_panel_beater_quotes_panel_beater_id` ON `panel_beater_quotes` (`panel_beater_id`);"
+    },
+    {
+      "ordinal": 156,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_snapshot_id",
+      "table_name": "pdf_reports",
+      "sha256": "26a0eb97345f2d219dbd2f373f7308acd613e6df1a257202af9c697fa516df1a",
+      "sql": "CREATE INDEX `idx_snapshot_id` ON `pdf_reports` (`snapshot_id`);"
+    },
+    {
+      "ordinal": 157,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_tenant_id",
+      "table_name": "pdf_reports",
+      "sha256": "972fe6eb8bfcce1fa65c32ee246b5e8691c77d7104b583c778b2e7efd008d07b",
+      "sql": "CREATE INDEX `idx_tenant_id` ON `pdf_reports` (`tenant_id`);"
+    },
+    {
+      "ordinal": 158,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "qrd_quotation_request_id",
+      "table_name": "quotation_request_documents",
+      "sha256": "77e7527d5018df1453ed71d246a5c7b82ca1f04755c501b23331d00baa90b1b7",
+      "sql": "CREATE INDEX `qrd_quotation_request_id` ON `quotation_request_documents` (`quotation_request_id`);"
+    },
+    {
+      "ordinal": 159,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "qrd_client_user_id",
+      "table_name": "quotation_request_documents",
+      "sha256": "4d8cea7fd1aff2fda645ae394e66fa0c683e6b3fe64d77705b786a5222e5f9d9",
+      "sql": "CREATE INDEX `qrd_client_user_id` ON `quotation_request_documents` (`client_user_id`);"
+    },
+    {
+      "ordinal": 160,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_qor_claim_id",
+      "table_name": "quote_optimisation_results",
+      "sha256": "eddd474c3a70925a5bf10f06472fad09ae923e4d42608db02b343a330248a425",
+      "sql": "CREATE INDEX `idx_qor_claim_id` ON `quote_optimisation_results` (`claim_id`);"
+    },
+    {
+      "ordinal": 161,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_qor_status",
+      "table_name": "quote_optimisation_results",
+      "sha256": "c7a67446ef9518df44a00811d7f98175c4e3ca5a825051cafda588e4ec145a9f",
+      "sql": "CREATE INDEX `idx_qor_status` ON `quote_optimisation_results` (`status`);"
+    },
+    {
+      "ordinal": 162,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_qor_risk",
+      "table_name": "quote_optimisation_results",
+      "sha256": "0817fa6f3c8bd43ec4072e794c40ef573ac767ad05dc6e6f08f9b90208502744",
+      "sql": "CREATE INDEX `idx_qor_risk` ON `quote_optimisation_results` (`overall_risk_score`);"
+    },
+    {
+      "ordinal": 163,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rci_make_model",
+      "table_name": "repair_cost_intelligence",
+      "sha256": "98963ac400e6db61e5040585e97dc1b3080f0aae0aec27e0195411b3e34a3932",
+      "sql": "CREATE INDEX `idx_rci_make_model` ON `repair_cost_intelligence` (`vehicle_make`,`vehicle_model`);"
+    },
+    {
+      "ordinal": 164,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rci_damage_category",
+      "table_name": "repair_cost_intelligence",
+      "sha256": "5c11b8401fb0889617d2cf04bb633c503326fa2afc5067e3b4851512a2874d0a",
+      "sql": "CREATE INDEX `idx_rci_damage_category` ON `repair_cost_intelligence` (`damage_category`);"
+    },
+    {
+      "ordinal": 165,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rci_country",
+      "table_name": "repair_cost_intelligence",
+      "sha256": "8c056a0ac451b8e4ae9cdc01fdf45fa04dc8699edfeeaf8042ee63e6f5a56aa2",
+      "sql": "CREATE INDEX `idx_rci_country` ON `repair_cost_intelligence` (`country`);"
+    },
+    {
+      "ordinal": 166,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rh_repairer_id",
+      "table_name": "repair_history",
+      "sha256": "001d4ce273b4124f286bb43c6700ade0d20c4dc48d82cca396ba981e0de64bb0",
+      "sql": "CREATE INDEX `idx_rh_repairer_id` ON `repair_history` (`repairer_id`);"
+    },
+    {
+      "ordinal": 167,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rh_vehicle_id",
+      "table_name": "repair_history",
+      "sha256": "ac7764e3022e757b0d9cb5274e7fd77fdd0e695c9de1ffd3ba6038e249c8c805",
+      "sql": "CREATE INDEX `idx_rh_vehicle_id` ON `repair_history` (`vehicle_id`);"
+    },
+    {
+      "ordinal": 168,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rh_claim_id",
+      "table_name": "repair_history",
+      "sha256": "c3f9205cea502cbff7211b5692f18a801b4f02d8d9baa384a7f3ff6d405d4806",
+      "sql": "CREATE INDEX `idx_rh_claim_id` ON `repair_history` (`claim_id`);"
+    },
+    {
+      "ordinal": 169,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rh_repair_date",
+      "table_name": "repair_history",
+      "sha256": "9fbdb44d4a29954bcd9344cb2522aa3c55ee76b35b80c3c92d4d607873e52289",
+      "sql": "CREATE INDEX `idx_rh_repair_date` ON `repair_history` (`repair_date`);"
+    },
+    {
+      "ordinal": 170,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rh_quality_score",
+      "table_name": "repair_history",
+      "sha256": "de5df75bf3a05dcdcc05244ebf759909baaab84faac7a6ab06d0c59a3c46a99d",
+      "sql": "CREATE INDEX `idx_rh_quality_score` ON `repair_history` (`repair_quality_score`);"
+    },
+    {
+      "ordinal": 171,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rh_repeat_damage",
+      "table_name": "repair_history",
+      "sha256": "e35735ac104707e5cd944972aeacfafb0dc7bc2d982c40a43c4adf98dee9eb94",
+      "sql": "CREATE INDEX `idx_rh_repeat_damage` ON `repair_history` (`repeat_damage_within_12_months`);"
+    },
+    {
+      "ordinal": 172,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rh_warranty_repair",
+      "table_name": "repair_history",
+      "sha256": "c41a3b7b6e96decfe7d8e4302246d6dc9fe8642d2dffa3e52eab5d13791aee2e",
+      "sql": "CREATE INDEX `idx_rh_warranty_repair` ON `repair_history` (`is_warranty_repair`);"
+    },
+    {
+      "ordinal": 173,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rh_fraud_flagged",
+      "table_name": "repair_history",
+      "sha256": "48649994aa476abad8e2d24eb2549170011d1347e59ae144afd1bfe944b616fa",
+      "sql": "CREATE INDEX `idx_rh_fraud_flagged` ON `repair_history` (`is_fraud_flagged`);"
+    },
+    {
+      "ordinal": 174,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rh_tenant",
+      "table_name": "repair_history",
+      "sha256": "202eba66a2474914f197cb1ffd89e17f4d17905d45674f37abb792828b582af4",
+      "sql": "CREATE INDEX `idx_rh_tenant` ON `repair_history` (`tenant_id`);"
+    },
+    {
+      "ordinal": 175,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_report_id",
+      "table_name": "report_access_audit",
+      "sha256": "3ca47608846cd907c497d9dd4a95d5bd9294e32c2b7c6e870355a76b03131691",
+      "sql": "CREATE INDEX `idx_report_id` ON `report_access_audit` (`report_id`);"
+    },
+    {
+      "ordinal": 176,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_accessed_by",
+      "table_name": "report_access_audit",
+      "sha256": "405b750a8f05bdc917e53ed6f5f765c8b62a368d33b7fa34eb10f1ba5be914ed",
+      "sql": "CREATE INDEX `idx_accessed_by` ON `report_access_audit` (`accessed_by`);"
+    },
+    {
+      "ordinal": 177,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_tenant_id",
+      "table_name": "report_access_audit",
+      "sha256": "3aa541c92b602eeccd30d71258386e5ca2e03ba726a75af93f9da16de365697d",
+      "sql": "CREATE INDEX `idx_tenant_id` ON `report_access_audit` (`tenant_id`);"
+    },
+    {
+      "ordinal": 178,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_accessed_at",
+      "table_name": "report_access_audit",
+      "sha256": "9067cd7d279a39d1b27f74d21df2074d1c316f66530486db8c57b4ed04efd3e9",
+      "sql": "CREATE INDEX `idx_accessed_at` ON `report_access_audit` (`accessed_at`);"
+    },
+    {
+      "ordinal": 179,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_snapshot_id",
+      "table_name": "report_links",
+      "sha256": "ee359a450d614f95413dd0f1a707179b1cfdffd6e7bde53843523a7b18f8ed4a",
+      "sql": "CREATE INDEX `idx_snapshot_id` ON `report_links` (`snapshot_id`);"
+    },
+    {
+      "ordinal": 180,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_access_token",
+      "table_name": "report_links",
+      "sha256": "ddf8137c639b5ba458823991371494f6e9c4c4277ed3aaed170731d0f8e26657",
+      "sql": "CREATE INDEX `idx_access_token` ON `report_links` (`access_token`);"
+    },
+    {
+      "ordinal": 181,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_tenant_id",
+      "table_name": "report_links",
+      "sha256": "b99d3fb38516f65e350141661663982808dc45f7a7d51e2dff86ef7fff328da8",
+      "sql": "CREATE INDEX `idx_tenant_id` ON `report_links` (`tenant_id`);"
+    },
+    {
+      "ordinal": 182,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_claim_version",
+      "table_name": "report_snapshots",
+      "sha256": "883af4ead96f38273742ca6e23a4e3e4272ce2483ff2e6734151ed27b4c84b26",
+      "sql": "CREATE INDEX `idx_claim_version` ON `report_snapshots` (`claim_id`,`version`);"
+    },
+    {
+      "ordinal": 183,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_audit_hash",
+      "table_name": "report_snapshots",
+      "sha256": "16ad6cbc760ef245166b47b8dee67ff1bfc8f2cce3fd4456943bfe8b515670b2",
+      "sql": "CREATE INDEX `idx_audit_hash` ON `report_snapshots` (`audit_hash`);"
+    },
+    {
+      "ordinal": 184,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_tenant_id",
+      "table_name": "report_snapshots",
+      "sha256": "6c18804b23ee137dc9b551461822d0c93c116630ad203773608aafacf77e33dc",
+      "sql": "CREATE INDEX `idx_tenant_id` ON `report_snapshots` (`tenant_id`);"
+    },
+    {
+      "ordinal": 185,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_generated_by",
+      "table_name": "report_snapshots",
+      "sha256": "f094ee8179ba53cd21afc32e42f3dc4747c708a1a5d6fc8b2a67163b5a19a558",
+      "sql": "CREATE INDEX `idx_generated_by` ON `report_snapshots` (`generated_by`);"
+    },
+    {
+      "ordinal": 186,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "valuation_comparable_request_idx",
+      "table_name": "valuation_comparable_evidence",
+      "sha256": "c28222f92cbc81e9f197960adbb0b300f23121f8e6a2ae36173a48538fe59589",
+      "sql": "CREATE INDEX `valuation_comparable_request_idx` ON `valuation_comparable_evidence` (`valuation_request_id`);"
+    },
+    {
+      "ordinal": 187,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "valuation_comparable_source_idx",
+      "table_name": "valuation_comparable_evidence",
+      "sha256": "005b75226197c670223e84cc52fd4858610450717d5ee7c2e06de5dc2156f3f8",
+      "sql": "CREATE INDEX `valuation_comparable_source_idx` ON `valuation_comparable_evidence` (`source_type`,`source_reference`);"
+    }
+  ]
+}

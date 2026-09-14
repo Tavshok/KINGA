@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rh_quality_score` ON `repair_history` (`repair_quality_score`);

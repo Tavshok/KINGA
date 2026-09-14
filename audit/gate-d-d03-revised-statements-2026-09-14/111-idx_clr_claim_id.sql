@@ -1,0 +1,1 @@
+CREATE INDEX `idx_clr_claim_id` ON `cost_learning_records` (`claim_id`);

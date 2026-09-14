@@ -1,0 +1,1 @@
+CREATE INDEX `idx_aso_claim_id` ON `adjuster_sign_offs` (`claim_id`);

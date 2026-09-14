@@ -1,0 +1,1 @@
+CREATE INDEX `idx_quotes_claim_id` ON `panel_beater_quotes` (`claim_id`);

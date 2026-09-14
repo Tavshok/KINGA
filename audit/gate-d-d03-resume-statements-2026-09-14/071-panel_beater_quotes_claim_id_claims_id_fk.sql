@@ -1,0 +1,1 @@
+ALTER TABLE `panel_beater_quotes` ADD CONSTRAINT `panel_beater_quotes_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;

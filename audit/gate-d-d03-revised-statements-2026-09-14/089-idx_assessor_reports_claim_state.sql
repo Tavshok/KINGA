@@ -1,0 +1,1 @@
+CREATE INDEX `idx_assessor_reports_claim_state` ON `assessor_reports` (`claim_id`,`status`);

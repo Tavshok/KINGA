@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tenant_active` ON `automation_policies` (`tenant_id`,`is_active`);

@@ -1,0 +1,1 @@
+CREATE INDEX `document_naming_templates_tenant_id_doc_type_unique` ON `document_naming_templates` (`tenant_id`,`doc_type`);

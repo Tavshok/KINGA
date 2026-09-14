@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cro_make_model` ON `component_repair_outcomes` (`vehicle_make`,`vehicle_model`);

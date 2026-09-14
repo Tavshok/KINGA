@@ -1,0 +1,21 @@
+CREATE TABLE `supplier_quotes` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`supplier_name` varchar(255) NOT NULL,
+	`supplier_country` varchar(100) NOT NULL,
+	`supplier_contact` varchar(255),
+	`quote_date` date NOT NULL,
+	`quote_number` varchar(100),
+	`quote_valid_until` date,
+	`document_url` text NOT NULL,
+	`document_type` enum('pdf','excel','image') NOT NULL,
+	`status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+	`extracted_at` timestamp,
+	`reviewed_at` timestamp,
+	`reviewed_by` int,
+	`extraction_confidence` decimal(5,2),
+	`extraction_notes` text,
+	`uploaded_by` int NOT NULL,
+	`uploaded_at` timestamp NOT NULL DEFAULT (now()),
+	`notes` text,
+	CONSTRAINT `supplier_quotes_id` PRIMARY KEY(`id`)
+);
