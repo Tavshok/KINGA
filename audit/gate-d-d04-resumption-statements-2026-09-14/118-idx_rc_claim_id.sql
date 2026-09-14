@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rc_claim_id` ON `recovery_cases` (`claim_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_agency_clients_email` ON `agency_clients` (`email`);

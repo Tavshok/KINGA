@@ -34,9 +34,9 @@ function buildLedger() {
   const trailingMarker = rawFragments.at(-1)?.trim() === '';
   const fragments = rawFragments.map((fragment) => fragment.trim()).filter(Boolean);
 
-  if (markerCount !== 135) throw new Error(`Expected 135 markers; found ${markerCount}`);
+  if (markerCount !== 134) throw new Error(`Expected 134 markers; found ${markerCount}`);
   if (!trailingMarker) throw new Error('Expected the revised Wave 4 source to end with a literal statement-breakpoint marker');
-  if (fragments.length !== 135) throw new Error(`Expected 135 non-empty marker-separated fragments; found ${fragments.length}`);
+  if (fragments.length !== 134) throw new Error(`Expected 134 non-empty marker-separated fragments; found ${fragments.length}`);
   if (fragments.some((fragment) => !fragment.endsWith(';'))) throw new Error('Every emitted statement must terminate with a semicolon');
 
   const statements = fragments.map((sql, index) => ({
@@ -51,7 +51,7 @@ function buildLedger() {
     return accumulator;
   }, {});
 
-  if (counts['CREATE TABLE'] !== 40 || counts['ADD FOREIGN KEY'] !== 7 || counts['CREATE INDEX'] !== 88) {
+  if (counts['CREATE TABLE'] !== 40 || counts['ADD FOREIGN KEY'] !== 7 || counts['CREATE INDEX'] !== 87) {
     throw new Error(`Unexpected statement classes: ${JSON.stringify(counts)}`);
   }
 
@@ -75,12 +75,12 @@ function renderSummary(ledger) {
   )).join('\n');
 
   return `# D-04 Wave 4 Marker-Split Statement Hash Ledger\n\n` +
-    `This manifest is generated deterministically from \`${ledger.source_file}\`, the revised TiDB-compatible Wave 4 execution source. The immutable historical Gate C source remains unchanged; this packet source replaces only the five documented JSON-shaped TEXT defaults with TiDB-compatible expression defaults. The source is split only on the exact literal \`${ledger.marker_literal}\`, each fragment is UTF-8 trimmed, and the source's one empty terminal fragment is discarded because Wave 4 ends with a marker. Each emitted statement retains its terminal semicolon and is hashed with SHA-256. The JSON companion ledger contains the exact full SQL for every row.\n\n` +
+    `This manifest is generated deterministically from \`${ledger.source_file}\`, the revised TiDB-compatible Wave 4 execution source. The immutable historical Gate C source remains unchanged; this packet source retains the five documented JSON-shaped TEXT default corrections and deliberately omits the Gate-B-excluded no-consumer whole-TEXT \`idx_recipients\` index. The source is split only on the exact literal \`${ledger.marker_literal}\`, each fragment is UTF-8 trimmed, and the source's one empty terminal fragment is discarded because Wave 4 ends with a marker. Each emitted statement retains its terminal semicolon and is hashed with SHA-256. The JSON companion ledger contains the exact full SQL for every row.\n\n` +
     `| Control | Value |\n|---|---|\n` +
     `| Full revised source SHA-256 | \`${ledger.source_sha256}\` |\n` +
     `| Marker count | ${ledger.marker_count} (trailing marker present) |\n` +
     `| Executable statement count | ${ledger.statement_count} |\n` +
-    `| Statement class totals | 40 \`CREATE TABLE\`, 7 \`ADD FOREIGN KEY\`, 88 \`CREATE INDEX\` |\n` +
+    `| Statement class totals | 40 \`CREATE TABLE\`, 7 \`ADD FOREIGN KEY\`, 87 \`CREATE INDEX\` |\n` +
     `| JSON companion | \`../../audit/gate-d-d04-statement-hash-ledger-2026-09-14.json\` |\n\n` +
     `> Do not run the raw source through \`mysql < file.sql\`. The \`--> statement-breakpoint\` literal is repository tooling, not a MySQL/TiDB comment. Before any separately authorised execution, compare each prepared statement text and its SHA-256 with the matching row below. This review packet grants no execution authority.\n\n` +
     `## Ordered execution ledger\n\n` +

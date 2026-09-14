@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gal_action` ON `governance_audit_log` (`action`);

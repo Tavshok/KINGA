@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gov_limits_version` ON `platform_governance_limits` (`version`);

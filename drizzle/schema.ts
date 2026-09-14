@@ -2023,7 +2023,6 @@ export const governanceNotifications = mysqlTable("governance_notifications", {
 (table) => [
 	index("idx_tenant_id").on(table.tenantId),
 	index("idx_claim_id").on(table.claimId),
-	index("idx_recipients").on(table.recipients),
 	index("idx_read_at").on(table.readAt),
 	index("idx_created_at").on(table.createdAt),
 ]);

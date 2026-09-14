@@ -1,0 +1,1 @@
+CREATE INDEX `fleet_vehicles_vin_unique` ON `fleet_vehicles` (`vin`);

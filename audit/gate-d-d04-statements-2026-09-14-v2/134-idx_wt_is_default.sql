@@ -1,0 +1,1 @@
+CREATE INDEX `idx_wt_is_default` ON `workflow_templates` (`tenant_id`,`is_default`);
