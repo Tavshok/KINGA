@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claim_assignments_tenant_role` ON `claim_assignments` (`tenant_id`,`assignment_role`,`status`);

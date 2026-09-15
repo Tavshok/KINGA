@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vps_generated_at` ON `vehicle_passport_snapshots` (`generated_at`);

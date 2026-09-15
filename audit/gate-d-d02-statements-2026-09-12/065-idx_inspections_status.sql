@@ -1,0 +1,1 @@
+CREATE INDEX `idx_inspections_status` ON `inspections` (`status`);

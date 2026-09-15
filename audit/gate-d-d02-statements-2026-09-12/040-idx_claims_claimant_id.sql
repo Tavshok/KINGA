@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claims_claimant_id` ON `claims` (`claimant_id`);

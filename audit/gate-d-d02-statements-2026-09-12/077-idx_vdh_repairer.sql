@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vdh_repairer` ON `vehicle_damage_history` (`repairer_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_policy_version_id` ON `claims` (`policy_version_id`);

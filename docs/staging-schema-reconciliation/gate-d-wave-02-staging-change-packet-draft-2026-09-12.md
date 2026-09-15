@@ -1,0 +1,162 @@
+# D-02 Wave 2 Staging Change Packet — Review Draft
+
+## Status and hard authority boundary
+
+**Status: review draft only.** This packet prepares the second possible staging reconciliation change after completed D-01. It does **not** authorise a staging connection, snapshot inspection, account or grant creation, network change, DDL, DML, data seed, backup/restore action, application deployment, or any production work.
+
+> **D-02 execution is prohibited pending a new, explicit owner decision.** The D-01 single-person review, application-observer, existing-administrator, browser-editor, temporary-access, and same-day-snapshot decisions all expired at D-01 closure. None transfers to D-02.
+
+## 1. Packet identity
+
+| Field | Draft value | Execution status |
+|---|---|---|
+| Packet ID | `D-02` | Review only |
+| Purpose | Add the approved Wave 2 vehicle, claimant, driver, policy, inspection, and claim-core baseline after D-01. | Not authorised |
+| Target | `KINGA-staging`, database `kinga_staging`, AWS Frankfurt (`eu-central-1`), Starter | Reconfirm only after a separate read-only-access decision. |
+| Prerequisite | Completed D-01 root structures and D-01 postflight record. | Must be revalidated before D-02. |
+| Operator | Tavonga Shoko, KINGA owner | Recorded under the D-02-only exception in Section 1A. This assignment is not execution authority. |
+| Reviewer | Tavonga Shoko, KINGA owner | Recorded under the D-02-only exception in Section 1A because no independent reviewer is available. It is not independent assurance. |
+| Application-validation owner and observer | Tavonga Shoko, KINGA owner | Recorded under the D-02-only exception in Section 1A; the required smoke evidence remains mandatory before closure. |
+| Change approver and stop authority | KINGA owner | Must issue a new written D-02 decision. |
+| Production | `KINGA-production` | Explicitly excluded. |
+
+### 1A. D-02-only owner-operated control exception
+
+| Field | Recorded exception |
+|---|---|
+| Decision maker | Tavonga Shoko, KINGA owner |
+| Decision date | 12 September 2026 |
+| Accepted deviation | Tavonga Shoko may act as the D-02 operator, reviewer, application-validation owner, and observer because no independent person is currently available. |
+| Scope limit | `D-02` only: the 20 approved Wave 2 tables, 9 named foreign keys, and 58 named explicit indexes in `KINGA-staging` database `kinga_staging`. |
+| Limited rationale | D-02 is constrained to one immutable reviewed artefact, an 87-statement ledger with complete per-statement SHA-256 values, fresh same-day Starter recovery evidence, read-only D-01 prerequisite/D-02 absence preflight, one-statement-at-a-time execution, independent catalogue comparison, and zero-row smoke checks. |
+| Controls that remain mandatory | Exact full-file and per-statement hashes, marker-aware split, target identity, current snapshot validity, execution window, D-01 prerequisite check, D-02 absence check, statement results, postflight metadata, zero-row smoke check, retained evidence, and a distinct decision before D-03. |
+| Expiry | Ends immediately when D-02 is closed, stopped, abandoned, or its approved window expires. It cannot apply to D-03–D-06, recovery/cutover, an application rollout, or production. |
+| Reopening rule | Any source/hash mismatch, parser discrepancy, failed statement, target/snapshot discrepancy, unexpected object, or smoke-test failure voids the exception and stops execution pending a new owner decision. |
+
+This exception accepts the absence of separation of duties for D-02 only; it does not provide independent assurance. Complete artefact, execution, and verification evidence must be retained for later independent review.
+
+## 2. Immutable source pins
+
+| Control | Pinned value | Draft verification |
+|---|---|---|
+| Mainline at D-02 draft start | `956ab8055d590157ef10d091e1f8a4e6ba34542d` | Contains merged D-01 closure evidence. |
+| Gate C source revision | `4336a2961147877a373a11a706e2a7ee4604f754` | Verified ancestor of the draft-start mainline. |
+| Current `drizzle/schema.ts` SHA-256 | `0d07fd920f1b260c75b85ec25ce224cef48d6deb4fe0fef47d6dc0ceec03a17c` | Repository-only calculation. |
+| D-01 prerequisite SQL SHA-256 | `306797ab94529860bc9e88a69a955061916a94ddc3d08e3265229780ab08083c` | D-01 closed with independent metadata reconciliation. |
+| D-02 SQL artefact | `audit/gate-c-scratch-baseline/wave-02-generated/wave-02-vehicle-claim-core.sql` | Retained Gate C review artefact. |
+| D-02 SQL SHA-256 | `15661c69490a4360931ef5fc3d17e2b4521f692730b2d113f1342117b067e7b9` | Recalculated locally from the immutable artefact. |
+| Gate C scratch structural metadata SHA-256 | `2b7b1ba33cc6fbb729824d1ab447c6920cfdc5e6f9ffb6d60720f0414abf7897` | Cross-check only; not a live staging preflight result. |
+
+Any source, schema, prerequisite, or SQL hash difference is a mandatory stop. The operator must not regenerate, edit, or substitute the source during a change window.
+
+### 2A. Generated marker-split statement ledger — owner-operated execution input
+
+The following D-02 execution inputs were generated locally without any TiDB connection or SQL execution. They are derived from the immutable Wave 2 source by splitting only on the exact `--> statement-breakpoint` literal and UTF-8-trimming each resulting SQL fragment. The generator then re-derives and compares the complete ledger before reporting success.
+
+| Artefact | Purpose | Immutable check |
+|---|---|---|
+| [`gate-d-d02-statement-hash-ledger-2026-09-12.json`](../../audit/gate-d-d02-statement-hash-ledger-2026-09-12.json) | Canonical 87-row machine-readable ledger, containing each exact emitted SQL statement and its individual SHA-256. | Full source SHA-256 `15661c69490a4360931ef5fc3d17e2b4521f692730b2d113f1342117b067e7b9`; ledger re-derivation `PASS`. |
+| [`d02-wave-02-statement-hash-ledger-2026-09-12.md`](d02-wave-02-statement-hash-ledger-2026-09-12.md) | Human-readable ordered statement number, phase, object, and per-statement SHA-256. | 20 tables, 9 FKs, 58 indexes; 87 rows. |
+| `audit/gate-d-d02-statements-2026-09-12/` | 87 exact one-statement `.sql` files for owner-operated, one-at-a-time execution. | Every file’s SHA-256 exactly matches its JSON-ledger row. |
+| [`generate-d02-statement-ledger.mjs`](../../scripts/generate-d02-statement-ledger.mjs) | Deterministic local generator and verifier; it does not connect to any database. | `verify` re-derived the ledger from the source and returned `PASS`. |
+
+The emitted-file set contains exactly 87 `.sql` files. Their deterministic ordered concatenation has SHA-256 `fa322b283f65ac3d3e4a4b1dcd1342b9e898a481596a896f8fbefddb133c623f`; this is a supplemental packing check, not a replacement for the original full-source hash or the required individual statement hashes.
+
+For owner-operated execution, Claude Code must read the JSON ledger and execute only `statements[1]` through `statements[87]` in ordinal order. Before each statement, it must calculate SHA-256 over the exact proposed SQL text and require equality with that row’s `sha256`. It must stop on the first failure, mismatch, changed source file, unrecognised statement class, or target/preflight discrepancy; it must never continue from a partial run without a separately reviewed recovery record.
+
+## 3. Approved D-02 scope
+
+The reviewed D-02 artefact contains **87 Wave 2 statements**: 20 `CREATE TABLE`, 9 source-declared `ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY`, and 58 `CREATE INDEX`. It contains no `DROP`, DML, account/grant statement, backup/restore statement, database creation, or non-FK `ALTER` statement.[1]
+
+| Scope category | Exact approved content |
+|---|---|
+| New tables | `claim_assignments`, `claim_documents`, `claims`, `drivers`, `inspections`, `insurance_audit_logs`, `insurance_carriers`, `insurance_policies`, `insurance_products`, `insurance_quotes`, `measurement_types`, `vehicle_condition_assessment`, `vehicle_condition_snapshots`, `vehicle_damage_history`, `vehicle_geometry_measurements`, `vehicle_market_valuations`, `vehicle_mileage_logs`, `vehicle_models`, `vehicle_passport_snapshots`, and `vehicle_registry`. |
+| Prerequisite tables | D-01’s `tenant_invitations`, `tenants`, and `users`, already closed and independently reconciled. |
+| Cumulative expected table count | 23: three D-01 prerequisite tables plus 20 D-02 tables. |
+| Explicit secondary indexes | 58 `CREATE INDEX` statements, listed in Appendix A. |
+| Primary/unique structures in D-02 table definitions | 20 primary keys and 7 explicitly declared unique structures. Together with 58 explicit indexes, this is 85 D-02 index structures and 98 cumulative structures including D-01. |
+| Foreign keys | Exactly 9, listed in Section 3B. |
+| Explicit exclusions | No table outside the 20 listed above; no held candidate; no deferred natural/composite unique rule; no data seed; no DML; no `DROP`; no non-FK `ALTER`; no account, network, backup, restore, application rollout, or production action. |
+
+### 3A. Source-marker handling — mandatory execution control
+
+> **D-02 does contain Drizzle-style `--> statement-breakpoint` markers. They are not valid MySQL/TiDB comments and must never be submitted as SQL.**
+
+The exact pinned file contains **86** markers: 20 standalone marker lines following table statements and 66 inline terminators following the 9 foreign-key and 58 index statements. These delimit **87** executable statements but are not themselves executable statements.
+
+If D-02 is later authorised, the original file remains immutable. The approved future operator method must perform an auditable, non-mutating marker split into exactly 87 semicolon-terminated statements, retain the original full-file SHA-256, calculate a separate hash for every emitted statement, and have Tavonga Shoko compare the ordered statement ledger to this packet under the dated D-02-only exception in Section 1A before any statement runs. A raw `mysql < wave-02-vehicle-claim-core.sql` invocation is prohibited because it would treat these markers as invalid SQL, as occurred in D-01.
+
+Execution must be one statement at a time in this order: 20 tables, 9 foreign keys, then 58 indexes. Any parser error, omitted statement, unexpected extra statement, order change, source-hash difference, per-statement-hash difference, or server error stops D-02 immediately; no later statement may be sent.
+
+### 3B. Approved foreign-key list
+
+| Order | Constraint | Child column | Parent target | Delete / update action |
+|---:|---|---|---|---|
+| 21 | `claim_assignments_claim_id_claims_id_fk` | `claim_assignments.claim_id` | `claims.id` | Cascade / cascade |
+| 22 | `claim_assignments_assigned_to_user_id_users_id_fk` | `claim_assignments.assigned_to_user_id` | D-01 `users.id` | Restrict / cascade |
+| 23 | `claim_assignments_assigned_by_user_id_users_id_fk` | `claim_assignments.assigned_by_user_id` | D-01 `users.id` | Set null / cascade |
+| 24 | `claim_documents_claim_id_claims_id_fk` | `claim_documents.claim_id` | `claims.id` | Cascade / cascade |
+| 25 | `claim_documents_inspection_id_inspections_id_fk` | `claim_documents.inspection_id` | `inspections.id` | Set null / cascade |
+| 26 | `vehicle_condition_assessment_claim_id_claims_id_fk` | `vehicle_condition_assessment.claim_id` | `claims.id` | Cascade / cascade |
+| 27 | `vehicle_damage_history_claim_id_claims_id_fk` | `vehicle_damage_history.claim_id` | `claims.id` | Set null / cascade |
+| 28 | `fk_vgm_vehicle_model` | `vehicle_geometry_measurements.vehicle_model_id` | `vehicle_models.id` | No action / no action |
+| 29 | `vehicle_market_valuations_claim_id_claims_id_fk` | `vehicle_market_valuations.claim_id` | `claims.id` | Set null / cascade |
+
+## 4. Recovery and short-window proposal
+
+The successful D-01 restore rehearsal remains evidence that a Starter snapshot can restore into a separate disposable instance. It does **not** satisfy D-02’s recovery gate. Free Starter’s one-day snapshot retention and no-PITR limitation require a newly captured, successful, current-day `KINGA-staging` snapshot with expiry covering the entire D-02 change and a two-hour post-closure margin.
+
+| Control | D-02 draft requirement |
+|---|---|
+| Current recovery record | **Captured for D-02 review:** authenticated `KINGA-staging` Backup page at `2026-09-13 09:27 UTC` showed Backup time `2026-09-13 03:01:00 UTC±00:00`, Status **Succeeded**, Expires time `2026-09-14 03:01:00 UTC±00:00`, and the Restore action. No Restore action or setting change was made. |
+| Service-class limitation | Owner accepted the same-day Starter-only recovery limitation for D-02 on 12 September 2026. A fresh D-02 snapshot remains mandatory; the former D-01 snapshot acceptance is not reused. |
+| Proposed short window | **13 September 2026, 10:30–14:30 UTC** (`12:30–16:30 GMT+2`), four hours maximum. First 90 minutes are reserved for preflight and one-at-a-time execution; the final 150 minutes are reserved for postflight, database-read smoke, evidence reconciliation, and closure. |
+| Window coverage | The snapshot precedes the proposed start by 7 hours 29 minutes. The two-hour post-closure safety endpoint is `2026-09-13 16:30 UTC`; the recorded snapshot expiry is 10 hours 30 minutes after that endpoint. **Timing criterion passed for review.** |
+| Window scheduling rule | The proposed window is not execution authority. Before owner-operated execution, recheck the same-day snapshot and require the currently visible expiry to cover the full window plus the two-hour post-closure margin. |
+| Stop rule | Missing, stale, failed, wrong-target, ambiguous, or insufficiently retained snapshot evidence stops D-02. Do not create a manual backup, substitute an older snapshot, or use production. |
+
+## 5. Future preflight criteria — no live action authorised
+
+Before any D-02 execution authority can be requested, a separate owner decision must authorise the named verifier to collect only the following read-only evidence.
+
+| Check | Required accepted result | Stop condition |
+|---|---|---|
+| Target identity and TLS | Owner-approved TiDB Cloud organisation/project/cluster/database identity; `KINGA-staging`, `kinga_staging`, current region/service class, TLS, authenticated identity, and redacted grants. | Any target ambiguity, non-TLS connection, privilege excess, or runtime-secret reuse. |
+| D-01 prerequisite metadata | Exactly `tenant_invitations`, `tenants`, and `users` match the D-01 audit’s columns, PKs, unique keys, defaults, and eight explicit indexes; all are empty. | Any D-01 mismatch. |
+| D-02 absence check | None of the 20 D-02 table names, 9 D-02 FK names, or 58 D-02 explicit-index names exists. | Existing or unexpected D-02 object. |
+| Source and separator proof | Full Wave 2 SHA-256 matches; marker count is 86; splitter ledger has exactly 87 ordered statements with 20 tables, 9 FKs, and 58 indexes. | Hash, class, count, ordering, or marker mismatch. |
+| Recovery record | Fresh same-day successful snapshot meets the proposed window and two-hour safety margin. | Missing or expired recovery point. |
+| Change roles | Tavonga Shoko is D-02 operator, reviewer, application-validation owner, observer, and stop authority under the dated D-02-only exception in Section 1A. | Any missing exception detail or attempted carryover beyond D-02. |
+
+## 6. Future postflight and closure criteria
+
+If—and only if—future D-02 execution completes all 87 approved statements without a deviation, Tavonga Shoko must compare current metadata with the pinned source and retained Wave 2 scratch fingerprint under the dated D-02-only exception in Section 1A. The expected server state is exactly 23 tables, 9 named foreign keys, 58 named explicit secondary indexes, and the primary/unique/default/column structures in the source definitions.
+
+The database smoke test is limited to authenticated non-production connectivity and `COUNT(*)` reads over the three D-01 plus 20 D-02 tables. No data seed or write test is authorised. Because staging is not a deployed application runtime target, this is not an end-user application deployment test.
+
+Closure requires redacted statement-result records, expected-versus-actual metadata comparison, zero-row results for all 23 tables, an application-validation record, any applicable runner/verifier revocation evidence, no unresolved unexpected object, and a distinct owner decision before D-03 is considered. The D-02 exception expires at that closure point.
+
+## Appendix A — explicit index inventory
+
+| Table | Index and columns |
+|---|---|
+| `claim_assignments` | `idx_claim_assignments_claim_active (claim_id, status)`; `idx_claim_assignments_assignee_active (assigned_to_user_id, status)`; `idx_claim_assignments_tenant_role (tenant_id, assignment_role, status)`; `idx_claim_assignments_parent (parent_assignment_id)` |
+| `claim_documents` | `idx_claim_id (claim_id)`; `idx_uploaded_by (uploaded_by)`; `idx_category (document_category)`; `idx_cd_inspection_id (inspection_id)` |
+| `claims` | `claims_claim_number_unique (claim_number)`; `idx_claims_vehicle_registry_id (vehicle_registry_id)`; `idx_claims_claimant_id (claimant_id)`; `idx_claims_assigned_assessor_id (assigned_assessor_id)`; `idx_claims_status (status)`; `idx_claims_created_at (created_at)`; `idx_claims_tenant_workflow_created (tenant_id, workflow_state, created_at)`; `idx_fraud_risk_score (fraud_risk_score)`; `idx_confidence_score (confidence_score)`; `idx_routing_decision (routing_decision)`; `idx_policy_version_id (policy_version_id)`; `idx_claims_tenant_status (tenant_id, status)`; `idx_claims_tenant_created (tenant_id, created_at)`; `idx_claims_fleet_driver_id (fleet_driver_id)` |
+| `drivers` | `idx_drivers_full_name (full_name)`; `idx_drivers_email (email)`; `idx_drivers_phone (phone)`; `idx_drivers_national_id (national_id_number)`; `idx_drivers_tenant (tenant_id)`; `idx_drivers_risk_score (driver_risk_score)`; `idx_drivers_repeat_claimer (is_repeat_claimer)` |
+| `inspections` | `idx_inspections_tenant (tenant_id)`; `idx_inspections_claim (claim_id)`; `idx_inspections_project (project_id)`; `idx_inspections_engineer (assigned_engineer_id)`; `idx_inspections_asset (asset_registry_id)`; `idx_inspections_vehicle (vehicle_registration)`; `idx_inspections_status (status)` |
+| `insurance_carriers` | `insurance_carriers_short_code_unique (short_code)` |
+| `insurance_policies` | `insurance_policies_policy_number_unique (policy_number)` |
+| `insurance_quotes` | `insurance_quotes_quote_number_unique (quote_number)` |
+| `vehicle_condition_snapshots` | `idx_vehicle_condition_snapshot_vehicle_date (vehicle_registry_id, snapshot_date)`; `idx_vehicle_condition_snapshot_tenant_vehicle (tenant_id, vehicle_registry_id)` |
+| `vehicle_damage_history` | `idx_vdh_vehicle_id (vehicle_id)`; `idx_vdh_claim_id (claim_id)`; `idx_vdh_vehicle_reg (vehicle_registration)`; `idx_vdh_damage_zone (damage_zone)`; `idx_vdh_severity (severity)`; `idx_vdh_tenant (tenant_id)`; `idx_vdh_repairer (repairer_id)`; `idx_vdh_repeat_zone (is_repeat_zone)` |
+| `vehicle_passport_snapshots` | `idx_vps_vehicle_registry_id (vehicle_registry_id)`; `idx_vps_registration_number (registration_number)`; `idx_vps_tenant_id (tenant_id)`; `idx_vps_generated_at (generated_at)` |
+| `vehicle_registry` | `idx_vehicle_registry_registration (registration_number)`; `idx_vehicle_registry_make_model (make, model)`; `idx_vehicle_registry_tenant (tenant_id)`; `idx_vehicle_registry_risk_score (vehicle_risk_score)`; `idx_vehicle_registry_repeat_claimer (is_repeat_claimer)` |
+
+## References
+
+[1]: ../../audit/gate-c-wave-two-review-2026-09-11.md "Gate C Wave 2 scratch baseline review"
+[2]: ../../audit/gate-c-scratch-baseline/wave-02-generated/wave-02-vehicle-claim-core.sql "Pinned Wave 2 source SQL"
+[3]: ../../audit/gate-c-scratch-baseline/wave-02-evidence/run_a/replay.json "Wave 2 retained scratch replay evidence"
+[4]: gate-d-execution-readiness-plan.md "Gate D execution readiness controls"
+[5]: gate-d-d01-owner-executed-postflight-2026-09-12.md "D-01 closure evidence"

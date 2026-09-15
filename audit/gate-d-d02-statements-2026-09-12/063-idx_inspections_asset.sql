@@ -1,0 +1,1 @@
+CREATE INDEX `idx_inspections_asset` ON `inspections` (`asset_registry_id`);

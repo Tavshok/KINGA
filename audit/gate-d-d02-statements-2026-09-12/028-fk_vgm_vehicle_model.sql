@@ -1,0 +1,1 @@
+ALTER TABLE `vehicle_geometry_measurements` ADD CONSTRAINT `fk_vgm_vehicle_model` FOREIGN KEY (`vehicle_model_id`) REFERENCES `vehicle_models`(`id`) ON DELETE no action ON UPDATE no action;

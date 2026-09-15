@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claims_tenant_status` ON `claims` (`tenant_id`,`status`);

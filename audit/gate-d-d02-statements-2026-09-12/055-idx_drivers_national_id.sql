@@ -1,0 +1,1 @@
+CREATE INDEX `idx_drivers_national_id` ON `drivers` (`national_id_number`);

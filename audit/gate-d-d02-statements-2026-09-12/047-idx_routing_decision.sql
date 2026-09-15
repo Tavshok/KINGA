@@ -1,0 +1,1 @@
+CREATE INDEX `idx_routing_decision` ON `claims` (`routing_decision`);

@@ -1,0 +1,20 @@
+CREATE TABLE `insurance_products` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`carrier_id` int NOT NULL,
+	`product_name` varchar(255) NOT NULL,
+	`product_code` varchar(50) NOT NULL,
+	`coverage_type` enum('comprehensive','third_party','third_party_fire_theft') NOT NULL,
+	`base_premium_monthly` int,
+	`base_premium_annual` int,
+	`vehicle_damage_limit` int,
+	`third_party_liability_limit` int,
+	`personal_accident_limit` int,
+	`excess_options` text,
+	`eligibility_rules` text,
+	`commission_rate` decimal(5,2),
+	`is_active` tinyint NOT NULL DEFAULT 1,
+	`tenant_id` varchar(255),
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `insurance_products_id` PRIMARY KEY(`id`)
+);

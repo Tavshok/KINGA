@@ -1,0 +1,1 @@
+CREATE INDEX `idx_category` ON `claim_documents` (`document_category`);
