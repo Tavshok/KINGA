@@ -1,0 +1,4 @@
+pair_rule,duplicate_groups,rows_in_duplicate_groups
+"assessor_insurer_relationships (assessor_id, tenant_id)","0","0"
+"policy_claim_links (policy_id, claim_id)","0","0"
+"fleet_drivers (fleet_id, user_id)","0","0"
