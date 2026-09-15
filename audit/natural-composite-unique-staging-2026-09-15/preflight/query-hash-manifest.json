@@ -1,0 +1,7 @@
+{
+  "01-baseline-table-inventory.sql": "9b392e047ef0dcaedaf7d0ab65b0783d8fa1c3d2e5390689328938c5b466dab2",
+  "02-baseline-zero-row-assertion.sql": "1a3f0497749751a168cf6e6b1d13147e858ff8e7c9d9f162d303bb70c0f9be76",
+  "03-target-column-metadata.sql": "aeaac79f1dcec9ed1373a50abe42b639e601fba686128d919158f8c299590df0",
+  "04-current-index-state.sql": "8f728bd281020137a6e6690d7d71a7b8eff15a62243f45b8433d219f14c9b451",
+  "05-duplicate-pair-preflight.sql": "3faaad3ba9ae21dd7b5c26215c408dd82692e5239de898c01911247781e04216"
+}

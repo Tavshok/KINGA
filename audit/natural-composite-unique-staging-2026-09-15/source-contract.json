@@ -1,0 +1,138 @@
+{
+  "schema": "kinga-natural-composite-unique-staging-packet/v1",
+  "generated_on": "2026-09-15",
+  "source_schema": "drizzle/schema.ts",
+  "source_schema_sha256": "4627f2cfd6e6cceeee785c905a7517bc18aafdeeee01dfaf0cfd973b626e859c",
+  "transition_source": "audit/natural-composite-unique-2026-09-15/natural-composite-unique-constraints.sql",
+  "transition_source_sha256": "a8b8e8fda51a0830116d2516a7d017ee7401e3b35a72e7a7773e1689c10ab9be",
+  "statement_count": 4,
+  "statement_counts": {
+    "DROP INDEX": 1,
+    "CREATE UNIQUE INDEX": 3
+  },
+  "statements": [
+    {
+      "ordinal": 1,
+      "kind": "DROP INDEX",
+      "table_name": "assessor_insurer_relationships",
+      "object_name": "unique_assessor_tenant",
+      "sql": "DROP INDEX `unique_assessor_tenant` ON `assessor_insurer_relationships`;",
+      "sha256": "3228ccf99192b5e284b243e09984bb42e76ec95347d6578f20c9a0d6ee333685"
+    },
+    {
+      "ordinal": 2,
+      "kind": "CREATE UNIQUE INDEX",
+      "table_name": "assessor_insurer_relationships",
+      "object_name": "uq_assessor_insurer_relationship",
+      "columns": [
+        "assessor_id",
+        "tenant_id"
+      ],
+      "sql": "CREATE UNIQUE INDEX `uq_assessor_insurer_relationship` ON `assessor_insurer_relationships` (`assessor_id`,`tenant_id`);",
+      "sha256": "49cd35e35a020bf9ba979ff692ce3714fdc547b209351ac91e6631e16549ca43"
+    },
+    {
+      "ordinal": 3,
+      "kind": "CREATE UNIQUE INDEX",
+      "table_name": "policy_claim_links",
+      "object_name": "uq_policy_claim_link",
+      "columns": [
+        "policy_id",
+        "claim_id"
+      ],
+      "sql": "CREATE UNIQUE INDEX `uq_policy_claim_link` ON `policy_claim_links` (`policy_id`,`claim_id`);",
+      "sha256": "1d79f04dde9f2eb73c78a8548379f3ccc936170f630ab8e15165795b2e8459b5"
+    },
+    {
+      "ordinal": 4,
+      "kind": "CREATE UNIQUE INDEX",
+      "table_name": "fleet_drivers",
+      "object_name": "uq_fleet_driver_membership",
+      "columns": [
+        "fleet_id",
+        "user_id"
+      ],
+      "sql": "CREATE UNIQUE INDEX `uq_fleet_driver_membership` ON `fleet_drivers` (`fleet_id`,`user_id`);",
+      "sha256": "b25f7fdd7113236392caee8ee963fc1def3fe6786a83f120a961418e90b74246"
+    }
+  ],
+  "ordered_file_hash_rule": "SHA-256 of each one-statement file in ordinal order, joined as lowercase hexadecimal values with LF separators and one trailing LF.",
+  "ordered_statement_file_sha256": "81f1cba9f009ea414edd06c3bb8fbaf34fc462d25e3a5f6063a6731aa6ab1ab5",
+  "statement_files": [
+    "001-unique_assessor_tenant.sql",
+    "002-uq_assessor_insurer_relationship.sql",
+    "003-uq_policy_claim_link.sql",
+    "004-uq_fleet_driver_membership.sql"
+  ],
+  "baseline": {
+    "expected_table_count": 188,
+    "expected_table_inventory_sha256": "36b26b9ee7dcbc0f1883f31db0a06840f5fd247cf8958f8e23f3d608c4bb52b5",
+    "baseline_source_inputs": [
+      {
+        "wave": "D-01",
+        "path": "/home/ubuntu/kinga-replit-d05-packet/audit/gate-c-scratch-baseline/wave-01-generated/wave-01-identity-tenant-roots.sql",
+        "sha256": "306797ab94529860bc9e88a69a955061916a94ddc3d08e3265229780ab08083c"
+      },
+      {
+        "wave": "D-02",
+        "path": "/home/ubuntu/kinga-replit-d05-packet/audit/gate-c-scratch-baseline/wave-02-generated/wave-02-vehicle-claim-core.sql",
+        "sha256": "15661c69490a4360931ef5fc3d17e2b4521f692730b2d113f1342117b067e7b9"
+      },
+      {
+        "wave": "D-03",
+        "path": "/home/ubuntu/kinga-replit-d05-packet/audit/gate-d-d03-tidb-compatible-source-2026-09-14.sql",
+        "sha256": "0c45f9ea613381185fd8afecfd99da1bd1d5f3275467c7286e892ab32745e59a"
+      },
+      {
+        "wave": "D-04",
+        "path": "/home/ubuntu/kinga-replit-d05-packet/audit/gate-d-text-index-compatibility-2026-09-14/wave-04-tidb-compatible-source-v2.sql",
+        "sha256": "7e5802c2a4c57cee21a951a0ca85d174b1f03fb5c560c00925564455ef9cfd69"
+      },
+      {
+        "wave": "D-05",
+        "path": "/home/ubuntu/kinga-replit-d05-packet/audit/gate-d-text-index-compatibility-2026-09-14/wave-05-tidb-compatible-source-v2.sql",
+        "sha256": "416de72140bb50ea254031c841e9ee1d027bc710d5fc9aba5b6c074e487764df"
+      }
+    ]
+  },
+  "expected_postflight": {
+    "removed_index": {
+      "table_name": "assessor_insurer_relationships",
+      "index_name": "unique_assessor_tenant"
+    },
+    "unique_indexes": [
+      {
+        "table_name": "assessor_insurer_relationships",
+        "index_name": "uq_assessor_insurer_relationship",
+        "columns": [
+          "assessor_id",
+          "tenant_id"
+        ]
+      },
+      {
+        "table_name": "policy_claim_links",
+        "index_name": "uq_policy_claim_link",
+        "columns": [
+          "policy_id",
+          "claim_id"
+        ]
+      },
+      {
+        "table_name": "fleet_drivers",
+        "index_name": "uq_fleet_driver_membership",
+        "columns": [
+          "fleet_id",
+          "user_id"
+        ]
+      }
+    ],
+    "entity_relationships": "unchanged; no secondary unique index"
+  },
+  "preflight_queries": {
+    "01-baseline-table-inventory.sql": "9b392e047ef0dcaedaf7d0ab65b0783d8fa1c3d2e5390689328938c5b466dab2",
+    "02-baseline-zero-row-assertion.sql": "1a3f0497749751a168cf6e6b1d13147e858ff8e7c9d9f162d303bb70c0f9be76",
+    "03-target-column-metadata.sql": "aeaac79f1dcec9ed1373a50abe42b639e601fba686128d919158f8c299590df0",
+    "04-current-index-state.sql": "8f728bd281020137a6e6690d7d71a7b8eff15a62243f45b8433d219f14c9b451",
+    "05-duplicate-pair-preflight.sql": "3faaad3ba9ae21dd7b5c26215c408dd82692e5239de898c01911247781e04216"
+  }
+}
