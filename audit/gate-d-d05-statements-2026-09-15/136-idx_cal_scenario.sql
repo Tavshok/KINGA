@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cal_scenario` ON `calibration_overrides` (`scenario_type`);

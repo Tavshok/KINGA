@@ -1,0 +1,1 @@
+CREATE INDEX `reference_idx` ON `usage_events` (`reference_id`);

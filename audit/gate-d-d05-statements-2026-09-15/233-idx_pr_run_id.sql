@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pr_run_id` ON `pipeline_runs` (`run_id`);

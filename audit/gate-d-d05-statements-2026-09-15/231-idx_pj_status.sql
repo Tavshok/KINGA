@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pj_status` ON `pipeline_jobs` (`status`);

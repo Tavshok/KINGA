@@ -1,0 +1,1 @@
+CREATE INDEX `idx_risk_register_tenant_id` ON `risk_register` (`tenant_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ft_log_tenant` ON `fast_track_routing_log` (`tenant_id`);

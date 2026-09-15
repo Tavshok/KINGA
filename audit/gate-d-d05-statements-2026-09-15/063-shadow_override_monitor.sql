@@ -1,0 +1,21 @@
+CREATE TABLE `shadow_override_monitor` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`user_id` varchar(50) NOT NULL,
+	`user_name` varchar(100),
+	`tenant_id` varchar(50) NOT NULL DEFAULT 'default',
+	`overrides_24h` int NOT NULL DEFAULT 0,
+	`overrides_7d` int NOT NULL DEFAULT 0,
+	`overrides_30d` int NOT NULL DEFAULT 0,
+	`total_overrides` int NOT NULL DEFAULT 0,
+	`unusual_pattern_detected` tinyint NOT NULL DEFAULT 0,
+	`pattern_notes` text,
+	`override_activity_detected` tinyint NOT NULL DEFAULT 0,
+	`recommended_action` varchar(20) NOT NULL DEFAULT 'none',
+	`mode` varchar(20) NOT NULL DEFAULT 'shadow',
+	`last_scanned_at` bigint NOT NULL,
+	`first_override_at` bigint,
+	`last_override_at` bigint,
+	`created_at` bigint NOT NULL,
+	`updated_at` bigint NOT NULL,
+	CONSTRAINT `shadow_override_monitor_id` PRIMARY KEY(`id`)
+);

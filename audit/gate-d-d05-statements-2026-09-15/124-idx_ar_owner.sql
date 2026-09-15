@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ar_owner` ON `asset_registry` (`owner_id`);

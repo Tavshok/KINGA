@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ca_role_key` ON `claim_approvals` (`role_key`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_som_tenant` ON `shadow_override_monitor` (`tenant_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_dc_driver_id` ON `driver_claims` (`driver_id`);

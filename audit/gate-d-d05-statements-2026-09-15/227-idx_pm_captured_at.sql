@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pm_captured_at` ON `physical_measurements` (`captured_at`);

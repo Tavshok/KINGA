@@ -1,0 +1,1 @@
+CREATE INDEX `idx_flm_model_type` ON `federated_learning_metadata` (`model_type`);

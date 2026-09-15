@@ -1,0 +1,140 @@
+{
+  "schema": "kinga-d05-final-postflight-query-manifest/v1",
+  "database": "kinga_staging",
+  "source_paths": [
+    "audit/gate-c-scratch-baseline/wave-01-generated/wave-01-identity-tenant-roots.sql",
+    "audit/gate-d-d02-statement-hash-ledger-2026-09-12.json",
+    "audit/gate-d-d03-revised-statement-hash-ledger-2026-09-14.json",
+    "audit/gate-d-text-index-compatibility-2026-09-14/wave-04-tidb-compatible-source-v2.sql",
+    "audit/gate-d-text-index-compatibility-2026-09-14/wave-05-tidb-compatible-source-v2.sql"
+  ],
+  "source_sha256": "416de72140bb50ea254031c841e9ee1d027bc710d5fc9aba5b6c074e487764df",
+  "cumulative_expected_tables": 188,
+  "d05_expected_tables": 75,
+  "expected_table_lists": [
+    "expected-final-cumulative-tables.txt",
+    "expected-d05-tables.txt"
+  ],
+  "query_files": [
+    {
+      "file": "01-final-cumulative-table-inventory.sql",
+      "sha256": "4f63afe4b93e02937aa51a690736e7c02a7e4230f3727cbaa59bfca5c0bf8e4a"
+    },
+    {
+      "file": "02-final-cumulative-foreign-keys.sql",
+      "sha256": "7b94a92b746f3fa0282b477fa6e83eaf65b31a9a900b290150b89c04dc29b01a"
+    },
+    {
+      "file": "03-final-cumulative-non-primary-indexes.sql",
+      "sha256": "a23dd3f30d3c680349f894e3e408c60955c4655ca18c0293287e9ca3b1fd287f"
+    },
+    {
+      "file": "04-final-cumulative-primary-unique-keys.sql",
+      "sha256": "cc54e117ced24fba044397112faa4e31495069c6747b493c2a3cb350612b6520"
+    },
+    {
+      "file": "05-final-cumulative-zero-rows.sql",
+      "sha256": "f891d10dfef145f4653449ae4e5141f94b592b97b111ca4cfcbe05c89f56c60e"
+    },
+    {
+      "file": "14-d05-non-primary-indexes.sql",
+      "sha256": "8ceccf43dff0a7c5d3227c0efbe44fe4abcdc430cf1e605bdd1168995e335245"
+    }
+  ],
+  "d05_column_query_files": [
+    {
+      "file": "06-d05-columns-01-10.sql",
+      "table_start": 1,
+      "table_end": 10,
+      "table_count": 10,
+      "sha256": "33c2dd6de067897caf7fa484c2548e82ad01009fe1179cfbeecf9c099b31afe5"
+    },
+    {
+      "file": "07-d05-columns-11-20.sql",
+      "table_start": 11,
+      "table_end": 20,
+      "table_count": 10,
+      "sha256": "1b6a0913362306826b18619af1853f01f0378747955c26c1cc763b365122b4cc"
+    },
+    {
+      "file": "08-d05-columns-21-30.sql",
+      "table_start": 21,
+      "table_end": 30,
+      "table_count": 10,
+      "sha256": "8164473682f628dc88d77011e1859a1fbb3f1b26aea5b719bf4584e912fde189"
+    },
+    {
+      "file": "09-d05-columns-31-40.sql",
+      "table_start": 31,
+      "table_end": 40,
+      "table_count": 10,
+      "sha256": "feee5651c066122a2d11a9871b8784c896a2931ec7d0952e51ef99d126e9c720"
+    },
+    {
+      "file": "10-d05-columns-41-50.sql",
+      "table_start": 41,
+      "table_end": 50,
+      "table_count": 10,
+      "sha256": "7894b8342dd6f787171234a9a34821f10378fe95821a7f07200d4ed4ac06abd1"
+    },
+    {
+      "file": "11-d05-columns-51-60.sql",
+      "table_start": 51,
+      "table_end": 60,
+      "table_count": 10,
+      "sha256": "e008c61b148e28881c57650923ac910a5c8877bbd069860dd78c78d7ff3e36f6"
+    },
+    {
+      "file": "12-d05-columns-61-70.sql",
+      "table_start": 61,
+      "table_end": 70,
+      "table_count": 10,
+      "sha256": "a391d9165b3463dfbc5e10bd42000d6fff47527a96301be99cae8ec49569d2e8"
+    },
+    {
+      "file": "13-d05-columns-71-75.sql",
+      "table_start": 71,
+      "table_end": 75,
+      "table_count": 5,
+      "sha256": "b9bf87c11f7102e548cacc48bceb4485cede77b90ed9e02d0285d6f78fd8bc88"
+    }
+  ],
+  "cumulative_non_primary_index_query_files": [
+    {
+      "file": "15-cumulative-indexes-001-040.sql",
+      "table_start": 1,
+      "table_end": 40,
+      "table_count": 40,
+      "sha256": "e7e710dc38de9bcaeb59bca6651fba8fea736810bb4b4da00d224ac18a098378"
+    },
+    {
+      "file": "16-cumulative-indexes-041-080.sql",
+      "table_start": 41,
+      "table_end": 80,
+      "table_count": 40,
+      "sha256": "7f982c5b5f0964a5e1f9f2be53b54e9279f7753a5d1072c8ba8fd1c3224428a6"
+    },
+    {
+      "file": "17-cumulative-indexes-081-120.sql",
+      "table_start": 81,
+      "table_end": 120,
+      "table_count": 40,
+      "sha256": "5481546373004913f7e49b0d4776a54617ce006cbb80e6fb4f1100aa5151c58e"
+    },
+    {
+      "file": "18-cumulative-indexes-121-160.sql",
+      "table_start": 121,
+      "table_end": 160,
+      "table_count": 40,
+      "sha256": "9cfa014945bca28972e8901a47ee767874f4c476201a3940f62c862ec218e52b"
+    },
+    {
+      "file": "19-cumulative-indexes-161-188.sql",
+      "table_start": 161,
+      "table_end": 188,
+      "table_count": 28,
+      "sha256": "a265cbee8b09d220fc401c78dd12b13d27bdcfb77000e95fd267fae236306e43"
+    }
+  ],
+  "notes": "All generated statements are read-only information_schema queries or an aggregate SELECT. The zero-row assertion begins with USE kinga_staging only because TiDB SQL Editor requires a selected session schema; it issues no DDL or DML."
+}

@@ -1,0 +1,20 @@
+CREATE TABLE `licensing_records` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`fleet_account_id` int NOT NULL,
+	`vehicle_registration` varchar(50) NOT NULL,
+	`vehicle_make` varchar(100),
+	`vehicle_model` varchar(100),
+	`license_type` enum('vehicle_license','roadworthy','operator_permit','cross_border','other') NOT NULL,
+	`license_number` varchar(100),
+	`issue_date` timestamp,
+	`expiry_date` timestamp NOT NULL,
+	`issuing_authority` varchar(255),
+	`cost_cents` int,
+	`licensing_status` enum('active','expired','expiring_soon','pending_renewal') NOT NULL DEFAULT 'active',
+	`document_url` varchar(1000),
+	`notes` text,
+	`created_by` int NOT NULL,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `licensing_records_id` PRIMARY KEY(`id`)
+);

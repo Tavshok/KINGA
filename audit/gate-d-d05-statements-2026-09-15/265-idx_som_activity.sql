@@ -1,0 +1,1 @@
+CREATE INDEX `idx_som_activity` ON `shadow_override_monitor` (`override_activity_detected`);

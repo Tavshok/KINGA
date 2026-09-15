@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cal_tenant_jurisdiction` ON `calibration_overrides` (`tenant_id`,`jurisdiction`);

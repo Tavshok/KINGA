@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tiv_user_tenant` ON `tenant_isolation_violations` (`user_tenant_id`);

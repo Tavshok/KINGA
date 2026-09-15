@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ca_claim_id` ON `claim_approvals` (`claim_id`);

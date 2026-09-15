@@ -1,0 +1,1 @@
+CREATE INDEX `idx_nv_claim` ON `narrative_versions` (`claim_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_iso_audit_logs_tenant_id` ON `iso_audit_logs` (`tenant_id`);

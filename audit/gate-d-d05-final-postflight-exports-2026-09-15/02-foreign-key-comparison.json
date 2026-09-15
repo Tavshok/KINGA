@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "expected_row_count": 67,
+  "live_row_count": 67,
+  "expected_distinct_constraint_count": 67,
+  "live_distinct_constraint_count": 67,
+  "missing": [],
+  "unexpected": []
+}

@@ -1,0 +1,20 @@
+CREATE TABLE `maintenance_schedules` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`vehicle_id` int NOT NULL,
+	`tenant_id` varchar(64),
+	`maintenance_type` enum('oil_change','tire_rotation','brake_inspection','engine_service','transmission_service','annual_inspection','safety_inspection','filter_replacement','battery_check','coolant_flush','custom') NOT NULL,
+	`description` text,
+	`interval_type` enum('mileage','time','both') NOT NULL,
+	`mileage_interval` int,
+	`time_interval` int,
+	`last_service_date` timestamp,
+	`last_service_mileage` int,
+	`next_due_date` timestamp,
+	`next_due_mileage` int,
+	`alert_days_before` int DEFAULT 7,
+	`alert_mileage_before` int DEFAULT 500,
+	`is_active` tinyint DEFAULT 1,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `maintenance_schedules_id` PRIMARY KEY(`id`)
+);

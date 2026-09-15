@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cal_status` ON `calibration_overrides` (`status`);

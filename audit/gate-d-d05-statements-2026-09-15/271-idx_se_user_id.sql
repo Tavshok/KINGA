@@ -1,0 +1,1 @@
+CREATE INDEX `idx_se_user_id` ON `system_errors` (`user_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_se_procedure` ON `system_errors` (`procedure_name`);

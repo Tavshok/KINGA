@@ -1,0 +1,1 @@
+CREATE INDEX `idx_evaluations_assessor_id` ON `assessor_evaluations` (`assessor_id`);

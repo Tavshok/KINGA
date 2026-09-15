@@ -1,0 +1,1 @@
+CREATE INDEX `idx_hc_status` ON `historical_claims` (`pipeline_status`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_dc_role` ON `driver_claims` (`role`);

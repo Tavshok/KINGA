@@ -1,0 +1,1 @@
+CREATE INDEX `idx_se_occurred_at` ON `system_errors` (`occurred_at`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ccs_signal_type` ON `cross_claim_signals` (`signal_type`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_hc_tenant` ON `historical_claims` (`tenant_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ccs_dismissed` ON `cross_claim_signals` (`is_dismissed`);

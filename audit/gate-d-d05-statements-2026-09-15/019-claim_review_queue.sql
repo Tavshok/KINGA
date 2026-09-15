@@ -1,0 +1,20 @@
+CREATE TABLE `claim_review_queue` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`historical_claim_id` int NOT NULL,
+	`tenant_id` varchar(64),
+	`review_status` enum('pending_review','in_review','approved','rejected','needs_more_info') DEFAULT 'pending_review',
+	`review_priority` enum('low','medium','high') DEFAULT 'medium',
+	`routed_reason` varchar(255),
+	`automated_validation_level` varchar(50),
+	`assigned_to` int,
+	`assigned_at` timestamp,
+	`reviewed_by` int,
+	`reviewed_at` timestamp,
+	`review_decision` enum('approve','reject','request_more_info'),
+	`review_notes` text,
+	`include_in_training_dataset` tinyint DEFAULT 0,
+	`include_in_reference_dataset` tinyint DEFAULT 1,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `claim_review_queue_id` PRIMARY KEY(`id`)
+);

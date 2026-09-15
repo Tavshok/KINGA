@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ft_log_config` ON `fast_track_routing_log` (`config_id`);

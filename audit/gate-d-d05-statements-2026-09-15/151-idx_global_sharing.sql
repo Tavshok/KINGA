@@ -1,0 +1,1 @@
+CREATE INDEX `idx_global_sharing` ON `claim_intelligence_dataset` (`global_sharing_enabled`);

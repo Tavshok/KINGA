@@ -1,0 +1,1 @@
+CREATE INDEX `claim_review_queue_historical_claim_id_unique` ON `claim_review_queue` (`historical_claim_id`);
