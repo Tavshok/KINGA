@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ds_claim` ON `decision_snapshots` (`claim_id`);

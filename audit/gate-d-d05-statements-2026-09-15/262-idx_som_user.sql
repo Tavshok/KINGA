@@ -1,0 +1,1 @@
+CREATE INDEX `idx_som_user` ON `shadow_override_monitor` (`user_id`);

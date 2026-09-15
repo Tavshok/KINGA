@@ -1,0 +1,1 @@
+CREATE INDEX `tenant_id` ON `workflow_configuration` (`tenant_id`);

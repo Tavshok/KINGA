@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rcl_case_id` ON `recovery_correspondence_log` (`recovery_case_id`);

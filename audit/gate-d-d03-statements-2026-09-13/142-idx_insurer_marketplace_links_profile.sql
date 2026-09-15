@@ -1,0 +1,1 @@
+CREATE INDEX `idx_insurer_marketplace_links_profile` ON `insurer_marketplace_links` (`marketplace_profile_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fleet_accounts_owner` ON `fleet_accounts` (`owner_user_id`);

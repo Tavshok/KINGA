@@ -1,0 +1,1 @@
+CREATE INDEX `idx_assessor_reports_tenant_state` ON `assessor_reports` (`tenant_id`,`status`);

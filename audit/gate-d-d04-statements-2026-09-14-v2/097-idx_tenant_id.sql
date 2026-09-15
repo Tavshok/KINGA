@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tenant_id` ON `governance_notifications` (`tenant_id`);

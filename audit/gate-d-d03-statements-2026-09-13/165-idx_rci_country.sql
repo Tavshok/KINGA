@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rci_country` ON `repair_cost_intelligence` (`country`);

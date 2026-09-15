@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ft_config_hierarchy` ON `fast_track_config` (`tenant_id`,`product_id`,`claim_type`);

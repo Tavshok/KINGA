@@ -1,0 +1,1 @@
+ALTER TABLE `recovery_cases` ADD CONSTRAINT `recovery_cases_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE restrict ON UPDATE cascade;

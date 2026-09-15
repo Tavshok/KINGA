@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ccs_confidence` ON `cross_claim_signals` (`confidence`);

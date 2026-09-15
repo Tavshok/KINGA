@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ft_config_effective` ON `fast_track_config` (`effective_from`);

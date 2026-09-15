@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vd_claim` ON `variance_datasets` (`historical_claim_id`);

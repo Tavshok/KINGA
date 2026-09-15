@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gad_province` ON `global_anonymized_dataset` (`province`);

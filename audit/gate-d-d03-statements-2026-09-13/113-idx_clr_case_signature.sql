@@ -1,0 +1,1 @@
+CREATE INDEX `idx_clr_case_signature` ON `cost_learning_records` (`case_signature`);

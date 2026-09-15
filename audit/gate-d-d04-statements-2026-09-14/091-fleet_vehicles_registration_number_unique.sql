@@ -1,0 +1,1 @@
+CREATE INDEX `fleet_vehicles_registration_number_unique` ON `fleet_vehicles` (`registration_number`);

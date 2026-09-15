@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ce_emitted_at` ON `claim_events` (`emitted_at`);

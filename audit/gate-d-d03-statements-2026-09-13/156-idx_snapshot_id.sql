@@ -1,0 +1,1 @@
+CREATE INDEX `idx_snapshot_id` ON `pdf_reports` (`snapshot_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gr_created_at` ON `generated_reports` (`created_at`);

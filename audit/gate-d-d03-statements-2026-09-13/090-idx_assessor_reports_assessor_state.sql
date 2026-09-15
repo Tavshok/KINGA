@@ -1,0 +1,1 @@
+CREATE INDEX `idx_assessor_reports_assessor_state` ON `assessor_reports` (`assessor_user_id`,`status`);

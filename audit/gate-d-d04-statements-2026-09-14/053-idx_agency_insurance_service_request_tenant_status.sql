@@ -1,0 +1,1 @@
+CREATE INDEX `idx_agency_insurance_service_request_tenant_status` ON `agency_insurance_service_requests` (`agency_tenant_id`,`status`);

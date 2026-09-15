@@ -1,0 +1,1 @@
+CREATE INDEX `idx_historical_replay_results_historical_claim_id` ON `historical_replay_results` (`historical_claim_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ds_tenant` ON `decision_snapshots` (`tenant_id`);

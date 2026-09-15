@@ -1,0 +1,1 @@
+CREATE INDEX `idx_marketplace_profiles_approval_status` ON `marketplace_profiles` (`approval_status`);

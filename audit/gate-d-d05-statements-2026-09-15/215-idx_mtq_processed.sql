@@ -1,0 +1,1 @@
+CREATE INDEX `idx_mtq_processed` ON `model_training_queue` (`processed`);

@@ -1,0 +1,1 @@
+ALTER TABLE `claim_comments` ADD CONSTRAINT `claim_comments_author_user_id_users_id_fk` FOREIGN KEY (`author_user_id`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;

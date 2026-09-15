@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tenant_id` ON `claim_confidence_scores` (`tenant_id`);

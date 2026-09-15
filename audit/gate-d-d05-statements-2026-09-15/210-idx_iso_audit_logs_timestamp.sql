@@ -1,0 +1,1 @@
+CREATE INDEX `idx_iso_audit_logs_timestamp` ON `iso_audit_logs` (`timestamp`);

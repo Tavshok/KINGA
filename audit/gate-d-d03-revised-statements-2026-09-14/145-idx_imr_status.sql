@@ -1,0 +1,1 @@
+CREATE INDEX `idx_imr_status` ON `insurer_marketplace_relationships` (`relationship_status`);

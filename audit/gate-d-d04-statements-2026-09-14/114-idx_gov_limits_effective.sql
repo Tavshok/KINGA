@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gov_limits_effective` ON `platform_governance_limits` (`effective_from`);

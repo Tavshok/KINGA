@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pr_claim_id` ON `pipeline_runs` (`claim_id`);

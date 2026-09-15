@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gsh_tenant_id` ON `global_search_history` (`tenant_id`);

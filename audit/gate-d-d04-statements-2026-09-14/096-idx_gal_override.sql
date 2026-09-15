@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gal_override` ON `governance_audit_log` (`override_flag`);

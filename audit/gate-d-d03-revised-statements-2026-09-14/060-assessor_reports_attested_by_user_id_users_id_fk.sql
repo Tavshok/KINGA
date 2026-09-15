@@ -1,0 +1,1 @@
+ALTER TABLE `assessor_reports` ADD CONSTRAINT `assessor_reports_attested_by_user_id_users_id_fk` FOREIGN KEY (`attested_by_user_id`) REFERENCES `users`(`id`) ON DELETE set null ON UPDATE cascade;

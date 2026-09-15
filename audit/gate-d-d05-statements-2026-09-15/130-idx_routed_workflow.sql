@@ -1,0 +1,1 @@
+CREATE INDEX `idx_routed_workflow` ON `automation_audit_log` (`routed_workflow`);

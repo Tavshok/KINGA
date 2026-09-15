@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rh_repeat_damage` ON `repair_history` (`repeat_damage_within_12_months`);

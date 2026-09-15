@@ -1,0 +1,1 @@
+CREATE INDEX `idx_apl_tenant` ON `ai_prediction_logs` (`tenant_id`);

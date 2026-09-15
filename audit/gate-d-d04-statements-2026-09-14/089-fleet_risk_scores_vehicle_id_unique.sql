@@ -1,0 +1,1 @@
+CREATE INDEX `fleet_risk_scores_vehicle_id_unique` ON `fleet_risk_scores` (`vehicle_id`);

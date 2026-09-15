@@ -1,0 +1,1 @@
+ALTER TABLE `assessor_evaluations` ADD CONSTRAINT `assessor_evaluations_source_report_id_assessor_reports_id_fk` FOREIGN KEY (`source_report_id`) REFERENCES `assessor_reports`(`id`) ON DELETE set null ON UPDATE cascade;

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cri_country` ON `country_repair_index` (`country_code`);

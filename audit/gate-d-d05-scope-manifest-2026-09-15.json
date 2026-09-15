@@ -1,0 +1,1376 @@
+{
+  "schema": "kinga-d05-scope-manifest/v1",
+  "source_sha256": "416de72140bb50ea254031c841e9ee1d027bc710d5fc9aba5b6c074e487764df",
+  "statement_count": 290,
+  "tables": [
+    "access_denial_log",
+    "anonymization_audit_log",
+    "appointments",
+    "assessor_deviation_metrics",
+    "assessor_evaluations",
+    "assessor_insurer_relationships",
+    "assessor_subscriptions",
+    "assessors",
+    "asset_registry",
+    "audit_trail",
+    "automation_audit_log",
+    "bias_detection_flags",
+    "calibration_overrides",
+    "claim_approvals",
+    "claim_events",
+    "claim_intake_requests",
+    "claim_intelligence_dataset",
+    "claim_involvement_tracking",
+    "claim_review_queue",
+    "commission_records",
+    "component_benchmarks",
+    "cross_claim_signals",
+    "customer_consent",
+    "dataset_access_grants",
+    "driver_claims",
+    "fast_track_config",
+    "fast_track_routing_log",
+    "federated_learning_metadata",
+    "final_approval_records",
+    "fuel_records",
+    "global_anonymized_dataset",
+    "global_search_analytics",
+    "global_search_history",
+    "historical_claims",
+    "historical_replay_results",
+    "human_review_queue",
+    "ingestion_batches",
+    "insurer_tenants",
+    "iso_audit_logs",
+    "licensing_records",
+    "maintenance_alerts",
+    "maintenance_records",
+    "maintenance_schedules",
+    "mismatch_annotations",
+    "model_training_queue",
+    "multi_reference_truth",
+    "narrative_versions",
+    "parts_pricing_baseline",
+    "personal_vehicles",
+    "physical_measurements",
+    "pipeline_jobs",
+    "pipeline_runs",
+    "policy_claim_links",
+    "policy_endorsements",
+    "predictive_risk_scores",
+    "quotation_requests",
+    "replay_logs",
+    "risk_register",
+    "role_assignment_audit",
+    "routing_history",
+    "routing_threshold_config",
+    "service_providers",
+    "shadow_override_monitor",
+    "similar_claims_clusters",
+    "super_audit_sessions",
+    "supplier_performance_metrics",
+    "system_errors",
+    "tenant_isolation_violations",
+    "tenant_role_configs",
+    "third_party_vehicles",
+    "training_data_scores",
+    "training_dataset",
+    "usage_events",
+    "variance_datasets",
+    "weight_adjustment_log"
+  ],
+  "foreign_keys": [
+    {
+      "ordinal": 76,
+      "table": "appointments",
+      "name": "appointments_claim_id_claims_id_fk",
+      "sha256": "92634c3f78a3f4fac37a59c006b1fc3225eec78b1f5d70e2da326e9a0576475d"
+    },
+    {
+      "ordinal": 77,
+      "table": "assessor_evaluations",
+      "name": "assessor_evaluations_claim_id_claims_id_fk",
+      "sha256": "78eaf1a57fd3f907918bd8afc8171eab20a6f3cac954a13fc52c7452e34b2961"
+    },
+    {
+      "ordinal": 78,
+      "table": "assessor_evaluations",
+      "name": "assessor_evaluations_source_report_id_assessor_reports_id_fk",
+      "sha256": "5b9f1d09b8d8b840cb69742e3ef9ae49c5ebb97aa545d2f063efc9a70485575d"
+    },
+    {
+      "ordinal": 79,
+      "table": "assessor_evaluations",
+      "name": "fk_ae_accepted_review",
+      "sha256": "bd34cdf6a7497c8973ff6530a4a49d7a26ed57a8e87d13035aea5973a311c2c4"
+    },
+    {
+      "ordinal": 80,
+      "table": "audit_trail",
+      "name": "audit_trail_claim_id_claims_id_fk",
+      "sha256": "baef788d6dfbb51422d5e863363ef8ec37bba54c02d80965adf7593b515dd1ec"
+    },
+    {
+      "ordinal": 81,
+      "table": "automation_audit_log",
+      "name": "automation_audit_log_claim_id_claims_id_fk",
+      "sha256": "546b7a2007e7a2476804f59b6f9668b677862ce1c7f641d9feadc2182ad05dcb"
+    },
+    {
+      "ordinal": 82,
+      "table": "automation_audit_log",
+      "name": "fk_aal_confidence_score",
+      "sha256": "19892741bd2c02a451eab2b966554785df86974ffe2d73dad0cc843725c76d71"
+    },
+    {
+      "ordinal": 83,
+      "table": "automation_audit_log",
+      "name": "fk_aal_routing_decision",
+      "sha256": "fff6203f0fc3d889d6a97453a2ffeee102f042211c563953b04fa6dc0f184995"
+    },
+    {
+      "ordinal": 84,
+      "table": "automation_audit_log",
+      "name": "fk_aal_automation_policy",
+      "sha256": "cf26640eef56aa2d39292f85236afcf6c7a22f61b229a47140baa52fe0c81f12"
+    },
+    {
+      "ordinal": 85,
+      "table": "claim_approvals",
+      "name": "claim_approvals_claim_id_claims_id_fk",
+      "sha256": "a2746924ac213a12e57c63a72fc3409f6dbf5ff8483631a2fea9571030090531"
+    },
+    {
+      "ordinal": 86,
+      "table": "claim_events",
+      "name": "claim_events_claim_id_claims_id_fk",
+      "sha256": "b4342a414b0dd8bd17b95b656958de33b1e80f0a1b01e74b4c4fe246145a01c4"
+    },
+    {
+      "ordinal": 87,
+      "table": "claim_intake_requests",
+      "name": "claim_intake_requests_claim_id_claims_id_fk",
+      "sha256": "86553f387e33553f7d95dbba2f84c97dc8e286a150d64069a938e7d3ebed821a"
+    },
+    {
+      "ordinal": 88,
+      "table": "claim_intelligence_dataset",
+      "name": "claim_intelligence_dataset_claim_id_claims_id_fk",
+      "sha256": "344db4b36093d9328f2947fcce7eac291c06bc84e49218b3f5c568bf586da669"
+    },
+    {
+      "ordinal": 89,
+      "table": "claim_involvement_tracking",
+      "name": "claim_involvement_tracking_claim_id_claims_id_fk",
+      "sha256": "aa1f6482427dcd0024d3815f0bdb7fef78c71ff9d0c37ca4b1776262e2a278e1"
+    },
+    {
+      "ordinal": 90,
+      "table": "cross_claim_signals",
+      "name": "cross_claim_signals_claim_id_claims_id_fk",
+      "sha256": "d01e11ea59237880ff0d1f9ee2100de19707ab1874a7a82ff9c786c7fd354139"
+    },
+    {
+      "ordinal": 91,
+      "table": "driver_claims",
+      "name": "driver_claims_claim_id_claims_id_fk",
+      "sha256": "7a69a699561186f24c6d6812e3ffe9009614e07ee779442a94a68e4da6068c63"
+    },
+    {
+      "ordinal": 92,
+      "table": "fast_track_routing_log",
+      "name": "fast_track_routing_log_claim_id_claims_id_fk",
+      "sha256": "ee60c7d5d6b8761b94bd6baa54b1026cd91697126d1777e64e0b97cdb9275f79"
+    },
+    {
+      "ordinal": 93,
+      "table": "mismatch_annotations",
+      "name": "mismatch_annotations_claim_id_claims_id_fk",
+      "sha256": "def2dcd59937469a5783d1c2af8b5bb019bd3af30b20d66c16b73fa776a2aa69"
+    },
+    {
+      "ordinal": 94,
+      "table": "model_training_queue",
+      "name": "model_training_queue_claim_id_claims_id_fk",
+      "sha256": "48b537da8b5508308af715af9922ab7a9e92f0c3cdf5b52c6fd32bad94619d16"
+    },
+    {
+      "ordinal": 95,
+      "table": "narrative_versions",
+      "name": "narrative_versions_claim_id_claims_id_fk",
+      "sha256": "877495d9647df072eb90281f340919620677c6f43d1adb6fbe6ea44ac0c736e1"
+    },
+    {
+      "ordinal": 96,
+      "table": "policy_claim_links",
+      "name": "policy_claim_links_claim_id_claims_id_fk",
+      "sha256": "f088c1eeafff7948e535f4edba1af27cc42dd49b872fc1bce778ee0f70caa9b9"
+    },
+    {
+      "ordinal": 97,
+      "table": "risk_register",
+      "name": "risk_register_claim_id_claims_id_fk",
+      "sha256": "ce2de4fd4ca20792dedd7bb8054e2ac4c2c8a7335259d78660462bd4c875205e"
+    },
+    {
+      "ordinal": 98,
+      "table": "routing_history",
+      "name": "routing_history_claim_id_claims_id_fk",
+      "sha256": "7ad23fa043c3b2e68e7512ed8c60a9b31f5a9858e48ade9bb44bbf8d1faec9c4"
+    },
+    {
+      "ordinal": 99,
+      "table": "third_party_vehicles",
+      "name": "third_party_vehicles_claim_id_claims_id_fk",
+      "sha256": "863629929eaf74f868940d775a44542f4653577179c1e23e30a9ea52506a5106"
+    },
+    {
+      "ordinal": 100,
+      "table": "usage_events",
+      "name": "usage_events_claim_id_claims_id_fk",
+      "sha256": "73bee7053dd72aeb49a3c2c21986b1009725f9a4e267e9d1de6f49300a78a863"
+    }
+  ],
+  "explicit_indexes": [
+    {
+      "ordinal": 101,
+      "table": "anonymization_audit_log",
+      "name": "idx_aal_source_record",
+      "sha256": "3be16b3a1d3c6c9128e3657b6aae9838310d777c02041f289bae0ec85449d83c"
+    },
+    {
+      "ordinal": 102,
+      "table": "anonymization_audit_log",
+      "name": "idx_aal_status",
+      "sha256": "709ed5f1567c9a2c413d4dfb8639a8cab528cd6fc962ade05ba912bdf0f4c2b1"
+    },
+    {
+      "ordinal": 103,
+      "table": "anonymization_audit_log",
+      "name": "idx_aal_anonymized_at",
+      "sha256": "94fad3c02fe785e5a4686dc05e77c87c2a1e8607f63c13c1394df33b7a6474df"
+    },
+    {
+      "ordinal": 104,
+      "table": "assessor_evaluations",
+      "name": "idx_evaluations_claim_id",
+      "sha256": "36448d90d1b6117719edf603a7e813767cf7b0a8cec929e11fd1ece44ba2c654"
+    },
+    {
+      "ordinal": 105,
+      "table": "assessor_evaluations",
+      "name": "idx_evaluations_assessor_id",
+      "sha256": "6ac25671383071e0618b7e02d9110d8f1563a87717bf8cdd9d146dd1f48b6db4"
+    },
+    {
+      "ordinal": 106,
+      "table": "assessor_insurer_relationships",
+      "name": "unique_assessor_tenant",
+      "sha256": "e5a3d559646593c2c5f61020aa327f8fa5346416ce526885587636d7fa92a22d"
+    },
+    {
+      "ordinal": 107,
+      "table": "assessor_insurer_relationships",
+      "name": "idx_tenant",
+      "sha256": "f36c17fb78c097e8ed19237d7b83a75123395be4b6deb05b8a53e24766ba7f57"
+    },
+    {
+      "ordinal": 108,
+      "table": "assessor_insurer_relationships",
+      "name": "idx_type",
+      "sha256": "6c3fabc2d7153bb2a86a91ab34c82ed6f2da919c9ed0d7a7f7337803820f51ef"
+    },
+    {
+      "ordinal": 109,
+      "table": "assessor_insurer_relationships",
+      "name": "idx_status",
+      "sha256": "f59fd3475698cff7633fa34d92e2c7ec10d2639481b0997b7649155d2ed696c4"
+    },
+    {
+      "ordinal": 110,
+      "table": "assessor_insurer_relationships",
+      "name": "idx_preferred",
+      "sha256": "744171c065e4e0d5755e693dcdac4a6bd608877bb306316ff238b179b294fdc3"
+    },
+    {
+      "ordinal": 111,
+      "table": "assessor_subscriptions",
+      "name": "idx_asub_profile",
+      "sha256": "22cf9e8cda07e84bd088e61659ec50f83b3897cc4f949a12407ea29ba71ec403"
+    },
+    {
+      "ordinal": 112,
+      "table": "assessor_subscriptions",
+      "name": "idx_asub_user",
+      "sha256": "916f0faa68664f4ff36069cf5f4f63449fe28b6a6ffb09a1e605f369d60ed7df"
+    },
+    {
+      "ordinal": 113,
+      "table": "assessor_subscriptions",
+      "name": "idx_asub_tier",
+      "sha256": "20cad1e729fb054edddf2152ca24b4b4264c5086816f6b5525fc8a3d862b42ab"
+    },
+    {
+      "ordinal": 114,
+      "table": "assessors",
+      "name": "idx_type",
+      "sha256": "2960155323b42337f7adf4a4002d0d07d299c8a32d50bb5d4c051990c26b9202"
+    },
+    {
+      "ordinal": 115,
+      "table": "assessors",
+      "name": "idx_marketplace_status",
+      "sha256": "34ae6bb709988f294ba5def8a32357d25c7ab47ec4568d652e874705c60763c4"
+    },
+    {
+      "ordinal": 116,
+      "table": "assessors",
+      "name": "idx_primary_tenant",
+      "sha256": "8d72d0fbb6289e58b92ed4601ee745a7f3709a17505e9f89160bdf58fd331e70"
+    },
+    {
+      "ordinal": 117,
+      "table": "assessors",
+      "name": "idx_performance",
+      "sha256": "2f3aff49b071d71000a92acf79775b2589f943639087f75bea82bbad8552db76"
+    },
+    {
+      "ordinal": 118,
+      "table": "assessors",
+      "name": "idx_rating",
+      "sha256": "c745a17d332e092b2d44f0831eb335ade055d06ffc78965cd5489a9bb3496308"
+    },
+    {
+      "ordinal": 119,
+      "table": "assessors",
+      "name": "user_id",
+      "sha256": "c83804bd321a99a0102003d12b03fe4824a270f3e4b89d97e52a26f7bec0c77c"
+    },
+    {
+      "ordinal": 120,
+      "table": "assessors",
+      "name": "professional_license_number",
+      "sha256": "8d07eb1c4e9511707b82f5db27fcdd096dd75082bdc6997fe91b2b3e4e3572b1"
+    },
+    {
+      "ordinal": 121,
+      "table": "asset_registry",
+      "name": "idx_ar_tenant",
+      "sha256": "56c6bdb68dfa3eafee560341ad103ced00ec0ee924f21432fe453fd4ac7e38e1"
+    },
+    {
+      "ordinal": 122,
+      "table": "asset_registry",
+      "name": "idx_ar_type",
+      "sha256": "5bf8e3af75ce498b90ae09d9f4c28c8ab3d8482e74910efd00fcd9ac5a2b562f"
+    },
+    {
+      "ordinal": 123,
+      "table": "asset_registry",
+      "name": "idx_ar_vehicle_reg",
+      "sha256": "40d7b39a9ad074248c927c1e47a5bccb30ce1044cdf37a077615eb4702ac5820"
+    },
+    {
+      "ordinal": 124,
+      "table": "asset_registry",
+      "name": "idx_ar_owner",
+      "sha256": "ffac37ffa269062a06864387e31d535388dacb338cb9d6511e016475b7a747f0"
+    },
+    {
+      "ordinal": 125,
+      "table": "audit_trail",
+      "name": "idx_audit_claim_id",
+      "sha256": "0ba71613b7a8fccd4d69825c018f1034c289240a2802f3fcb8f49defb2df3afe"
+    },
+    {
+      "ordinal": 126,
+      "table": "audit_trail",
+      "name": "idx_audit_user_id",
+      "sha256": "630c48b7aa04a4f7857abef223653438f61c14763b84bdd4b27fa71ce8ca4114"
+    },
+    {
+      "ordinal": 127,
+      "table": "audit_trail",
+      "name": "idx_audit_created_at",
+      "sha256": "3ee062b56d7b9f58eb2e8c3bfc10d2b610e5713137d3518d61ffde75e1fc4c43"
+    },
+    {
+      "ordinal": 128,
+      "table": "automation_audit_log",
+      "name": "idx_claim_id",
+      "sha256": "09bac601286506fc24a7e1c68c5efa7985fdd11600f6aacb1f5bc66d09258e2f"
+    },
+    {
+      "ordinal": 129,
+      "table": "automation_audit_log",
+      "name": "idx_tenant_id",
+      "sha256": "68506791d2196a9c6bec5d11e6b032dce418d160965ee7638bf907e5612b8f10"
+    },
+    {
+      "ordinal": 130,
+      "table": "automation_audit_log",
+      "name": "idx_routed_workflow",
+      "sha256": "040b1646f272e93707c7a0bd70cb116ef221321fe4ff6abe6bb42df6c46dbeea"
+    },
+    {
+      "ordinal": 131,
+      "table": "automation_audit_log",
+      "name": "idx_composite_score",
+      "sha256": "2f421c134b788d1d928f766c1ba7e8585cbaee88b0e428745ff659b91108b2d7"
+    },
+    {
+      "ordinal": 132,
+      "table": "automation_audit_log",
+      "name": "idx_decision_made_at",
+      "sha256": "cd82c04b2d8148eb72c4cd9b6dece8bd0e8d05a5fbecd510d60322719e285140"
+    },
+    {
+      "ordinal": 133,
+      "table": "automation_audit_log",
+      "name": "idx_was_overridden",
+      "sha256": "14c8839a908274ef54a889b207206a999a405abc597ba2f4e23201d279992aba"
+    },
+    {
+      "ordinal": 134,
+      "table": "calibration_overrides",
+      "name": "idx_cal_tenant_jurisdiction",
+      "sha256": "0b935409af524def9afafe77e5011d85d266ecbf823927079eaf4e8074152459"
+    },
+    {
+      "ordinal": 135,
+      "table": "calibration_overrides",
+      "name": "idx_cal_status",
+      "sha256": "4cd0e79a3e33eadba90b25b4c0b5b89fe2ba73d8e37e93a3e30c6981af6108c3"
+    },
+    {
+      "ordinal": 136,
+      "table": "calibration_overrides",
+      "name": "idx_cal_scenario",
+      "sha256": "79aed7cb2a4d578d6b0b49313777485dcca63a508dea3303e3e2bf00b5637e5d"
+    },
+    {
+      "ordinal": 137,
+      "table": "claim_approvals",
+      "name": "idx_ca_claim_id",
+      "sha256": "d9aa9d992819a85fcfa5a4356ed5f9ea2a5545c4dd9f68d44563d1ecb417df85"
+    },
+    {
+      "ordinal": 138,
+      "table": "claim_approvals",
+      "name": "idx_ca_tenant_id",
+      "sha256": "be6ee443463d3265d12163620306a64f096062bb73da5ad799880a6e3a83fcc8"
+    },
+    {
+      "ordinal": 139,
+      "table": "claim_approvals",
+      "name": "idx_ca_stage_order",
+      "sha256": "2451f26b920a418e6979556aa683aa8c9e806c9dac3ba71aa104bda12fbee249"
+    },
+    {
+      "ordinal": 140,
+      "table": "claim_approvals",
+      "name": "idx_ca_role_key",
+      "sha256": "9ba80f263f8fc2374a49e5189092af7658e685e84da0d3a53984db35ce698b77"
+    },
+    {
+      "ordinal": 141,
+      "table": "claim_approvals",
+      "name": "idx_ca_acted_at",
+      "sha256": "05009f97795f94af84b1f97ca527290f604c985c210ee5a5bee53f769d9f2c78"
+    },
+    {
+      "ordinal": 142,
+      "table": "claim_events",
+      "name": "idx_ce_claim_id",
+      "sha256": "d1fce2b7dcacbfc8eec822d2b613398b15b57dbdf0e63db5b54daf51c09fd4a0"
+    },
+    {
+      "ordinal": 143,
+      "table": "claim_events",
+      "name": "idx_ce_event_type",
+      "sha256": "2b3970825642921d7cd2af5c3dd92217f7849973a0045add036e683c1c9cd393"
+    },
+    {
+      "ordinal": 144,
+      "table": "claim_events",
+      "name": "idx_ce_emitted_at",
+      "sha256": "4bda222539172ab27a62a9c36eb6aa51d034a8f3728d6c83aba6479456635db8"
+    },
+    {
+      "ordinal": 145,
+      "table": "claim_intake_requests",
+      "name": "idx_claim_intake_request_claim",
+      "sha256": "7d854e56ab92055d5cc637e195a5ac291dbfb62690926f56e28ce23e5ed2b7b6"
+    },
+    {
+      "ordinal": 146,
+      "table": "claim_intake_requests",
+      "name": "idx_claim_intake_request_tenant_status",
+      "sha256": "c6db5eb601dc1181d2143905d9042a46701ca98fdcc3641de161bd0afbe26eb3"
+    },
+    {
+      "ordinal": 147,
+      "table": "claim_intelligence_dataset",
+      "name": "idx_cid_tenant_id",
+      "sha256": "869d41e5ff48a23aef19dfe588144870ccd4824e79f6929c3dbd107ed91ba717"
+    },
+    {
+      "ordinal": 148,
+      "table": "claim_intelligence_dataset",
+      "name": "idx_cid_captured_at",
+      "sha256": "5406e344f8a30207cedd88779ac1ec54ad4ed2faae040caaa851aa21c71bcbc7"
+    },
+    {
+      "ordinal": 149,
+      "table": "claim_intelligence_dataset",
+      "name": "idx_cid_schema_version",
+      "sha256": "5a75e6d861d09316499de620068e145aac7f87ef527370598be0ab5bdf514979"
+    },
+    {
+      "ordinal": 150,
+      "table": "claim_intelligence_dataset",
+      "name": "idx_data_scope",
+      "sha256": "cb2c8eb3088f92e7e17ca3e4bf3d8b8005a063d7cff1dd9026d5bbabb90f5218"
+    },
+    {
+      "ordinal": 151,
+      "table": "claim_intelligence_dataset",
+      "name": "idx_global_sharing",
+      "sha256": "4a813313b6d022ba40cf24d7350d083e2aa1892e60c6112441e9ad741afc3adb"
+    },
+    {
+      "ordinal": 152,
+      "table": "claim_intelligence_dataset",
+      "name": "idx_anonymized_at",
+      "sha256": "94c95f85b1caa1c0b0244c8bb5b3315bff13553103d1a4d2b186f2dffa3bf8bb"
+    },
+    {
+      "ordinal": 153,
+      "table": "claim_involvement_tracking",
+      "name": "idx_involvement_claim_user_stage",
+      "sha256": "5fff6a1abd5840aeaa6685add0b5f53aa0e8592ac88480cad00176299ee6abb3"
+    },
+    {
+      "ordinal": 154,
+      "table": "claim_involvement_tracking",
+      "name": "idx_involvement_claim_user",
+      "sha256": "e7ba0f82903916d91805aaff73e78d4709cfbf2477811e66b4918b7cddeaa923"
+    },
+    {
+      "ordinal": 155,
+      "table": "claim_review_queue",
+      "name": "claim_review_queue_historical_claim_id_unique",
+      "sha256": "3dd43f7d50dc33393ffc9d16a9aeca255738169c76a88a0fcbdb6f22abcf98fb"
+    },
+    {
+      "ordinal": 156,
+      "table": "component_benchmarks",
+      "name": "idx_cb_component_make",
+      "sha256": "3b4873f8ee9475582a6cdaf2004a8d9e6134d988080227227507aee89a9aeb9a"
+    },
+    {
+      "ordinal": 157,
+      "table": "component_benchmarks",
+      "name": "idx_cb_vehicle_precision",
+      "sha256": "38f8f2f817fe90707e40d7f4a4b7d872dcdf073dc3abd8a9a9eaff37dbf5da02"
+    },
+    {
+      "ordinal": 158,
+      "table": "component_benchmarks",
+      "name": "idx_cb_market_currency",
+      "sha256": "b7e462af2496affc2424999426607f17217509f83232caee9fdf4f3ec2145195"
+    },
+    {
+      "ordinal": 159,
+      "table": "component_benchmarks",
+      "name": "idx_cb_component_id",
+      "sha256": "e9f4b91318a64561691d9c5f20a5eecc9e0371fa9e0c1362cb0984d03d4d1d8a"
+    },
+    {
+      "ordinal": 160,
+      "table": "cross_claim_signals",
+      "name": "idx_ccs_claim_id",
+      "sha256": "108b6885582ba078f3ecbd8cf8fd791704c0de390e5977e7067b9c57c4386ec7"
+    },
+    {
+      "ordinal": 161,
+      "table": "cross_claim_signals",
+      "name": "idx_ccs_signal_type",
+      "sha256": "e7156923381d3088f3c13f2b8fbfe04d2efe2a1b65efe13241ac0f9f5d28332c"
+    },
+    {
+      "ordinal": 162,
+      "table": "cross_claim_signals",
+      "name": "idx_ccs_confidence",
+      "sha256": "55e208247f7668fce0cc1306b7ee310a7c33c30202350d5f95f57678448c4701"
+    },
+    {
+      "ordinal": 163,
+      "table": "cross_claim_signals",
+      "name": "idx_ccs_dismissed",
+      "sha256": "ee859bbd6b7f513de14f428bff18836f1ab6550c84bc5a069eca75723e39ac39"
+    },
+    {
+      "ordinal": 164,
+      "table": "cross_claim_signals",
+      "name": "idx_ccs_tenant",
+      "sha256": "19b22558b9af7ff4a0bb040e213449f24c41de56098ea3b4b859c4952c6279d7"
+    },
+    {
+      "ordinal": 165,
+      "table": "dataset_access_grants",
+      "name": "idx_dag_tenant_id",
+      "sha256": "4c4dc2330c497a2517a888b947e29d4e4a6ad32e3f4609708c41b6b7f418f649"
+    },
+    {
+      "ordinal": 166,
+      "table": "dataset_access_grants",
+      "name": "idx_dag_data_scope",
+      "sha256": "b8ce5fc0183f352ba3f3403fafa3712bc97e617fe0ed17418ced2fb15ec00f75"
+    },
+    {
+      "ordinal": 167,
+      "table": "dataset_access_grants",
+      "name": "idx_dag_granted_to_user",
+      "sha256": "c7d58fbc645763c08820f753567bf5c7aa3a9b642fe12e0979e94eff833e72f9"
+    },
+    {
+      "ordinal": 168,
+      "table": "dataset_access_grants",
+      "name": "idx_dag_expiry_date",
+      "sha256": "4fcbaaaa75ec3df4d7d500520adaf434a3006f73382f49ac140552dc18268c19"
+    },
+    {
+      "ordinal": 169,
+      "table": "driver_claims",
+      "name": "idx_dc_driver_id",
+      "sha256": "7737b8503e55c17af110d7a530cbc0faead166d9d4bc9f0eda3ae94b1ceb4af5"
+    },
+    {
+      "ordinal": 170,
+      "table": "driver_claims",
+      "name": "idx_dc_claim_id",
+      "sha256": "c843f9ec01a1cf219a2be684494d4ee1bb998f8ca4a5a9f572b9ae2fbe679b11"
+    },
+    {
+      "ordinal": 171,
+      "table": "driver_claims",
+      "name": "idx_dc_role",
+      "sha256": "bb55cd7ba48768822bd0058ff942a06105a5e1056f9fb7716aa353aca88fd52f"
+    },
+    {
+      "ordinal": 172,
+      "table": "driver_claims",
+      "name": "idx_dc_tenant",
+      "sha256": "f8922d78587e16a1c9f4445d541675889ecfc1ebf33e884edd66c55d3fdaa3de"
+    },
+    {
+      "ordinal": 173,
+      "table": "fast_track_config",
+      "name": "idx_ft_config_tenant",
+      "sha256": "1d61baa87f868fa2f7aaf3f125506cd0ddb1be45814a708747f160c6fbc6ce6a"
+    },
+    {
+      "ordinal": 174,
+      "table": "fast_track_config",
+      "name": "idx_ft_config_product",
+      "sha256": "0b33b232aa65e7530b2d146e17ca58bb219fca5f87ff00d2f9f0d73938866b87"
+    },
+    {
+      "ordinal": 175,
+      "table": "fast_track_config",
+      "name": "idx_ft_config_claim_type",
+      "sha256": "5a6136a7dfb6f631bd66eb59116d768cec9ab78082f069323ce4293f36d2f390"
+    },
+    {
+      "ordinal": 176,
+      "table": "fast_track_config",
+      "name": "idx_ft_config_enabled",
+      "sha256": "68fa733a9f3f51eb3e01f52754d3a5260f227063f938977968e3e51fb7dbd05a"
+    },
+    {
+      "ordinal": 177,
+      "table": "fast_track_config",
+      "name": "idx_ft_config_effective",
+      "sha256": "4aebce533fd677bbe1938c39a36bba87b496113687261912085c882f70f272aa"
+    },
+    {
+      "ordinal": 178,
+      "table": "fast_track_config",
+      "name": "idx_ft_config_hierarchy",
+      "sha256": "4da21812b118c1922ab870ee551978476d3d1576e1494a64368f413ec45feded"
+    },
+    {
+      "ordinal": 179,
+      "table": "fast_track_routing_log",
+      "name": "idx_ft_log_claim",
+      "sha256": "e8341542625196425fe05a5529dcc06b78f9dccaf01df5c81faa62155629acae"
+    },
+    {
+      "ordinal": 180,
+      "table": "fast_track_routing_log",
+      "name": "idx_ft_log_tenant",
+      "sha256": "771fbff565961953fbe030db723f114cdc721eece8aa18ff3f76a3546cd48f45"
+    },
+    {
+      "ordinal": 181,
+      "table": "fast_track_routing_log",
+      "name": "idx_ft_log_config",
+      "sha256": "5f5b50d31dcb6976d0f1e2af2e96eb3428788c8f704890751358cccb557b243c"
+    },
+    {
+      "ordinal": 182,
+      "table": "fast_track_routing_log",
+      "name": "idx_ft_log_decision",
+      "sha256": "c9868bc82ca44067245689982e1bd6947941e016d76a8dc332042dc636329a48"
+    },
+    {
+      "ordinal": 183,
+      "table": "fast_track_routing_log",
+      "name": "idx_ft_log_evaluated",
+      "sha256": "722c91e40b0ebcb4a934c2d109d7efc93669ad0b4b2696ceee265cb659706e25"
+    },
+    {
+      "ordinal": 184,
+      "table": "fast_track_routing_log",
+      "name": "idx_ft_log_claim_tenant",
+      "sha256": "cb1e3993687412e11c8e92838e411554a2b4b87f4217849bf838b269a5b6ab25"
+    },
+    {
+      "ordinal": 185,
+      "table": "federated_learning_metadata",
+      "name": "idx_flm_round_number",
+      "sha256": "1c3017088b2d1b28b58c02bd422d4328b7c19e4c7f89472042a25abe0bc44aef"
+    },
+    {
+      "ordinal": 186,
+      "table": "federated_learning_metadata",
+      "name": "idx_flm_model_type",
+      "sha256": "ae8287f58effb7ef07532c36807df152469e70b3dee357cd2aba1a84cfbffe68"
+    },
+    {
+      "ordinal": 187,
+      "table": "federated_learning_metadata",
+      "name": "idx_flm_training_started",
+      "sha256": "5514d782cb6e23c60b7be52a3e4b2f5465bf740511bdf3080689b8231801d8c6"
+    },
+    {
+      "ordinal": 188,
+      "table": "final_approval_records",
+      "name": "historical_claim_id",
+      "sha256": "e387e91721098f7f89dbcca40c1940aa3c32bb3e1b57870bbd7b7c5b4194016c"
+    },
+    {
+      "ordinal": 189,
+      "table": "global_anonymized_dataset",
+      "name": "anonymous_record_id",
+      "sha256": "f565d44e891102fa043669cb9bdc1c041acb127ecba4c8925f4ee43a8f13aea8"
+    },
+    {
+      "ordinal": 190,
+      "table": "global_anonymized_dataset",
+      "name": "idx_gad_capture_month",
+      "sha256": "9fe83489252edff51c3aeb3f67bb8d47919c88da1343aa1f3071c0ccbce1d0d0"
+    },
+    {
+      "ordinal": 191,
+      "table": "global_anonymized_dataset",
+      "name": "idx_gad_vehicle_make",
+      "sha256": "9ae32951b60a1a036df7949f5d798b3e2ab92acb7e3d90100e6eeb41e29d8aab"
+    },
+    {
+      "ordinal": 192,
+      "table": "global_anonymized_dataset",
+      "name": "idx_gad_province",
+      "sha256": "283d7bd8bf4d1a5f5043056d0272a31bfa9eca239aeaedc8e5957cd243c33414"
+    },
+    {
+      "ordinal": 193,
+      "table": "global_anonymized_dataset",
+      "name": "idx_gad_accident_type",
+      "sha256": "3e423dfb07d79ef3feba2e6e9f2a40be44337d7892e4350e651318de9e4fa71c"
+    },
+    {
+      "ordinal": 194,
+      "table": "global_anonymized_dataset",
+      "name": "idx_gad_anonymized_at",
+      "sha256": "8e632400c6229cff6483d805877d7fb7da02e1d89a9d3022b2fcc1661dc53700"
+    },
+    {
+      "ordinal": 195,
+      "table": "global_search_analytics",
+      "name": "idx_gsa_tenant_id",
+      "sha256": "6ca277a4c45183c30d693e749f52f3f61e29bc6e5c8a0fceac0305e976da6be6"
+    },
+    {
+      "ordinal": 196,
+      "table": "global_search_analytics",
+      "name": "idx_gsa_searched_at",
+      "sha256": "581e2249b7ccd94e5fab3e4244e66cf04e2c950aea3c345e2f67cbf82528c084"
+    },
+    {
+      "ordinal": 197,
+      "table": "global_search_analytics",
+      "name": "idx_gsa_query",
+      "sha256": "86aa3302ed9b5c6454de532d966855a9f2132d3a9beb6f230c6473e2b735644c"
+    },
+    {
+      "ordinal": 198,
+      "table": "global_search_history",
+      "name": "idx_gsh_user_id",
+      "sha256": "4355a2b95ac45afed30fab8d7cf833dd92be7a5487cadb854f27b9290a8e6688"
+    },
+    {
+      "ordinal": 199,
+      "table": "global_search_history",
+      "name": "idx_gsh_tenant_id",
+      "sha256": "7c3fd8af4ab33ba0731ad59237a4fd1825d03746fc4a32e305b2c4b660a631c5"
+    },
+    {
+      "ordinal": 200,
+      "table": "global_search_history",
+      "name": "idx_gsh_searched_at",
+      "sha256": "27b0a7f96e14443b62c1fee4151c3108cc49fdafd51e8443bdc44b6439872b79"
+    },
+    {
+      "ordinal": 201,
+      "table": "historical_claims",
+      "name": "idx_hc_tenant",
+      "sha256": "3fd111c42d073d24a3a40c3b7f51f6143fb739fa6b3268f1d6898e92ac5936b0"
+    },
+    {
+      "ordinal": 202,
+      "table": "historical_claims",
+      "name": "idx_hc_batch",
+      "sha256": "0c655b4ee2a4d4ccecb5445b2b75310e9accf8058c7e446123727404d5dcf531"
+    },
+    {
+      "ordinal": 203,
+      "table": "historical_claims",
+      "name": "idx_hc_status",
+      "sha256": "ebcd112467d76327def8db6fb56150509fbd0ecb5a491e94d8c25033aaa477b5"
+    },
+    {
+      "ordinal": 204,
+      "table": "historical_replay_results",
+      "name": "idx_historical_replay_results_tenant_id",
+      "sha256": "931463303fbc241cb991d4286acf250a1dd0f7c3f1a928c09cf4552ca53e8d33"
+    },
+    {
+      "ordinal": 205,
+      "table": "historical_replay_results",
+      "name": "idx_historical_replay_results_historical_claim_id",
+      "sha256": "4c6f57b9a1ec484865688d327c412df3cd458d49693a23bd8b7233ff5babdeec"
+    },
+    {
+      "ordinal": 206,
+      "table": "historical_replay_results",
+      "name": "idx_historical_replay_results_replayed_at",
+      "sha256": "8af991f8ae6a5895afedb363ebe89aa2e79014f86918b7cda3d421c7bcc08eb3"
+    },
+    {
+      "ordinal": 207,
+      "table": "historical_replay_results",
+      "name": "idx_historical_replay_results_policy_version_id",
+      "sha256": "ecc554c716a05eeb0de44c173fbc63df047bbe192e26a44827904718dc3b7162"
+    },
+    {
+      "ordinal": 208,
+      "table": "iso_audit_logs",
+      "name": "idx_iso_audit_logs_tenant_id",
+      "sha256": "6f0c2bdec28158dbb0e58df20ce634aac25427209d85fd4de992a77fee17947e"
+    },
+    {
+      "ordinal": 209,
+      "table": "iso_audit_logs",
+      "name": "idx_iso_audit_logs_user_id",
+      "sha256": "e0c43877a69c86dac009f4e65da5fca893723eaaf3cea1d3bb782fbb86bb1d8a"
+    },
+    {
+      "ordinal": 210,
+      "table": "iso_audit_logs",
+      "name": "idx_iso_audit_logs_timestamp",
+      "sha256": "66f6e48934e26a7ccc0b20e70c2e2bcd48582efb89bddda294019482b9e113bd"
+    },
+    {
+      "ordinal": 211,
+      "table": "mismatch_annotations",
+      "name": "idx_ma_claim",
+      "sha256": "d223070fa7d8b94c740336d60ad9596f9ac8a4f5beeae1de316ea36a5676e5ae"
+    },
+    {
+      "ordinal": 212,
+      "table": "mismatch_annotations",
+      "name": "idx_ma_type",
+      "sha256": "35cc63d44f9f652bb6cac32b5236605bbaa2e16925dcf3027501f1d58ae43b70"
+    },
+    {
+      "ordinal": 213,
+      "table": "mismatch_annotations",
+      "name": "idx_ma_user",
+      "sha256": "29b998cea6b2d0bf29a57fecee1a5c08e0842a6e9da78390e442a2bba1f9c31a"
+    },
+    {
+      "ordinal": 214,
+      "table": "mismatch_annotations",
+      "name": "idx_ma_action",
+      "sha256": "cb3595d04f03e8fd8605310712959ad07fd86fbf25d4cb8f00b5475dbbb8a8bc"
+    },
+    {
+      "ordinal": 215,
+      "table": "model_training_queue",
+      "name": "idx_mtq_processed",
+      "sha256": "8a0f57bc821131c9f274515ec35685540d7101bccc0b526765bf185a8b742a95"
+    },
+    {
+      "ordinal": 216,
+      "table": "model_training_queue",
+      "name": "idx_mtq_training_priority",
+      "sha256": "1730fbc57f5f8b0946b2e6ebdeef25d09fa900f134bfcf7ae62475b48aefa9af"
+    },
+    {
+      "ordinal": 217,
+      "table": "model_training_queue",
+      "name": "idx_mtq_created_at",
+      "sha256": "ebd29ad5c37aaf0bd54b25e26ffd64ed063d6b09d44ca1c1d99359084acbcaeb"
+    },
+    {
+      "ordinal": 218,
+      "table": "narrative_versions",
+      "name": "idx_nv_claim",
+      "sha256": "728bed7aeb2627e11a72eee3f4d6349c451eb95317fa8ef77a52e8ed549c6627"
+    },
+    {
+      "ordinal": 219,
+      "table": "narrative_versions",
+      "name": "idx_nv_assessment",
+      "sha256": "b55a2941ccd7c9c20b692b2b3ddb8e60e33a682d4dec8ce826f9d9faf470baeb"
+    },
+    {
+      "ordinal": 220,
+      "table": "narrative_versions",
+      "name": "idx_nv_type",
+      "sha256": "d7fda87af9f53e841e27761dc93fb2aaae2265986023d8de541b12a81f8bf81c"
+    },
+    {
+      "ordinal": 221,
+      "table": "narrative_versions",
+      "name": "idx_nv_active",
+      "sha256": "9efa8a89133381e2974f6c25f3a338ba8b29a9a984d72e79ce9102ac8d2c4ab4"
+    },
+    {
+      "ordinal": 222,
+      "table": "personal_vehicles",
+      "name": "personal_vehicles_user_id",
+      "sha256": "61965535585ea518636b6115d878c03889376dde78570d8203f215500fcd9192"
+    },
+    {
+      "ordinal": 223,
+      "table": "physical_measurements",
+      "name": "idx_pm_inspection",
+      "sha256": "67c6340bf1a25c66f1db80f16e8d5462b8d4f58e21bdd8f7d78044700eaef22c"
+    },
+    {
+      "ordinal": 224,
+      "table": "physical_measurements",
+      "name": "idx_pm_tenant",
+      "sha256": "99e68b8ae02bfc091770256f0f1d94fe8c5d507870b128dbac4b00227abe967f"
+    },
+    {
+      "ordinal": 225,
+      "table": "physical_measurements",
+      "name": "idx_pm_category",
+      "sha256": "62b0c73086b666204f2bd3db8f33cfaa490a036517a621309f7e940abf76203f"
+    },
+    {
+      "ordinal": 226,
+      "table": "physical_measurements",
+      "name": "idx_pm_captured_by",
+      "sha256": "8ce828a51bff8ec897081fb90694940902bb9f9a6a7bf30e70d755213c6d99b2"
+    },
+    {
+      "ordinal": 227,
+      "table": "physical_measurements",
+      "name": "idx_pm_captured_at",
+      "sha256": "e36ca9607267779ccfa0feb5a14cc49a86afcc011a796aaead5ca1b944348bf4"
+    },
+    {
+      "ordinal": 228,
+      "table": "pipeline_jobs",
+      "name": "idx_pj_claim_id",
+      "sha256": "7940eca503a7345036da3894786188b29e3ab6ec150e23518d1a591cb3deb104"
+    },
+    {
+      "ordinal": 229,
+      "table": "pipeline_jobs",
+      "name": "idx_pj_run_id",
+      "sha256": "22f969ac36512590d1de07294e4171695c6d294862afde5dfada62a9d530460e"
+    },
+    {
+      "ordinal": 230,
+      "table": "pipeline_jobs",
+      "name": "idx_pj_stage_id",
+      "sha256": "892cbfda1347e38bdae0327b3bdd3377d8f4b3d399152e54529094a1348f570b"
+    },
+    {
+      "ordinal": 231,
+      "table": "pipeline_jobs",
+      "name": "idx_pj_status",
+      "sha256": "16211af079277f640d7f9521e6768eb9a7e576e8fa86ed7acd926aa0a83cbf47"
+    },
+    {
+      "ordinal": 232,
+      "table": "pipeline_runs",
+      "name": "idx_pr_claim_id",
+      "sha256": "59e7550e86a7f5cb27d7ac18bee2dd9c1f54ed168ec038c21d1299234eb12c3c"
+    },
+    {
+      "ordinal": 233,
+      "table": "pipeline_runs",
+      "name": "idx_pr_run_id",
+      "sha256": "8fd86aa4a71036d6d8fd019d2c659a094f8c0057a39bc030b5aee6cd1d18bd02"
+    },
+    {
+      "ordinal": 234,
+      "table": "pipeline_runs",
+      "name": "idx_pr_status",
+      "sha256": "7f30b8f87ca5e27bc2d2bced5bbf89b692ebc7d8bd60d64c569b5f1d1873b504"
+    },
+    {
+      "ordinal": 235,
+      "table": "pipeline_runs",
+      "name": "idx_pr_started_at",
+      "sha256": "ef73e08c84cd0520627eafe080ca03e690a52868f874869c0f6c5e56f3a50d71"
+    },
+    {
+      "ordinal": 236,
+      "table": "policy_endorsements",
+      "name": "policy_endorsements_endorsement_number_unique",
+      "sha256": "ae122b74bc6d64e9bcd5fa2613a2e5cee1731cb57a284ed9a2cb5c1df4ffc834"
+    },
+    {
+      "ordinal": 237,
+      "table": "predictive_risk_scores",
+      "name": "idx_prs_entity",
+      "sha256": "f31dbe5680ab2ad024cba6294411d67d1d5b3cf2309b98c19b01f46236eb23ac"
+    },
+    {
+      "ordinal": 238,
+      "table": "predictive_risk_scores",
+      "name": "idx_prs_tenant_id",
+      "sha256": "3d33203ef4414d21aa52710d8c67c646d29920fdf725bdfb5ebe7d61977540ac"
+    },
+    {
+      "ordinal": 239,
+      "table": "predictive_risk_scores",
+      "name": "idx_prs_score_type",
+      "sha256": "ad04ff86cd2cf391fc4f59d57ba354ad44cc8fda32772ab124594f285046dfcf"
+    },
+    {
+      "ordinal": 240,
+      "table": "predictive_risk_scores",
+      "name": "idx_prs_valid_from",
+      "sha256": "e656cb6040c8014deac83d974ce5abda241d5beda1fa98f42870311fd25b45a0"
+    },
+    {
+      "ordinal": 241,
+      "table": "quotation_requests",
+      "name": "request_number",
+      "sha256": "853933a0ef2641e60416c5c7311758381b44ced394203e4536a7da245e3fdcea"
+    },
+    {
+      "ordinal": 242,
+      "table": "replay_logs",
+      "name": "idx_rl_claim",
+      "sha256": "ebab2d2cc301de4e5257fcc9e659095afbfbd19630290d014b43f6d77285f5c3"
+    },
+    {
+      "ordinal": 243,
+      "table": "replay_logs",
+      "name": "idx_rl_tenant",
+      "sha256": "784ba3184f428d2a0d755a0d61b3d0671cb2f7fa0acf6bf903e39a0611ef81e8"
+    },
+    {
+      "ordinal": 244,
+      "table": "replay_logs",
+      "name": "idx_rl_replayed_at",
+      "sha256": "0c78fc8fc992415792dc2924180aa9351ba491a4170e2b00282549bd556a31fe"
+    },
+    {
+      "ordinal": 245,
+      "table": "replay_logs",
+      "name": "idx_rl_changed",
+      "sha256": "fd292ebed977dda8d254d8f112ddb8017372e6c25fcb1df7088c8e2742834721"
+    },
+    {
+      "ordinal": 246,
+      "table": "risk_register",
+      "name": "idx_risk_register_claim_id",
+      "sha256": "b5d2f8ae0f64358d68cb03f8c8a86cc960892ad13f83c1bfd49e1961dd0a5a7b"
+    },
+    {
+      "ordinal": 247,
+      "table": "risk_register",
+      "name": "idx_risk_register_tenant_id",
+      "sha256": "f47b0ee998a02f8ae7ad1de2f604e50f9c3ca8a07beadaa02d6eb820bbbaf8bf"
+    },
+    {
+      "ordinal": 248,
+      "table": "role_assignment_audit",
+      "name": "idx_tenant_id",
+      "sha256": "4cbf48ac4db4295fd2d113e9c5a7b4bf831794883504e62e365c73f3967c2867"
+    },
+    {
+      "ordinal": 249,
+      "table": "role_assignment_audit",
+      "name": "idx_user_id",
+      "sha256": "99ba76af7cac8d0f4f7550f1d48349755cd4492ce9b234245c379839e1b6fa5f"
+    },
+    {
+      "ordinal": 250,
+      "table": "role_assignment_audit",
+      "name": "idx_changed_by",
+      "sha256": "01991c7fc6d2662c3edd60b52f65c5f46013471be9a60830df1944879ebce47d"
+    },
+    {
+      "ordinal": 251,
+      "table": "role_assignment_audit",
+      "name": "idx_timestamp",
+      "sha256": "8f4d8fa0ea92fa054dd0fa42132c29a3a168f2fca1dc33aa2c005dc687e14d6f"
+    },
+    {
+      "ordinal": 252,
+      "table": "role_assignment_audit",
+      "name": "idx_role_audit_user_time",
+      "sha256": "a4ca65fd5177baab12f111cacc84ca4aa6ebb0c66674d1fa1c64173fdd9d7bb6"
+    },
+    {
+      "ordinal": 253,
+      "table": "role_assignment_audit",
+      "name": "idx_role_audit_tenant_time",
+      "sha256": "ded2c9ddbceea969e4437216cdf08511c2601ff72cdbce2e5b48ac00d59199e8"
+    },
+    {
+      "ordinal": 254,
+      "table": "routing_history",
+      "name": "idx_routing_claim_id",
+      "sha256": "e4394bae0b49be96cfc203fcf9beffda4e6491dad5316b991062d22d2a5fe9c4"
+    },
+    {
+      "ordinal": 255,
+      "table": "routing_history",
+      "name": "idx_routing_tenant_id",
+      "sha256": "37a55fd9cc9c0e0d06028669b02f9352e76bb0cd87b0205982b534769e73c50a"
+    },
+    {
+      "ordinal": 256,
+      "table": "routing_history",
+      "name": "idx_routing_timestamp",
+      "sha256": "ff10e2ed633fa30457032ec9320659cb65641f448a681ac4d79a0c2745280edd"
+    },
+    {
+      "ordinal": 257,
+      "table": "routing_history",
+      "name": "idx_routing_claim_tenant",
+      "sha256": "96e4a990d7fabb1e1d797d655a4e42b40c18d43c825f8fdc25dfc4f1ff2a524f"
+    },
+    {
+      "ordinal": 258,
+      "table": "routing_threshold_config",
+      "name": "unique_threshold_tenant_version",
+      "sha256": "a3d161fffbc24449248cb77f595c249db7e5e4695ee1538ee286ce056d2c9106"
+    },
+    {
+      "ordinal": 259,
+      "table": "routing_threshold_config",
+      "name": "idx_threshold_tenant_id",
+      "sha256": "2b676d11eb53c7d541d4cdcc7b7aa6497783d3814e11cc2f703a3c8e8e8eda0c"
+    },
+    {
+      "ordinal": 260,
+      "table": "routing_threshold_config",
+      "name": "idx_threshold_active",
+      "sha256": "f3beda9f5a12e1aa7875de878e11b08dd31a2d7bc1e8ab315932bb67ba68f8a2"
+    },
+    {
+      "ordinal": 261,
+      "table": "routing_threshold_config",
+      "name": "idx_threshold_tenant_active",
+      "sha256": "33268c254714ccf4134a447df244dca180ec6793e033791df29bc635b53bd571"
+    },
+    {
+      "ordinal": 262,
+      "table": "shadow_override_monitor",
+      "name": "idx_som_user",
+      "sha256": "17d622ca0310a65f261ba4540fb57be11f8b2ac94f1defb75a3a562ec453cc24"
+    },
+    {
+      "ordinal": 263,
+      "table": "shadow_override_monitor",
+      "name": "idx_som_tenant",
+      "sha256": "ceaa2c3b2f0e1d647b9247e92ae6883d665276907da1fff9e52ce8857ec1d4f5"
+    },
+    {
+      "ordinal": 264,
+      "table": "shadow_override_monitor",
+      "name": "idx_som_scanned",
+      "sha256": "6d05e8e583dcc8f36eeaef0c02a7d884f126c4c87bb4adf92e8fa1c28e5b550e"
+    },
+    {
+      "ordinal": 265,
+      "table": "shadow_override_monitor",
+      "name": "idx_som_activity",
+      "sha256": "f4a953d5516663ce6cfdd5a6349b46859e00adc1bc161b8aeb57c080f1b5cad5"
+    },
+    {
+      "ordinal": 266,
+      "table": "super_audit_sessions",
+      "name": "idx_super_audit_sessions_super_admin_user_id",
+      "sha256": "e5d85a79e25061bbc057cf95cb470bffdaaa5f47be7837415821523ec11c4c9d"
+    },
+    {
+      "ordinal": 267,
+      "table": "super_audit_sessions",
+      "name": "idx_super_audit_sessions_audited_tenant_id",
+      "sha256": "b21b2654b167eeb18aa5e0efb8bba73f1a6a0af4609bfaa68835c0f5ce434b09"
+    },
+    {
+      "ordinal": 268,
+      "table": "super_audit_sessions",
+      "name": "idx_super_audit_sessions_session_started_at",
+      "sha256": "3d55b41d9a5dec41581914a8e287007dee632b660a752f8e08fd4a2ea3e62a56"
+    },
+    {
+      "ordinal": 269,
+      "table": "supplier_performance_metrics",
+      "name": "supplier_performance_metrics_supplier_name_unique",
+      "sha256": "226ce845c84650fcfee6d386a390359301033979c38a56d5225c48ecef15760d"
+    },
+    {
+      "ordinal": 270,
+      "table": "system_errors",
+      "name": "idx_se_procedure",
+      "sha256": "ae3c712afbcb343fb12202941d12d87399214dc25960e4b090fcb4c595242039"
+    },
+    {
+      "ordinal": 271,
+      "table": "system_errors",
+      "name": "idx_se_user_id",
+      "sha256": "f2dd9043463dec61c1b69c78b379c2292921e21eceece7adf24a9acc196e618e"
+    },
+    {
+      "ordinal": 272,
+      "table": "system_errors",
+      "name": "idx_se_occurred_at",
+      "sha256": "373dbdf808c20dbeca2d813e096bfd4c6874448a06fc479881f2b9962421bd7d"
+    },
+    {
+      "ordinal": 273,
+      "table": "system_errors",
+      "name": "idx_se_error_code",
+      "sha256": "1e10a905f5eb5ad290cc32f11e598ec63823824a2374877bc3bac592c5326d7a"
+    },
+    {
+      "ordinal": 274,
+      "table": "tenant_isolation_violations",
+      "name": "idx_tiv_user_id",
+      "sha256": "b9113d7544e842ffd6220478795b683da1fb8d9965961c0a07125610e414e391"
+    },
+    {
+      "ordinal": 275,
+      "table": "tenant_isolation_violations",
+      "name": "idx_tiv_user_tenant",
+      "sha256": "ae974992df18e96f9ecf51a0807f291e2bbaf110cd6d4762c67676815ceaaadd"
+    },
+    {
+      "ordinal": 276,
+      "table": "tenant_isolation_violations",
+      "name": "idx_tiv_occurred_at",
+      "sha256": "f2d445fbb9569e8e8d4c762a97ba5afe9f322b9f1ad9eceb3f8257f6b997d04c"
+    },
+    {
+      "ordinal": 277,
+      "table": "tenant_isolation_violations",
+      "name": "idx_tiv_procedure",
+      "sha256": "4be9289556c056418f96c01ae4f2c0d1ca0d6790106537aefda3e5b28878bcb6"
+    },
+    {
+      "ordinal": 278,
+      "table": "training_data_scores",
+      "name": "training_data_scores_historical_claim_id_unique",
+      "sha256": "be69c3dc10e0946c48cfecd80051c18d45e096fcc9f55cc749297a1fb1c62eec"
+    },
+    {
+      "ordinal": 279,
+      "table": "training_dataset",
+      "name": "training_dataset_historical_claim_id_unique",
+      "sha256": "bbceb44ce90254937cc81ab82edc7674ecd0a6d6b5737ffce8751bba08c74679"
+    },
+    {
+      "ordinal": 280,
+      "table": "usage_events",
+      "name": "tenant_idx",
+      "sha256": "e4c1422e536ce461e54f957352fee833aad2a80b7831e4c86c464278f8bbc1be"
+    },
+    {
+      "ordinal": 281,
+      "table": "usage_events",
+      "name": "claim_idx",
+      "sha256": "844bd4d6746704bd7bc681a9f2b3b29a68dac8c2924a9c5599ff5eaa87ff6fa1"
+    },
+    {
+      "ordinal": 282,
+      "table": "usage_events",
+      "name": "event_type_idx",
+      "sha256": "aac3ccf889f1524016ed702477addaa8d64e6a67f07becacdc01d92bbc0f7ac3"
+    },
+    {
+      "ordinal": 283,
+      "table": "usage_events",
+      "name": "timestamp_idx",
+      "sha256": "9581f5f6b6b4f137af248f6208367cf0499ef89a6301d4d2c763003d32c63862"
+    },
+    {
+      "ordinal": 284,
+      "table": "usage_events",
+      "name": "reference_idx",
+      "sha256": "a4e6e3dfa539073c817f036be3d9e1525e89d5a75aefc13ae3ac0f07b669d0ce"
+    },
+    {
+      "ordinal": 285,
+      "table": "variance_datasets",
+      "name": "idx_vd_claim",
+      "sha256": "92712d5d707a0fc439c491f9bef9e45c5e29fdd27bcc6883b6fd4e3f9f025a01"
+    },
+    {
+      "ordinal": 286,
+      "table": "variance_datasets",
+      "name": "idx_vd_tenant",
+      "sha256": "cbe92774a4afeaf5c33157ad18725dfb95c2734075dbbeca668683ddf7a76b60"
+    },
+    {
+      "ordinal": 287,
+      "table": "variance_datasets",
+      "name": "idx_vd_type",
+      "sha256": "a56c5948d8ba41d816e9533ff12bea9885281512552a78881c4f12481e697ed8"
+    },
+    {
+      "ordinal": 288,
+      "table": "weight_adjustment_log",
+      "name": "idx_wal_type",
+      "sha256": "d2292b775f76cfa08ad06f3e7653f1665a38d1f359574560b84574895185882d"
+    },
+    {
+      "ordinal": 289,
+      "table": "weight_adjustment_log",
+      "name": "idx_wal_created_at",
+      "sha256": "39f49c0e8e948dc9382b26e08a131b9461c5cdd1f728347461bb196e882ae214"
+    },
+    {
+      "ordinal": 290,
+      "table": "weight_adjustment_log",
+      "name": "idx_wal_direction",
+      "sha256": "5f94d8f5ea7bc3efc50bed45c8f0bae569783dd66a09507d31520d41d5c59cf3"
+    }
+  ]
+}

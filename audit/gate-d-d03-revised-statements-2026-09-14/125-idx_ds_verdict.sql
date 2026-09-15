@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ds_verdict` ON `decision_snapshots` (`verdict_decision`);

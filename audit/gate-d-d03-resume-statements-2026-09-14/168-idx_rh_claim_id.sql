@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rh_claim_id` ON `repair_history` (`claim_id`);

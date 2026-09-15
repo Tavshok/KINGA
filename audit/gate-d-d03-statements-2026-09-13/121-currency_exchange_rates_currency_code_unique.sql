@@ -1,0 +1,1 @@
+CREATE INDEX `currency_exchange_rates_currency_code_unique` ON `currency_exchange_rates` (`currency_code`);

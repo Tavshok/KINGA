@@ -1,0 +1,1 @@
+CREATE INDEX `unique_threshold_tenant_version` ON `routing_threshold_config` (`tenant_id`,`version`);

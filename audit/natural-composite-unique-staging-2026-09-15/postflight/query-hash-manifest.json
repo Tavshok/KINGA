@@ -1,0 +1,41 @@
+{
+  "schema": "kinga-ncu01-postflight-queries/v1",
+  "source_contract_sha256": "93e55421623bc457d7c49281f4ec725ae1c9cabc2d6a374b363a54fdeb22055f",
+  "expected_removed_index": {
+    "table_name": "assessor_insurer_relationships",
+    "index_name": "unique_assessor_tenant"
+  },
+  "expected_unique_indexes": [
+    {
+      "table_name": "assessor_insurer_relationships",
+      "index_name": "uq_assessor_insurer_relationship",
+      "columns": [
+        "assessor_id",
+        "tenant_id"
+      ]
+    },
+    {
+      "table_name": "policy_claim_links",
+      "index_name": "uq_policy_claim_link",
+      "columns": [
+        "policy_id",
+        "claim_id"
+      ]
+    },
+    {
+      "table_name": "fleet_drivers",
+      "index_name": "uq_fleet_driver_membership",
+      "columns": [
+        "fleet_id",
+        "user_id"
+      ]
+    }
+  ],
+  "queries": {
+    "01-final-table-inventory.sql": "9b392e047ef0dcaedaf7d0ab65b0783d8fa1c3d2e5390689328938c5b466dab2",
+    "02-final-zero-row-assertion.sql": "1a3f0497749751a168cf6e6b1d13147e858ff8e7c9d9f162d303bb70c0f9be76",
+    "03-final-target-column-metadata.sql": "aeaac79f1dcec9ed1373a50abe42b639e601fba686128d919158f8c299590df0",
+    "04-final-index-state.sql": "8f728bd281020137a6e6690d7d71a7b8eff15a62243f45b8433d219f14c9b451",
+    "05-final-duplicate-pairs.sql": "3faaad3ba9ae21dd7b5c26215c408dd82692e5239de898c01911247781e04216"
+  }
+}

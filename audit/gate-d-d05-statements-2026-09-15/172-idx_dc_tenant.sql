@@ -1,0 +1,1 @@
+CREATE INDEX `idx_dc_tenant` ON `driver_claims` (`tenant_id`);

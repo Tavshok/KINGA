@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fis_generated_at` ON `fleet_intelligence_snapshots` (`generated_at`);

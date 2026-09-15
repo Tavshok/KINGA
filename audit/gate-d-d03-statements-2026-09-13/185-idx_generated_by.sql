@@ -1,0 +1,1 @@
+CREATE INDEX `idx_generated_by` ON `report_snapshots` (`generated_by`);

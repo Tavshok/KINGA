@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tenant_id` ON `pdf_reports` (`tenant_id`);

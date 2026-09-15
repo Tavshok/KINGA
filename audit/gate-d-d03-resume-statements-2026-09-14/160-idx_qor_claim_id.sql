@@ -1,0 +1,1 @@
+CREATE INDEX `idx_qor_claim_id` ON `quote_optimisation_results` (`claim_id`);

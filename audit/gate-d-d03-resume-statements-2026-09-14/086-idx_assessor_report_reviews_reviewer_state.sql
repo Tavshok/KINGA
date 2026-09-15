@@ -1,0 +1,1 @@
+CREATE INDEX `idx_assessor_report_reviews_reviewer_state` ON `assessor_report_reviews` (`reviewer_user_id`,`status`);

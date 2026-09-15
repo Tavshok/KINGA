@@ -1,0 +1,1 @@
+CREATE INDEX `tenant_idx` ON `usage_events` (`tenant_id`);

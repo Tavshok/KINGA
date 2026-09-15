@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ft_config_product` ON `fast_track_config` (`product_id`);

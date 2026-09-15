@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pj_stage_id` ON `pipeline_jobs` (`stage_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_risk_register_claim_id` ON `risk_register` (`claim_id`);

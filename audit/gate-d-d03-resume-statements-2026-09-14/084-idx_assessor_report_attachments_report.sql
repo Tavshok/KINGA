@@ -1,0 +1,1 @@
+CREATE INDEX `idx_assessor_report_attachments_report` ON `assessor_report_attachments` (`report_id`);

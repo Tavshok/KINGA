@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rcl_created_at` ON `recovery_correspondence_log` (`created_at`);

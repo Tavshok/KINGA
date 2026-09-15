@@ -1,0 +1,1 @@
+CREATE INDEX `training_data_scores_historical_claim_id_unique` ON `training_data_scores` (`historical_claim_id`);

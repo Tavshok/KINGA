@@ -1,0 +1,1 @@
+CREATE INDEX `idx_aal_anonymized_at` ON `anonymization_audit_log` (`anonymized_at`);

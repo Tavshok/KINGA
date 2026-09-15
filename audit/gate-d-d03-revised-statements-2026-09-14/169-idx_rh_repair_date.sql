@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rh_repair_date` ON `repair_history` (`repair_date`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_iqr_status` ON `insurer_quote_requests` (`status`);

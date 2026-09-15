@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ne_created_at` ON `notification_events` (`created_at`);

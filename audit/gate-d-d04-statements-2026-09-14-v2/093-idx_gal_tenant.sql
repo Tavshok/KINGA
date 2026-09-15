@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gal_tenant` ON `governance_audit_log` (`tenant_id`);

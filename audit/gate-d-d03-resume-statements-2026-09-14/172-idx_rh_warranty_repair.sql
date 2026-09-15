@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rh_warranty_repair` ON `repair_history` (`is_warranty_repair`);

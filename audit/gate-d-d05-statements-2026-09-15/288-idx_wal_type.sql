@@ -1,0 +1,1 @@
+CREATE INDEX `idx_wal_type` ON `weight_adjustment_log` (`mismatch_type`);

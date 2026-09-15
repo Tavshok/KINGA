@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ar_vehicle_reg` ON `asset_registry` (`vehicle_registration`);

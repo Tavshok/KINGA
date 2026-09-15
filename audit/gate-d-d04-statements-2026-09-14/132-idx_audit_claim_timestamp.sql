@@ -1,0 +1,1 @@
+CREATE INDEX `idx_audit_claim_timestamp` ON `workflow_audit_trail` (`claim_id`,`created_at`);

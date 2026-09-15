@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ccr_comment_id` ON `claim_comment_reads` (`comment_id`);

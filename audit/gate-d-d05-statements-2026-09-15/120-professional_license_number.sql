@@ -1,0 +1,1 @@
+CREATE INDEX `professional_license_number` ON `assessors` (`professional_license_number`);

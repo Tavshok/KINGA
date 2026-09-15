@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ma_user` ON `mismatch_annotations` (`user_id`);

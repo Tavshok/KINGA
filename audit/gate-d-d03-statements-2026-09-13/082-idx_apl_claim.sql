@@ -1,0 +1,1 @@
+CREATE INDEX `idx_apl_claim` ON `ai_prediction_logs` (`historical_claim_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_audit_hash` ON `report_snapshots` (`audit_hash`);

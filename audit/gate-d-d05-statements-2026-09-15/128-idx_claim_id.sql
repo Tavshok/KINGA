@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claim_id` ON `automation_audit_log` (`claim_id`);

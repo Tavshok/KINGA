@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rc_recovery_deadline` ON `recovery_cases` (`recovery_deadline`);
