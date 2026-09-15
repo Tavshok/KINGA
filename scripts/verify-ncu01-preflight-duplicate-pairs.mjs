@@ -28,8 +28,11 @@ const expectedRules = [
   "assessor_insurer_relationships (assessor_id, tenant_id)",
   "policy_claim_links (policy_id, claim_id)",
   "fleet_drivers (fleet_id, user_id)",
-];
-const actual = rows.filter((row) => row.length > 1).map((row) => ({ pairRule: row[index.pair_rule], duplicateGroups: Number(row[index.duplicate_groups]), rowsInDuplicateGroups: Number(row[index.rows_in_duplicate_groups]) }));
+].sort();
+const actual = rows
+  .filter((row) => row.length > 1)
+  .map((row) => ({ pairRule: row[index.pair_rule], duplicateGroups: Number(row[index.duplicate_groups]), rowsInDuplicateGroups: Number(row[index.rows_in_duplicate_groups]) }))
+  .sort((left, right) => left.pairRule.localeCompare(right.pairRule));
 const pass = JSON.stringify(actual.map((row) => row.pairRule)) === JSON.stringify(expectedRules)
   && actual.every((row) => row.duplicateGroups === 0 && row.rowsInDuplicateGroups === 0);
 console.log(JSON.stringify({ status: pass ? "PASS" : "FAIL", expected_rules: expectedRules, actual }, null, 2));
