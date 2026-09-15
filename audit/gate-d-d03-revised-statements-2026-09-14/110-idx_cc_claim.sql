@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cc_claim` ON `cost_components` (`historical_claim_id`);

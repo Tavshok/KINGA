@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rh_fraud_flagged` ON `repair_history` (`is_fraud_flagged`);

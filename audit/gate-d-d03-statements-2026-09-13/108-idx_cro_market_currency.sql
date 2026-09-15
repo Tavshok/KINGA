@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cro_market_currency` ON `component_repair_outcomes` (`market_region`,`currency_code`,`evidence_quality`);

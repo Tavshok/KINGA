@@ -1,0 +1,21 @@
+CREATE TABLE `claim_confidence_scores` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`claim_id` int NOT NULL,
+	`tenant_id` varchar(255) NOT NULL,
+	`damage_certainty` decimal(5,2) NOT NULL,
+	`physics_strength` decimal(5,2) NOT NULL,
+	`fraud_confidence` decimal(5,2) NOT NULL,
+	`historical_accuracy` decimal(5,2) NOT NULL,
+	`data_completeness` decimal(5,2) NOT NULL,
+	`vehicle_risk_intelligence` decimal(5,2) NOT NULL,
+	`composite_confidence_score` decimal(5,2) NOT NULL,
+	`scoring_version` varchar(50) NOT NULL DEFAULT 'v1.0',
+	`scoring_timestamp` timestamp DEFAULT (now()),
+	`damage_certainty_breakdown` json,
+	`physics_validation_details` json,
+	`fraud_analysis_details` json,
+	`historical_accuracy_details` json,
+	`data_completeness_details` json,
+	`vehicle_risk_details` json,
+	CONSTRAINT `claim_confidence_scores_id` PRIMARY KEY(`id`)
+);

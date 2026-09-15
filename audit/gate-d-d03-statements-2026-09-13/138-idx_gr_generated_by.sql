@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gr_generated_by` ON `generated_reports` (`generated_by_user_id`);

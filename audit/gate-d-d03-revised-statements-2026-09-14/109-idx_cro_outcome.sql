@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cro_outcome` ON `component_repair_outcomes` (`outcome`);

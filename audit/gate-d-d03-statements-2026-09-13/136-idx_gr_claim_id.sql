@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gr_claim_id` ON `generated_reports` (`claim_id`);

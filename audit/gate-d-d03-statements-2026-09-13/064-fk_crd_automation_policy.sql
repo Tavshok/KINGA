@@ -1,0 +1,1 @@
+ALTER TABLE `claim_routing_decisions` ADD CONSTRAINT `fk_crd_automation_policy` FOREIGN KEY (`automation_policy_id`) REFERENCES `automation_policies`(`id`) ON DELETE no action ON UPDATE no action;

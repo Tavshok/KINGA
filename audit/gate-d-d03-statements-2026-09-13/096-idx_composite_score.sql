@@ -1,0 +1,1 @@
+CREATE INDEX `idx_composite_score` ON `claim_confidence_scores` (`composite_confidence_score`);

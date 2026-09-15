@@ -1,0 +1,1 @@
+CREATE INDEX `idx_scoring_timestamp` ON `claim_confidence_scores` (`scoring_timestamp`);

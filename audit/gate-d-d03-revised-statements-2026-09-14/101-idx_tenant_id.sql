@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tenant_id` ON `claim_routing_decisions` (`tenant_id`);

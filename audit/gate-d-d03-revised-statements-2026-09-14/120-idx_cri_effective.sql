@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cri_effective` ON `country_repair_index` (`effective_from`);

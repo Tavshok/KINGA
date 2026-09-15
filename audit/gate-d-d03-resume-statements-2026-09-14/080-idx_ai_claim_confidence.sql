@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ai_claim_confidence` ON `ai_assessments` (`claim_id`,`confidence_score`);

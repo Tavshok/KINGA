@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cdl_state` ON `claim_decision_lifecycle` (`lifecycle_state`);

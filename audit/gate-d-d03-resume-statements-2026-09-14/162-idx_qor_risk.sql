@@ -1,0 +1,1 @@
+CREATE INDEX `idx_qor_risk` ON `quote_optimisation_results` (`overall_risk_score`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_accessed_by` ON `report_access_audit` (`accessed_by`);

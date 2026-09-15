@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rci_make_model` ON `repair_cost_intelligence` (`vehicle_make`,`vehicle_model`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_eri_claim` ON `extracted_repair_items` (`historical_claim_id`);

@@ -1,0 +1,22 @@
+CREATE TABLE `fraud_rules` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`rule_name` varchar(255) NOT NULL,
+	`rule_description` text,
+	`rule_category` enum('claimant','panel_beater','assessor','vehicle','document','temporal','geographic','network') NOT NULL,
+	`is_active` tinyint NOT NULL DEFAULT 1,
+	`severity` enum('low','medium','high','critical') NOT NULL,
+	`score_weight` int NOT NULL DEFAULT 10,
+	`threshold_value` int,
+	`threshold_unit` varchar(50),
+	`rule_logic` text,
+	`auto_flag` tinyint DEFAULT 1,
+	`requires_manual_review` tinyint DEFAULT 0,
+	`notify_investigator` tinyint DEFAULT 0,
+	`times_triggered` int DEFAULT 0,
+	`true_positive_count` int DEFAULT 0,
+	`false_positive_count` int DEFAULT 0,
+	`accuracy` int DEFAULT 0,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `fraud_rules_id` PRIMARY KEY(`id`)
+);

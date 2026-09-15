@@ -1,0 +1,1 @@
+CREATE INDEX `document_id` ON `ingestion_documents` (`document_id`);

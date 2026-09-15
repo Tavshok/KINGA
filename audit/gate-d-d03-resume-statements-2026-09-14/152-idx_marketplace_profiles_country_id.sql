@@ -1,0 +1,1 @@
+CREATE INDEX `idx_marketplace_profiles_country_id` ON `marketplace_profiles` (`country_id`);

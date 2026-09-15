@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rh_vehicle_id` ON `repair_history` (`vehicle_id`);

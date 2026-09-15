@@ -1,0 +1,1 @@
+CREATE INDEX `idx_iqr_agency_tenant` ON `insurer_quote_requests` (`agency_tenant_id`);

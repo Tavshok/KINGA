@@ -1,0 +1,1 @@
+CREATE INDEX `idx_clr_vehicle_precision` ON `cost_learning_records` (`vehicle_make`,`vehicle_model`,`vehicle_year`);

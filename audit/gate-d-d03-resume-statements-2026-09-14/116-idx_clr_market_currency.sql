@@ -1,0 +1,1 @@
+CREATE INDEX `idx_clr_market_currency` ON `cost_learning_records` (`market_region`,`currency`);

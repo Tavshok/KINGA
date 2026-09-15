@@ -1,0 +1,1 @@
+CREATE INDEX `rule_name` ON `fraud_rules` (`rule_name`);

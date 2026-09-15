@@ -1,0 +1,1 @@
+CREATE INDEX `idx_routed_workflow` ON `claim_routing_decisions` (`routed_workflow`);

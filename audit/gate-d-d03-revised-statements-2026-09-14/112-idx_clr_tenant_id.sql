@@ -1,0 +1,1 @@
+CREATE INDEX `idx_clr_tenant_id` ON `cost_learning_records` (`tenant_id`);
