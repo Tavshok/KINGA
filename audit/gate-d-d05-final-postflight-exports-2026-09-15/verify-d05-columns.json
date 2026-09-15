@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "expected_table_count": 75,
+  "live_table_count": 75,
+  "expected_column_count": 1236,
+  "live_column_count": 1236,
+  "default_comparison_policy": "All explicit source defaults are compared after normalizing CURRENT_TIMESTAMP and JSON_ARRAY()/JSON_OBJECT() expression representations.",
+  "mismatches": []
+}

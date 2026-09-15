@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "expected_keyed_column_rows": 242,
+  "live_keyed_column_rows": 242,
+  "expected_distinct_key_structures": 220,
+  "live_distinct_key_structures": 220,
+  "missing": [],
+  "unexpected": []
+}

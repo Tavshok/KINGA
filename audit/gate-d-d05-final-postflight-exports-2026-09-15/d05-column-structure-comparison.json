@@ -1,0 +1,2603 @@
+{
+  "status": "FAIL",
+  "expected_table_count": 75,
+  "live_table_count": 70,
+  "expected_column_count": 1236,
+  "live_column_count": 1304,
+  "default_comparison_policy": "All explicit source defaults are compared after normalizing CURRENT_TIMESTAMP and JSON_ARRAY()/JSON_OBJECT() expression representations.",
+  "mismatches": [
+    {
+      "kind": "column_count",
+      "tableName": "automation_audit_log",
+      "expected": 21,
+      "actual": 42
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_id",
+      "field": "ordinal",
+      "expected": 2,
+      "actual": 1
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_id",
+      "field": "columnName",
+      "expected": "claim_id",
+      "actual": "id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_id",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_id",
+      "field": "autoIncrement",
+      "expected": false,
+      "actual": true
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "tenant_id",
+      "field": "ordinal",
+      "expected": 3,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "tenant_id",
+      "field": "columnName",
+      "expected": "tenant_id",
+      "actual": "claim_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "tenant_id",
+      "field": "type",
+      "expected": "varchar(255)",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "tenant_id",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "confidence_score_id",
+      "field": "ordinal",
+      "expected": 4,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "confidence_score_id",
+      "field": "columnName",
+      "expected": "confidence_score_id",
+      "actual": "claim_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "confidence_score_id",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "composite_confidence_score",
+      "field": "ordinal",
+      "expected": 5,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "composite_confidence_score",
+      "field": "columnName",
+      "expected": "composite_confidence_score",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "composite_confidence_score",
+      "field": "type",
+      "expected": "decimal(5,2)",
+      "actual": "varchar(255)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "routing_decision_id",
+      "field": "ordinal",
+      "expected": 6,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "routing_decision_id",
+      "field": "columnName",
+      "expected": "routing_decision_id",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "routing_decision_id",
+      "field": "type",
+      "expected": "int",
+      "actual": "varchar(255)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "routed_workflow",
+      "field": "ordinal",
+      "expected": 7,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "routed_workflow",
+      "field": "columnName",
+      "expected": "routed_workflow",
+      "actual": "confidence_score_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "routed_workflow",
+      "field": "type",
+      "expected": "enum('ai_only','hybrid','manual')",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "routing_reason",
+      "field": "ordinal",
+      "expected": 8,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "routing_reason",
+      "field": "columnName",
+      "expected": "routing_reason",
+      "actual": "confidence_score_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "routing_reason",
+      "field": "type",
+      "expected": "text",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "automation_policy_id",
+      "field": "ordinal",
+      "expected": 9,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "automation_policy_id",
+      "field": "columnName",
+      "expected": "automation_policy_id",
+      "actual": "composite_confidence_score"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "automation_policy_id",
+      "field": "type",
+      "expected": "int",
+      "actual": "decimal(5,2)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "policy_snapshot",
+      "field": "ordinal",
+      "expected": 10,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "policy_snapshot",
+      "field": "columnName",
+      "expected": "policy_snapshot",
+      "actual": "composite_confidence_score"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "policy_snapshot",
+      "field": "type",
+      "expected": "json",
+      "actual": "decimal(5,2)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "ai_estimated_cost",
+      "field": "ordinal",
+      "expected": 11,
+      "actual": 6
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "ai_estimated_cost",
+      "field": "columnName",
+      "expected": "ai_estimated_cost",
+      "actual": "routing_decision_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "ai_estimated_cost",
+      "field": "type",
+      "expected": "bigint",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "assessor_adjusted_cost",
+      "field": "ordinal",
+      "expected": 12,
+      "actual": 6
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "assessor_adjusted_cost",
+      "field": "columnName",
+      "expected": "assessor_adjusted_cost",
+      "actual": "routing_decision_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "assessor_adjusted_cost",
+      "field": "type",
+      "expected": "bigint",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "assessor_adjusted_cost",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "final_approved_cost",
+      "field": "ordinal",
+      "expected": 13,
+      "actual": 7
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "final_approved_cost",
+      "field": "columnName",
+      "expected": "final_approved_cost",
+      "actual": "routed_workflow"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "final_approved_cost",
+      "field": "type",
+      "expected": "bigint",
+      "actual": "enum('ai_only','hybrid','manual')"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "final_approved_cost",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "cost_variance_ai_vs_final",
+      "field": "ordinal",
+      "expected": 14,
+      "actual": 7
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "cost_variance_ai_vs_final",
+      "field": "columnName",
+      "expected": "cost_variance_ai_vs_final",
+      "actual": "routed_workflow"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "cost_variance_ai_vs_final",
+      "field": "type",
+      "expected": "decimal(5,2)",
+      "actual": "enum('ai_only','hybrid','manual')"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "cost_variance_ai_vs_final",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "decision_made_at",
+      "field": "ordinal",
+      "expected": 15,
+      "actual": 8
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "decision_made_at",
+      "field": "columnName",
+      "expected": "decision_made_at",
+      "actual": "routing_reason"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "decision_made_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "text"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_approved_at",
+      "field": "ordinal",
+      "expected": 16,
+      "actual": 8
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_approved_at",
+      "field": "columnName",
+      "expected": "claim_approved_at",
+      "actual": "routing_reason"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_approved_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "text"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_approved_at",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_rejected_at",
+      "field": "ordinal",
+      "expected": 17,
+      "actual": 9
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_rejected_at",
+      "field": "columnName",
+      "expected": "claim_rejected_at",
+      "actual": "automation_policy_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_rejected_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "claim_rejected_at",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "was_overridden",
+      "field": "ordinal",
+      "expected": 18,
+      "actual": 9
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "was_overridden",
+      "field": "columnName",
+      "expected": "was_overridden",
+      "actual": "automation_policy_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "was_overridden",
+      "field": "type",
+      "expected": "tinyint",
+      "actual": "int"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "automation_audit_log",
+      "column": "was_overridden",
+      "expected": "0",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "override_reason",
+      "field": "ordinal",
+      "expected": 19,
+      "actual": 10
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "override_reason",
+      "field": "columnName",
+      "expected": "override_reason",
+      "actual": "policy_snapshot"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "override_reason",
+      "field": "type",
+      "expected": "text",
+      "actual": "json"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "override_reason",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "overridden_by_user_id",
+      "field": "ordinal",
+      "expected": 20,
+      "actual": 10
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "overridden_by_user_id",
+      "field": "columnName",
+      "expected": "overridden_by_user_id",
+      "actual": "policy_snapshot"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "overridden_by_user_id",
+      "field": "type",
+      "expected": "int",
+      "actual": "json"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "overridden_by_user_id",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "created_at",
+      "field": "ordinal",
+      "expected": 21,
+      "actual": 11
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "created_at",
+      "field": "columnName",
+      "expected": "created_at",
+      "actual": "ai_estimated_cost"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "created_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "bigint"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "automation_audit_log",
+      "column": "created_at",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "automation_audit_log",
+      "column": "created_at",
+      "expected": "CURRENT_TIMESTAMP",
+      "actual": ""
+    },
+    {
+      "kind": "column_count",
+      "tableName": "bias_detection_flags",
+      "expected": 11,
+      "actual": 22
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "tenant_id",
+      "field": "ordinal",
+      "expected": 2,
+      "actual": 1
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "tenant_id",
+      "field": "columnName",
+      "expected": "tenant_id",
+      "actual": "id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "tenant_id",
+      "field": "type",
+      "expected": "varchar(64)",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "tenant_id",
+      "field": "autoIncrement",
+      "expected": false,
+      "actual": true
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "batch_id",
+      "field": "ordinal",
+      "expected": 3,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "batch_id",
+      "field": "columnName",
+      "expected": "batch_id",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "bias_type",
+      "field": "ordinal",
+      "expected": 4,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "bias_type",
+      "field": "columnName",
+      "expected": "bias_type",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "bias_score",
+      "field": "ordinal",
+      "expected": 5,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "bias_score",
+      "field": "columnName",
+      "expected": "bias_score",
+      "actual": "batch_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "bias_score",
+      "field": "type",
+      "expected": "decimal(5,4)",
+      "actual": "varchar(64)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "bias_score",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "affected_field",
+      "field": "ordinal",
+      "expected": 6,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "affected_field",
+      "field": "columnName",
+      "expected": "affected_field",
+      "actual": "batch_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "affected_field",
+      "field": "type",
+      "expected": "varchar(128)",
+      "actual": "varchar(64)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "affected_field",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "sample_size",
+      "field": "ordinal",
+      "expected": 7,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "sample_size",
+      "field": "columnName",
+      "expected": "sample_size",
+      "actual": "bias_type"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "sample_size",
+      "field": "type",
+      "expected": "int",
+      "actual": "varchar(64)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "sample_size",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "detected_at",
+      "field": "ordinal",
+      "expected": 8,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "detected_at",
+      "field": "columnName",
+      "expected": "detected_at",
+      "actual": "bias_type"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "detected_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "varchar(64)"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "bias_detection_flags",
+      "column": "detected_at",
+      "expected": "CURRENT_TIMESTAMP",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "mitigation_applied",
+      "field": "ordinal",
+      "expected": 9,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "mitigation_applied",
+      "field": "columnName",
+      "expected": "mitigation_applied",
+      "actual": "bias_score"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "mitigation_applied",
+      "field": "type",
+      "expected": "tinyint",
+      "actual": "decimal(5,4)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "mitigation_applied",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "bias_detection_flags",
+      "column": "mitigation_applied",
+      "expected": "0",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "mitigation_notes",
+      "field": "ordinal",
+      "expected": 10,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "mitigation_notes",
+      "field": "columnName",
+      "expected": "mitigation_notes",
+      "actual": "bias_score"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "mitigation_notes",
+      "field": "type",
+      "expected": "text",
+      "actual": "decimal(5,4)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "created_at",
+      "field": "ordinal",
+      "expected": 11,
+      "actual": 6
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "created_at",
+      "field": "columnName",
+      "expected": "created_at",
+      "actual": "affected_field"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "created_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "varchar(128)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "bias_detection_flags",
+      "column": "created_at",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "bias_detection_flags",
+      "column": "created_at",
+      "expected": "CURRENT_TIMESTAMP",
+      "actual": ""
+    },
+    {
+      "kind": "column_count",
+      "tableName": "calibration_overrides",
+      "expected": 17,
+      "actual": 34
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "tenant_id",
+      "field": "ordinal",
+      "expected": 2,
+      "actual": 1
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "tenant_id",
+      "field": "columnName",
+      "expected": "tenant_id",
+      "actual": "id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "tenant_id",
+      "field": "type",
+      "expected": "varchar(255)",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "tenant_id",
+      "field": "autoIncrement",
+      "expected": false,
+      "actual": true
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "jurisdiction",
+      "field": "ordinal",
+      "expected": 3,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "jurisdiction",
+      "field": "columnName",
+      "expected": "jurisdiction",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "jurisdiction",
+      "field": "type",
+      "expected": "varchar(50)",
+      "actual": "varchar(255)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "scenario_type",
+      "field": "ordinal",
+      "expected": 4,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "scenario_type",
+      "field": "columnName",
+      "expected": "scenario_type",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "scenario_type",
+      "field": "type",
+      "expected": "varchar(100)",
+      "actual": "varchar(255)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "scenario_type",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "cost_multiplier",
+      "field": "ordinal",
+      "expected": 5,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "cost_multiplier",
+      "field": "columnName",
+      "expected": "cost_multiplier",
+      "actual": "jurisdiction"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "cost_multiplier",
+      "field": "type",
+      "expected": "int",
+      "actual": "varchar(50)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "cost_multiplier",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "fraud_adjustments_json",
+      "field": "ordinal",
+      "expected": 6,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "fraud_adjustments_json",
+      "field": "columnName",
+      "expected": "fraud_adjustments_json",
+      "actual": "jurisdiction"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "fraud_adjustments_json",
+      "field": "type",
+      "expected": "text",
+      "actual": "varchar(50)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "fraud_adjustments_json",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "calibration_overrides",
+      "column": "fraud_adjustments_json",
+      "expected": "JSON_OBJECT()",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "risk_level",
+      "field": "ordinal",
+      "expected": 7,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "risk_level",
+      "field": "columnName",
+      "expected": "risk_level",
+      "actual": "scenario_type"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "risk_level",
+      "field": "type",
+      "expected": "enum('low','medium','high')",
+      "actual": "varchar(100)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "risk_level",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "calibration_overrides",
+      "column": "risk_level",
+      "expected": "MEDIUM",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "reasoning",
+      "field": "ordinal",
+      "expected": 8,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "reasoning",
+      "field": "columnName",
+      "expected": "reasoning",
+      "actual": "scenario_type"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "reasoning",
+      "field": "type",
+      "expected": "text",
+      "actual": "varchar(100)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "sample_size",
+      "field": "ordinal",
+      "expected": 9,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "sample_size",
+      "field": "columnName",
+      "expected": "sample_size",
+      "actual": "cost_multiplier"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "sample_size",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "calibration_overrides",
+      "column": "sample_size",
+      "expected": "0",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "confidence",
+      "field": "ordinal",
+      "expected": 10,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "confidence",
+      "field": "columnName",
+      "expected": "confidence",
+      "actual": "cost_multiplier"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "confidence",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "calibration_overrides",
+      "column": "confidence",
+      "expected": "0",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "status",
+      "field": "ordinal",
+      "expected": 11,
+      "actual": 6
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "status",
+      "field": "columnName",
+      "expected": "status",
+      "actual": "fraud_adjustments_json"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "status",
+      "field": "type",
+      "expected": "enum('pending_review','approved','rejected')",
+      "actual": "text"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "status",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "calibration_overrides",
+      "column": "status",
+      "expected": "pending_review",
+      "actual": "JSON_OBJECT()"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "approved_by",
+      "field": "ordinal",
+      "expected": 12,
+      "actual": 6
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "approved_by",
+      "field": "columnName",
+      "expected": "approved_by",
+      "actual": "fraud_adjustments_json"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "approved_by",
+      "field": "type",
+      "expected": "int",
+      "actual": "text"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "approved_at",
+      "field": "ordinal",
+      "expected": 13,
+      "actual": 7
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "approved_at",
+      "field": "columnName",
+      "expected": "approved_at",
+      "actual": "risk_level"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "approved_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "enum('low','medium','high')"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "approved_at",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "rejection_reason",
+      "field": "ordinal",
+      "expected": 14,
+      "actual": 7
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "rejection_reason",
+      "field": "columnName",
+      "expected": "rejection_reason",
+      "actual": "risk_level"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "rejection_reason",
+      "field": "type",
+      "expected": "text",
+      "actual": "enum('low','medium','high')"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "rejection_reason",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "source_reports_json",
+      "field": "ordinal",
+      "expected": 15,
+      "actual": 8
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "source_reports_json",
+      "field": "columnName",
+      "expected": "source_reports_json",
+      "actual": "reasoning"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "created_at",
+      "field": "ordinal",
+      "expected": 16,
+      "actual": 8
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "created_at",
+      "field": "columnName",
+      "expected": "created_at",
+      "actual": "reasoning"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "created_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "text"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "created_at",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "calibration_overrides",
+      "column": "created_at",
+      "expected": "CURRENT_TIMESTAMP",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "updated_at",
+      "field": "ordinal",
+      "expected": 17,
+      "actual": 9
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "updated_at",
+      "field": "columnName",
+      "expected": "updated_at",
+      "actual": "sample_size"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "updated_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "calibration_overrides",
+      "column": "updated_at",
+      "field": "onUpdateCurrentTimestamp",
+      "expected": true,
+      "actual": false
+    },
+    {
+      "kind": "column_default",
+      "tableName": "calibration_overrides",
+      "column": "updated_at",
+      "expected": "CURRENT_TIMESTAMP",
+      "actual": "0"
+    },
+    {
+      "kind": "column_count",
+      "tableName": "claim_approvals",
+      "expected": 13,
+      "actual": 26
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "claim_id",
+      "field": "ordinal",
+      "expected": 2,
+      "actual": 1
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "claim_id",
+      "field": "columnName",
+      "expected": "claim_id",
+      "actual": "id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "claim_id",
+      "field": "autoIncrement",
+      "expected": false,
+      "actual": true
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "tenant_id",
+      "field": "ordinal",
+      "expected": 3,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "tenant_id",
+      "field": "columnName",
+      "expected": "tenant_id",
+      "actual": "claim_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "tenant_id",
+      "field": "type",
+      "expected": "varchar(255)",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "workflow_template_id",
+      "field": "ordinal",
+      "expected": 4,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "workflow_template_id",
+      "field": "columnName",
+      "expected": "workflow_template_id",
+      "actual": "claim_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "workflow_template_id",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "stage_order",
+      "field": "ordinal",
+      "expected": 5,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "stage_order",
+      "field": "columnName",
+      "expected": "stage_order",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "stage_order",
+      "field": "type",
+      "expected": "int",
+      "actual": "varchar(255)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "stage_name",
+      "field": "ordinal",
+      "expected": 6,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "stage_name",
+      "field": "columnName",
+      "expected": "stage_name",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "role_key",
+      "field": "ordinal",
+      "expected": 7,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "role_key",
+      "field": "columnName",
+      "expected": "role_key",
+      "actual": "workflow_template_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "role_key",
+      "field": "type",
+      "expected": "varchar(100)",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "role_key",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "actor_user_id",
+      "field": "ordinal",
+      "expected": 8,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "actor_user_id",
+      "field": "columnName",
+      "expected": "actor_user_id",
+      "actual": "workflow_template_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "actor_name",
+      "field": "ordinal",
+      "expected": 9,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "actor_name",
+      "field": "columnName",
+      "expected": "actor_name",
+      "actual": "stage_order"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "actor_name",
+      "field": "type",
+      "expected": "varchar(255)",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "actor_name",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "decision",
+      "field": "ordinal",
+      "expected": 10,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "decision",
+      "field": "columnName",
+      "expected": "decision",
+      "actual": "stage_order"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "decision",
+      "field": "type",
+      "expected": "enum('approved','rejected','returned','escalated','external_received')",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "notes",
+      "field": "ordinal",
+      "expected": 11,
+      "actual": 6
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "notes",
+      "field": "columnName",
+      "expected": "notes",
+      "actual": "stage_name"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "notes",
+      "field": "type",
+      "expected": "text",
+      "actual": "varchar(255)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "notes",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "metadata_json",
+      "field": "ordinal",
+      "expected": 12,
+      "actual": 6
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "metadata_json",
+      "field": "columnName",
+      "expected": "metadata_json",
+      "actual": "stage_name"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "metadata_json",
+      "field": "type",
+      "expected": "text",
+      "actual": "varchar(255)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "metadata_json",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "acted_at",
+      "field": "ordinal",
+      "expected": 13,
+      "actual": 7
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "acted_at",
+      "field": "columnName",
+      "expected": "acted_at",
+      "actual": "role_key"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_approvals",
+      "column": "acted_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "varchar(100)"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "claim_approvals",
+      "column": "acted_at",
+      "expected": "CURRENT_TIMESTAMP",
+      "actual": ""
+    },
+    {
+      "kind": "column_count",
+      "tableName": "claim_events",
+      "expected": 8,
+      "actual": 16
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "claim_id",
+      "field": "ordinal",
+      "expected": 2,
+      "actual": 1
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "claim_id",
+      "field": "columnName",
+      "expected": "claim_id",
+      "actual": "id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "claim_id",
+      "field": "autoIncrement",
+      "expected": false,
+      "actual": true
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "event_type",
+      "field": "ordinal",
+      "expected": 3,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "event_type",
+      "field": "columnName",
+      "expected": "event_type",
+      "actual": "claim_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "event_type",
+      "field": "type",
+      "expected": "varchar(100)",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "event_payload",
+      "field": "ordinal",
+      "expected": 4,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "event_payload",
+      "field": "columnName",
+      "expected": "event_payload",
+      "actual": "claim_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "event_payload",
+      "field": "type",
+      "expected": "json",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "event_payload",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "user_id",
+      "field": "ordinal",
+      "expected": 5,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "user_id",
+      "field": "columnName",
+      "expected": "user_id",
+      "actual": "event_type"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "user_id",
+      "field": "type",
+      "expected": "int",
+      "actual": "varchar(100)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "user_id",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "user_role",
+      "field": "ordinal",
+      "expected": 6,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "user_role",
+      "field": "columnName",
+      "expected": "user_role",
+      "actual": "event_type"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "user_role",
+      "field": "type",
+      "expected": "varchar(50)",
+      "actual": "varchar(100)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "user_role",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "tenant_id",
+      "field": "ordinal",
+      "expected": 7,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "tenant_id",
+      "field": "columnName",
+      "expected": "tenant_id",
+      "actual": "event_payload"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "tenant_id",
+      "field": "type",
+      "expected": "varchar(255)",
+      "actual": "json"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "emitted_at",
+      "field": "ordinal",
+      "expected": 8,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "emitted_at",
+      "field": "columnName",
+      "expected": "emitted_at",
+      "actual": "event_payload"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "emitted_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "json"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_events",
+      "column": "emitted_at",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "claim_events",
+      "column": "emitted_at",
+      "expected": "CURRENT_TIMESTAMP",
+      "actual": ""
+    },
+    {
+      "kind": "column_count",
+      "tableName": "claim_intake_requests",
+      "expected": 10,
+      "actual": 20
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "tenant_id",
+      "field": "ordinal",
+      "expected": 2,
+      "actual": 1
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "tenant_id",
+      "field": "columnName",
+      "expected": "tenant_id",
+      "actual": "id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "tenant_id",
+      "field": "type",
+      "expected": "varchar(255)",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "tenant_id",
+      "field": "autoIncrement",
+      "expected": false,
+      "actual": true
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "user_id",
+      "field": "ordinal",
+      "expected": 3,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "user_id",
+      "field": "columnName",
+      "expected": "user_id",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "user_id",
+      "field": "type",
+      "expected": "int",
+      "actual": "varchar(255)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "idempotency_key",
+      "field": "ordinal",
+      "expected": 4,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "idempotency_key",
+      "field": "columnName",
+      "expected": "idempotency_key",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "idempotency_key",
+      "field": "type",
+      "expected": "varchar(64)",
+      "actual": "varchar(255)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "request_hash",
+      "field": "ordinal",
+      "expected": 5,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "request_hash",
+      "field": "columnName",
+      "expected": "request_hash",
+      "actual": "user_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "request_hash",
+      "field": "type",
+      "expected": "varchar(64)",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "channel",
+      "field": "ordinal",
+      "expected": 6,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "channel",
+      "field": "columnName",
+      "expected": "channel",
+      "actual": "user_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "channel",
+      "field": "type",
+      "expected": "varchar(50)",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "claim_id",
+      "field": "ordinal",
+      "expected": 7,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "claim_id",
+      "field": "columnName",
+      "expected": "claim_id",
+      "actual": "idempotency_key"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "claim_id",
+      "field": "type",
+      "expected": "int",
+      "actual": "varchar(64)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "claim_id",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "status",
+      "field": "ordinal",
+      "expected": 8,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "status",
+      "field": "columnName",
+      "expected": "status",
+      "actual": "idempotency_key"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "status",
+      "field": "type",
+      "expected": "varchar(50)",
+      "actual": "varchar(64)"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "claim_intake_requests",
+      "column": "status",
+      "expected": "persisted",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "created_at",
+      "field": "ordinal",
+      "expected": 9,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "created_at",
+      "field": "columnName",
+      "expected": "created_at",
+      "actual": "request_hash"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "created_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "varchar(64)"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "claim_intake_requests",
+      "column": "created_at",
+      "expected": "CURRENT_TIMESTAMP",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "updated_at",
+      "field": "ordinal",
+      "expected": 10,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "updated_at",
+      "field": "columnName",
+      "expected": "updated_at",
+      "actual": "request_hash"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "updated_at",
+      "field": "type",
+      "expected": "timestamp",
+      "actual": "varchar(64)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intake_requests",
+      "column": "updated_at",
+      "field": "onUpdateCurrentTimestamp",
+      "expected": true,
+      "actual": false
+    },
+    {
+      "kind": "column_default",
+      "tableName": "claim_intake_requests",
+      "column": "updated_at",
+      "expected": "CURRENT_TIMESTAMP",
+      "actual": ""
+    },
+    {
+      "kind": "column_count",
+      "tableName": "claim_intelligence_dataset",
+      "expected": 35,
+      "actual": 70
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "claim_id",
+      "field": "ordinal",
+      "expected": 2,
+      "actual": 1
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "claim_id",
+      "field": "columnName",
+      "expected": "claim_id",
+      "actual": "id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "claim_id",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "claim_id",
+      "field": "autoIncrement",
+      "expected": false,
+      "actual": true
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "tenant_id",
+      "field": "ordinal",
+      "expected": 3,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "tenant_id",
+      "field": "columnName",
+      "expected": "tenant_id",
+      "actual": "claim_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "tenant_id",
+      "field": "type",
+      "expected": "varchar(255)",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "schema_version",
+      "field": "ordinal",
+      "expected": 4,
+      "actual": 2
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "schema_version",
+      "field": "columnName",
+      "expected": "schema_version",
+      "actual": "claim_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "schema_version",
+      "field": "nullable",
+      "expected": "NO",
+      "actual": "YES"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "claim_intelligence_dataset",
+      "column": "schema_version",
+      "expected": "1",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_make",
+      "field": "ordinal",
+      "expected": 5,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_make",
+      "field": "columnName",
+      "expected": "vehicle_make",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_make",
+      "field": "type",
+      "expected": "varchar(100)",
+      "actual": "varchar(255)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_model",
+      "field": "ordinal",
+      "expected": 6,
+      "actual": 3
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_model",
+      "field": "columnName",
+      "expected": "vehicle_model",
+      "actual": "tenant_id"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_model",
+      "field": "type",
+      "expected": "varchar(100)",
+      "actual": "varchar(255)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_year",
+      "field": "ordinal",
+      "expected": 7,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_year",
+      "field": "columnName",
+      "expected": "vehicle_year",
+      "actual": "schema_version"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_year",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_mass",
+      "field": "ordinal",
+      "expected": 8,
+      "actual": 4
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_mass",
+      "field": "columnName",
+      "expected": "vehicle_mass",
+      "actual": "schema_version"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "vehicle_mass",
+      "field": "nullable",
+      "expected": "YES",
+      "actual": "NO"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "accident_type",
+      "field": "ordinal",
+      "expected": 9,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "accident_type",
+      "field": "columnName",
+      "expected": "accident_type",
+      "actual": "vehicle_make"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "accident_type",
+      "field": "type",
+      "expected": "varchar(50)",
+      "actual": "varchar(100)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "impact_direction",
+      "field": "ordinal",
+      "expected": 10,
+      "actual": 5
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "impact_direction",
+      "field": "columnName",
+      "expected": "impact_direction",
+      "actual": "vehicle_make"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "impact_direction",
+      "field": "type",
+      "expected": "varchar(50)",
+      "actual": "varchar(100)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "accident_description_text",
+      "field": "ordinal",
+      "expected": 11,
+      "actual": 6
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "accident_description_text",
+      "field": "columnName",
+      "expected": "accident_description_text",
+      "actual": "vehicle_model"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "accident_description_text",
+      "field": "type",
+      "expected": "text",
+      "actual": "varchar(100)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "police_report_presence",
+      "field": "ordinal",
+      "expected": 12,
+      "actual": 6
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "police_report_presence",
+      "field": "columnName",
+      "expected": "police_report_presence",
+      "actual": "vehicle_model"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "police_report_presence",
+      "field": "type",
+      "expected": "tinyint",
+      "actual": "varchar(100)"
+    },
+    {
+      "kind": "column_default",
+      "tableName": "claim_intelligence_dataset",
+      "column": "police_report_presence",
+      "expected": "0",
+      "actual": ""
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "detected_damage_components",
+      "field": "ordinal",
+      "expected": 13,
+      "actual": 7
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "detected_damage_components",
+      "field": "columnName",
+      "expected": "detected_damage_components",
+      "actual": "vehicle_year"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "detected_damage_components",
+      "field": "type",
+      "expected": "json",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "damage_severity_scores",
+      "field": "ordinal",
+      "expected": 14,
+      "actual": 7
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "damage_severity_scores",
+      "field": "columnName",
+      "expected": "damage_severity_scores",
+      "actual": "vehicle_year"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "damage_severity_scores",
+      "field": "type",
+      "expected": "json",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "llm_damage_reasoning",
+      "field": "ordinal",
+      "expected": 15,
+      "actual": 8
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "llm_damage_reasoning",
+      "field": "columnName",
+      "expected": "llm_damage_reasoning",
+      "actual": "vehicle_mass"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "llm_damage_reasoning",
+      "field": "type",
+      "expected": "text",
+      "actual": "int"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "physics_plausibility_score",
+      "field": "ordinal",
+      "expected": 16,
+      "actual": 8
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "physics_plausibility_score",
+      "field": "columnName",
+      "expected": "physics_plausibility_score",
+      "actual": "vehicle_mass"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "ai_estimated_cost",
+      "field": "ordinal",
+      "expected": 17,
+      "actual": 9
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "ai_estimated_cost",
+      "field": "columnName",
+      "expected": "ai_estimated_cost",
+      "actual": "accident_type"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column": "ai_estimated_cost",
+      "field": "type",
+      "expected": "int",
+      "actual": "varchar(50)"
+    },
+    {
+      "kind": "column_property",
+      "tableName": "claim_intelligence_dataset",
+      "column

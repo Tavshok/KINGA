@@ -1,0 +1,10 @@
+      2 automation_audit_log
+      2 bias_detection_flags
+      2 calibration_overrides
+      2 claim_approvals
+      2 claim_events
+      2 claim_intake_requests
+      2 claim_intelligence_dataset
+      2 claim_involvement_tracking
+      2 claim_review_queue
+      2 commission_records
