@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gsa_tenant_id` ON `global_search_analytics` (`tenant_id`);

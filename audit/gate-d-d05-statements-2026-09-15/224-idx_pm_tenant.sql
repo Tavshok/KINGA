@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pm_tenant` ON `physical_measurements` (`tenant_id`);

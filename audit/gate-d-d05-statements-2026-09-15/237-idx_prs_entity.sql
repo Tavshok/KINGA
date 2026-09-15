@@ -1,0 +1,1 @@
+CREATE INDEX `idx_prs_entity` ON `predictive_risk_scores` (`entity_type`,`entity_id`);

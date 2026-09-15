@@ -1,0 +1,1 @@
+CREATE INDEX `idx_involvement_claim_user_stage` ON `claim_involvement_tracking` (`claim_id`,`user_id`,`workflow_stage`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_routing_tenant_id` ON `routing_history` (`tenant_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_mtq_created_at` ON `model_training_queue` (`created_at`);

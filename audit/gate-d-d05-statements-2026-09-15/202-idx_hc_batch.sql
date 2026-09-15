@@ -1,0 +1,1 @@
+CREATE INDEX `idx_hc_batch` ON `historical_claims` (`batch_id`);

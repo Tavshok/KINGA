@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rl_claim` ON `replay_logs` (`claim_id`);

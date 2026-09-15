@@ -1,0 +1,1 @@
+CREATE INDEX `idx_audit_user_id` ON `audit_trail` (`user_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cb_vehicle_precision` ON `component_benchmarks` (`component_id`,`vehicle_make`,`vehicle_model`,`year_band`);

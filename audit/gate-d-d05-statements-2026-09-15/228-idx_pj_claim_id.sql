@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pj_claim_id` ON `pipeline_jobs` (`claim_id`);

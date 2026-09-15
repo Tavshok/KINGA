@@ -1,0 +1,1 @@
+CREATE INDEX `idx_anonymized_at` ON `claim_intelligence_dataset` (`anonymized_at`);

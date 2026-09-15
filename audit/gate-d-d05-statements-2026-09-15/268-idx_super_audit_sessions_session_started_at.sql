@@ -1,0 +1,1 @@
+CREATE INDEX `idx_super_audit_sessions_session_started_at` ON `super_audit_sessions` (`session_started_at`);

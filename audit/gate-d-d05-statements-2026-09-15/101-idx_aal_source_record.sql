@@ -1,0 +1,1 @@
+CREATE INDEX `idx_aal_source_record` ON `anonymization_audit_log` (`source_record_id`);

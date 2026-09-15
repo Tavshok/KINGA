@@ -1,0 +1,1 @@
+CREATE INDEX `idx_composite_score` ON `automation_audit_log` (`composite_confidence_score`);

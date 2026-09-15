@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pj_run_id` ON `pipeline_jobs` (`run_id`);

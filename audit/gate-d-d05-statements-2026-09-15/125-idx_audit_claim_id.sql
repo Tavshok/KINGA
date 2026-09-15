@@ -1,0 +1,1 @@
+CREATE INDEX `idx_audit_claim_id` ON `audit_trail` (`claim_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rl_tenant` ON `replay_logs` (`tenant_id`);

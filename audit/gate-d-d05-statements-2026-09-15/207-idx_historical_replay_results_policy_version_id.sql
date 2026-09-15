@@ -1,0 +1,1 @@
+CREATE INDEX `idx_historical_replay_results_policy_version_id` ON `historical_replay_results` (`policy_version_id`);

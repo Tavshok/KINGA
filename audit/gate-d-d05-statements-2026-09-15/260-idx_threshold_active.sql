@@ -1,0 +1,1 @@
+CREATE INDEX `idx_threshold_active` ON `routing_threshold_config` (`is_active`);

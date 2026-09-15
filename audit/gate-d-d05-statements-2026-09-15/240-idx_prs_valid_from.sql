@@ -1,0 +1,1 @@
+CREATE INDEX `idx_prs_valid_from` ON `predictive_risk_scores` (`valid_from`);

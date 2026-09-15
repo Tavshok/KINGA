@@ -1,0 +1,1 @@
+CREATE INDEX `idx_type` ON `assessors` (`assessor_type`);

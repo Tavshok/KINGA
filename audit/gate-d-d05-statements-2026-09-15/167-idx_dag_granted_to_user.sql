@@ -1,0 +1,1 @@
+CREATE INDEX `idx_dag_granted_to_user` ON `dataset_access_grants` (`granted_to_user_id`);

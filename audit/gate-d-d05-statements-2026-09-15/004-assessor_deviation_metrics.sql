@@ -1,0 +1,21 @@
+CREATE TABLE `assessor_deviation_metrics` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`assessor_id` int,
+	`assessor_name` varchar(255),
+	`period_start` date NOT NULL,
+	`period_end` date NOT NULL,
+	`total_claims` int NOT NULL,
+	`average_deviation` decimal(5,2),
+	`median_deviation` decimal(5,2),
+	`standard_deviation` decimal(5,2),
+	`overvaluation_rate` decimal(5,2),
+	`undervaluation_rate` decimal(5,2),
+	`consistency_score` int,
+	`region` varchar(100),
+	`vehicle_type` varchar(50),
+	`panel_beater_id` int,
+	`data_quality_score` int,
+	`sample_size` int,
+	`calculated_at` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `assessor_deviation_metrics_id` PRIMARY KEY(`id`)
+);

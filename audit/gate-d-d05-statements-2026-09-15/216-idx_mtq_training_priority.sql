@@ -1,0 +1,1 @@
+CREATE INDEX `idx_mtq_training_priority` ON `model_training_queue` (`training_priority`);

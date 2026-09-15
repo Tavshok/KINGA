@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gsh_user_id` ON `global_search_history` (`user_id`);

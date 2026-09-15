@@ -1,0 +1,1 @@
+CREATE INDEX `supplier_performance_metrics_supplier_name_unique` ON `supplier_performance_metrics` (`supplier_name`);

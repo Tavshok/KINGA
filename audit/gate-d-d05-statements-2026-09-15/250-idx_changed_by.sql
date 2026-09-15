@@ -1,0 +1,1 @@
+CREATE INDEX `idx_changed_by` ON `role_assignment_audit` (`changed_by_user_id`);

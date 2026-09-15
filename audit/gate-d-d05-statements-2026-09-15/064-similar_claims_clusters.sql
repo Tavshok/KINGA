@@ -1,0 +1,21 @@
+CREATE TABLE `similar_claims_clusters` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`historical_claim_id` int NOT NULL,
+	`vehicle_make` varchar(100),
+	`vehicle_model` varchar(100),
+	`vehicle_year` int,
+	`damage_type` varchar(100),
+	`damage_severity` enum('minor','moderate','severe','total_loss'),
+	`region` varchar(100),
+	`cluster_id` int,
+	`cluster_size` int,
+	`similar_claims` text,
+	`cluster_median_cost` decimal(10,2),
+	`cluster_average_cost` decimal(10,2),
+	`cluster_std_dev` decimal(10,2),
+	`similarity_threshold` decimal(5,2),
+	`k_neighbors` int,
+	`clustered_at` timestamp NOT NULL DEFAULT (now()),
+	`clustering_algorithm` varchar(50),
+	CONSTRAINT `similar_claims_clusters_id` PRIMARY KEY(`id`)
+);

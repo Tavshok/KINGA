@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gad_vehicle_make` ON `global_anonymized_dataset` (`vehicle_make`);

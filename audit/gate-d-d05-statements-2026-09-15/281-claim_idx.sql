@@ -1,0 +1,1 @@
+CREATE INDEX `claim_idx` ON `usage_events` (`claim_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_wal_created_at` ON `weight_adjustment_log` (`created_at`);
