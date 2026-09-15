@@ -552,7 +552,7 @@ export const assessorInsurerRelationships = mysqlTable("assessor_insurer_relatio
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
-	index("unique_assessor_tenant").on(table.assessorId, table.tenantId),
+	uniqueIndex("uq_assessor_insurer_relationship").on(table.assessorId, table.tenantId),
 	index("idx_tenant").on(table.tenantId),
 	index("idx_type").on(table.relationshipType),
 	index("idx_status").on(table.relationshipStatus),
@@ -1756,6 +1756,7 @@ export const fleetDrivers = mysqlTable("fleet_drivers", {
 	index("idx_fleet_drivers_tenant_id").on(table.tenantId),
 	index("idx_fleet_drivers_fleet_id").on(table.fleetId),
 	index("idx_fleet_drivers_user_id").on(table.userId),
+	uniqueIndex("uq_fleet_driver_membership").on(table.fleetId, table.userId),
 ]);
 
 export const fleetIncidentReports = mysqlTable("fleet_incident_reports", {
@@ -2802,7 +2803,10 @@ export const policyClaimLinks = mysqlTable("policy_claim_links", {
 	coverageDecisionReason: text("coverage_decision_reason"),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
-});
+},
+(table) => [
+	uniqueIndex("uq_policy_claim_link").on(table.policyId, table.claimId),
+]);
 
 export const policyDocuments = mysqlTable("policy_documents", {
 	id: int().autoincrement().notNull().primaryKey(),
