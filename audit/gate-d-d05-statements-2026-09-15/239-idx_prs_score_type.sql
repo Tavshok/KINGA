@@ -1,0 +1,1 @@
+CREATE INDEX `idx_prs_score_type` ON `predictive_risk_scores` (`score_type`);

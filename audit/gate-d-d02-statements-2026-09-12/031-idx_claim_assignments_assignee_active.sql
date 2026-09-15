@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claim_assignments_assignee_active` ON `claim_assignments` (`assigned_to_user_id`,`status`);

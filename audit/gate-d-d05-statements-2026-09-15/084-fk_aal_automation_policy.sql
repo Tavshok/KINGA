@@ -1,0 +1,1 @@
+ALTER TABLE `automation_audit_log` ADD CONSTRAINT `fk_aal_automation_policy` FOREIGN KEY (`automation_policy_id`) REFERENCES `automation_policies`(`id`) ON DELETE no action ON UPDATE no action;

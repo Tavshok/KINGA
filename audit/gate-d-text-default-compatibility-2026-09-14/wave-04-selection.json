@@ -1,0 +1,84 @@
+{
+  "scope": "Source-derived Wave 4 scratch SQL selection only. No database connection, DDL execution, staging, production, migration account, or live-data operation occurred.",
+  "sourceSqlSha256": "d61f7c7c66475200b6aced83bf4b8ff7ce1afd766598e6f2e3ea2546e994fcd1",
+  "outputSqlSha256": "8317ccc6d01c8c34b6fd2e1f466ca8781c9152910953c5f345fe13de65183f61",
+  "tableCount": 40,
+  "tableNames": [
+    "agency_assisted_claimant_identities",
+    "agency_clients",
+    "agency_insurance_service_request_insurers",
+    "agency_insurance_service_requests",
+    "agency_insurance_valuation_deviations",
+    "agency_product_commission_configs",
+    "approval_workflow",
+    "claim_comment_reads",
+    "claim_comments",
+    "client_insurance_service_requests",
+    "client_vehicle_valuation_requests",
+    "engineer_observations",
+    "engineer_profiles",
+    "fleet_accounts",
+    "fleet_audit_logs",
+    "fleet_drivers",
+    "fleet_intelligence_snapshots",
+    "fleet_manager_requests",
+    "fleet_rfq_client_instructions",
+    "fleet_risk_scores",
+    "fleet_vehicles",
+    "fleets",
+    "governance_audit_log",
+    "governance_notifications",
+    "governance_violation_log",
+    "inspection_projects",
+    "notification_events",
+    "notification_preferences",
+    "notifications",
+    "panel_beaters",
+    "platform_governance_limits",
+    "rate_limit_tracking",
+    "recovery_cases",
+    "recovery_correspondence_log",
+    "service_requests",
+    "tenant_workflow_configs",
+    "whatsapp_sessions",
+    "workflow_audit_trail",
+    "workflow_configuration",
+    "workflow_templates"
+  ],
+  "indexStatementCount": 88,
+  "inlineUniqueConstraintCount": 10,
+  "totalSourceDeclaredIndexAndUniqueConstraintCount": 98,
+  "foreignKeyCount": 7,
+  "foreignKeys": [
+    {
+      "source": "approval_workflow",
+      "target": "claims"
+    },
+    {
+      "source": "claim_comments",
+      "target": "claims"
+    },
+    {
+      "source": "claim_comments",
+      "target": "users"
+    },
+    {
+      "source": "governance_notifications",
+      "target": "claims"
+    },
+    {
+      "source": "notifications",
+      "target": "claims"
+    },
+    {
+      "source": "recovery_cases",
+      "target": "claims"
+    },
+    {
+      "source": "workflow_audit_trail",
+      "target": "claims"
+    }
+  ],
+  "statementCount": 135,
+  "status": "passed"
+}

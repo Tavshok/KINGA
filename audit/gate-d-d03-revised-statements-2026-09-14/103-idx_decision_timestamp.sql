@@ -1,0 +1,1 @@
+CREATE INDEX `idx_decision_timestamp` ON `claim_routing_decisions` (`decision_timestamp`);

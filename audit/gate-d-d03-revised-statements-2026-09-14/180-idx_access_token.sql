@@ -1,0 +1,1 @@
+CREATE INDEX `idx_access_token` ON `report_links` (`access_token`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_wal_direction` ON `weight_adjustment_log` (`sensitivity_direction`);

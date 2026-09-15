@@ -1,0 +1,1 @@
+CREATE INDEX `idx_was_overridden` ON `automation_audit_log` (`was_overridden`);

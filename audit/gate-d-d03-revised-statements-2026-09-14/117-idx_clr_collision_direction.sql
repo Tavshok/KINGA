@@ -1,0 +1,1 @@
+CREATE INDEX `idx_clr_collision_direction` ON `cost_learning_records` (`collision_direction`);

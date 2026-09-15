@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cro_component_severity` ON `component_repair_outcomes` (`component_name`,`severity_at_decision`);

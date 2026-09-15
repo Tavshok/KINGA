@@ -1,0 +1,1 @@
+CREATE INDEX `idx_asub_profile` ON `assessor_subscriptions` (`marketplace_profile_id`);

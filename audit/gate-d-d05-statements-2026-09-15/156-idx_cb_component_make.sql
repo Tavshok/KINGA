@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cb_component_make` ON `component_benchmarks` (`component_id`,`vehicle_make`);

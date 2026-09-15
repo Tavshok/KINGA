@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vehicle_registry_repeat_claimer` ON `vehicle_registry` (`is_repeat_claimer`);

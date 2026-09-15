@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pr_status` ON `pipeline_runs` (`status`);

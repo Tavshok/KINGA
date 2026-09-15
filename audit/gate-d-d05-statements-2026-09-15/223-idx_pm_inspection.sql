@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pm_inspection` ON `physical_measurements` (`inspection_id`);

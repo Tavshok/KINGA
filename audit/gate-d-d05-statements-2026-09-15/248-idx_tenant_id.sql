@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tenant_id` ON `role_assignment_audit` (`tenant_id`);

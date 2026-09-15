@@ -1,0 +1,1 @@
+CREATE INDEX `idx_wa_status` ON `whatsapp_sessions` (`status`);

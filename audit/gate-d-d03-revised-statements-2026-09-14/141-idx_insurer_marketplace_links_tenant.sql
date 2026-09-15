@@ -1,0 +1,1 @@
+CREATE INDEX `idx_insurer_marketplace_links_tenant` ON `insurer_marketplace_links` (`insurer_tenant_id`);

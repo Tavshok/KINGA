@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rating` ON `assessors` (`average_rating`);

@@ -1,0 +1,1 @@
+CREATE INDEX `insurance_carriers_short_code_unique` ON `insurance_carriers` (`short_code`);

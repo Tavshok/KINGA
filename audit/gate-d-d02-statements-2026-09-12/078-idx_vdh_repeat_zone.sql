@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vdh_repeat_zone` ON `vehicle_damage_history` (`is_repeat_zone`);

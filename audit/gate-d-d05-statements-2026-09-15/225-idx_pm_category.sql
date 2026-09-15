@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pm_category` ON `physical_measurements` (`measurement_category`);

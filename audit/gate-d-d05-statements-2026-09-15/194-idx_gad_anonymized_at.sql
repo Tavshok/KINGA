@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gad_anonymized_at` ON `global_anonymized_dataset` (`anonymized_at`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vehicle_registry_tenant` ON `vehicle_registry` (`tenant_id`);

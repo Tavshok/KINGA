@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rc_rps` ON `recovery_cases` (`recovery_potential_score`);

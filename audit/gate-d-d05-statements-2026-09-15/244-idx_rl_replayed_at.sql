@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rl_replayed_at` ON `replay_logs` (`replayed_at`);

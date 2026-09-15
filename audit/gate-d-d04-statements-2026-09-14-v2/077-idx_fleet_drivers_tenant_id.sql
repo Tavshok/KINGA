@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fleet_drivers_tenant_id` ON `fleet_drivers` (`tenant_id`);

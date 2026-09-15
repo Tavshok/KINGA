@@ -1,0 +1,1 @@
+CREATE INDEX `idx_marketplace_status` ON `assessors` (`marketplace_status`);

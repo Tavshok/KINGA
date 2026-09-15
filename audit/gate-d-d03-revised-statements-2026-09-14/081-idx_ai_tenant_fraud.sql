@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ai_tenant_fraud` ON `ai_assessments` (`tenant_id`,`fraud_risk_level`);

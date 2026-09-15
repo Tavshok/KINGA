@@ -1,0 +1,1 @@
+CREATE INDEX `idx_super_audit_sessions_super_admin_user_id` ON `super_audit_sessions` (`super_admin_user_id`);

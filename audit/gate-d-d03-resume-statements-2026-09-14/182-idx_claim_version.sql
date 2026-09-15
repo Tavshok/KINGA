@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claim_version` ON `report_snapshots` (`claim_id`,`version`);

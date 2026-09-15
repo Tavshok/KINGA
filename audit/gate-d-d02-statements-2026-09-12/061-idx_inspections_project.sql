@@ -1,0 +1,1 @@
+CREATE INDEX `idx_inspections_project` ON `inspections` (`project_id`);

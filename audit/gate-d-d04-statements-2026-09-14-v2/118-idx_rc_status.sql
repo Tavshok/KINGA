@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rc_status` ON `recovery_cases` (`status`);

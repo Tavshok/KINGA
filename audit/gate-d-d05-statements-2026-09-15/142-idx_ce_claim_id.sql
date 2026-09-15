@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ce_claim_id` ON `claim_events` (`claim_id`);

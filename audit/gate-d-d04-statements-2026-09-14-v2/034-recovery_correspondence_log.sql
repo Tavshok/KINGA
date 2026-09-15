@@ -1,0 +1,20 @@
+CREATE TABLE `recovery_correspondence_log` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`recovery_case_id` int NOT NULL,
+	`tenant_id` varchar(64) NOT NULL,
+	`entry_type` enum('demand_letter_generated','demand_letter_sent','response_received','follow_up_sent','legal_escalation','settlement_offer','settlement_accepted','settlement_rejected','case_note','status_change','recovery_target_changed','system_event') NOT NULL DEFAULT 'case_note',
+	`actor_id` varchar(64),
+	`actor_name` varchar(128),
+	`actor_role` varchar(64),
+	`subject` varchar(255),
+	`body` text,
+	`attachment_url` varchar(1024),
+	`from_status` varchar(64),
+	`to_status` varchar(64),
+	`from_target` varchar(32),
+	`to_target` varchar(32),
+	`amount_cents` int,
+	`currency_code` varchar(8) DEFAULT 'ZAR',
+	`created_at` varchar(32) NOT NULL,
+	CONSTRAINT `recovery_correspondence_log_id` PRIMARY KEY(`id`)
+);

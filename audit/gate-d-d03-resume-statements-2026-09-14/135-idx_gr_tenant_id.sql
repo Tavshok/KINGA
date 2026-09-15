@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gr_tenant_id` ON `generated_reports` (`tenant_id`);

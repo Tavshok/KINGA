@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fmr_created_at` ON `fleet_manager_requests` (`created_at`);

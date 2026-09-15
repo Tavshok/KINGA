@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `uq_assessor_insurer_relationship` ON `assessor_insurer_relationships` (`assessor_id`,`tenant_id`);

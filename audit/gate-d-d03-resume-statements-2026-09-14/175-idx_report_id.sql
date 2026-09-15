@@ -1,0 +1,1 @@
+CREATE INDEX `idx_report_id` ON `report_access_audit` (`report_id`);

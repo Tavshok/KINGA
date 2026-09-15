@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ar_type` ON `asset_registry` (`asset_type`);

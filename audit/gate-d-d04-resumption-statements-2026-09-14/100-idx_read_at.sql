@@ -1,0 +1,1 @@
+CREATE INDEX `idx_read_at` ON `governance_notifications` (`read_at`);

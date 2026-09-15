@@ -1,0 +1,23 @@
+CREATE TABLE `fraud_alerts` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`claim_id` int NOT NULL,
+	`alert_type` varchar(100) NOT NULL,
+	`alert_severity` enum('low','medium','high','critical') NOT NULL,
+	`alert_title` varchar(255) NOT NULL,
+	`alert_description` text NOT NULL,
+	`triggered_rule_id` int,
+	`triggered_rule_name` varchar(255),
+	`related_entity_type` varchar(50),
+	`related_entity_id` int,
+	`alert_data` text,
+	`fraud_score` int,
+	`status` enum('new','acknowledged','investigating','resolved','false_alarm') NOT NULL DEFAULT 'new',
+	`assigned_to` int,
+	`resolution_notes` text,
+	`resolution_date` timestamp,
+	`is_fraud_confirmed` tinyint,
+	`actions_taken` text,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `fraud_alerts_id` PRIMARY KEY(`id`)
+);

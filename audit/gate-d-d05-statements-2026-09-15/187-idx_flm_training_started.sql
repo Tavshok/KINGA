@@ -1,0 +1,1 @@
+CREATE INDEX `idx_flm_training_started` ON `federated_learning_metadata` (`training_started_at`);

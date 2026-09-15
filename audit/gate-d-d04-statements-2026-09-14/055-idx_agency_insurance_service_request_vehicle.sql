@@ -1,0 +1,1 @@
+CREATE INDEX `idx_agency_insurance_service_request_vehicle` ON `agency_insurance_service_requests` (`vehicle_registry_id`);

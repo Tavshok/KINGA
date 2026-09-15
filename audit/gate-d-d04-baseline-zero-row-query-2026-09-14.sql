@@ -1,0 +1,79 @@
+SELECT COUNT(*) AS tables_checked,
+       SUM(row_count) AS total_rows,
+       MIN(row_count) AS minimum_rows,
+       MAX(row_count) AS maximum_rows
+FROM (
+SELECT COUNT(*) AS row_count FROM `kinga_staging`.`adjuster_sign_offs`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`agency_documents`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`ai_assessments`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`ai_prediction_logs`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`assessor_report_attachments`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`assessor_report_reviews`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`assessor_reports`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`automation_policies`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`claim_assignments`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`claim_confidence_scores`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`claim_decision_lifecycle`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`claim_documents`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`claim_routing_decisions`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`claims`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`component_repair_outcomes`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`cost_components`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`cost_learning_records`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`country_repair_index`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`currency_exchange_rates`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`customer_documents`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`decision_snapshots`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`document_naming_templates`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`drivers`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`extracted_document_data`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`extracted_repair_items`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`fleet_documents`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`fleet_incident_reports`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`fraud_alerts`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`fraud_indicators`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`fraud_rules`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`generated_reports`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`ingestion_documents`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`inspections`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`insurance_audit_logs`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`insurance_carriers`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`insurance_policies`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`insurance_products`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`insurance_quotes`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`insurer_marketplace_links`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`insurer_marketplace_relationships`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`insurer_quote_requests`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`marketplace_profiles`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`measurement_types`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`panel_beater_quotes`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`pdf_reports`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`physics_validation_records`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`police_reports`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`policy_documents`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`pre_accident_damage`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`quotation_request_documents`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`quote_line_items`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`quote_optimisation_results`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`repair_cost_intelligence`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`repair_history`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`report_access_audit`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`report_links`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`report_snapshots`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`service_quotes`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`supplier_quote_line_items`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`supplier_quotes`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`tenant_invitations`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`tenants`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`users`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`valuation_comparable_evidence`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`vehicle_condition_assessment`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`vehicle_condition_snapshots`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`vehicle_damage_history`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`vehicle_geometry_measurements`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`vehicle_market_valuations`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`vehicle_mileage_logs`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`vehicle_models`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`vehicle_passport_snapshots`
+UNION ALL SELECT COUNT(*) AS row_count FROM `kinga_staging`.`vehicle_registry`
+) AS baseline_counts;

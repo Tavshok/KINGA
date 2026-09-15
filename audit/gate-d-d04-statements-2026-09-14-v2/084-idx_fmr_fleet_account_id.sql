@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fmr_fleet_account_id` ON `fleet_manager_requests` (`fleet_account_id`);

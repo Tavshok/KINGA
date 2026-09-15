@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ft_config_tenant` ON `fast_track_config` (`tenant_id`);

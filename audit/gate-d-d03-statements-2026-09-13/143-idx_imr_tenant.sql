@@ -1,0 +1,1 @@
+CREATE INDEX `idx_imr_tenant` ON `insurer_marketplace_relationships` (`insurer_tenant_id`);

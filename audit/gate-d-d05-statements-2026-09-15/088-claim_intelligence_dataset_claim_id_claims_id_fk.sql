@@ -1,0 +1,1 @@
+ALTER TABLE `claim_intelligence_dataset` ADD CONSTRAINT `claim_intelligence_dataset_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE set null ON UPDATE cascade;

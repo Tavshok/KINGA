@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ds_lifecycle` ON `decision_snapshots` (`lifecycle_state`);

@@ -1,0 +1,1 @@
+CREATE INDEX `timestamp_idx` ON `usage_events` (`timestamp`);

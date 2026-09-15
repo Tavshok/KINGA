@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cd_inspection_id` ON `claim_documents` (`inspection_id`);

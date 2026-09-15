@@ -1,0 +1,1 @@
+ALTER TABLE `automation_audit_log` ADD CONSTRAINT `fk_aal_routing_decision` FOREIGN KEY (`routing_decision_id`) REFERENCES `claim_routing_decisions`(`id`) ON DELETE no action ON UPDATE no action;

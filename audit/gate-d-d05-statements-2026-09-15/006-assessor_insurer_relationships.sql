@@ -1,0 +1,20 @@
+CREATE TABLE `assessor_insurer_relationships` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`assessor_id` int NOT NULL,
+	`tenant_id` varchar(64) NOT NULL,
+	`relationship_type` enum('insurer_owned','marketplace_contract','preferred_vendor') NOT NULL,
+	`relationship_status` enum('active','suspended','terminated') DEFAULT 'active',
+	`contract_start_date` timestamp NOT NULL,
+	`contract_end_date` timestamp,
+	`contracted_rate_per_assessment` decimal(10,2),
+	`marketplace_commission_rate` decimal(5,2),
+	`performance_rating` decimal(3,2),
+	`total_assignments_completed` int DEFAULT 0,
+	`total_assignments_rejected` int DEFAULT 0,
+	`average_completion_time_hours` decimal(8,2),
+	`is_preferred_vendor` tinyint DEFAULT 0,
+	`preferred_vendor_since` timestamp,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `assessor_insurer_relationships_id` PRIMARY KEY(`id`)
+);

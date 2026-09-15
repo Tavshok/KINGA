@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rci_damage_category` ON `repair_cost_intelligence` (`damage_category`);

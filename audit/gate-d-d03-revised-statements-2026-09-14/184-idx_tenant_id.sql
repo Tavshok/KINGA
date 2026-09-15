@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tenant_id` ON `report_snapshots` (`tenant_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claims_tenant_workflow_created` ON `claims` (`tenant_id`,`workflow_state`,`created_at`);

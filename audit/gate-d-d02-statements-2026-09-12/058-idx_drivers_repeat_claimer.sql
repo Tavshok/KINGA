@@ -1,0 +1,1 @@
+CREATE INDEX `idx_drivers_repeat_claimer` ON `drivers` (`is_repeat_claimer`);

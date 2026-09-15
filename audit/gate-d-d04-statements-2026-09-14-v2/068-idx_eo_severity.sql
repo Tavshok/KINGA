@@ -1,0 +1,1 @@
+CREATE INDEX `idx_eo_severity` ON `engineer_observations` (`severity`);

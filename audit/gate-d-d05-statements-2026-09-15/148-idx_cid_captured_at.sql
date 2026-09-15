@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cid_captured_at` ON `claim_intelligence_dataset` (`captured_at`);

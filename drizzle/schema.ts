@@ -552,7 +552,7 @@ export const assessorInsurerRelationships = mysqlTable("assessor_insurer_relatio
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
-	index("unique_assessor_tenant").on(table.assessorId, table.tenantId),
+	uniqueIndex("uq_assessor_insurer_relationship").on(table.assessorId, table.tenantId),
 	index("idx_tenant").on(table.tenantId),
 	index("idx_type").on(table.relationshipType),
 	index("idx_status").on(table.relationshipStatus),
@@ -737,9 +737,9 @@ export const claimComments = mysqlTable("claim_comments", {
 	claimId: int("claimId").notNull().references(() => claims.id),
 	userId: int("author_user_id").notNull().references(() => users.id),
 	userRole: varchar("author_role", { length: 50 }).notNull(),
-	toRoles: text("to_roles").notNull().default('[]'),
-	toUserIds: text("to_user_ids").notNull().default('[]'),
-	toEmails: text("to_emails").notNull().default('[]'),
+	toRoles: text("to_roles").notNull().default(sql`(JSON_ARRAY())`),
+	toUserIds: text("to_user_ids").notNull().default(sql`(JSON_ARRAY())`),
+	toEmails: text("to_emails").notNull().default(sql`(JSON_ARRAY())`),
 	commentType: mysqlEnum("comment_type", ['clarification','instruction','escalation','approval_note','rejection_note','inspection_request','general']).notNull().default('general'),
 	requiresResponse: tinyint("requires_response").notNull().default(0),
 	responseDeadlineAt: varchar("response_deadline_at", { length: 50 }),
@@ -1756,6 +1756,7 @@ export const fleetDrivers = mysqlTable("fleet_drivers", {
 	index("idx_fleet_drivers_tenant_id").on(table.tenantId),
 	index("idx_fleet_drivers_fleet_id").on(table.fleetId),
 	index("idx_fleet_drivers_user_id").on(table.userId),
+	uniqueIndex("uq_fleet_driver_membership").on(table.fleetId, table.userId),
 ]);
 
 export const fleetIncidentReports = mysqlTable("fleet_incident_reports", {
@@ -2023,7 +2024,6 @@ export const governanceNotifications = mysqlTable("governance_notifications", {
 (table) => [
 	index("idx_tenant_id").on(table.tenantId),
 	index("idx_claim_id").on(table.claimId),
-	index("idx_recipients").on(table.recipients),
 	index("idx_read_at").on(table.readAt),
 	index("idx_created_at").on(table.createdAt),
 ]);
@@ -2803,7 +2803,10 @@ export const policyClaimLinks = mysqlTable("policy_claim_links", {
 	coverageDecisionReason: text("coverage_decision_reason"),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
-});
+},
+(table) => [
+	uniqueIndex("uq_policy_claim_link").on(table.policyId, table.claimId),
+]);
 
 export const policyDocuments = mysqlTable("policy_documents", {
 	id: int().autoincrement().notNull().primaryKey(),
@@ -5364,13 +5367,13 @@ export const costLearningRecords = mysqlTable("cost_learning_records", {
   // Quote coverage ratio: matched_quote_components / damage_components (0.0–1.0, stored as 0–100)
   quoteCoverageRatioPct: int("quote_coverage_ratio_pct").notNull().default(0),
   // JSON: string[] — component names that are high-cost drivers (≥15% of total)
-  highCostDriversJson: text("high_cost_drivers_json").notNull().default("[]"),
+  highCostDriversJson: text("high_cost_drivers_json").notNull().default(sql`(JSON_ARRAY())`),
   // JSON: Record<string, number> — component_name → relative_weight (0.0–1.0)
-  componentWeightingJson: text("component_weighting_json").notNull().default("{}"),
+  componentWeightingJson: text("component_weighting_json").notNull().default(sql`(JSON_OBJECT())`),
   // JSON: ComponentWeightEntry[] — full detail with is_structural, severity, repair_action
-  componentDetailJson: text("component_detail_json").notNull().default("[]"),
+  componentDetailJson: text("component_detail_json").notNull().default(sql`(JSON_ARRAY())`),
   // JSON: string[] — data quality flags (no_final_cost, no_quote_components, etc.)
-  qualityFlagsJson: text("quality_flags_json").notNull().default("[]"),
+  qualityFlagsJson: text("quality_flags_json").notNull().default(sql`(JSON_ARRAY())`),
   recordedAt: timestamp("recorded_at", { mode: "string" }).defaultNow().notNull(),
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => [
@@ -5397,7 +5400,7 @@ export const calibrationOverrides = mysqlTable("calibration_overrides", {
   // The proposed cost multiplier (e.g. 0.8 = AI overestimates by 25%)
   costMultiplier: int("cost_multiplier"), // stored as integer × 1000 (e.g. 800 = 0.800)
   // JSON: Record<string, number> — fraud flag key → weight adjustment (-1.0 to +1.0)
-  fraudAdjustmentsJson: text("fraud_adjustments_json").default("{}"),
+  fraudAdjustmentsJson: text("fraud_adjustments_json").default(sql`(JSON_OBJECT())`),
   // Risk level assessed by the Feedback Controller: LOW | MEDIUM | HIGH
   riskLevel: mysqlEnum("risk_level", ["LOW", "MEDIUM", "HIGH"]).notNull().default("MEDIUM"),
   // Reasoning from the Feedback Controller
@@ -5433,10 +5436,10 @@ export const workflowTemplates = mysqlTable("workflow_templates", {
   // JSON: WorkflowStage[] — ordered array of approval stages
   // WorkflowStage: { stage_order: number, stage_name: string, role_key: string,
   //   required: boolean, can_reject: boolean, can_request_info: boolean, notes_required: boolean }
-  stagesJson: text("stages_json").notNull().default("[]"),
+  stagesJson: text("stages_json").notNull().default(sql`(JSON_ARRAY())`),
   // Filter: which claims this template applies to
   // JSON: { min_claim_value?: number, scenario_types?: string[], escalation_routes?: string[] }
-  appliesToJson: text("applies_to_json").default("{}"),
+  appliesToJson: text("applies_to_json").default(sql`(JSON_OBJECT())`),
   isDefault: tinyint("is_default").default(0).notNull(), // 1 = default template for this tenant
   isActive: tinyint("is_active").default(1).notNull(),
   createdBy: int("created_by"),

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_aso_adjuster_user_id` ON `adjuster_sign_offs` (`adjuster_user_id`);

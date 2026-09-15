@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rc_assigned_officer` ON `recovery_cases` (`assigned_officer_user_id`);

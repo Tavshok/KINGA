@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fleet_accounts_insurer` ON `fleet_accounts` (`linked_insurer_tenant_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_inspections_engineer` ON `inspections` (`assigned_engineer_id`);

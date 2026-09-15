@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ccs_claim_id` ON `cross_claim_signals` (`claim_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_dag_data_scope` ON `dataset_access_grants` (`data_scope`);

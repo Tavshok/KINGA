@@ -1,0 +1,1 @@
+CREATE INDEX `anonymous_record_id` ON `global_anonymized_dataset` (`anonymous_record_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claims_vehicle_registry_id` ON `claims` (`vehicle_registry_id`);

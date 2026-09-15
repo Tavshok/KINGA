@@ -1,0 +1,1 @@
+CREATE INDEX `insurance_quotes_quote_number_unique` ON `insurance_quotes` (`quote_number`);

@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "expected_explicit_table_index_pairs": 454,
+  "live_matching_explicit_table_index_pairs": 454,
+  "live_total_non_primary_table_index_pairs": 548,
+  "expected_foreign_key_constraint_names": 67,
+  "expected_unique_constraint_names": 32,
+  "missing_or_mismatched_explicit": [],
+  "unexpected_non_primary_pairs": []
+}

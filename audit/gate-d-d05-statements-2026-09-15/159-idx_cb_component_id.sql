@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cb_component_id` ON `component_benchmarks` (`component_id`);

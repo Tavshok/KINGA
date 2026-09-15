@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claims_created_at` ON `claims` (`created_at`);

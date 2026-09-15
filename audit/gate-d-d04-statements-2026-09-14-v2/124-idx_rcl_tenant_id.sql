@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rcl_tenant_id` ON `recovery_correspondence_log` (`tenant_id`);

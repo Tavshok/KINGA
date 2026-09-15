@@ -1,0 +1,1 @@
+CREATE INDEX `idx_super_audit_sessions_audited_tenant_id` ON `super_audit_sessions` (`audited_tenant_id`);

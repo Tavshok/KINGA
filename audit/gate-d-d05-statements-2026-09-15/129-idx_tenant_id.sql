@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tenant_id` ON `automation_audit_log` (`tenant_id`);

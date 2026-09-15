@@ -1,0 +1,1 @@
+CREATE INDEX `idx_dag_expiry_date` ON `dataset_access_grants` (`expiry_date`);

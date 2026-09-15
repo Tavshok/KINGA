@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rl_changed` ON `replay_logs` (`changed`);

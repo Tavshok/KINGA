@@ -1,0 +1,1 @@
+CREATE INDEX `idx_performance` ON `assessors` (`performance_score`);

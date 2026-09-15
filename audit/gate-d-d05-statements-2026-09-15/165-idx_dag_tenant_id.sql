@@ -1,0 +1,1 @@
+CREATE INDEX `idx_dag_tenant_id` ON `dataset_access_grants` (`tenant_id`);

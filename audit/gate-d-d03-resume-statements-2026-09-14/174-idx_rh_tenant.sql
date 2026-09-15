@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rh_tenant` ON `repair_history` (`tenant_id`);

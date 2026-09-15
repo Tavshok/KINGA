@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cdl_tenant` ON `claim_decision_lifecycle` (`tenant_id`);

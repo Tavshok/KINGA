@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ccs_tenant` ON `cross_claim_signals` (`tenant_id`);

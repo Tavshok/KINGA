@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ar_tenant` ON `asset_registry` (`tenant_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `personal_vehicles_user_id` ON `personal_vehicles` (`user_id`);

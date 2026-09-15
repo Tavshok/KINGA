@@ -1,0 +1,1 @@
+CREATE INDEX `idx_timestamp` ON `role_assignment_audit` (`timestamp`);

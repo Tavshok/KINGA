@@ -1,0 +1,1 @@
+CREATE INDEX `idx_se_error_code` ON `system_errors` (`error_code`);

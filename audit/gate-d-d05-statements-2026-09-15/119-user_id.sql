@@ -1,0 +1,1 @@
+CREATE INDEX `user_id` ON `assessors` (`user_id`);

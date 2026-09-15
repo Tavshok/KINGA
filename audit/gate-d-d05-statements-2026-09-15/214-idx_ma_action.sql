@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ma_action` ON `mismatch_annotations` (`action`);

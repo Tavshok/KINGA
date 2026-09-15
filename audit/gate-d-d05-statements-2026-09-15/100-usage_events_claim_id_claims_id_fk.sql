@@ -1,0 +1,1 @@
+ALTER TABLE `usage_events` ADD CONSTRAINT `usage_events_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE set null ON UPDATE cascade;

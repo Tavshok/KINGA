@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tiv_procedure` ON `tenant_isolation_violations` (`procedure_name`);

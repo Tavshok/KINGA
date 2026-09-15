@@ -1,0 +1,1 @@
+CREATE INDEX `idx_rc_tenant_id` ON `recovery_cases` (`tenant_id`);

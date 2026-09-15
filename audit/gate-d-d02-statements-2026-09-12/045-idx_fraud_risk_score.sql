@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fraud_risk_score` ON `claims` (`fraud_risk_score`);

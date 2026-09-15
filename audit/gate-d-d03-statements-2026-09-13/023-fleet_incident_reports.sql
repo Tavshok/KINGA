@@ -1,0 +1,23 @@
+CREATE TABLE `fleet_incident_reports` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`vehicle_id` int NOT NULL,
+	`driver_id` int NOT NULL,
+	`fleet_id` int NOT NULL,
+	`tenant_id` varchar(64) NOT NULL,
+	`incident_date` timestamp NOT NULL,
+	`location` text NOT NULL,
+	`description` text NOT NULL,
+	`severity` enum('minor','moderate','major','critical') NOT NULL DEFAULT 'minor',
+	`status` enum('submitted','under_review','approved','rejected','claim_filed') NOT NULL DEFAULT 'submitted',
+	`police_report_number` varchar(100),
+	`witness_name` varchar(255),
+	`witness_phone` varchar(50),
+	`estimated_damage` decimal(10,2),
+	`vehicle_driveable` tinyint DEFAULT 1,
+	`reviewed_by` int,
+	`reviewed_at` timestamp,
+	`review_notes` text,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `fleet_incident_reports_id` PRIMARY KEY(`id`)
+);

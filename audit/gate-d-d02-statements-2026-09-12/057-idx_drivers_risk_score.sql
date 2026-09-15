@@ -1,0 +1,1 @@
+CREATE INDEX `idx_drivers_risk_score` ON `drivers` (`driver_risk_score`);

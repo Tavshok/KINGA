@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fleet_rfq_instruction_agency_status` ON `fleet_rfq_client_instructions` (`agency_tenant_id`,`status`);

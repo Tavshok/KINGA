@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "expected_explicit_table_index_pairs": 190,
+  "live_matching_explicit_table_index_pairs": 190,
+  "expected_indexed_column_rows": 213,
+  "live_d05_non_primary_index_column_rows": 248,
+  "missing": [],
+  "definition_mismatches": []
+}

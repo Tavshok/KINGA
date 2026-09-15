@@ -1,0 +1,1 @@
+ALTER TABLE `claim_assignments` ADD CONSTRAINT `claim_assignments_assigned_by_user_id_users_id_fk` FOREIGN KEY (`assigned_by_user_id`) REFERENCES `users`(`id`) ON DELETE set null ON UPDATE cascade;

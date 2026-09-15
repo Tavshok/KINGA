@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ai_assessments_claim_id` ON `ai_assessments` (`claim_id`);

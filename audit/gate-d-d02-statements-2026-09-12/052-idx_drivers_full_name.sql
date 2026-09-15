@@ -1,0 +1,1 @@
+CREATE INDEX `idx_drivers_full_name` ON `drivers` (`full_name`);

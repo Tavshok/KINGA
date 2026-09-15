@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ma_type` ON `mismatch_annotations` (`mismatch_type`);

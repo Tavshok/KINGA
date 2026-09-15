@@ -1,0 +1,1 @@
+CREATE INDEX `idx_pr_started_at` ON `pipeline_runs` (`started_at`);

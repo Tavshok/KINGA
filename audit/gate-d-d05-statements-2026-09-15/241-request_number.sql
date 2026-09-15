@@ -1,0 +1,1 @@
+CREATE INDEX `request_number` ON `quotation_requests` (`request_number`);

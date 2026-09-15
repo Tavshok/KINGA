@@ -1,0 +1,1 @@
+CREATE INDEX `idx_clr_recorded_at` ON `cost_learning_records` (`recorded_at`);

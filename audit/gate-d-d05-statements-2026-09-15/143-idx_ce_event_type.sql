@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ce_event_type` ON `claim_events` (`event_type`);

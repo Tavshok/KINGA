@@ -1,0 +1,1 @@
+CREATE INDEX `idx_iqr_claim_id` ON `insurer_quote_requests` (`claim_id`);

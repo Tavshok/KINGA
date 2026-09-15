@@ -1,0 +1,1 @@
+CREATE INDEX `idx_qor_status` ON `quote_optimisation_results` (`status`);

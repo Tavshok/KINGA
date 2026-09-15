@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vd_tenant` ON `variance_datasets` (`tenant_id`);

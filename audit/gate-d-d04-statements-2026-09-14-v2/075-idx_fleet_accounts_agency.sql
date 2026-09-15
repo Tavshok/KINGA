@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fleet_accounts_agency` ON `fleet_accounts` (`linked_agency_id`);
