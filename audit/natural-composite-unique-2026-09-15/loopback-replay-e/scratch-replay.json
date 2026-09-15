@@ -1,0 +1,99 @@
+{
+  "scope": "Loopback-only 188-table replay plus approved natural/composite unique transition",
+  "target": "mysql://127.0.0.1:3317/kinga_natural_unique_20260915e",
+  "baselineStatementCount": 709,
+  "baselineTableCount": 188,
+  "baselineTableSetSha256": "7630802a8e93bcaed6287f943195c7e34a3124f286ecc77193a6cc408669c088",
+  "sourceInputs": [
+    {
+      "wave": "D-01",
+      "path": "/home/ubuntu/kinga-replit-d05-packet/audit/gate-c-scratch-baseline/wave-01-generated/wave-01-identity-tenant-roots.sql",
+      "sha256": "306797ab94529860bc9e88a69a955061916a94ddc3d08e3265229780ab08083c",
+      "markerCount": 10,
+      "executableStatementCount": 11
+    },
+    {
+      "wave": "D-02",
+      "path": "/home/ubuntu/kinga-replit-d05-packet/audit/gate-c-scratch-baseline/wave-02-generated/wave-02-vehicle-claim-core.sql",
+      "sha256": "15661c69490a4360931ef5fc3d17e2b4521f692730b2d113f1342117b067e7b9",
+      "markerCount": 86,
+      "executableStatementCount": 87
+    },
+    {
+      "wave": "D-03",
+      "path": "/home/ubuntu/kinga-replit-d05-packet/audit/gate-d-d03-tidb-compatible-source-2026-09-14.sql",
+      "sha256": "0c45f9ea613381185fd8afecfd99da1bd1d5f3275467c7286e892ab32745e59a",
+      "markerCount": 187,
+      "executableStatementCount": 187
+    },
+    {
+      "wave": "D-04",
+      "path": "/home/ubuntu/kinga-replit-d05-packet/audit/gate-d-text-index-compatibility-2026-09-14/wave-04-tidb-compatible-source-v2.sql",
+      "sha256": "7e5802c2a4c57cee21a951a0ca85d174b1f03fb5c560c00925564455ef9cfd69",
+      "markerCount": 134,
+      "executableStatementCount": 134
+    },
+    {
+      "wave": "D-05",
+      "path": "/home/ubuntu/kinga-replit-d05-packet/audit/gate-d-text-index-compatibility-2026-09-14/wave-05-tidb-compatible-source-v2.sql",
+      "sha256": "416de72140bb50ea254031c841e9ee1d027bc710d5fc9aba5b6c074e487764df",
+      "markerCount": 290,
+      "executableStatementCount": 290
+    }
+  ],
+  "migrationSqlSha256": "a8b8e8fda51a0830116d2516a7d017ee7401e3b35a72e7a7773e1689c10ab9be",
+  "migrationStatementCount": 4,
+  "expectedUniqueIndexes": [
+    {
+      "table": "assessor_insurer_relationships",
+      "index": "uq_assessor_insurer_relationship",
+      "columns": [
+        "assessor_id",
+        "tenant_id"
+      ]
+    },
+    {
+      "table": "policy_claim_links",
+      "index": "uq_policy_claim_link",
+      "columns": [
+        "policy_id",
+        "claim_id"
+      ]
+    },
+    {
+      "table": "fleet_drivers",
+      "index": "uq_fleet_driver_membership",
+      "columns": [
+        "fleet_id",
+        "user_id"
+      ]
+    }
+  ],
+  "duplicateRejections": [
+    {
+      "label": "assessor/insurer duplicate",
+      "rejected": true,
+      "code": "ER_DUP_ENTRY"
+    },
+    {
+      "label": "policy/claim duplicate",
+      "rejected": true,
+      "code": "ER_DUP_ENTRY"
+    },
+    {
+      "label": "fleet/driver duplicate",
+      "rejected": true,
+      "code": "ER_DUP_ENTRY"
+    }
+  ],
+  "distinctPairAcceptance": [
+    "one insurer / multiple assessors",
+    "one assessor / multiple insurers",
+    "one claim / multiple policies",
+    "one policy / multiple claims",
+    "one driver / multiple fleets",
+    "one fleet / multiple drivers"
+  ],
+  "entityRelationshipUniqueConstraint": "not added; entity_relationships is outside the approved 188-table scratch baseline and is guarded at source level as unique-index-free",
+  "status": "passed"
+}
