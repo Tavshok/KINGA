@@ -34,6 +34,8 @@ On 15 September 2026, **Tavonga Shoko** explicitly accepted the NCU-01 sole oper
 
 All mandatory fresh live controls passed: current Starter snapshot visible and unexpired at observation; exact 188-table baseline inventory; zero rows across all 188 tables; target-table structural metadata; correct existing non-unique assessor index and absence of all planned unique indexes; zero duplicate groups for each proposed pair; and exact least-privilege tenant-prefixed runner grants.
 
+After reviewing this evidence, Tavonga Shoko separately authorized execution **only** of the four hash-pinned NCU-01 statements through the owner’s local Claude Code environment, strictly one statement at a time and in ordinal order. The authorization retains every stop condition, prohibits `mysql < file`, grant changes, and work outside NCU-01, and keeps the same narrow sole-role exception expiry. The durable owner-only handoff is `owner-local-claude-code-execution-handoff.md`.
+
 ## Immediate packet-integrity recheck
 
 After completing the live controls, no-database deterministic verification reconfirmed the packet artifacts:
