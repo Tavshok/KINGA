@@ -45,6 +45,10 @@ The source-contract regression passed 3/3. The deterministic staging-packet and 
 
 `entity_relationships` was not part of the transition and remains unmodified. Its append-only fraud-signal observation model has no newly imposed composite unique constraint.
 
+## Protected review state
+
+The live NCU-01 staging state is source-aligned to the approved four-statement transition, but the associated repository review work remains intentionally unmerged. Source PR #91 and stacked packet/closure PR #92 remain open; this closure did not merge either PR or alter `main`. Any later merge decision remains under the protected GitHub review workflow.
+
 ## Exception expiry and retained boundary
 
 The NCU-01 sole operator/reviewer/application-validation-owner exception **expires with this closure**. The exact 188-table staging baseline remains empty. No broader staging or production authority transfers from this closure.
