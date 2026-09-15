@@ -1,0 +1,59 @@
+{
+  "schema": "kinga-natural-composite-unique-staging-packet/v1",
+  "source_schema_sha256": "4627f2cfd6e6cceeee785c905a7517bc18aafdeeee01dfaf0cfd973b626e859c",
+  "transition_source": "audit/natural-composite-unique-2026-09-15/natural-composite-unique-constraints.sql",
+  "transition_source_sha256": "a8b8e8fda51a0830116d2516a7d017ee7401e3b35a72e7a7773e1689c10ab9be",
+  "statement_count": 4,
+  "statement_counts": {
+    "DROP INDEX": 1,
+    "CREATE UNIQUE INDEX": 3
+  },
+  "ordered_file_hash_rule": "SHA-256 of each one-statement file in ordinal order, joined as lowercase hexadecimal values with LF separators and one trailing LF.",
+  "ordered_statement_file_sha256": "81f1cba9f009ea414edd06c3bb8fbaf34fc462d25e3a5f6063a6731aa6ab1ab5",
+  "statements": [
+    {
+      "ordinal": 1,
+      "kind": "DROP INDEX",
+      "table_name": "assessor_insurer_relationships",
+      "object_name": "unique_assessor_tenant",
+      "sql": "DROP INDEX `unique_assessor_tenant` ON `assessor_insurer_relationships`;",
+      "sha256": "3228ccf99192b5e284b243e09984bb42e76ec95347d6578f20c9a0d6ee333685"
+    },
+    {
+      "ordinal": 2,
+      "kind": "CREATE UNIQUE INDEX",
+      "table_name": "assessor_insurer_relationships",
+      "object_name": "uq_assessor_insurer_relationship",
+      "columns": [
+        "assessor_id",
+        "tenant_id"
+      ],
+      "sql": "CREATE UNIQUE INDEX `uq_assessor_insurer_relationship` ON `assessor_insurer_relationships` (`assessor_id`,`tenant_id`);",
+      "sha256": "49cd35e35a020bf9ba979ff692ce3714fdc547b209351ac91e6631e16549ca43"
+    },
+    {
+      "ordinal": 3,
+      "kind": "CREATE UNIQUE INDEX",
+      "table_name": "policy_claim_links",
+      "object_name": "uq_policy_claim_link",
+      "columns": [
+        "policy_id",
+        "claim_id"
+      ],
+      "sql": "CREATE UNIQUE INDEX `uq_policy_claim_link` ON `policy_claim_links` (`policy_id`,`claim_id`);",
+      "sha256": "1d79f04dde9f2eb73c78a8548379f3ccc936170f630ab8e15165795b2e8459b5"
+    },
+    {
+      "ordinal": 4,
+      "kind": "CREATE UNIQUE INDEX",
+      "table_name": "fleet_drivers",
+      "object_name": "uq_fleet_driver_membership",
+      "columns": [
+        "fleet_id",
+        "user_id"
+      ],
+      "sql": "CREATE UNIQUE INDEX `uq_fleet_driver_membership` ON `fleet_drivers` (`fleet_id`,`user_id`);",
+      "sha256": "b25f7fdd7113236392caee8ee963fc1def3fe6786a83f120a961418e90b74246"
+    }
+  ]
+}
