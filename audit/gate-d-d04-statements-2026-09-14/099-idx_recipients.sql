@@ -1,0 +1,1 @@
+CREATE INDEX `idx_recipients` ON `governance_notifications` (`recipients`);

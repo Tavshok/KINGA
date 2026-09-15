@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fleet_rfq_instruction_fleet` ON `fleet_rfq_client_instructions` (`fleet_account_id`);

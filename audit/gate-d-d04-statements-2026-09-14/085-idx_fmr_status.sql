@@ -1,0 +1,1 @@
+CREATE INDEX `idx_fmr_status` ON `fleet_manager_requests` (`status`);

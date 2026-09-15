@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ne_recipient` ON `notification_events` (`recipient_user_id`);

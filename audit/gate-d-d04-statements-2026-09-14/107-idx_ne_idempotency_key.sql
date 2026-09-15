@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ne_idempotency_key` ON `notification_events` (`idempotency_key`);

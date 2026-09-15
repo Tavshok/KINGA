@@ -1,0 +1,1 @@
+CREATE INDEX `idx_eo_tenant` ON `engineer_observations` (`tenant_id`);

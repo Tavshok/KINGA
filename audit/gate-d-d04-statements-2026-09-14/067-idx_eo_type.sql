@@ -1,0 +1,1 @@
+CREATE INDEX `idx_eo_type` ON `engineer_observations` (`observation_type`);

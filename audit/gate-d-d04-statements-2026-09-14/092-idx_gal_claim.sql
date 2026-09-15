@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gal_claim` ON `governance_audit_log` (`claim_id`);

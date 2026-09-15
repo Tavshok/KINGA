@@ -1,0 +1,1 @@
+CREATE INDEX `idx_user_tenant_action_window` ON `rate_limit_tracking` (`user_id`,`tenant_id`,`action_type`,`window_start`);

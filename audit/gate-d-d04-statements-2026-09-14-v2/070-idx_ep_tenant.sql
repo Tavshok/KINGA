@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ep_tenant` ON `engineer_profiles` (`tenant_id`);

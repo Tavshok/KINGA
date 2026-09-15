@@ -1,0 +1,375 @@
+{
+  "schema": "kinga-d04-resumption-ledger/v1",
+  "prior_ledger": "audit/gate-d-d04-statement-hash-ledger-2026-09-14.json",
+  "prior_source_sha256": "8317ccc6d01c8c34b6fd2e1f466ca8781c9152910953c5f345fe13de65183f61",
+  "revised_ledger": "audit/gate-d-d04-statement-hash-ledger-2026-09-14-v2.json",
+  "revised_source_sha256": "7e5802c2a4c57cee21a951a0ca85d174b1f03fb5c560c00925564455ef9cfd69",
+  "accepted_historical_ordinals": "1-98",
+  "omitted_historical_ordinal": 99,
+  "omitted_statement_sha256": "8c311efadee5252063684a34415396d947f6dc4dcc2c823376386f0014b4041b",
+  "omitted_statement_reason": "Gate B previously excluded idx_recipients because recipients is JSON TEXT with no SQL filter consumer; the source reconciliation removes it rather than adding an unsupported whole-TEXT index.",
+  "resumption_historical_ordinals": "100-135",
+  "statement_count": 36,
+  "statements": [
+    {
+      "ordinal": 100,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_read_at",
+      "table_name": "governance_notifications",
+      "sha256": "5a93184ffaa42afbeca3ae9b29c7fb9cc1f0f3774e0084d127aefdda201e5e0a",
+      "sql": "CREATE INDEX `idx_read_at` ON `governance_notifications` (`read_at`);",
+      "revised_ledger_ordinal": 99
+    },
+    {
+      "ordinal": 101,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_created_at",
+      "table_name": "governance_notifications",
+      "sha256": "72569b87ad56b6003e3cc463f5bc2ad2fb71e63c0c278433a74841aaf2e6fc48",
+      "sql": "CREATE INDEX `idx_created_at` ON `governance_notifications` (`created_at`);",
+      "revised_ledger_ordinal": 100
+    },
+    {
+      "ordinal": 102,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gov_violation_tenant",
+      "table_name": "governance_violation_log",
+      "sha256": "4553ef3ad538a1cb114341bd9652af865c5d1f39fac1d9425c905b53156c0b5a",
+      "sql": "CREATE INDEX `idx_gov_violation_tenant` ON `governance_violation_log` (`tenant_id`);",
+      "revised_ledger_ordinal": 101
+    },
+    {
+      "ordinal": 103,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gov_violation_user",
+      "table_name": "governance_violation_log",
+      "sha256": "7c29fcdb964fd2b38655213e7f2c38eaf2f5f6591da882a43739a1c9b6df433d",
+      "sql": "CREATE INDEX `idx_gov_violation_user` ON `governance_violation_log` (`user_id`);",
+      "revised_ledger_ordinal": 102
+    },
+    {
+      "ordinal": 104,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gov_violation_type",
+      "table_name": "governance_violation_log",
+      "sha256": "c24e6a46e154ea573dc629f232cb8903b72f00257c62c5f3f5d7553f841d4d99",
+      "sql": "CREATE INDEX `idx_gov_violation_type` ON `governance_violation_log` (`violation_type`);",
+      "revised_ledger_ordinal": 103
+    },
+    {
+      "ordinal": 105,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gov_violation_at",
+      "table_name": "governance_violation_log",
+      "sha256": "7cf4e8cfb489af645c8dbf9246a4d5ddb46275e9cf6263c7b8acca1fc5aceaeb",
+      "sql": "CREATE INDEX `idx_gov_violation_at` ON `governance_violation_log` (`violated_at`);",
+      "revised_ledger_ordinal": 104
+    },
+    {
+      "ordinal": 106,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gov_violation_tenant_time",
+      "table_name": "governance_violation_log",
+      "sha256": "3091425e7a98c38ef6170115b91debca3ce110bc208e25975498e6c98fa15025",
+      "sql": "CREATE INDEX `idx_gov_violation_tenant_time` ON `governance_violation_log` (`tenant_id`,`violated_at`);",
+      "revised_ledger_ordinal": 105
+    },
+    {
+      "ordinal": 107,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ne_idempotency_key",
+      "table_name": "notification_events",
+      "sha256": "00b1ecb514c6f8102a65955606393cb388b0338cdc3e9182acdd8ee4bd4379c3",
+      "sql": "CREATE INDEX `idx_ne_idempotency_key` ON `notification_events` (`idempotency_key`);",
+      "revised_ledger_ordinal": 106
+    },
+    {
+      "ordinal": 108,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ne_recipient",
+      "table_name": "notification_events",
+      "sha256": "10b6a01f500bb87b91c2e4cba2095bc047dd50d29270f7595f2cad7c2c8171a4",
+      "sql": "CREATE INDEX `idx_ne_recipient` ON `notification_events` (`recipient_user_id`);",
+      "revised_ledger_ordinal": 107
+    },
+    {
+      "ordinal": 109,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ne_event_type",
+      "table_name": "notification_events",
+      "sha256": "5f27c8a7b97482b934559adcdeb3ab3637e74ee7150f03856ad08a6a331e9987",
+      "sql": "CREATE INDEX `idx_ne_event_type` ON `notification_events` (`event_type`);",
+      "revised_ledger_ordinal": 108
+    },
+    {
+      "ordinal": 110,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_ne_created_at",
+      "table_name": "notification_events",
+      "sha256": "5d9d641d7d7b339b8fcb52b6ddce5177b8a378df17faee0ae062bf8c68965a2a",
+      "sql": "CREATE INDEX `idx_ne_created_at` ON `notification_events` (`created_at`);",
+      "revised_ledger_ordinal": 109
+    },
+    {
+      "ordinal": 111,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_notif_pref_user",
+      "table_name": "notification_preferences",
+      "sha256": "92eed1cd8cf45070adbe0daa7a28edd513d94dac9e32d25540e13fa8fd70c66a",
+      "sql": "CREATE INDEX `idx_notif_pref_user` ON `notification_preferences` (`user_id`);",
+      "revised_ledger_ordinal": 110
+    },
+    {
+      "ordinal": 112,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_notif_pref_tenant",
+      "table_name": "notification_preferences",
+      "sha256": "ebfb25b64da4f5e700208b0e7cacff0cdf318267fcb60f9ee56ade1834c735c7",
+      "sql": "CREATE INDEX `idx_notif_pref_tenant` ON `notification_preferences` (`tenant_id`);",
+      "revised_ledger_ordinal": 111
+    },
+    {
+      "ordinal": 113,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gov_limits_version",
+      "table_name": "platform_governance_limits",
+      "sha256": "41ead3a8e570fac9b7b9c583aadcf86a4cf52f2333f1cd01cbc1a169fb588c5f",
+      "sql": "CREATE INDEX `idx_gov_limits_version` ON `platform_governance_limits` (`version`);",
+      "revised_ledger_ordinal": 112
+    },
+    {
+      "ordinal": 114,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_gov_limits_effective",
+      "table_name": "platform_governance_limits",
+      "sha256": "df72cc7f2dc4bf881a8ebec07ea69dfcf894741396760632a1b69d6619bdd0b3",
+      "sql": "CREATE INDEX `idx_gov_limits_effective` ON `platform_governance_limits` (`effective_from`);",
+      "revised_ledger_ordinal": 113
+    },
+    {
+      "ordinal": 115,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_user_tenant_action_window",
+      "table_name": "rate_limit_tracking",
+      "sha256": "eda86d82cab4105ee1afc3e42732baf90f9fa4494c0348eea3b16f0da6009a61",
+      "sql": "CREATE INDEX `idx_user_tenant_action_window` ON `rate_limit_tracking` (`user_id`,`tenant_id`,`action_type`,`window_start`);",
+      "revised_ledger_ordinal": 114
+    },
+    {
+      "ordinal": 116,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_window_start",
+      "table_name": "rate_limit_tracking",
+      "sha256": "c5adcb8e263ebe1d5363eba9e708f94de8b3d316ade845d1ad7faeb3def48d01",
+      "sql": "CREATE INDEX `idx_window_start` ON `rate_limit_tracking` (`window_start`);",
+      "revised_ledger_ordinal": 115
+    },
+    {
+      "ordinal": 117,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rc_tenant_id",
+      "table_name": "recovery_cases",
+      "sha256": "4165431f82353e164691ab1a8819f764de767d9c9904e862e25dfca2e3fe2505",
+      "sql": "CREATE INDEX `idx_rc_tenant_id` ON `recovery_cases` (`tenant_id`);",
+      "revised_ledger_ordinal": 116
+    },
+    {
+      "ordinal": 118,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rc_claim_id",
+      "table_name": "recovery_cases",
+      "sha256": "04a3159d8f92639f9e6e7a83ad272007fd82dd72c283463c573750cfa79e4d08",
+      "sql": "CREATE INDEX `idx_rc_claim_id` ON `recovery_cases` (`claim_id`);",
+      "revised_ledger_ordinal": 117
+    },
+    {
+      "ordinal": 119,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rc_status",
+      "table_name": "recovery_cases",
+      "sha256": "c4fbb3acb1714969dbded93b22948a931768fd8b6fda297774707271b2dae14c",
+      "sql": "CREATE INDEX `idx_rc_status` ON `recovery_cases` (`status`);",
+      "revised_ledger_ordinal": 118
+    },
+    {
+      "ordinal": 120,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rc_tenant_status",
+      "table_name": "recovery_cases",
+      "sha256": "f4819870dd01ac28833ebb00f864aebf819e31ac4dc70d0d5f54a8a108706084",
+      "sql": "CREATE INDEX `idx_rc_tenant_status` ON `recovery_cases` (`tenant_id`,`status`);",
+      "revised_ledger_ordinal": 119
+    },
+    {
+      "ordinal": 121,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rc_assigned_officer",
+      "table_name": "recovery_cases",
+      "sha256": "5a8a38ec62db6d877b65850f178349a2bac6b1e8e451399a79b22799e070496a",
+      "sql": "CREATE INDEX `idx_rc_assigned_officer` ON `recovery_cases` (`assigned_officer_user_id`);",
+      "revised_ledger_ordinal": 120
+    },
+    {
+      "ordinal": 122,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rc_rps",
+      "table_name": "recovery_cases",
+      "sha256": "62d3f962be0f609406cb20497b69dbede3ddcd549896e0518eb21a73456450c8",
+      "sql": "CREATE INDEX `idx_rc_rps` ON `recovery_cases` (`recovery_potential_score`);",
+      "revised_ledger_ordinal": 121
+    },
+    {
+      "ordinal": 123,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rc_recovery_deadline",
+      "table_name": "recovery_cases",
+      "sha256": "58668a66eef6ec5a7c37bf8108d5e3163c6bb77bf03301bff87c30ce7b3b3d7f",
+      "sql": "CREATE INDEX `idx_rc_recovery_deadline` ON `recovery_cases` (`recovery_deadline`);",
+      "revised_ledger_ordinal": 122
+    },
+    {
+      "ordinal": 124,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rcl_case_id",
+      "table_name": "recovery_correspondence_log",
+      "sha256": "c31d6bd5a1d5aed81bbfacbb68a7e858464bf3789951cf6313b63c81d2e5ca17",
+      "sql": "CREATE INDEX `idx_rcl_case_id` ON `recovery_correspondence_log` (`recovery_case_id`);",
+      "revised_ledger_ordinal": 123
+    },
+    {
+      "ordinal": 125,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rcl_tenant_id",
+      "table_name": "recovery_correspondence_log",
+      "sha256": "38702f43abe3b8ce7e126033bb6bb441dd02e268963b2ae8cf7bb3c5481ff90b",
+      "sql": "CREATE INDEX `idx_rcl_tenant_id` ON `recovery_correspondence_log` (`tenant_id`);",
+      "revised_ledger_ordinal": 124
+    },
+    {
+      "ordinal": 126,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_rcl_created_at",
+      "table_name": "recovery_correspondence_log",
+      "sha256": "4db3cac9242792376dd35eaa2274574baff30e0042f888e868a1b8423af90c17",
+      "sql": "CREATE INDEX `idx_rcl_created_at` ON `recovery_correspondence_log` (`created_at`);",
+      "revised_ledger_ordinal": 125
+    },
+    {
+      "ordinal": 127,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "tenant_id",
+      "table_name": "tenant_workflow_configs",
+      "sha256": "b47c0ec43463e80d2447978416d40b907d6046bb237d50bdba9a97b30587afba",
+      "sql": "CREATE INDEX `tenant_id` ON `tenant_workflow_configs` (`tenant_id`);",
+      "revised_ledger_ordinal": 126
+    },
+    {
+      "ordinal": 128,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_wa_phone",
+      "table_name": "whatsapp_sessions",
+      "sha256": "21045d37b01bfa1621714ecbaba66aa9f2b004096276ea897d9d89bb1fb91a04",
+      "sql": "CREATE INDEX `idx_wa_phone` ON `whatsapp_sessions` (`phone_number`);",
+      "revised_ledger_ordinal": 127
+    },
+    {
+      "ordinal": 129,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_wa_status",
+      "table_name": "whatsapp_sessions",
+      "sha256": "a0a09eab1a6ece622240325cb233af77c086dded0130ef1fd209ac5d4de5bdae",
+      "sql": "CREATE INDEX `idx_wa_status` ON `whatsapp_sessions` (`status`);",
+      "revised_ledger_ordinal": 128
+    },
+    {
+      "ordinal": 130,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_workflow_audit_claim_state_time",
+      "table_name": "workflow_audit_trail",
+      "sha256": "ee0a2afa4389024a95dd832e63e9ef8693cfa2ef8a6a9a8555f2185822b99795",
+      "sql": "CREATE INDEX `idx_workflow_audit_claim_state_time` ON `workflow_audit_trail` (`claim_id`,`new_state`,`created_at`);",
+      "revised_ledger_ordinal": 129
+    },
+    {
+      "ordinal": 131,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_workflow_audit_override",
+      "table_name": "workflow_audit_trail",
+      "sha256": "b3ed17ee74473317aa38ae061cbcaa88569e036ed637913b2b88ec2362b40d0d",
+      "sql": "CREATE INDEX `idx_workflow_audit_override` ON `workflow_audit_trail` (`executive_override`,`created_at`);",
+      "revised_ledger_ordinal": 130
+    },
+    {
+      "ordinal": 132,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_audit_claim_timestamp",
+      "table_name": "workflow_audit_trail",
+      "sha256": "e0f8013b005f1ea6dd9eefa6e76a6fd8c02894f289feb02b24e33ec8db0eed79",
+      "sql": "CREATE INDEX `idx_audit_claim_timestamp` ON `workflow_audit_trail` (`claim_id`,`created_at`);",
+      "revised_ledger_ordinal": 131
+    },
+    {
+      "ordinal": 133,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "tenant_id",
+      "table_name": "workflow_configuration",
+      "sha256": "d7a9515ed0209d0670d3bfdecdeadc184710bc5867839042c74a8c5044dfcb65",
+      "sql": "CREATE INDEX `tenant_id` ON `workflow_configuration` (`tenant_id`);",
+      "revised_ledger_ordinal": 132
+    },
+    {
+      "ordinal": 134,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_wt_tenant_id",
+      "table_name": "workflow_templates",
+      "sha256": "8813264b5775ef807d9f64e7754d184f53891c45e01498f12a0de82789abac53",
+      "sql": "CREATE INDEX `idx_wt_tenant_id` ON `workflow_templates` (`tenant_id`);",
+      "revised_ledger_ordinal": 133
+    },
+    {
+      "ordinal": 135,
+      "phase": "indexes",
+      "kind": "CREATE INDEX",
+      "object_name": "idx_wt_is_default",
+      "table_name": "workflow_templates",
+      "sha256": "ebc88150fca05f6c22ab34c503a4e786132315dbe142328c40bb16b6e8500f92",
+      "sql": "CREATE INDEX `idx_wt_is_default` ON `workflow_templates` (`tenant_id`,`is_default`);",
+      "revised_ledger_ordinal": 134
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_agency_clients_id_number` ON `agency_clients` (`id_number`);

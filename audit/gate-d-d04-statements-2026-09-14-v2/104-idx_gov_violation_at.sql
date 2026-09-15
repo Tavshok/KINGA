@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gov_violation_at` ON `governance_violation_log` (`violated_at`);

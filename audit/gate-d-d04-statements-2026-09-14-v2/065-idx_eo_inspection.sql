@@ -1,0 +1,1 @@
+CREATE INDEX `idx_eo_inspection` ON `engineer_observations` (`inspection_id`);

@@ -1,0 +1,1 @@
+ALTER TABLE `workflow_audit_trail` ADD CONSTRAINT `workflow_audit_trail_claim_id_claims_id_fk` FOREIGN KEY (`claim_id`) REFERENCES `claims`(`id`) ON DELETE cascade ON UPDATE cascade;

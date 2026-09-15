@@ -1,0 +1,1 @@
+CREATE INDEX `idx_notif_pref_user` ON `notification_preferences` (`user_id`);
