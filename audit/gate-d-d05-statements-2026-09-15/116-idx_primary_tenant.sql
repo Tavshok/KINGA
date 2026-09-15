@@ -1,0 +1,1 @@
+CREATE INDEX `idx_primary_tenant` ON `assessors` (`primary_tenant_id`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_type` ON `assessor_insurer_relationships` (`relationship_type`);

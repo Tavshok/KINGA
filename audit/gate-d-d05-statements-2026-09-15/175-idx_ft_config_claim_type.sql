@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ft_config_claim_type` ON `fast_track_config` (`claim_type`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tenant` ON `assessor_insurer_relationships` (`tenant_id`);

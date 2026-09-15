@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cid_schema_version` ON `claim_intelligence_dataset` (`schema_version`);

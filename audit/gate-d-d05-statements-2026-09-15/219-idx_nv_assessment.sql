@@ -1,0 +1,1 @@
+CREATE INDEX `idx_nv_assessment` ON `narrative_versions` (`assessment_id`);

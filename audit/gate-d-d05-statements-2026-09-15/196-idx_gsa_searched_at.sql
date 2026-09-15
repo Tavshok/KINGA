@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gsa_searched_at` ON `global_search_analytics` (`searched_at`);

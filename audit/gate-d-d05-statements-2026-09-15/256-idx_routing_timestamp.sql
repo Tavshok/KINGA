@@ -1,0 +1,1 @@
+CREATE INDEX `idx_routing_timestamp` ON `routing_history` (`timestamp`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_data_scope` ON `claim_intelligence_dataset` (`data_scope`);

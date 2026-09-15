@@ -1,0 +1,1 @@
+CREATE INDEX `historical_claim_id` ON `final_approval_records` (`historical_claim_id`);

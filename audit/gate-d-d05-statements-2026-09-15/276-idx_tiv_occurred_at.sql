@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tiv_occurred_at` ON `tenant_isolation_violations` (`occurred_at`);

@@ -1,0 +1,1 @@
+CREATE INDEX `idx_claim_intake_request_claim` ON `claim_intake_requests` (`claim_id`);

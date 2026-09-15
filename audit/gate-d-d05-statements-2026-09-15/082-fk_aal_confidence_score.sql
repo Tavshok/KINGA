@@ -1,0 +1,1 @@
+ALTER TABLE `automation_audit_log` ADD CONSTRAINT `fk_aal_confidence_score` FOREIGN KEY (`confidence_score_id`) REFERENCES `claim_confidence_scores`(`id`) ON DELETE no action ON UPDATE no action;

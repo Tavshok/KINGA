@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gsh_searched_at` ON `global_search_history` (`searched_at`);

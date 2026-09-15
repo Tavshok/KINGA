@@ -1,0 +1,23 @@
+{
+  "schema": "kinga-d05-compatibility-audit/v1",
+  "source_file": "audit/gate-d-text-index-compatibility-2026-09-14/wave-05-tidb-compatible-source-v2.sql",
+  "source_sha256": "416de72140bb50ea254031c841e9ee1d027bc710d5fc9aba5b6c074e487764df",
+  "marker_literal": "--> statement-breakpoint",
+  "marker_count": 290,
+  "trailing_marker": true,
+  "non_empty_statement_count": 290,
+  "statement_counts": {
+    "create_table": 75,
+    "add_foreign_key": 25,
+    "create_index": 190
+  },
+  "legacy_json_shaped_text_defaults": [],
+  "compatible_json_expression_defaults": [
+    {
+      "column": "fraud_adjustments_json",
+      "expression": "JSON_OBJECT()"
+    }
+  ],
+  "unprefixed_text_or_blob_indexes": [],
+  "result": "PASS"
+}

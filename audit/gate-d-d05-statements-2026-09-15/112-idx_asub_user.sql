@@ -1,0 +1,1 @@
+CREATE INDEX `idx_asub_user` ON `assessor_subscriptions` (`user_id`);

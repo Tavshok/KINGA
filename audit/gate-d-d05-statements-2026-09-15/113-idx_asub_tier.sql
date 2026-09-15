@@ -1,0 +1,1 @@
+CREATE INDEX `idx_asub_tier` ON `assessor_subscriptions` (`tier`);

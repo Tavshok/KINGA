@@ -1,0 +1,20 @@
+CREATE TABLE `parts_pricing_baseline` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`part_name` varchar(255) NOT NULL,
+	`part_number` varchar(100),
+	`part_category` varchar(100),
+	`vehicle_make` varchar(100),
+	`vehicle_model` varchar(100),
+	`vehicle_year_from` int,
+	`vehicle_year_to` int,
+	`sa_base_price` decimal(10,2) NOT NULL,
+	`currency` varchar(3) NOT NULL DEFAULT 'ZAR',
+	`source` varchar(100) NOT NULL,
+	`source_url` text,
+	`scraped_at` timestamp,
+	`last_updated` timestamp NOT NULL DEFAULT (now()),
+	`confidence` enum('low','medium','high') DEFAULT 'medium',
+	`data_quality` text,
+	`part_type` enum('OEM','OEM_Equivalent','Aftermarket','Used','Unknown') DEFAULT 'Unknown',
+	CONSTRAINT `parts_pricing_baseline_id` PRIMARY KEY(`id`)
+);

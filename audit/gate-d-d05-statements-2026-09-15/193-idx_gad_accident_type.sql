@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gad_accident_type` ON `global_anonymized_dataset` (`accident_type`);

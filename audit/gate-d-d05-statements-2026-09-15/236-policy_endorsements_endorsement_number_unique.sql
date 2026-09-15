@@ -1,0 +1,1 @@
+CREATE INDEX `policy_endorsements_endorsement_number_unique` ON `policy_endorsements` (`endorsement_number`);

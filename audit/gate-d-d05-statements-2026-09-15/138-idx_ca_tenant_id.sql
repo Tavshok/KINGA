@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ca_tenant_id` ON `claim_approvals` (`tenant_id`);

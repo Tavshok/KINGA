@@ -1,0 +1,20 @@
+CREATE TABLE `fast_track_routing_log` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`claim_id` int NOT NULL,
+	`tenant_id` varchar(64) NOT NULL,
+	`config_id` int,
+	`config_version` int,
+	`eligible` tinyint NOT NULL,
+	`decision` enum('AUTO_APPROVE','PRIORITY_QUEUE','REDUCED_DOCUMENTATION','STRAIGHT_TO_PAYMENT','MANUAL_REVIEW') NOT NULL,
+	`reason` text NOT NULL,
+	`confidence_score` decimal(5,2) NOT NULL,
+	`claim_value` int,
+	`fraud_score` decimal(5,2) NOT NULL,
+	`claim_type` varchar(50),
+	`product_id` int,
+	`override` tinyint NOT NULL DEFAULT 0,
+	`override_by` int,
+	`override_reason` text,
+	`evaluated_at` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `fast_track_routing_log_id` PRIMARY KEY(`id`)
+);

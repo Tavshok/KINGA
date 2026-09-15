@@ -1,0 +1,1 @@
+CREATE INDEX `idx_historical_replay_results_replayed_at` ON `historical_replay_results` (`replayed_at`);

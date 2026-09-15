@@ -1,0 +1,1 @@
+CREATE INDEX `idx_som_scanned` ON `shadow_override_monitor` (`last_scanned_at`);

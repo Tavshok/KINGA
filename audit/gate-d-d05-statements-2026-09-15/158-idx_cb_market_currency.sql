@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cb_market_currency` ON `component_benchmarks` (`market_region`,`currency_code`,`evidence_quality`);

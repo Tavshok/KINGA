@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ma_claim` ON `mismatch_annotations` (`claim_id`);

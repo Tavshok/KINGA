@@ -1,0 +1,1 @@
+CREATE INDEX `idx_vd_type` ON `variance_datasets` (`comparison_type`);

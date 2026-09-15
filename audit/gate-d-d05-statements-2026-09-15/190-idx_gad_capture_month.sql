@@ -1,0 +1,1 @@
+CREATE INDEX `idx_gad_capture_month` ON `global_anonymized_dataset` (`capture_month`);

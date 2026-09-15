@@ -1,0 +1,1 @@
+CREATE INDEX `idx_threshold_tenant_id` ON `routing_threshold_config` (`tenant_id`);

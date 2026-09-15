@@ -1,0 +1,1 @@
+CREATE INDEX `idx_nv_type` ON `narrative_versions` (`mismatch_type`);

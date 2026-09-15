@@ -1,0 +1,20 @@
+CREATE TABLE `calibration_overrides` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`tenant_id` varchar(255) NOT NULL,
+	`jurisdiction` varchar(50) NOT NULL,
+	`scenario_type` varchar(100),
+	`cost_multiplier` int,
+	`fraud_adjustments_json` text DEFAULT (JSON_OBJECT()),
+	`risk_level` enum('LOW','MEDIUM','HIGH') NOT NULL DEFAULT 'MEDIUM',
+	`reasoning` text,
+	`sample_size` int NOT NULL DEFAULT 0,
+	`confidence` int NOT NULL DEFAULT 0,
+	`status` enum('pending_review','approved','rejected') NOT NULL DEFAULT 'pending_review',
+	`approved_by` int,
+	`approved_at` timestamp,
+	`rejection_reason` text,
+	`source_reports_json` text,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `calibration_overrides_id` PRIMARY KEY(`id`)
+);

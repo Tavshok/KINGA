@@ -1,0 +1,1 @@
+CREATE INDEX `idx_decision_made_at` ON `automation_audit_log` (`decision_made_at`);

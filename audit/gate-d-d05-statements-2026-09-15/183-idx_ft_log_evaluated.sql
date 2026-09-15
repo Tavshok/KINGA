@@ -1,0 +1,1 @@
+CREATE INDEX `idx_ft_log_evaluated` ON `fast_track_routing_log` (`evaluated_at`);

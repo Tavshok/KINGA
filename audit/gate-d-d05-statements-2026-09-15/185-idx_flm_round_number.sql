@@ -1,0 +1,1 @@
+CREATE INDEX `idx_flm_round_number` ON `federated_learning_metadata` (`round_number`);

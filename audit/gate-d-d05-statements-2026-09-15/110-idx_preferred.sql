@@ -1,0 +1,1 @@
+CREATE INDEX `idx_preferred` ON `assessor_insurer_relationships` (`is_preferred_vendor`);

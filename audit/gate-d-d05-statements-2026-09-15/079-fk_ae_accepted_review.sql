@@ -1,0 +1,1 @@
+ALTER TABLE `assessor_evaluations` ADD CONSTRAINT `fk_ae_accepted_review` FOREIGN KEY (`accepted_review_id`) REFERENCES `assessor_report_reviews`(`id`) ON DELETE set null ON UPDATE cascade;

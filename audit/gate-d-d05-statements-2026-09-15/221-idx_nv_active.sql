@@ -1,0 +1,1 @@
+CREATE INDEX `idx_nv_active` ON `narrative_versions` (`is_active`);

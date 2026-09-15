@@ -1,0 +1,1 @@
+CREATE INDEX `idx_prs_tenant_id` ON `predictive_risk_scores` (`tenant_id`);

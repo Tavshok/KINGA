@@ -1,0 +1,1 @@
+CREATE INDEX `idx_cid_tenant_id` ON `claim_intelligence_dataset` (`tenant_id`);
