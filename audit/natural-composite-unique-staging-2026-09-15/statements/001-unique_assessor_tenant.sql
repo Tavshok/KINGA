@@ -1,0 +1,1 @@
+DROP INDEX `unique_assessor_tenant` ON `assessor_insurer_relationships`;
