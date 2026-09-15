@@ -100,3 +100,49 @@ The grant set is restricted to `kinga_staging.*` except for global `USAGE`. It i
 The owner reports that historical D-04 ledger ordinals **1–98** executed in order with each exact statement hash verified immediately before execution. The reported accepted partial state is all 40 D-04 tables, all seven D-04 foreign keys, and 51 of the original 88 explicit indexes, with zero rows in the new tables. Historical ordinal **99**, `CREATE INDEX idx_recipients ON governance_notifications (recipients);`, then stopped on the database requirement for a key-length prefix on a `TEXT` column. The reported SQL hash matched the pinned original ledger; no modified retry or later statement was run.
 
 This is an owner-reported execution observation, not independent postflight verification. The initial snapshot, baseline, absence, and grants above are therefore historical evidence only. Before any resumption, the then-current snapshot, exact partially applied D-04 structures, zero-row state, retained grants, revised source/ledger hashes, and the absence of the deliberately excluded index must all be rechecked read-only. The only permitted resumption package, if later authorised, is historical ordinals 100–135 from the revised source; ordinals 1–98 must not be rerun and ordinal 99 must not be sent.
+
+## Renewed resumption snapshot recheck
+
+On **15 September 2026**, the authenticated TiDB Cloud Backup page for `KINGA-staging` was re-opened for the owner-authorised D-04 resumption preflight. It displayed the current same-day snapshot below; the Restore control was visible and was not selected.
+
+| Field | Observed value |
+|---|---|
+| Cluster | `KINGA-staging` |
+| Backup time | `2026-09-15 03:00:45 UTC±00:00` |
+| Status | `Succeeded` |
+| Expiry | `2026-09-16 03:00:45 UTC±00:00` |
+| Restore control | Present; not selected |
+
+This observation satisfies only the renewed recovery-point gate. It does not approve an execution window or substitute for the remaining fresh baseline, partial-state, row-count, exact-principal grant, excluded-index-absence, and revised-artifact checks. No backup setting or restore action was taken.
+
+## Renewed resumption inventory preparation
+
+The authenticated `KINGA-staging` SQL Editor was opened after the renewed snapshot observation. The following current-table inventory statement was loaded in full on **15 September 2026** but had **not yet been executed** when this entry was written:
+
+```sql
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'kinga_staging'
+  AND table_type = 'BASE TABLE'
+ORDER BY table_name;
+```
+
+The planned query is read-only and will establish the exact current table set for comparison with the 73-table D-01–D-03 baseline plus the reported 40-table D-04 partial state. Loading it made no database change.
+
+The authenticated console then completed the inventory in **207 ms** and returned **113 base-table names** from `information_schema`. This count is consistent with the expected 73-table closed baseline plus the reported 40-table D-04 partial state, but count alone is not sufficient for the resumption gate: the complete name set must still be retained and compared exactly. An initial attempt to select the result’s export representation targeted a non-exporting text element; it did not execute another query or alter any database state. The result now exposes the generated export link as the sole blank link control in the result toolbar; it was used to retain `results-2026-09-15-082047.csv` locally for deterministic comparison.
+
+The CSV-aware resumption-state verifier passed against that retained export: all **73** D-01–D-03 baseline table names and all **40** accepted D-04 partial-state table names are present, with no missing or unexpected table. The compatibility-only D-03 revision did not alter table membership, so the retained Gate C Wave 3 source is valid for this table-name comparison. This is exact table-set evidence only; structural objects, zero-row state, excluded-index absence, runner grants, and revised ledger artefacts remain separate gates.
+
+After retaining the inventory, the authenticated SQL Editor was re-opened successfully for the next read-only gate. The completed table-inventory result remained visible; no additional query ran during this navigation and load confirmation.
+
+The generated partial-state assertion was independently recomputed from the original and revised ledgers before use. It requires **7** accepted D-04 foreign-key names, **51** accepted pre-stop D-04 explicit `(table_name, index_name)` pairs, and **0** occurrences of the deliberately excluded `governance_notifications.idx_recipients`. Its SHA-256 is `e6314ceb288317ff7776645d418722aa2d2baa59902d0834754dbb93e21fe8d9`. The complete statement was loaded successfully in the authenticated SQL Editor and had not yet been executed when this entry was written.
+
+The authenticated read-only query completed in **393 ms** and returned exactly the required values: `accepted_d04_foreign_keys_present = 7`, `accepted_d04_explicit_index_pairs_present = 51`, and `excluded_idx_recipients_present = 0`. This independently confirms the expected ordinal-1–98 partial D-04 structural state and confirms that the unsupported excluded index was not created. No database change was made.
+
+The generated exact cumulative row-count assertion was loaded from the local relay, with SHA-256 `4417bab914f97d192d6ff825b0712772762b2bda5b2aa7d11c9508b6aaec607e`, and then executed read-only. It completed in **471 ms** and returned `tables_checked = 113`, `total_rows = 0`, `minimum_rows = 0`, and `maximum_rows = 0`. The complete closed baseline and accepted D-04 partial state are therefore empty at this observation point. This does not itself verify current runner grants or revised execution artefact integrity.
+
+The final exact-principal privilege query—`SHOW GRANTS FOR '289ZyKGJwbC2SkB.d01_runner'@'%';`—was then loaded successfully in the authenticated SQL Editor. It is read-only and had not yet been executed when this entry was written.
+
+The authenticated `SHOW GRANTS` query completed in **8 ms** and returned exactly two grants: `USAGE ON *.*` and `SELECT, CREATE, REFERENCES, ALTER, INDEX ON \`kinga_staging\`.*`, both for `289ZyKGJwbC2SkB.d01_runner`@`%`. These are staging-scoped and cover the pending original ordinals 100–135. The query made no database change.
+
+Immediately before resumption handoff, the revised source SHA-256 (`7e5802c2a4c57cee21a951a0ca85d174b1f03fb5c560c00925564455ef9cfd69`), revised 134-statement ledger SHA-256 (`ddaeefc896ef01b713cb5551c67188614c777d52320c657412018f112a784b2f`), and 36-file historical-ordinal 100–135 resumption ledger SHA-256 (`c0253bdb9edc9f0aa6433bb95d44db468f89cce38fc89bcdb97da578b0d7f1f3`) were reverified. Independent deterministic regeneration reproduced the full and resumption ledger JSON, Markdown summaries, 134 full statement files, and 36 resumption files byte-for-byte. The resumption file range is exactly `100-idx_read_at.sql` through `135-idx_wt_is_default.sql`. The sandbox does not expose the owner-authorised Claude Code execution route; no DDL was sent from this environment.

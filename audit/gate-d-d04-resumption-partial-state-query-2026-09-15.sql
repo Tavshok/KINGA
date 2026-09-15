@@ -1,0 +1,65 @@
+SELECT
+  (SELECT COUNT(*)
+   FROM information_schema.table_constraints
+   WHERE constraint_schema = 'kinga_staging'
+     AND constraint_type = 'FOREIGN KEY'
+     AND constraint_name IN ('approval_workflow_claim_id_claims_id_fk', 'claim_comments_claimId_claims_id_fk', 'claim_comments_author_user_id_users_id_fk', 'governance_notifications_claim_id_claims_id_fk', 'notifications_claim_id_claims_id_fk', 'recovery_cases_claim_id_claims_id_fk', 'workflow_audit_trail_claim_id_claims_id_fk')) AS accepted_d04_foreign_keys_present,
+  (SELECT COUNT(DISTINCT CONCAT(table_name, CHAR(0), index_name))
+   FROM information_schema.statistics
+   WHERE table_schema = 'kinga_staging'
+     AND ((table_name = 'agency_assisted_claimant_identities' AND index_name = 'idx_agency_assisted_claimant_insurer')
+          OR (table_name = 'agency_clients' AND index_name = 'idx_agency_clients_tenant')
+          OR (table_name = 'agency_clients' AND index_name = 'idx_agency_clients_id_number')
+          OR (table_name = 'agency_clients' AND index_name = 'idx_agency_clients_email')
+          OR (table_name = 'agency_insurance_service_request_insurers' AND index_name = 'idx_agency_service_request_insurer_tenant')
+          OR (table_name = 'agency_insurance_service_requests' AND index_name = 'idx_agency_insurance_service_request_tenant_status')
+          OR (table_name = 'agency_insurance_service_requests' AND index_name = 'idx_agency_insurance_service_request_client')
+          OR (table_name = 'agency_insurance_service_requests' AND index_name = 'idx_agency_insurance_service_request_vehicle')
+          OR (table_name = 'agency_insurance_valuation_deviations' AND index_name = 'idx_agency_insurance_valuation_deviation_tenant')
+          OR (table_name = 'agency_product_commission_configs' AND index_name = 'idx_agency_product_commission_tenant')
+          OR (table_name = 'claim_comment_reads' AND index_name = 'idx_ccr_comment_id')
+          OR (table_name = 'claim_comment_reads' AND index_name = 'idx_ccr_user_id')
+          OR (table_name = 'client_insurance_service_requests' AND index_name = 'client_insurance_service_request_number_idx')
+          OR (table_name = 'client_insurance_service_requests' AND index_name = 'client_insurance_service_user_idx')
+          OR (table_name = 'client_vehicle_valuation_requests' AND index_name = 'client_valuation_request_number_idx')
+          OR (table_name = 'client_vehicle_valuation_requests' AND index_name = 'client_valuation_token_idx')
+          OR (table_name = 'client_vehicle_valuation_requests' AND index_name = 'client_valuation_user_idx')
+          OR (table_name = 'engineer_observations' AND index_name = 'idx_eo_inspection')
+          OR (table_name = 'engineer_observations' AND index_name = 'idx_eo_tenant')
+          OR (table_name = 'engineer_observations' AND index_name = 'idx_eo_type')
+          OR (table_name = 'engineer_observations' AND index_name = 'idx_eo_severity')
+          OR (table_name = 'engineer_observations' AND index_name = 'idx_eo_authored_by')
+          OR (table_name = 'engineer_profiles' AND index_name = 'idx_ep_tenant')
+          OR (table_name = 'engineer_profiles' AND index_name = 'idx_ep_region')
+          OR (table_name = 'engineer_profiles' AND index_name = 'idx_ep_available')
+          OR (table_name = 'fleet_accounts' AND index_name = 'idx_fleet_accounts_owner')
+          OR (table_name = 'fleet_accounts' AND index_name = 'idx_fleet_accounts_insurer')
+          OR (table_name = 'fleet_accounts' AND index_name = 'idx_fleet_accounts_agency')
+          OR (table_name = 'fleet_accounts' AND index_name = 'idx_fleet_accounts_status')
+          OR (table_name = 'fleet_drivers' AND index_name = 'idx_fleet_drivers_tenant_id')
+          OR (table_name = 'fleet_drivers' AND index_name = 'idx_fleet_drivers_fleet_id')
+          OR (table_name = 'fleet_drivers' AND index_name = 'idx_fleet_drivers_user_id')
+          OR (table_name = 'fleet_intelligence_snapshots' AND index_name = 'idx_fis_fleet_id')
+          OR (table_name = 'fleet_intelligence_snapshots' AND index_name = 'idx_fis_tenant_id')
+          OR (table_name = 'fleet_intelligence_snapshots' AND index_name = 'idx_fis_generated_at')
+          OR (table_name = 'fleet_manager_requests' AND index_name = 'idx_fmr_user_id')
+          OR (table_name = 'fleet_manager_requests' AND index_name = 'idx_fmr_fleet_account_id')
+          OR (table_name = 'fleet_manager_requests' AND index_name = 'idx_fmr_status')
+          OR (table_name = 'fleet_manager_requests' AND index_name = 'idx_fmr_created_at')
+          OR (table_name = 'fleet_rfq_client_instructions' AND index_name = 'idx_fleet_rfq_instruction_agency_status')
+          OR (table_name = 'fleet_rfq_client_instructions' AND index_name = 'idx_fleet_rfq_instruction_fleet')
+          OR (table_name = 'fleet_risk_scores' AND index_name = 'fleet_risk_scores_vehicle_id_unique')
+          OR (table_name = 'fleet_vehicles' AND index_name = 'fleet_vehicles_vin_unique')
+          OR (table_name = 'fleet_vehicles' AND index_name = 'fleet_vehicles_registration_number_unique')
+          OR (table_name = 'governance_audit_log' AND index_name = 'idx_gal_claim')
+          OR (table_name = 'governance_audit_log' AND index_name = 'idx_gal_tenant')
+          OR (table_name = 'governance_audit_log' AND index_name = 'idx_gal_action')
+          OR (table_name = 'governance_audit_log' AND index_name = 'idx_gal_timestamp')
+          OR (table_name = 'governance_audit_log' AND index_name = 'idx_gal_override')
+          OR (table_name = 'governance_notifications' AND index_name = 'idx_tenant_id')
+          OR (table_name = 'governance_notifications' AND index_name = 'idx_claim_id'))) AS accepted_d04_explicit_index_pairs_present,
+  (SELECT COUNT(*)
+   FROM information_schema.statistics
+   WHERE table_schema = 'kinga_staging'
+     AND table_name = 'governance_notifications'
+     AND index_name = 'idx_recipients') AS excluded_idx_recipients_present;

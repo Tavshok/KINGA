@@ -1,0 +1,24 @@
+{
+  "source": {
+    "historicalLedgerPath": "audit/gate-d-d04-statement-hash-ledger-2026-09-14.json",
+    "revisedLedgerPath": "audit/gate-d-d04-statement-hash-ledger-2026-09-14-v2.json",
+    "tableSources": [
+      "audit/gate-c-scratch-baseline/wave-01-generated/wave-01-identity-tenant-roots.sql",
+      "audit/gate-c-scratch-baseline/wave-02-generated/wave-02-vehicle-claim-core.sql",
+      "audit/gate-c-scratch-baseline/wave-03-generated/wave-03-assessment-evidence-reporting.sql",
+      "audit/gate-d-text-index-compatibility-2026-09-14/wave-04-tidb-compatible-source-v2.sql"
+    ]
+  },
+  "acceptedHistoricalOrdinalRange": "1-98",
+  "omittedHistoricalOrdinal": 99,
+  "expected": {
+    "totalTables": 113,
+    "d04ForeignKeys": 7,
+    "acceptedD04ExplicitIndexes": 51,
+    "excludedIndex": "governance_notifications.idx_recipients"
+  },
+  "querySha256": {
+    "partialState": "e6314ceb288317ff7776645d418722aa2d2baa59902d0834754dbb93e21fe8d9",
+    "zeroRows": "4417bab914f97d192d6ff825b0712772762b2bda5b2aa7d11c9508b6aaec607e"
+  }
+}
