@@ -3510,6 +3510,8 @@ export const tenantWorkflowConfigs = mysqlTable("tenant_workflow_configs", {
 export const tenants = mysqlTable("tenants", {
 	/** Canonical tenant identity used by tenant-scoped application relations. */
 	id: varchar({ length: 255 }).notNull().primaryKey(),
+	/** Optional WorkOS organization ID. It remains null until the approved staged linking flow populates it. */
+	workosOrganizationId: varchar("workos_organization_id", { length: 128 }),
 	name: varchar({ length: 255 }).notNull(),
 	displayName: varchar("display_name", { length: 255 }).notNull(),
 	tier: mysqlEnum(['tier-basic','tier-professional','tier-enterprise']).default('tier-basic').notNull(),
@@ -3542,6 +3544,7 @@ export const tenants = mysqlTable("tenants", {
 	isSyntheticTenant: tinyint("is_synthetic_tenant").default(0).notNull(),
 },
 	(table) => [
+		uniqueIndex("tenants_workos_organization_id_unique").on(table.workosOrganizationId),
 		index("idx_tenants_name").on(table.name),
 		index("idx_tenants_status").on(table.status),
 	]);
@@ -3714,6 +3717,8 @@ export const userInvitations = mysqlTable("user_invitations", {
 export const users = mysqlTable("users", {
 	id: int().autoincrement().notNull().primaryKey(),
 	openId: varchar({ length: 64 }).notNull(),
+	/** Optional WorkOS user ID. It remains null until the approved staged linking flow populates it. */
+	workosUserId: varchar("workos_user_id", { length: 128 }),
 	name: text(),
 	email: varchar({ length: 320 }),
 	/** E.164-normalised contact number used only for verified channel-to-account linkage. */
@@ -3766,10 +3771,11 @@ export const users = mysqlTable("users", {
 	/** A restricted claimant identity created from a verified external intake channel before portal registration. */
 	isUnregisteredClaimant: tinyint("is_unregistered_claimant").default(0).notNull(),
 },
-(table) => [
+	(table) => [
 		/** Required by upsertUser(...).onDuplicateKeyUpdate and identity lookup. */
 		uniqueIndex("users_openId_unique").on(table.openId),
-	index("idx_users_tenant_id").on(table.tenantId),
+		uniqueIndex("users_workos_user_id_unique").on(table.workosUserId),
+		index("idx_users_tenant_id").on(table.tenantId),
 	index("idx_users_is_active").on(table.isActive),
 	index("idx_users_phone_tenant").on(table.phoneNumber, table.tenantId),
 ]);
