@@ -240,29 +240,3 @@ export const whatsappWebhookVerify = productionHandlers.whatsappWebhookVerify;
 
 /** POST /api/whatsapp/webhook — signed inbound provider message. */
 export const whatsappWebhookReceive = productionHandlers.whatsappWebhookReceive;
-
-/** POST /api/whatsapp/test — Local testing endpoint (no Twilio required). */
-export async function whatsappTestEndpoint(
-  req: Request,
-  res: Response
-): Promise<void> {
-  try {
-    const { from, body, mediaUrl, mediaType, latitude, longitude } =
-      req.body as Record<string, string>;
-    const msg: IncomingMessage = {
-      from: from ?? "+263771234567",
-      body: body ?? "",
-      mediaUrl: mediaUrl ?? undefined,
-      mediaType: mediaType ?? undefined,
-      latitude: latitude ? parseFloat(latitude) : undefined,
-      longitude: longitude ? parseFloat(longitude) : undefined,
-    };
-    await handleIncomingMessage(msg);
-    res.json({ ok: true, processed: true });
-  } catch (err: unknown) {
-    res.status(500).json({
-      ok: false,
-      error: err instanceof Error ? err.message : "Unknown error",
-    });
-  }
-}
