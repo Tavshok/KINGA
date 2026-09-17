@@ -60,3 +60,15 @@ The sequence is intentionally **archive then restore proof, before any deletion*
 ## Authorization boundary
 
 This fresh preflight is a completed read-only gate. It does **not** authorize a maintenance freeze, target-manifest creation, archive, export, restore rehearsal, transactional deletion, user deletion, claim deletion, configuration change, deployment, credential change, WorkOS work, or any other write. The next action requires explicit authorization for the **rehearsal-only** package, followed by a separate approval for any live deletion after the rehearsal evidence is reviewed.
+
+## Recovery-case containment clarification
+
+The 364 `recovery_cases` rows are entirely within the reset scope. Each row points to a distinct existing reset-candidate claim; **zero** points to a protected claim and **zero** has an unresolved claim reference. The table’s sole enforced parent relationship is `recovery_cases.claim_id → claims.id` with `RESTRICT`, which is why these rows must be archived and deleted before their reset-candidate parent claims.
+
+No enforced foreign-key child relation references `recovery_cases`. The only discovered application-level recovery-case reference column is in `recovery_correspondence_log`; that table is currently empty. Accordingly, the frozen encrypted archive must include all 364 recovery-case payloads and the empty-table count proof for the correspondence log, alongside their parent-claim records. Deleting those recovery cases will not affect a protected claim or a record outside the reset-candidate graph, subject to the mandatory fresh manifest recheck after the write freeze.
+
+## Operational prerequisite before archive and restore rehearsal
+
+The required freeze cannot be truthfully claimed yet. The currently running application starts an intake-escalation job every 30 minutes and a stuck-assessment recovery job every 10 minutes; both can write claims. The database reports `read_only = OFF` and `super_read_only = OFF`, and the application credential has database-wide privileges but no demonstrated authority to impose a global database read-only mode. There is no complete deployed maintenance/write-freeze control in the current source.
+
+Before the archive is taken, the operator must establish a real freeze that covers the public deployed application, these background jobs, webhooks, and any other writers. Stopping the sandbox development server alone would not freeze the public hosted application and is therefore not an acceptable control. The archive also needs an owner-recoverable encryption recipient and non-public storage destination before any payload export begins. These are operational prerequisites, not a relaxation of the approved sequence.
