@@ -85,3 +85,20 @@ This report authorises no reset, deletion, archive, export, data modification, u
 [2]: file:///home/ubuntu/kinga-replit/server/db.ts "KINGA claim-number helper and fallback generator"
 [3]: file:///home/ubuntu/kinga-replit/audit/claim-lifecycle-queue-and-synthetic-signature-assessment-2026-09-17.md "Lifecycle, intake queue, and synthetic-batch signature assessment"
 [4]: file:///home/ubuntu/kinga-replit/audit/dashboard-claim-document-inventory-2026-09-17.md "Dashboard claim-document inventory"
+
+## Addendum: the four approved source-document claims
+
+At the owner’s direct request, the four claim references linked to source PDFs that are all `claim_form`, extraction-completed, and validation-approved are listed below. This is a minimal direct-reference disclosure; no claimant, vehicle, document filename, document content, storage location, or other personal data was selected.
+
+| Claim reference | Created at (UTC) | Claim state | Ingestion state |
+|---|---|---|---|
+| `COR-6002812-1778764224965` | 14 May 2026, 13:10:24 | Assessment complete | Extracted; source PDF approved |
+| `COR-6002812-1778764762703` | 14 May 2026, 13:19:22 | Assessment complete | Extracted; source PDF approved |
+| `COR-6002812-1778764773287` | 14 May 2026, 13:19:33 | Assessment complete | Extracted; source PDF approved |
+| `COR-6002812-V2-1779097223383` | 18 May 2026, 09:40:23 | Assessment complete | Extracted; source PDF approved |
+
+The four references share a single underlying `COR-6002812` base reference, with the fourth explicitly marked `V2`. Repository history contains historical pipeline-validation references to the same base reference, including a `VOLTRON-MINECOR-6002812` label. This supports the interpretation that these are successive processing or revision records for one known real-world validation claim, rather than four independent randomly generated fixtures. It does **not** establish ownership of any other claim.
+
+Their timing is distinguishable from the high-volume synthetic-claim signature in a narrow sense. Each was created in a minute containing only one or two total claims, and zero literal synthetic-marker claimant claims were created in those same minutes. The three 14 May records were created within nine minutes and eleven seconds of each other, which is consistent with repeated handling of the same base reference. Three of the four were created on a calendar day that also saw synthetic-marker user creation, so calendar-day coincidence alone cannot prove they are outside the contaminated test environment.
+
+> **Revised assessment:** The four `COR-6002812` records are a plausible, high-confidence *individual preservation candidate group* if the owner decides to preserve any records. They remain only four claims, not an automated solution for approximately 70. They cannot safely be expanded to all non-DOC, all `COR`, or all non-marker claims.
