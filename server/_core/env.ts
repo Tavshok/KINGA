@@ -1,3 +1,5 @@
+import { isMaintenanceModeEnabled } from "./maintenance-mode";
+
 export const ENV = {
   appId: process.env.VITE_APP_ID ?? "",
   cookieSecret: process.env.JWT_SECRET ?? "",
@@ -11,6 +13,12 @@ export const ENV = {
    * with "[TEST MODE]", and background retry loops are disabled.
    */
   systemTestMode: process.env.SYSTEM_TEST_MODE === "true",
+  /**
+   * Short-lived operational safety switch. When true, request middleware
+   * rejects all non-health traffic and startup write jobs remain disabled.
+   * This value is server-only and must be reset after a controlled window.
+   */
+  maintenanceMode: isMaintenanceModeEnabled(process.env.KINGA_MAINTENANCE_MODE),
   /** Dev/staging email redirect — all outbound emails go here instead of real recipients. */
   devEmailOverride: process.env.DEV_EMAIL_OVERRIDE ?? "",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
