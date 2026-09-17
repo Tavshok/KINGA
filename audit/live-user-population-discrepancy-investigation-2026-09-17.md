@@ -133,3 +133,84 @@ No read, analysis, or report conclusion should be interpreted as authorization t
 [8]: file:///home/ubuntu/kinga-replit/scripts/execute-bulk-seed.ts "Bulk claim seed utility"
 [9]: file:///home/ubuntu/kinga-replit/scripts/seed-claims-with-images.ts "Image-backed claim seed utility"
 [10]: file:///home/ubuntu/kinga-replit/load-test/run-load-test.ts "Load-test runner"
+
+## Addendum: recent activity, residual contamination, and write-access boundary
+
+**Added:** 17 September 2026
+**Scope:** Further read-only, aggregate-only investigation following the owner’s request. No endpoint was invoked, no credential was disclosed, and no database or configuration write occurred.
+
+### Is the population still being written?
+
+The evidence supports the classification **recently active, but not proven ongoing today**.
+
+| Recency measure | Result |
+|---|---:|
+| Latest `users.createdAt` across the full table | **11 September 2026 11:49:37** |
+| Users created today | 0 |
+| Users created yesterday | 0 |
+| Users created in the preceding seven days | 424 |
+| Users created in the preceding 30 days | 7,868 |
+
+Creation was visibly active from 8–11 September, rather than being a distant historical incident:
+
+| Creation date | Users created | Test-pattern `openId` | Unknown tenant reference | No login method |
+|---|---:|---:|---:|---:|
+| 11 September | 124 | 116 | 116 | 124 |
+| 10 September | 300 | 280 | 280 | 300 |
+| 9 September | 660 | 616 | 616 | 660 |
+| 8 September | 782 | 728 | 730 | 782 |
+
+This does **not** prove that a writer remains active on 17 September. It establishes that the abnormal pattern continued as recently as six days before this check. Proving cessation would require a later aggregate-only recency check or database-level audit data that attributes writes to a session/principal; neither was created or enabled during this investigation.
+
+### Residual 12,405-user population
+
+Contamination is materially broader than the four headline 8,120-user duplicate-email cohorts.
+
+| Residual-population measure | Result | Share of relevant residual subset |
+|---|---:|---:|
+| Users outside the four large cohorts | 12,405 | 100.0% |
+| Users with any inspected test marker in `openId` or name | 8,705 | 70.1% |
+| Users with an unknown tenant reference | 7,840 | 63.2% |
+| Unknown-tenant users with any inspected test marker | 4,310 | 55.0% of unknown-tenant users |
+| Users with no login method | 8,904 | 71.8% |
+| Login-method-absent users with any inspected test marker | 8,699 | 97.7% of loginless users |
+| Latest residual test-marked creation timestamp | **11 September 2026 11:49:37** | — |
+
+The residual investigation reinforces, rather than weakens, the contamination conclusion. A substantial portion of the non-headline population carries the same broad test marker and lifecycle characteristics. It is not defensible to frame only the 32,480 records as affected and assume the remaining 12,405 are clean.
+
+### Verified current write-capable channels
+
+The following inventory distinguishes what was directly observed from what the current database account cannot reveal. It intentionally names no credential values, database usernames, host names, or individual user identities.
+
+| Channel | Present now? | `users` write capability | Evidence and boundary |
+|---|---|---|---|
+| **Managed project database principal** | Yes | **Yes — full schema privileges** | The currently connected managed project principal reports `ALL PRIVILEGES` for the active project schema. This is sufficient to insert, update, and delete `users`. The same privileged connection was used only for read-only aggregate investigation queries. |
+| **Main managed KINGA runtime** | Yes | **Yes** | The current running KINGA server receives `DATABASE_URL` and uses a shared mysql2/Drizzle pool. It exposes normal OAuth, invitation, onboarding, tenant-admin, agency-assisted, and WhatsApp application paths that can mutate `users`.[1] |
+| **Four additional running KINGA development worktrees** | Yes | **Yes** | Four separate historical/parallel KINGA server worktrees were found running alongside the managed workspace. All five live server worktrees have the same active project database injected through `DATABASE_URL` and are listening locally. They are distinct processes but not known to be distinct database credentials. |
+| **Published managed application service** | Expected by deployment design; not independently enumerated as a local process | **Yes, if it uses the project runtime environment** | The published KINGA service is designed to use the same project `DATABASE_URL`. Its running process/secret binding is not exposed through this read-only inspection, so this remains an architectural inference rather than an independently listed session. |
+| **Authenticated OAuth callback** | Source path present | **Yes** | On a successful upstream callback, the route calls local user upsert and updates sign-in activity. This path should be expected to create/update legitimate human accounts when authentication occurs.[2] |
+| **Agency-assisted claimant service** | Source path present | **Yes** | This is the intended non-human claimant creation path. It produces an insurer-tenant-bound claimant with `isUnregisteredClaimant = 1` and an identity-link row. The anomalous population does not match it.[3] |
+| **WhatsApp inbound handlers** | Routes registered in every running source instance; provider credentials absent in inspected runtimes | **Potentially yes** | The source registers public webhook and test routes. Both can reach the WhatsApp engine, which inserts a tenant-bound unregistered claimant when claim submission resolves a tenant and no existing claimant is found.[4] No Twilio credential variables were present in the inspected running servers, so normal Twilio delivery is not configured there. |
+| **Unauthenticated WhatsApp test endpoint** | Source route present and registered | **Potentially yes — material exposure** | `POST /api/whatsapp/test` is registered without an authentication or provider-signature check in the inspected source and calls the same incoming-message engine. The route was **not invoked** because doing so could write data. Its ability to complete a user insert depends on supplied message/session data resolving a tenant; this was not tested. |
+| **Runtime background jobs and the recorded task schedule** | Yes, but no observed `users` write | **No direct `users` mutation found** | Active in-process intake, stuck-assessment, and recovery jobs were reviewed and contain no direct `users` insert/update/delete. The only discovered Manus task schedule is paused and is a recovery-deadline sweep, not a user-provisioning task. |
+| **Seed/load/migration scripts** | Available in repository; none running | **Potentially yes if someone executes them with `DATABASE_URL`** | Several tracked scripts consume `DATABASE_URL`, including seed utilities. No seed, load-test, or migration process was found running at inspection time. The reviewed scripts do not explain the observed 8,120-row cohorts. |
+| **External database credentials or historical writers** | **Not enumerable from this connection** | Unknown | The current principal is not a database-administration account and cannot list other database accounts or their grants. No row-level write audit is available in the inspected data. Therefore this investigation cannot prove that no external credential, deleted script, former workspace, or historical integration also wrote to the database. |
+
+### Important observations about the access boundary
+
+The database metadata confirms the current managed principal has broad schema privileges; it does **not** enumerate other accounts. The absence of table-level grants in visible metadata is not evidence that no other schema-level or database-admin principal exists. A complete credential census would require an explicitly authorized, read-only database-administration inspection or hosting-platform credential audit.
+
+The five running server worktrees are a material operational concern because each receives the live database URL and runs code capable of mutating the active project schema. This finding does not establish that any of those processes caused the synthetic rows. It establishes that the active database is presently reachable from more running code instances than the single managed workspace alone.
+
+The direct WhatsApp test endpoint is a separate present-tense exposure. Its code path is inconsistent with the intended WorkOS/identity safety boundary because it can reach the same user-creation logic without a verified upstream provider callback. This is a finding only; no route was disabled, protected, exercised, or changed.
+
+### Updated conclusion
+
+The user population issue must be treated as a **recently active data-integrity and access-control investigation**, not a historical cleanup exercise. The pattern continued through 11 September, spans both dominant and residual user groups, and the current live database still has multiple active application-process access paths plus a broad-privilege managed principal.
+
+No remediation is authorized by this conclusion. The same pause remains in effect: no cleanup, deletion, credential rotation, route change, source change, configuration change, WorkOS activity, or database write has been performed or is implied.
+
+[1]: file:///home/ubuntu/kinga-replit/server/db.ts "Shared live database pool and user helpers"
+[2]: file:///home/ubuntu/kinga-replit/server/_core/oauth.ts "OAuth callback user upsert path"
+[3]: file:///home/ubuntu/kinga-replit/server/agency/agencyAssistedClaimantIdentity.ts "Agency-assisted claimant user provisioning"
+[4]: file:///home/ubuntu/kinga-replit/server/_core/index.ts "WhatsApp route registration"; file:///home/ubuntu/kinga-replit/server/whatsapp/webhook.ts "Unauthenticated WhatsApp handlers"; file:///home/ubuntu/kinga-replit/server/whatsapp/engine.ts "WhatsApp claimant provisioning"
