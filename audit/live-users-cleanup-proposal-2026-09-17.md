@@ -152,6 +152,29 @@ The final report must also state the count of held users and held claims, rather
 
 This package does not authorize deletion, backup/export creation, a restore rehearsal, database writes, claims cleanup, claim reassignment, `claimant_id` nullification, schema changes, WorkOS linking, provider configuration, credential changes, or Twilio deployment activity. It does not change the separate pause on the Twilio Console/callback review, live deployment preflight, or daily monitor.
 
+## Addendum: held-claim chronology and current test activity
+
+**Read-only analysis date:** 17 September 2026. This addendum responds to the owner’s clarification that the linked claims are test data and that testing continues. It does not authorise a full test-data reset or any other change.
+
+The 9,736 claims linked to synthetic-marker users have a creation pattern consistent with repeated test-batch activity, not a single historical import. They were created from 8 May through 11 September 2026. Claim creation and marker-user creation occur in the same monthly periods and, for the most recent cycle, on the same days.
+
+| Month | Synthetic-marker user creations | Held-claim creations |
+|---|---:|---:|
+| February 2026 | 5,975 | 0 |
+| March 2026 | 10,621 | 0 |
+| April 2026 | 4,408 | 0 |
+| May 2026 | 2,621 | 417 |
+| June 2026 | 908 | 487 |
+| July 2026 | 5,411 | 2,904 |
+| August 2026 | 9,255 | 4,872 |
+| September 2026 through 11 September | 1,984 | 1,056 |
+
+The most recent five creation days show matching user-and-claim cadence: 1 September (120 users and 64 claims), 8 September (780 and 416), 9 September (660 and 352), 10 September (300 and 160), and 11 September (124 and 64). The latest held claim was created at 11:49:37 on 11 September and its latest update was at 13:53:28 on the same day. No held claim in this set was created or updated after 11 September, including none on 17 September.
+
+The larger peaks are also batch-shaped rather than organic: 883 claims on 27 July, 853 on 4 August, 788 on 31 August, 576 on 28 August, and 536 on 5 August. This pattern supports the conclusion that the claims are test artefacts, but it also proves the test dataset was active very recently.
+
+> **Implication:** A full reset is not safe to propose yet. The currently active testing owner needs to state whether the existing test corpus is disposable, whether a cutoff date should preserve the recent cycle, or whether a replacement seeded dataset must exist before removal. Until that product decision is explicit, the proposal remains limited to the user-only, unreferenced 35,085-row candidate set; it still does not authorise deleting that set.
+
 ## References
 
 [1]: file:///home/ubuntu/kinga-replit/audit/live-user-population-discrepancy-investigation-2026-09-17.md "Live users population discrepancy investigation"
