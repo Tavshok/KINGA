@@ -58,7 +58,7 @@ import { getRuntimeReadiness } from "./runtime-readiness";
 import { resolveListenPort } from "./runtime-listen";
 import { registerRuntimeProbes } from "./runtime-probes";
 import { initWhatsAppProvider } from "../whatsapp/engine";
-import { whatsappWebhookVerify, whatsappWebhookReceive, whatsappTestEndpoint } from "../whatsapp/webhook";
+import { registerWhatsAppRoutes } from "../whatsapp/routes";
 import { registerAuditExportRoute } from "../audit-export-route";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -297,12 +297,8 @@ async function startServer() {
   });
 
   // ── WhatsApp Webhook Routes ──────────────────────────────────────────────
-  // Twilio sends form-encoded POST to this URL for inbound messages.
-  // The urlencoded parser must be registered BEFORE the global 1MB parser above.
-  app.get("/api/whatsapp/webhook", whatsappWebhookVerify);
-  app.post("/api/whatsapp/webhook", express.urlencoded({ extended: true, limit: "5mb" }), whatsappWebhookReceive);
-  // Local test endpoint — POST { from, body } to simulate a WhatsApp message without Twilio
-  app.post("/api/whatsapp/test", express.json({ limit: "2mb" }), whatsappTestEndpoint);
+  // Only authenticated provider routes are exposed; no public test simulation.
+  registerWhatsAppRoutes(app);
 
   // tRPC API
   app.use(
