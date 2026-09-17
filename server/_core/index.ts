@@ -57,6 +57,8 @@ import { ENV } from "./env";
 import { getRuntimeReadiness } from "./runtime-readiness";
 import { resolveListenPort } from "./runtime-listen";
 import { registerRuntimeProbes } from "./runtime-probes";
+import { createMaintenanceModeMiddleware } from "./maintenance-mode";
+import { startMaintenanceSensitiveJobs } from "./maintenance-write-jobs";
 import { initWhatsAppProvider } from "../whatsapp/engine";
 import { registerWhatsAppRoutes } from "../whatsapp/routes";
 import { registerAuditExportRoute } from "../audit-export-route";
@@ -97,12 +99,22 @@ function validateStartupEnv(): void {
 }
 validateStartupEnv();
 
-async function startServer() {
+/** Compose the real Express route stack without binding a listener. */
+export async function createApplication(options: { includeFrontend?: boolean } = {}) {
+  const includeFrontend = options.includeFrontend ?? true;
   const app = express();
   const server = createServer(app);
   
   // Trust proxy for rate limiting (required for X-Forwarded-For)
   app.set('trust proxy', 1);
+
+  // Register the short-lived maintenance gate before probes, body parsers,
+  // OAuth, webhooks, uploads, scheduled jobs, and tRPC handlers. The gate
+  // explicitly passes only /healthz through to the probe registered below.
+  app.use(createMaintenanceModeMiddleware(ENV.maintenanceMode));
+  if (ENV.maintenanceMode) {
+    console.warn("[Maintenance] Public request gate enabled; only /healthz is available.");
+  }
 
   registerRuntimeProbes(app);
 
@@ -308,14 +320,15 @@ async function startServer() {
       createContext,
     })
   );
-  // development mode uses Vite, production mode uses static files
-  if (process.env.NODE_ENV === "development") {
-    await setupVite(app, server);
-  // Initialise WhatsApp provider (uses MockAdapter if credentials not set)
-  initWhatsAppProvider();
-
-  } else {
-    serveStatic(app);
+  if (includeFrontend) {
+    // development mode uses Vite, production mode uses static files
+    if (process.env.NODE_ENV === "development") {
+      await setupVite(app, server);
+      // Initialise WhatsApp provider (uses MockAdapter if credentials not set)
+      initWhatsAppProvider();
+    } else {
+      serveStatic(app);
+    }
   }
 
   // Global error handler — converts body-parser PayloadTooLargeError to JSON
@@ -330,6 +343,11 @@ async function startServer() {
     next(err);
   });
 
+  return { app, server };
+}
+
+async function startServer() {
+  const { server } = await createApplication();
   const runtimeReadiness = getRuntimeReadiness();
   const preferredPort = parseInt(process.env.PORT || "3000");
   const port = await resolveListenPort(
@@ -381,16 +399,14 @@ async function startServer() {
       console.log(`[Security] ✅ HEARTBEAT_ALLOWED_TASK_UIDS locked to ${uids.length} task UID(s): ${uids.join(', ')}`);
     }
 
-    // Start intake escalation cron job
-    startIntakeEscalationJob();
-    // Start stuck assessment recovery job (clears claims stuck in assessment_in_progress)
-    startStuckAssessmentRecoveryJob();
-    // Recovery deadline alerts for recovery cases (runs 15s after startup, then daily)
-    setTimeout(() => {
-      checkRecoveryDeadlines().catch(err =>
-        console.error('[RecoveryDeadlineAlerts] Startup check failed:', err)
-      );
-    }, 15000);
+    startMaintenanceSensitiveJobs(ENV.maintenanceMode, {
+      startIntakeEscalationJob,
+      startStuckAssessmentRecoveryJob,
+      checkRecoveryDeadlines,
+      schedule: setTimeout,
+      warn: console.warn,
+      error: console.error,
+    });
   });
 
   // Start WebSocket server on port 8080 for real-time analytics
@@ -402,4 +418,8 @@ async function startServer() {
   }
 }
 
-startServer().catch(console.error);
+// Vitest imports `createApplication` for real route-composition checks. Do not
+// bind listeners or start in-process jobs while that test runtime is loading.
+if (process.env.VITEST !== "true") {
+  startServer().catch(console.error);
+}
