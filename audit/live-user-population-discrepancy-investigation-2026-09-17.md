@@ -1,216 +1,192 @@
 # Live `users` Population Discrepancy Investigation
 
-**Date:** 17 September 2026  
-**Scope:** Read-only, aggregate-only investigation of the active Manus-hosted KINGA project database  
-**Classification:** **Attributable synthetic/test contamination; exact historical writer unresolved**
+**Date:** 17 September 2026
+**Author:** Manus AI
+**Scope:** Read-only, aggregate-only investigation of the active Manus-hosted KINGA project database and read-only repository, process, and Git-history review.
+**Classification:** **Confirmed synthetic/test contamination; exact historical writer unresolved.**
 
-## Conclusion
+## Executive conclusion
 
-The live `users` population is **not consistent with a small number of human accounts plus a large, legitimate population of agency-assisted or unregistered claimant identities**. The four anomalous duplicate-email cohorts account for **32,480 of 44,885 rows (72.4%)**. Every one of those rows has a test-pattern `openId`, no login method, no verified email, no valid tenant reference, and a `lastSignedIn` timestamp equal to its creation timestamp. They are not marked as unregistered claimants, are not linked to agency-assisted claimant identities, and have no OAuth role-resolution audit event.
+The live `users` table is **not** a small human-account population supplemented by legitimate agency-assisted or unregistered claimant identities. It contains **44,885 rows**, of which **32,480 (72.36%)** sit in four identical-size duplicate-email cohorts. The four cohorts were generated in lockstep over the same 74 creation dates and every one of their 575 active minute-batches included all four cohorts. Their shared characteristics are a test-pattern external identifier, no recorded login method, no verified email, no valid tenant association, no unregistered-claimant flag, no agency-assisted identity link, no user-linked audit event, and a creation-time `lastSignedIn` value.
 
-The evidence supports a high-confidence finding that these cohorts are **synthetic/test contamination in the active project database**. The database pattern shows recurring creation across 74 dates between 12 February and 11 September 2026, rather than one isolated bulk insert. The present repository contains several seed and load-test utilities, but the reviewed committed sources do **not** contain a generator that explains four recurring 8,120-row cohorts or their exact test-pattern identity shape. Therefore, the precise historical script, workflow, or external writer remains unresolved.
+The anomaly is also broader than those four cohorts. Under the broader inspected marker definition, **41,183 of 44,885 rows (91.75%)** carry a test-pattern identifier or name. The residual population contains **8,703** users with a narrower `test` identifier or name marker, equal to **70.15%** of the 12,405 users outside the four dominant cohorts. It is therefore not safe to treat the 32,480 headline rows as the only affected population.
 
-This report makes **no cleanup, deletion, linking, migration, or remediation recommendation**. WorkOS Package B, WorkOS setup, Package A staging application, provider flags, identity linking, and all database writes remain paused and unauthorized.
+The data creation was **recently active**, with the last observed user row created at **11 September 2026 11:49:37**. A follow-up aggregate check found no later creation and no creation in the preceding 24 hours. This establishes that the incident had stopped, or at least left no new rows, by the time of this investigation. It does **not** prove that the unknown writer has been permanently removed or cannot resume.
 
-## Scope and safeguards
+No reviewed committed source contains a recurring 8,120-row, four-email generator. The evidence conclusively identifies synthetic/test contamination but does not responsibly attribute it to one committed script, route, person, or external credential. The most accurate conclusion is therefore: **recent historical synthetic/test contamination with an unresolved originating writer and an unclosed current access surface.**
 
-The investigation used aggregate SQL only. It did not select or record any direct user record, email, name, user ID, tenant ID, `openId`, login-method value, or other direct identifier. Cohorts are identified only by opaque ordinal labels and group sizes. Source review was read-only.
+This report does not recommend or authorize deletion, remediation, credential rotation, configuration change, source change, WorkOS activity, identity linking, or any database write. All such work remains paused.
 
-The active database uses a legacy mixed physical naming contract. In particular, the live table exposes `loginMethod`, `openId`, `createdAt`, and `lastSignedIn`, while later source conventions contain some snake-case mappings. This was confirmed through metadata-only inspection and was accounted for in the aggregate queries.
+## Investigation safeguards and limits
 
-## Aggregate population findings
+All database reads were aggregate-only. No direct user record, email, name, identifier, tenant identifier, external identity value, login-method literal, credential value, or database username was selected, retained, or reported. Cohorts are described only by their count and aggregate attributes.
 
-| Measure | Aggregate result | Interpretation |
+The investigation could identify source-present write paths and active local processes. It could not enumerate every historical writer, externally held credential, database administrator, published-service secret binding, platform job history, or database session that may have existed before the check. The current project database principal is not a database-administration account and cannot provide a complete principal/grant census.
+
+## Population findings
+
+| Measure | Aggregate result | Meaning |
 |---|---:|---|
-| Total `users` rows | 44,885 | Far above the owner’s expected small test-plus-admin population. |
-| Users in four 8,120-row duplicate-email cohorts | 32,480 | The dominant anomalous population, representing 72.4% of all rows. |
-| Other users | 12,405 | A residual population requiring separate classification if a later decision authorizes it. |
-| `is_unregistered_claimant = 1` | 0 | No live row uses the designed restricted-claimant flag. |
-| Users linked to `agency_assisted_claimant_identities` | 0 | No row is evidenced as an agency-assisted restricted or linked identity. |
-| Users referenced by at least one claim as claimant | 5,338 | A claim foreign-key reference exists, but it does not establish that the user is a legitimate claimant identity. |
-| Users with verified email | 4,301 | 40,584 are unverified or null. |
-| Users with no tenant reference | 4,490 | These are not tenant-mapped. |
-| Users with a non-empty tenant reference absent from `tenants` | 40,320 | The dominant tenant-reference condition is orphaned/unknown. |
-| Users with a valid tenant reference | 75 | This is the only small, internally consistent tenant-mapped subset. |
-| Users marked QA-only | 15 | This exactly matches the committed QA seed utility’s fixed role set. |
+| Total `users` rows | 44,885 | Far above the expected test-plus-admin account population. |
+| Four 8,120-row duplicate-email cohorts | 32,480 | Dominant anomaly; 72.36% of all rows. |
+| Other users | 12,405 | Residual population, also materially test-marked. |
+| Rows with any inspected test marker | 41,183 | 91.75% of all rows under the broad identifier/name predicate. |
+| Narrower test-marked rows outside the four cohorts | 8,703 | 70.15% of the residual population. |
+| `is_unregistered_claimant = 1` | 0 | No live user is represented as the designed restricted claimant type. |
+| Users linked to an agency-assisted claimant identity | 0 | No evidence of the intended agency-assisted identity model. |
+| Users with a verified email | 4,301 | 40,584 rows are unverified or have no verified email. |
+| Users with a valid tenant reference | 75 | Only a small subset is internally tenant-consistent. |
+| Users with no tenant reference | 4,490 | Not tenant-mapped. |
+| Users with a non-empty but unknown tenant reference | 40,320 | Most rows point to a tenant absent from the active `tenants` table. |
+| Users referenced by at least one claim | 5,338 | Some affected rows were consumed downstream; this does not establish identity legitimacy. |
+| Explicit QA-only rows | 15 | Matches the bounded committed QA seed utility. |
 
-The aggregate relationship evidence is decisive against the proposed legitimate non-login explanation. The current agency-assisted claimant path creates a user with a claimant role, an insurer tenant, `isUnregisteredClaimant = 1`, and a corresponding agency-assisted identity record. The live population has **none** of those attributes or links.[2] Consequently, the 44,885 rows cannot be explained as the intended agency-assisted claimant mechanism.
+The intended agency-assisted path produces an insurer-tenant-bound claimant, sets `isUnregisteredClaimant = 1`, and creates a companion identity-link row.[1] The live population contains no rows with that flag and no linked identity rows. This rules out the proposition that the 44,885 users are predominantly intended non-login agency-assisted claimants.
 
-The table is nevertheless used as a generic principal/foreign-key store in some historical paths: 5,338 rows are referenced by claims. However, every one of those referenced rows falls into the aggregate **non-claimant-role** category, and none is flagged as an unregistered claimant. This is evidence of a legacy/synthetic data-shape problem, not evidence that the large cohorts are valid non-login claimant identities.
+The table has also historically been used as a generic principal reference for claims. However, claim linkage alone does not convert synthetic principal rows into valid claimant identities. Aggregate role and lifecycle evidence shows that referenced anomalous rows do not have the expected claimant/restricted-identity shape.
 
-## The four anomalous duplicate-email cohorts
+## Four dominant cohorts were created together
 
-The table below uses four opaque cohort labels. It contains no email, `openId`, user ID, or tenant ID.
+The four large duplicate-email cohorts each contain 8,120 rows. No identifier, email, or tenant value is shown below.
 
-| Opaque cohort | Rows | Creation period | Distinct creation dates | `lastSignedIn = createdAt` | Login method present | Verified email | Active | Valid tenant | Unknown tenant | Test-pattern `openId` |
-|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Cohort 1 | 8,120 | 12 Feb–11 Sep 2026 | 74 | 8,120 | 0 | 0 | 8,120 | 0 | 8,120 | 8,120 |
-| Cohort 2 | 8,120 | 12 Feb–11 Sep 2026 | 74 | 8,120 | 0 | 0 | 8,120 | 0 | 8,120 | 8,120 |
-| Cohort 3 | 8,120 | 12 Feb–11 Sep 2026 | 74 | 8,120 | 0 | 0 | 8,120 | 0 | 8,120 | 8,120 |
-| Cohort 4 | 8,120 | 12 Feb–11 Sep 2026 | 74 | 8,120 | 0 | 0 | 8,120 | 0 | 8,120 | 8,120 |
-| **Combined** | **32,480** | **12 Feb–11 Sep 2026** | **74** | **32,480** | **0** | **0** | **32,480** | **0** | **32,480** | **32,480** |
-
-Each cohort has 8,120 distinct opaque `openId` fingerprints. The repeated email-group size therefore does not represent a single identity duplicated verbatim; it represents a systematic generation process that assigned many unique synthetic identifiers to each of four repeated email anchors.
-
-The creation distribution is not compatible with a single accidental import. Each cohort spans the same 74 calendar dates over roughly seven months, with near-identical start and end timestamps. This is more consistent with a recurring seed, fixture, test, or other automated writer that repeatedly targeted the active database.
-
-The cohort test marker is specific at aggregate level: all 32,480 rows match the `test` marker class; none match the inspected `seed`, `dev`, `synthetic`, `load`, or `fixture` marker classes. This identifies them as test-pattern records without disclosing the values themselves.
-
-A total of 3,794 large-cohort users are referenced by a claim, while 28,686 are not. None has the claimant role in the aggregate classification. Claim references therefore show that some synthetic user records were consumed by downstream claim data, but they do not transform the synthetic users into legitimate claimant identities.
-
-## Login evidence and the `lastSignedIn` limitation
-
-The current OAuth callback performs these steps in order: it exchanges the upstream authorization code, retrieves upstream user information, upserts the local user with a current `lastSignedIn` value and a login method, then attempts to write a `LOGIN_ROLE_RESOLVED` audit event.[1] The audit event is written after the local upsert but before the session JWT is created and the browser is redirected. Its failure is explicitly non-fatal.[1]
-
-The audit marker was introduced on 8 August 2026.[3] The live aggregate evidence is:
-
-| Audit measure | Result |
-|---|---:|
-| `LOGIN_ROLE_RESOLVED` audit events | 5 |
-| Distinct local users represented by those events | 1 |
-| First such event | 8 August 2026 |
-| Last such event | 10 August 2026 |
-| Audit-backed users inside the 32,480 large cohorts | 0 |
-| Audit-backed users outside the large cohorts | 1 |
-
-This is a **conservative lower bound**, not an exact historic completed-login count. It proves that one local user reached the upstream OAuth identity-resolution and local-audit stage five times after the marker was introduced. It cannot prove that no other user completed a session because the marker did not exist before 8 August and the audit write may fail without blocking session issuance.
-
-`lastSignedIn` cannot be used as login evidence in this database. The source declaration supplies a creation-time default, and the live data confirms the resulting artifact:[4]
-
-| `lastSignedIn` relation to `createdAt` | Users | Login method absent |
+| Cohort property | Each cohort | Combined result |
 |---|---:|---:|
-| Exactly equal | 44,807 | 41,308 |
-| Different | 78 | 76 |
-| Null | 0 | — |
+| Row count | 8,120 | 32,480 |
+| Creation date range | 12 February–11 September 2026 | Same across all four |
+| Distinct creation dates | 74 | Same across all four |
+| Active creation minutes | 575 shared minutes | Every active minute included all four cohorts |
+| Largest combined minute batch | — | 224 rows |
+| Test-pattern external identifier | 8,120 | 32,480 |
+| Login method present | 0 | 0 |
+| Verified email | 0 | 0 |
+| Valid tenant reference | 0 | 0 |
+| Unknown tenant reference | 8,120 | 32,480 |
+| Unregistered-claimant flag | 0 | 0 |
+| User-linked audit event | 0 | 0 |
+| `lastSignedIn = createdAt` | 8,120 | 32,480 |
 
-The four large cohorts all fall in the first category. Their `lastSignedIn` value documents row creation/default assignment, not a real authentication event.
+The lockstep minute-level result is especially strong evidence. All **32,480** cohort rows were written in minute-batches where all four opaque email groups were active. This is incompatible with independent organic account creation and strongly indicates a common batch process that created several distinct external identities while repeatedly assigning one of four email anchors.
 
-## Source-path assessment
+The `test` marker is also not a loose inference. Every large-cohort row met the inspected `test` marker condition, while none met the alternate inspected `seed`, `dev`, `synthetic`, `load`, or `fixture` conditions. This does not expose the external identifier values; it classifies their common template family.
 
-The repository contains legitimate paths that can create users, but none of the reviewed sources explains the four 8,120-row cohorts.
-
-| Source or path | What it can create | Fit with 32,480 cohort pattern |
-|---|---|---|
-| Agency-assisted claimant identity service | One restricted claimant identity per agency-client/insurer combination; claimant role, tenant association, `isUnregisteredClaimant = 1`, and identity-link record | **No fit.** All four live cohorts lack every expected attribute and there are zero linked identities.[2] |
-| OAuth callback | A local user based on upstream identity, including login method and current `lastSignedIn`; now emits a post-upsert audit marker | **No fit.** Cohorts have no login method or audit marker, and their timestamps equal creation defaults.[1] |
-| QA seed utility | Exactly 15 explicit QA-only users under a synthetic QA tenant | **Explains the 15 QA-marked rows only**, not the 32,480 cohorts.[5] |
-| Test-user seed utility | Six explicit test users with a test login method | **Too small and shape-mismatched.** It does not generate repeated 8,120-row groups.[6] |
-| Production-grade test-data script | Five processors, one manager, one executive, and one claimant per generated claim; configured for 50 claims | **Too small and shape-mismatched.** Its created claimants are marked verified and use a fixed demo tenant.[7] |
-| Bulk-claim/image seed utilities | Select existing users and create a fixed 20 test claims | **Does not create users.** It may explain some downstream claim links but not user rows.[8] [9] |
-| Load-test harness | Generates claim payloads and invokes claim APIs, with a default of 1,000 claims | **No direct `users` insert in the reviewed harness.** It cannot itself explain the user rows, although an unreviewed historical API implementation or external runner cannot be excluded.[10] |
-
-The reviewed committed sources contain no 8,120-scale configuration and no exact four-cohort generator. This does not prove that such a writer never existed: it could have been deleted, run from an uncommitted workspace, executed externally, or supplied through a historical endpoint that has since changed. It does establish that the active repository’s known seed/load utilities are insufficient to account for the observed population.
-
-## Classification and boundaries
-
-The correct classification is **attributable synthetic/test contamination with unresolved exact writer**.
-
-The result is stronger than a generic “unexplained population” finding because the dominant rows carry a uniform test-pattern identity marker and a uniformly synthetic lifecycle shape. It is not yet a full causal attribution to one committed script because no reviewed source reproduces the exact cardinality, duplicate grouping, cadence, or full attribute pattern.
-
-The residual 12,405 users were not individually investigated. They include 15 explainable QA rows and 4,301 verified-email rows, but they also retain 7,840 unknown tenant references and 8,904 absent login methods. Their presence does not reduce the conclusion about the dominant 32,480-row test population.
-
-No read, analysis, or report conclusion should be interpreted as authorization to alter user records, claims, tenants, identity mappings, schema, provider configuration, or WorkOS settings.
-
-## Status
-
-**Paused and unauthorized pending owner direction:**
-
-- WorkOS Package B and all provider-adapter work.
-- WorkOS account, organization, secret, dependency, callback, flag, or user-import work.
-- Package A staging application.
-- Any identity linking, duplicate remediation, user cleanup, claim cleanup, tenant repair, or database write.
-- Any production or staging schema/data operation.
-
-## References
-
-[1]: file:///home/ubuntu/kinga-replit/server/_core/oauth.ts "KINGA OAuth callback implementation"
-[2]: file:///home/ubuntu/kinga-replit/server/agency/agencyAssistedClaimantIdentity.ts "Agency-assisted claimant identity service"
-[3]: file:///home/ubuntu/kinga-replit/server/_core/oauth.ts "OAuth audit marker introduction, committed 8 August 2026"
-[4]: file:///home/ubuntu/kinga-replit/drizzle/schema.ts "Users schema declaration and timestamp defaults"
-[5]: file:///home/ubuntu/kinga-replit/scripts/seed-qa-users.ts "Idempotent QA user seed utility"
-[6]: file:///home/ubuntu/kinga-replit/seed-test-users.mjs "Test user seed utility"
-[7]: file:///home/ubuntu/kinga-replit/server/scripts/seed-production-data.ts "Production-grade test-data seed utility"
-[8]: file:///home/ubuntu/kinga-replit/scripts/execute-bulk-seed.ts "Bulk claim seed utility"
-[9]: file:///home/ubuntu/kinga-replit/scripts/seed-claims-with-images.ts "Image-backed claim seed utility"
-[10]: file:///home/ubuntu/kinga-replit/load-test/run-load-test.ts "Load-test runner"
-
-## Addendum: recent activity, residual contamination, and write-access boundary
-
-**Added:** 17 September 2026
-**Scope:** Further read-only, aggregate-only investigation following the owner’s request. No endpoint was invoked, no credential was disclosed, and no database or configuration write occurred.
-
-### Is the population still being written?
-
-The evidence supports the classification **recently active, but not proven ongoing today**.
+## Recent activity: stopped in the observed data, not proven contained
 
 | Recency measure | Result |
 |---|---:|
-| Latest `users.createdAt` across the full table | **11 September 2026 11:49:37** |
-| Users created today | 0 |
-| Users created yesterday | 0 |
+| Latest `users.createdAt` across the table | 11 September 2026 11:49:37 |
+| Users created after that timestamp at follow-up check | 0 |
+| Users created in the preceding 24 hours | 0 |
 | Users created in the preceding seven days | 424 |
 | Users created in the preceding 30 days | 7,868 |
+| Users created from 8–11 September | 1,866 |
+| Test-marked rows in that four-day period | 1,864 (99.89%) |
+| Unknown-tenant rows in that four-day period | 1,742 (93.35%) |
+| Login-method-absent rows in that four-day period | 1,866 (100.00%) |
 
-Creation was visibly active from 8–11 September, rather than being a distant historical incident:
+The activity was not merely an old February test event. It continued through 11 September, including 124 rows on that date. It is reasonable to treat the incident as **historically recent**. It is not reasonable to state that it remains actively writing today, because the follow-up aggregate query showed no subsequent inserts. Conversely, no evidence was available to prove permanent cessation.
 
-| Creation date | Users created | Test-pattern `openId` | Unknown tenant reference | No login method |
-|---|---:|---:|---:|---:|
-| 11 September | 124 | 116 | 116 | 124 |
-| 10 September | 300 | 280 | 280 | 300 |
-| 9 September | 660 | 616 | 616 | 660 |
-| 8 September | 782 | 728 | 730 | 782 |
+## Login evidence
 
-This does **not** prove that a writer remains active on 17 September. It establishes that the abnormal pattern continued as recently as six days before this check. Proving cessation would require a later aggregate-only recency check or database-level audit data that attributes writes to a session/principal; neither was created or enabled during this investigation.
+The application OAuth callback exchanges an upstream authorization code, resolves upstream identity, upserts a local user, attempts an audit event with action `LOGIN_ROLE_RESOLVED`, then establishes the KINGA session.[2] The local audit write is non-fatal, and the marker existed only from 8 August 2026. It is therefore a conservative post-introduction lower bound, not a complete historic session ledger.
 
-### Residual 12,405-user population
+| Login-evidence measure | Result |
+|---|---:|
+| `LOGIN_ROLE_RESOLVED` events | 5 |
+| Distinct local users represented | 1 |
+| Audit-event period | 8–10 August 2026 |
+| Large-cohort users with any user-linked audit event | 0 |
+| Residual test-marked users with `LOGIN_ROLE_RESOLVED` audit event | 0 |
+| Other users with `LOGIN_ROLE_RESOLVED` audit event | 1 |
 
-Contamination is materially broader than the four headline 8,120-user duplicate-email cohorts.
+The large cohorts have no audit trace at all. The residual test-marked population has some non-login audit activity associated with 825 users, but none of its 1,533 user-linked audit events is the authentication marker. This supports the conclusion that the anomalous users were used as principals in downstream activity without having passed the observed real-login flow.
 
-| Residual-population measure | Result | Share of relevant residual subset |
-|---|---:|---:|
-| Users outside the four large cohorts | 12,405 | 100.0% |
-| Users with any inspected test marker in `openId` or name | 8,705 | 70.1% |
-| Users with an unknown tenant reference | 7,840 | 63.2% |
-| Unknown-tenant users with any inspected test marker | 4,310 | 55.0% of unknown-tenant users |
-| Users with no login method | 8,904 | 71.8% |
-| Login-method-absent users with any inspected test marker | 8,699 | 97.7% of loginless users |
-| Latest residual test-marked creation timestamp | **11 September 2026 11:49:37** | — |
+`lastSignedIn` is not usable as evidence of completed authentication in this database. It is populated by a creation-time default in the current schema, and **44,807** rows have `lastSignedIn` exactly equal to `createdAt`; **41,308** of those also lack a login method. The four dominant cohorts all have this creation-time equality. Their value represents record initialization, not a login.
 
-The residual investigation reinforces, rather than weakens, the contamination conclusion. A substantial portion of the non-headline population carries the same broad test marker and lifecycle characteristics. It is not defensible to frame only the 32,480 records as affected and assume the remaining 12,405 are clean.
+## Residual population is materially affected
 
-### Verified current write-capable channels
+The original dominant-cohort finding was not isolated. The residual 12,405 rows have the following aggregate characteristics.
 
-The following inventory distinguishes what was directly observed from what the current database account cannot reveal. It intentionally names no credential values, database usernames, host names, or individual user identities.
+| Residual measure | Result |
+|---|---:|
+| Users outside the four cohorts | 12,405 |
+| Any broader inspected marker in external identifier or name | 8,705 |
+| Narrower test-only marker in external identifier or name | 8,703 |
+| Unknown tenant references | 7,840 |
+| Unknown-tenant residual users with a broader marker | 4,310 |
+| Login method absent | 8,904 |
+| Login-method-absent residual users with a broader marker | 8,699 |
+| Latest residual test-marked creation | 11 September 2026 11:49:37 |
 
-| Channel | Present now? | `users` write capability | Evidence and boundary |
+Two residual literal test-identifier families are particularly notable. One comprises 4,222 rows, all verified-email but login-method-absent; the other comprises 1,441 rows, all unverified and almost entirely unknown-tenant. A third bounded group contains 991 unverified, unknown-tenant, login-method-absent rows. These are aggregate template families only; no direct identifier values are included. Together, they show that the anomaly comprises several synthetic identity shapes rather than only the four headline duplicate-email groups.
+
+There are nine additional small duplicate-email groups containing 19 rows in total. None is test-marked under the inspected predicate. They do not alter the conclusion about the dominant event.
+
+## Source and history review
+
+The repository contains several legitimate or intentional mechanisms that can insert users. Their bounded scale and attribute shape explain a small number of visible records but do not reproduce the incident.
+
+| Mechanism | Observed source behavior | Fit with the 32,480 cohort pattern |
+|---|---|---|
+| Agency-assisted claimant service | Creates a tenant-bound restricted claimant and identity link for an authenticated, scoped agency path. | **No fit.** The live cohorts lack the required flag, tenant shape, and identity link. |
+| OAuth callback and shared upsert | Creates/updates one local account after upstream authorization. Email is not database-unique. | **No direct fit.** It has no test batching and cohorts lack login-method/audit characteristics. |
+| WhatsApp engine | Can create one tenant-bound, unregistered claimant per completed claim journey; its identity is phone-derived and has no email. | **No fit** for repeated non-null email groups. |
+| Invitation and assessor onboarding | Request-driven, tenant-bound single-user creation; duplicate-email races are structurally possible because email is not database-unique. | **No direct fit.** Neither contains a recurring bulk loop or fixed four-email pattern. |
+| Fixed test-user seed | Bounded to six stable test accounts and idempotent. | **Too small and shape-mismatched.** |
+| Root test-data seed | Bounded to five fixed users. | **Too small and shape-mismatched.** |
+| Development seed | Bounded to two stable upserted users. | **Too small and shape-mismatched.** |
+| QA seed | Bounded to 15 stable, disabled-login QA accounts with a dedicated teardown utility. | **Explains the 15 QA-only rows**, not the large cohorts. |
+| Production-style data seed | Initially creates at most seven demo/operational users, then one claimant per generated claim in a fixed 50-claim run. Repeated manual runs can accumulate claimants. | **Plausible only as a generic residual-population contributor.** Its batch size, marker shape, verified-email/tenant attributes, and cadence do not match four 8,120 cohorts. |
+| Provider and quote seeds | Finite collections of providers or up to a small number of existing-user lookups. | **No fit.** |
+| Load-test harness | Generates request payloads; reviewed code has no direct `users` insert. | **No direct fit.** An unreviewed historical endpoint or external runner cannot be ruled out. |
+
+The Git history confirms several small intentional seeds and a renamed production-style seed. It contains no user-writing scale constant of 8,120, no four-email batch structure, no recurring user-writing scheduler, and no source change adding a bulk user generator during 8–11 September. This eliminates the checked-in sources as an explanation for the exact observed process; it does not eliminate deleted, uncommitted, external, or manually executed material.
+
+## Current write-capable access boundary
+
+The table below states what was directly observed. “Unknown” means the current read-only investigation lacks authority or metadata visibility to enumerate the category, not that the category is absent.
+
+| Channel | Present at inspection | Ability to write `users` | Evidence and limit |
 |---|---|---|---|
-| **Managed project database principal** | Yes | **Yes — full schema privileges** | The currently connected managed project principal reports `ALL PRIVILEGES` for the active project schema. This is sufficient to insert, update, and delete `users`. The same privileged connection was used only for read-only aggregate investigation queries. |
-| **Main managed KINGA runtime** | Yes | **Yes** | The current running KINGA server receives `DATABASE_URL` and uses a shared mysql2/Drizzle pool. It exposes normal OAuth, invitation, onboarding, tenant-admin, agency-assisted, and WhatsApp application paths that can mutate `users`.[1] |
-| **Four additional running KINGA development worktrees** | Yes | **Yes** | Four separate historical/parallel KINGA server worktrees were found running alongside the managed workspace. All five live server worktrees have the same active project database injected through `DATABASE_URL` and are listening locally. They are distinct processes but not known to be distinct database credentials. |
-| **Published managed application service** | Expected by deployment design; not independently enumerated as a local process | **Yes, if it uses the project runtime environment** | The published KINGA service is designed to use the same project `DATABASE_URL`. Its running process/secret binding is not exposed through this read-only inspection, so this remains an architectural inference rather than an independently listed session. |
-| **Authenticated OAuth callback** | Source path present | **Yes** | On a successful upstream callback, the route calls local user upsert and updates sign-in activity. This path should be expected to create/update legitimate human accounts when authentication occurs.[2] |
-| **Agency-assisted claimant service** | Source path present | **Yes** | This is the intended non-human claimant creation path. It produces an insurer-tenant-bound claimant with `isUnregisteredClaimant = 1` and an identity-link row. The anomalous population does not match it.[3] |
-| **WhatsApp inbound handlers** | Routes registered in every running source instance; provider credentials absent in inspected runtimes | **Potentially yes** | The source registers public webhook and test routes. Both can reach the WhatsApp engine, which inserts a tenant-bound unregistered claimant when claim submission resolves a tenant and no existing claimant is found.[4] No Twilio credential variables were present in the inspected running servers, so normal Twilio delivery is not configured there. |
-| **Unauthenticated WhatsApp test endpoint** | Source route present and registered | **Potentially yes — material exposure** | `POST /api/whatsapp/test` is registered without an authentication or provider-signature check in the inspected source and calls the same incoming-message engine. The route was **not invoked** because doing so could write data. Its ability to complete a user insert depends on supplied message/session data resolving a tenant; this was not tested. |
-| **Runtime background jobs and the recorded task schedule** | Yes, but no observed `users` write | **No direct `users` mutation found** | Active in-process intake, stuck-assessment, and recovery jobs were reviewed and contain no direct `users` insert/update/delete. The only discovered Manus task schedule is paused and is a recovery-deadline sweep, not a user-provisioning task. |
-| **Seed/load/migration scripts** | Available in repository; none running | **Potentially yes if someone executes them with `DATABASE_URL`** | Several tracked scripts consume `DATABASE_URL`, including seed utilities. No seed, load-test, or migration process was found running at inspection time. The reviewed scripts do not explain the observed 8,120-row cohorts. |
-| **External database credentials or historical writers** | **Not enumerable from this connection** | Unknown | The current principal is not a database-administration account and cannot list other database accounts or their grants. No row-level write audit is available in the inspected data. Therefore this investigation cannot prove that no external credential, deleted script, former workspace, or historical integration also wrote to the database. |
+| Managed project database principal | Yes | **Yes — all schema privileges** | The active project connection reports broad all-privilege access for the project schema. It was used only for aggregate reads during this investigation. |
+| Five running KINGA development worktrees | Yes | **Yes, through the shared principal** | All five active server worktrees have the same live database target and the same non-reversible connection-string fingerprint. This is **one observed credential replicated across five processes**, not five independently confirmed credentials. |
+| Main managed KINGA runtime | Yes | **Yes** | It is one of the five processes and exposes OAuth, invitation, onboarding, agency-assisted, and WhatsApp paths that can write users. |
+| Published managed application | Not directly enumerated | Expected, but unverified | Architecture indicates it uses the project runtime environment; this inspection could not enumerate its running process or secret binding. |
+| OAuth callback | Source-present and registered | Yes after valid upstream authorization | Inserts/updates one account at a time through local upsert. |
+| Agency-assisted service | Source-present and registered | Yes for authorized agency/admin flows | Produces a correctly scoped restricted claimant; it does not match the anomaly. |
+| WhatsApp public webhook | Source-present and registered | Potentially yes | No provider-signature verification was found in the reviewed handler. In the inspected local runtimes, normal provider credentials were absent, but that does not prove hosted deployment configuration. |
+| WhatsApp test route | Source-present and registered | Potentially yes | The route has no session authentication, signature check, development-only guard, or source-IP guard in the reviewed code. It invokes the same engine and could create an unregistered claimant after an insurer-resolved claim journey. It was **not invoked**. |
+| In-process background jobs | Active | No direct user write found | Reviewed jobs write claim/recovery/audit/notification data or read users for selection. No direct users-table mutation was found. |
+| Manus task schedule | One discovered schedule, paused | No direct user write found | The discovered task is a recovery-deadline sweep, not user provisioning. |
+| Seed/load/migration scripts | Present but not running | Potentially yes when manually launched with the database URL | No matching seed/load/migration process was active. Reviewed scripts do not explain the dominant cohorts. |
+| External or historical credentials | Unknown | Unknown | The current connection cannot list all database accounts, grants, historical sessions, or external secret holders. |
 
-### Important observations about the access boundary
+The active server processes use one observed credential fingerprint. This materially narrows the earlier concern: there are **multiple active application processes**, but not evidence of multiple currently distinct local credentials. The shared principal nevertheless has sufficient privilege to alter `users` and the surrounding schema.
 
-The database metadata confirms the current managed principal has broad schema privileges; it does **not** enumerate other accounts. The absence of table-level grants in visible metadata is not evidence that no other schema-level or database-admin principal exists. A complete credential census would require an explicitly authorized, read-only database-administration inspection or hosting-platform credential audit.
+A metadata query against `information_schema.user_privileges` exposed only the current principal’s `USAGE` entry and is not a reliable full-account inventory. A complete credential census would require an explicitly authorized, read-only database-administration or hosting-platform access audit.
 
-The five running server worktrees are a material operational concern because each receives the live database URL and runs code capable of mutating the active project schema. This finding does not establish that any of those processes caused the synthetic rows. It establishes that the active database is presently reachable from more running code instances than the single managed workspace alone.
+## Final assessment
 
-The direct WhatsApp test endpoint is a separate present-tense exposure. Its code path is inconsistent with the intended WorkOS/identity safety boundary because it can reach the same user-creation logic without a verified upstream provider callback. This is a finding only; no route was disabled, protected, exercised, or changed.
+| Question | Answer |
+|---|---|
+| Is the 44,885-row population mainly legitimate non-login claimant/driver data? | **No.** The expected claimant/agency flags, tenant binding, and identity-link records are absent. |
+| Is contamination confined to the four 8,120 cohorts? | **No.** The residual population is substantially test-marked and shares malformed tenant/login characteristics. |
+| Is this recent or historical? | **Recently historical.** Creation continued until 11 September; no later insertion was observed at follow-up. |
+| Is an exact writer identified? | **No.** The data proves a coordinated synthetic process, but checked-in code does not reproduce it. |
+| Is a current writer ruled out? | **No.** No new rows were observed, but current source/process access paths remain and historical/external writers cannot be enumerated from this account. |
+| Does login evidence support a large human population? | **No.** Only one distinct local user reached the post-8-August OAuth audit marker; cohorts have none. |
+| Are remediation, WorkOS work, schema changes, or database writes authorized by this result? | **No.** They remain explicitly paused. |
 
-### Updated conclusion
+The immediate factual position is clear: the active project database contains a large, coordinated synthetic/test identity population that is not part of KINGA’s intended non-human claimant model. The source of the generator has not yet been proven. Until the owner decides otherwise, the investigation remains read-only and all corrective action remains out of scope.
 
-The user population issue must be treated as a **recently active data-integrity and access-control investigation**, not a historical cleanup exercise. The pattern continued through 11 September, spans both dominant and residual user groups, and the current live database still has multiple active application-process access paths plus a broad-privilege managed principal.
+## References
 
-No remediation is authorized by this conclusion. The same pause remains in effect: no cleanup, deletion, credential rotation, route change, source change, configuration change, WorkOS activity, or database write has been performed or is implied.
-
-[1]: file:///home/ubuntu/kinga-replit/server/db.ts "Shared live database pool and user helpers"
-[2]: file:///home/ubuntu/kinga-replit/server/_core/oauth.ts "OAuth callback user upsert path"
-[3]: file:///home/ubuntu/kinga-replit/server/agency/agencyAssistedClaimantIdentity.ts "Agency-assisted claimant user provisioning"
-[4]: file:///home/ubuntu/kinga-replit/server/_core/index.ts "WhatsApp route registration"; file:///home/ubuntu/kinga-replit/server/whatsapp/webhook.ts "Unauthenticated WhatsApp handlers"; file:///home/ubuntu/kinga-replit/server/whatsapp/engine.ts "WhatsApp claimant provisioning"
+[1]: file:///home/ubuntu/kinga-replit/server/agency/agencyAssistedClaimantIdentity.ts "Agency-assisted claimant identity service"
+[2]: file:///home/ubuntu/kinga-replit/server/_core/oauth.ts "KINGA OAuth callback implementation"
+[3]: file:///home/ubuntu/kinga-replit/server/whatsapp/engine.ts "WhatsApp claimant provisioning engine"
+[4]: file:///home/ubuntu/kinga-replit/server/whatsapp/webhook.ts "WhatsApp inbound and test route handlers"
+[5]: file:///home/ubuntu/kinga-replit/server/_core/index.ts "KINGA HTTP route registration and scheduled bootstrap"
+[6]: file:///home/ubuntu/kinga-replit/scripts/seed-qa-users.ts "Bounded QA user seed utility"
+[7]: file:///home/ubuntu/kinga-replit/seed-test-users.mjs "Bounded fixed test-user seed utility"
+[8]: file:///home/ubuntu/kinga-replit/server/scripts/seed-production-data.ts "Bounded production-style data seed utility"
+[9]: file:///home/ubuntu/kinga-replit/load-test/run-load-test.ts "Load-test runner"
+[10]: file:///home/ubuntu/kinga-replit/drizzle/schema.ts "Users schema declaration and identity constraints"
