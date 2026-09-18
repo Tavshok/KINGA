@@ -1,0 +1,59 @@
+{
+  "scope": "Loopback-only Package A 188-table plus NCU-01 replay",
+  "target": "mysql://127.0.0.1:3320/kinga_workos_package_a_20260916_b",
+  "baselineTableCount": 188,
+  "baselineTableSetSha256": "7630802a8e93bcaed6287f943195c7e34a3124f286ecc77193a6cc408669c088",
+  "baselineStatementCount": 709,
+  "ncuMigrationSqlSha256": "a8b8e8fda51a0830116d2516a7d017ee7401e3b35a72e7a7773e1689c10ab9be",
+  "packageMigrationSqlSha256": "eae14bcce580a75346edd4813757b795327229701a6f4f64e787486012d255e6",
+  "packageStatementCount": 4,
+  "verifiedColumns": [
+    {
+      "tableName": "tenants",
+      "columnName": "workos_organization_id",
+      "dataType": "varchar",
+      "maximumLength": 128,
+      "isNullable": "YES"
+    },
+    {
+      "tableName": "users",
+      "columnName": "workos_user_id",
+      "dataType": "varchar",
+      "maximumLength": 128,
+      "isNullable": "YES"
+    }
+  ],
+  "verifiedIndexes": [
+    {
+      "table": "tenants",
+      "index": "tenants_workos_organization_id_unique",
+      "columns": [
+        "workos_organization_id"
+      ]
+    },
+    {
+      "table": "users",
+      "index": "users_workos_user_id_unique",
+      "columns": [
+        "workos_user_id"
+      ]
+    }
+  ],
+  "duplicateRejections": [
+    {
+      "label": "WorkOS organization duplicate",
+      "rejected": true,
+      "code": "ER_DUP_ENTRY"
+    },
+    {
+      "label": "WorkOS user duplicate",
+      "rejected": true,
+      "code": "ER_DUP_ENTRY"
+    }
+  ],
+  "nullableAcceptance": [
+    "tenant without workos_organization_id",
+    "user without workos_user_id"
+  ],
+  "status": "passed"
+}

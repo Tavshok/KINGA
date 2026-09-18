@@ -1,0 +1,68 @@
+{
+  "scope": "WorkOS Package A additive source contract only",
+  "sourceSchema": "drizzle/schema.ts",
+  "sourceSchemaSha256": "2205e08547cf67683665667b63e126891968d2378109e974ced6a867d06d6a73",
+  "migrationSqlSha256": "eae14bcce580a75346edd4813757b795327229701a6f4f64e787486012d255e6",
+  "statementCount": 4,
+  "statements": [
+    {
+      "ordinal": 1,
+      "sql": "ALTER TABLE `tenants` ADD COLUMN `workos_organization_id` varchar(128) NULL;",
+      "sha256": "30d952097fa247a09b26a9ee81f28db7a49a74ef2cf438f87dd12b280d86c387"
+    },
+    {
+      "ordinal": 2,
+      "sql": "CREATE UNIQUE INDEX `tenants_workos_organization_id_unique` ON `tenants` (`workos_organization_id`);",
+      "sha256": "100e01914968a288271a580f338161c18f762db8ec9ebab8b822247c79243e13"
+    },
+    {
+      "ordinal": 3,
+      "sql": "ALTER TABLE `users` ADD COLUMN `workos_user_id` varchar(128) NULL;",
+      "sha256": "355a27fd06f4f9f957e98e3411a8120e1e25f2eb8615ac48c4f169da6196af46"
+    },
+    {
+      "ordinal": 4,
+      "sql": "CREATE UNIQUE INDEX `users_workos_user_id_unique` ON `users` (`workos_user_id`);",
+      "sha256": "10b42ad111dc93b1ddd780a4e75b2db3a54ac6ceba2d83c6ca5b8eaba8987f61"
+    }
+  ],
+  "expectedColumns": [
+    {
+      "table": "tenants",
+      "column": "workos_organization_id",
+      "dataType": "varchar",
+      "maximumLength": 128,
+      "nullable": true
+    },
+    {
+      "table": "users",
+      "column": "workos_user_id",
+      "dataType": "varchar",
+      "maximumLength": 128,
+      "nullable": true
+    }
+  ],
+  "expectedUniqueIndexes": [
+    {
+      "table": "tenants",
+      "index": "tenants_workos_organization_id_unique",
+      "columns": [
+        "workos_organization_id"
+      ]
+    },
+    {
+      "table": "users",
+      "index": "users_workos_user_id_unique",
+      "columns": [
+        "workos_user_id"
+      ]
+    }
+  ],
+  "prohibitedScope": [
+    "WorkOS dependency installation",
+    "WorkOS account or secret setup",
+    "authentication route or callback change",
+    "provider selection or login switch",
+    "staging or production database application"
+  ]
+}
