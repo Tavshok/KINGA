@@ -19,42 +19,44 @@ vi.mock("../server/_core/llm", () => ({
 // Helper: build a minimal ExtractedClaimFields-shaped LLM response
 function makeLlmResponse(components: string[]) {
   return {
-    choices: [{
-      message: {
-        content: JSON.stringify({
-          damagedComponents: components.map(name => ({
-            name,
-            damageType: "dent",
-            severity: "moderate",
-            repairAction: "repair",
-            location: "front",
-          })),
-          claimantName: null,
-          vehicleRegistration: null,
-          vehicleMake: null,
-          vehicleModel: null,
-          vehicleYear: null,
-          vehicleColour: null,
-          accidentDate: null,
-          accidentDescription: null,
-          totalRepairCost: null,
-          labourCost: null,
-          partsCost: null,
-          vatAmount: null,
-          currency: null,
-          repairerName: null,
-          repairerAddress: null,
-          policyNumber: null,
-          claimNumber: null,
-          assessorName: null,
-          assessorLicenseNumber: null,
-          assessmentDate: null,
-          excessAmount: null,
-          sumInsured: null,
-          insuredValue: null,
-        }),
+    choices: [
+      {
+        message: {
+          content: JSON.stringify({
+            damagedComponents: components.map(name => ({
+              name,
+              damageType: "dent",
+              severity: "moderate",
+              repairAction: "repair",
+              location: "front",
+            })),
+            claimantName: null,
+            vehicleRegistration: null,
+            vehicleMake: null,
+            vehicleModel: null,
+            vehicleYear: null,
+            vehicleColour: null,
+            accidentDate: null,
+            accidentDescription: null,
+            totalRepairCost: null,
+            labourCost: null,
+            partsCost: null,
+            vatAmount: null,
+            currency: null,
+            repairerName: null,
+            repairerAddress: null,
+            policyNumber: null,
+            claimNumber: null,
+            assessorName: null,
+            assessorLicenseNumber: null,
+            assessmentDate: null,
+            excessAmount: null,
+            sumInsured: null,
+            insuredValue: null,
+          }),
+        },
       },
-    }],
+    ],
   };
 }
 
@@ -72,12 +74,19 @@ describe("R-A-14: extractFieldsFromPhotos — photo batching", () => {
 
   it("processes all 18 photos across multiple batches (was: silently dropped photos 6-18)", async () => {
     // Arrange: 18 photos → should produce 1 batch of 18 (under 20-per-batch limit)
-    const photoUrls = Array.from({ length: 18 }, (_, i) => `https://s3.example.com/photo-${i + 1}.jpg`);
+    const photoUrls = Array.from(
+      { length: 18 },
+      (_, i) => `https://s3.example.com/photo-${i + 1}.jpg`
+    );
 
     // Each batch call returns 3 unique components
-    mockLlmCall.mockResolvedValue(makeLlmResponse(["bonnet", "windscreen", "right front door"]));
+    mockLlmCall.mockResolvedValue(
+      makeLlmResponse(["bonnet", "windscreen", "right front door"])
+    );
 
-    const { extractFieldsFromPhotos } = await import("./pipeline-v2/stage-3-structured-extraction");
+    const { extractFieldsFromPhotos } = await import(
+      "./pipeline-v2/stage-3-structured-extraction"
+    );
     const ctx = makeCtx();
     const result = await (extractFieldsFromPhotos as any)(photoUrls, ctx);
 
@@ -91,14 +100,21 @@ describe("R-A-14: extractFieldsFromPhotos — photo batching", () => {
   });
 
   it("batches 25 photos into 2 calls (batch 1: 20 photos, batch 2: 5 photos)", async () => {
-    const photoUrls = Array.from({ length: 25 }, (_, i) => `https://s3.example.com/photo-${i + 1}.jpg`);
+    const photoUrls = Array.from(
+      { length: 25 },
+      (_, i) => `https://s3.example.com/photo-${i + 1}.jpg`
+    );
 
     // Batch 1 returns 3 components, batch 2 returns 2 different components
     mockLlmCall
-      .mockResolvedValueOnce(makeLlmResponse(["bonnet", "windscreen", "right front door"]))
+      .mockResolvedValueOnce(
+        makeLlmResponse(["bonnet", "windscreen", "right front door"])
+      )
       .mockResolvedValueOnce(makeLlmResponse(["left rear door", "boot"]));
 
-    const { extractFieldsFromPhotos } = await import("./pipeline-v2/stage-3-structured-extraction");
+    const { extractFieldsFromPhotos } = await import(
+      "./pipeline-v2/stage-3-structured-extraction"
+    );
     const ctx = makeCtx();
     const result = await (extractFieldsFromPhotos as any)(photoUrls, ctx);
 
@@ -113,7 +129,9 @@ describe("R-A-14: extractFieldsFromPhotos — photo batching", () => {
   });
 
   it("returns emptyExtraction() for zero photos without calling LLM", async () => {
-    const { extractFieldsFromPhotos } = await import("./pipeline-v2/stage-3-structured-extraction");
+    const { extractFieldsFromPhotos } = await import(
+      "./pipeline-v2/stage-3-structured-extraction"
+    );
     const ctx = makeCtx();
     const result = await (extractFieldsFromPhotos as any)([], ctx);
 
@@ -122,13 +140,18 @@ describe("R-A-14: extractFieldsFromPhotos — photo batching", () => {
   });
 
   it("continues and returns partial results if one batch fails", async () => {
-    const photoUrls = Array.from({ length: 25 }, (_, i) => `https://s3.example.com/photo-${i + 1}.jpg`);
+    const photoUrls = Array.from(
+      { length: 25 },
+      (_, i) => `https://s3.example.com/photo-${i + 1}.jpg`
+    );
 
     mockLlmCall
       .mockResolvedValueOnce(makeLlmResponse(["bonnet", "windscreen"]))
       .mockRejectedValueOnce(new Error("LLM rate limit"));
 
-    const { extractFieldsFromPhotos } = await import("./pipeline-v2/stage-3-structured-extraction");
+    const { extractFieldsFromPhotos } = await import(
+      "./pipeline-v2/stage-3-structured-extraction"
+    );
     const ctx = makeCtx();
     const result = await (extractFieldsFromPhotos as any)(photoUrls, ctx);
 
@@ -149,13 +172,23 @@ describe("R-A-13: extractFieldsFromPdf — page image batching", () => {
   });
 
   it("processes all 20 page images in a single primary call (under batch limit)", async () => {
-    const pageImageUrls = Array.from({ length: 20 }, (_, i) => `https://s3.example.com/page-${i + 1}.png`);
+    const pageImageUrls = Array.from(
+      { length: 20 },
+      (_, i) => `https://s3.example.com/page-${i + 1}.png`
+    );
 
     mockLlmCall.mockResolvedValue(makeLlmResponse(["bonnet", "windscreen"]));
 
-    const { extractFieldsFromPdf } = await import("./pipeline-v2/stage-3-structured-extraction");
+    const { extractFieldsFromPdf } = await import(
+      "./pipeline-v2/stage-3-structured-extraction"
+    );
     const ctx = makeCtx();
-    await (extractFieldsFromPdf as any)("https://s3.example.com/doc.pdf", "sample text", ctx, pageImageUrls);
+    await (extractFieldsFromPdf as any)(
+      "https://s3.example.com/doc.pdf",
+      "sample text",
+      ctx,
+      pageImageUrls
+    );
 
     // 20 pages = 1 batch → 1 LLM call (primary only)
     expect(mockLlmCall).toHaveBeenCalledTimes(1);
@@ -167,13 +200,20 @@ describe("R-A-13: extractFieldsFromPdf — page image batching", () => {
 
   it("processes 22 page images across 2 calls (primary + 1 supplementary)", async () => {
     // This is the R-A-13 scenario: 22 pages, damage photos on pages 21-22
-    const pageImageUrls = Array.from({ length: 22 }, (_, i) => `https://s3.example.com/page-${i + 1}.png`);
+    const pageImageUrls = Array.from(
+      { length: 22 },
+      (_, i) => `https://s3.example.com/page-${i + 1}.png`
+    );
 
     mockLlmCall
-      .mockResolvedValueOnce(makeLlmResponse(["bonnet", "windscreen", "right front door"])) // primary (pages 1-20)
+      .mockResolvedValueOnce(
+        makeLlmResponse(["bonnet", "windscreen", "right front door"])
+      ) // primary (pages 1-20)
       .mockResolvedValueOnce(makeLlmResponse(["left rear panel", "exhaust"])); // supplementary (pages 21-22)
 
-    const { extractFieldsFromPdf } = await import("./pipeline-v2/stage-3-structured-extraction");
+    const { extractFieldsFromPdf } = await import(
+      "./pipeline-v2/stage-3-structured-extraction"
+    );
     const ctx = makeCtx();
     const result = await (extractFieldsFromPdf as any)(
       "https://s3.example.com/doc.pdf",
@@ -194,7 +234,9 @@ describe("R-A-13: extractFieldsFromPdf — page image batching", () => {
   it("works with zero page images (PDF-only call)", async () => {
     mockLlmCall.mockResolvedValue(makeLlmResponse(["bonnet"]));
 
-    const { extractFieldsFromPdf } = await import("./pipeline-v2/stage-3-structured-extraction");
+    const { extractFieldsFromPdf } = await import(
+      "./pipeline-v2/stage-3-structured-extraction"
+    );
     const ctx = makeCtx();
     const result = await (extractFieldsFromPdf as any)(
       "https://s3.example.com/doc.pdf",
@@ -208,13 +250,18 @@ describe("R-A-13: extractFieldsFromPdf — page image batching", () => {
   });
 
   it("continues with partial results if a supplementary batch fails", async () => {
-    const pageImageUrls = Array.from({ length: 22 }, (_, i) => `https://s3.example.com/page-${i + 1}.png`);
+    const pageImageUrls = Array.from(
+      { length: 22 },
+      (_, i) => `https://s3.example.com/page-${i + 1}.png`
+    );
 
     mockLlmCall
       .mockResolvedValueOnce(makeLlmResponse(["bonnet", "windscreen"]))
       .mockRejectedValueOnce(new Error("LLM timeout"));
 
-    const { extractFieldsFromPdf } = await import("./pipeline-v2/stage-3-structured-extraction");
+    const { extractFieldsFromPdf } = await import(
+      "./pipeline-v2/stage-3-structured-extraction"
+    );
     const ctx = makeCtx();
     const result = await (extractFieldsFromPdf as any)(
       "https://s3.example.com/doc.pdf",
@@ -238,13 +285,19 @@ describe("R-A-05: pdf-image-extractor — MAX_PAGES_TO_RENDER cap", () => {
   it("MAX_PAGES_TO_RENDER constant is 40", async () => {
     // Read the constant directly from the module source to verify it's set
     const fs = await import("fs");
-    const src = fs.readFileSync("/home/ubuntu/kinga-replit/server/pdf-image-extractor.ts", "utf-8");
+    const src = fs.readFileSync(
+      new URL("./pdf-image-extractor.ts", import.meta.url),
+      "utf-8"
+    );
     expect(src).toContain("const MAX_PAGES_TO_RENDER = 40;");
   });
 
   it("MAX_PAGES_TO_RENDER is used to cap rendering (via maxPages or pagesToRender)", async () => {
     const fs = await import("fs");
-    const src = fs.readFileSync("/home/ubuntu/kinga-replit/server/pdf-image-extractor.ts", "utf-8");
+    const src = fs.readFileSync(
+      new URL("./pdf-image-extractor.ts", import.meta.url),
+      "utf-8"
+    );
     // The engine caps rendering via maxPages: MAX_PAGES_TO_RENDER passed to renderPdfToImages
     expect(src).toContain("maxPages: MAX_PAGES_TO_RENDER");
     expect(src).toContain("MAX_PAGES_TO_RENDER");
@@ -252,7 +305,10 @@ describe("R-A-05: pdf-image-extractor — MAX_PAGES_TO_RENDER cap", () => {
 
   it("truncation warning is pushed to errors[] when pageCount > MAX_PAGES_TO_RENDER", async () => {
     const fs = await import("fs");
-    const src = fs.readFileSync("/home/ubuntu/kinga-replit/server/pdf-image-extractor.ts", "utf-8");
+    const src = fs.readFileSync(
+      new URL("./pdf-image-extractor.ts", import.meta.url),
+      "utf-8"
+    );
     // The engine uses errors.push(truncMsg) — variable name may differ from truncationMsg
     expect(src).toContain("errors.push(trunc");
     expect(src).toContain("R-A-05: PDF has");
@@ -281,7 +337,7 @@ describe("R-A-01: stage-1-ingestion — withExtractionTimeout", () => {
   it("EXTRACTION_TIMEOUT_MS constant is 150000 (150s)", async () => {
     const fs = await import("fs");
     const src = fs.readFileSync(
-      "/home/ubuntu/kinga-replit/server/pipeline-v2/stage-1-ingestion.ts",
+      new URL("./pipeline-v2/stage-1-ingestion.ts", import.meta.url),
       "utf-8"
     );
     expect(src).toContain("const EXTRACTION_TIMEOUT_MS = 150_000;");
@@ -290,7 +346,7 @@ describe("R-A-01: stage-1-ingestion — withExtractionTimeout", () => {
   it("withExtractionTimeout function is defined in stage-1-ingestion.ts", async () => {
     const fs = await import("fs");
     const src = fs.readFileSync(
-      "/home/ubuntu/kinga-replit/server/pipeline-v2/stage-1-ingestion.ts",
+      new URL("./pipeline-v2/stage-1-ingestion.ts", import.meta.url),
       "utf-8"
     );
     expect(src).toContain("async function withExtractionTimeout<T>");
@@ -299,29 +355,47 @@ describe("R-A-01: stage-1-ingestion — withExtractionTimeout", () => {
   it("extractImagesWithSummary is called via withExtractionTimeout (not directly)", async () => {
     const fs = await import("fs");
     const src = fs.readFileSync(
-      "/home/ubuntu/kinga-replit/server/pipeline-v2/stage-1-ingestion.ts",
+      new URL("./pipeline-v2/stage-1-ingestion.ts", import.meta.url),
       "utf-8"
     );
     // The call site must be wrapped
     expect(src).toContain("await withExtractionTimeout(");
-    expect(src).toContain("() => extractImagesWithSummary(pdfBuffer, fileName)");
+    expect(src).toContain(
+      "() => extractImagesWithSummary(pdfBuffer, fileName)"
+    );
     // The old bare call must NOT be present
-    expect(src).not.toContain("await extractImagesWithSummary(pdfBuffer, fileName)");
+    expect(src).not.toContain(
+      "await extractImagesWithSummary(pdfBuffer, fileName)"
+    );
   });
 
   it("withExtractionTimeout rejects after EXTRACTION_TIMEOUT_MS with a descriptive error", async () => {
     // Test the timeout logic directly
     const EXTRACTION_TIMEOUT_MS = 150_000;
 
-    async function withExtractionTimeout<T>(fn: () => Promise<T>, label: string): Promise<T> {
+    async function withExtractionTimeout<T>(
+      fn: () => Promise<T>,
+      label: string
+    ): Promise<T> {
       return new Promise<T>((resolve, reject) => {
         const timer = setTimeout(
-          () => reject(new Error(`R-A-01: ${label} timed out after ${EXTRACTION_TIMEOUT_MS}ms — malformed PDF suspected`)),
+          () =>
+            reject(
+              new Error(
+                `R-A-01: ${label} timed out after ${EXTRACTION_TIMEOUT_MS}ms — malformed PDF suspected`
+              )
+            ),
           EXTRACTION_TIMEOUT_MS
         );
         fn().then(
-          (v) => { clearTimeout(timer); resolve(v); },
-          (e) => { clearTimeout(timer); reject(e); }
+          v => {
+            clearTimeout(timer);
+            resolve(v);
+          },
+          e => {
+            clearTimeout(timer);
+            reject(e);
+          }
         );
       });
     }
@@ -331,16 +405,28 @@ describe("R-A-01: stage-1-ingestion — withExtractionTimeout", () => {
 
     // Use a very short timeout for the test
     const shortTimeout = 50;
-    const testFn = () => new Promise<string>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error(`R-A-01: test timed out after ${shortTimeout}ms — malformed PDF suspected`)),
-        shortTimeout
-      );
-      neverResolves().then(
-        (v) => { clearTimeout(timer); resolve(v); },
-        (e) => { clearTimeout(timer); reject(e); }
-      );
-    });
+    const testFn = () =>
+      new Promise<string>((resolve, reject) => {
+        const timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                `R-A-01: test timed out after ${shortTimeout}ms — malformed PDF suspected`
+              )
+            ),
+          shortTimeout
+        );
+        neverResolves().then(
+          v => {
+            clearTimeout(timer);
+            resolve(v);
+          },
+          e => {
+            clearTimeout(timer);
+            reject(e);
+          }
+        );
+      });
 
     await expect(testFn()).rejects.toThrow("malformed PDF suspected");
   });
@@ -348,20 +434,35 @@ describe("R-A-01: stage-1-ingestion — withExtractionTimeout", () => {
   it("withExtractionTimeout resolves normally when extraction completes within budget", async () => {
     const EXTRACTION_TIMEOUT_MS = 150_000;
 
-    async function withExtractionTimeout<T>(fn: () => Promise<T>, label: string): Promise<T> {
+    async function withExtractionTimeout<T>(
+      fn: () => Promise<T>,
+      label: string
+    ): Promise<T> {
       return new Promise<T>((resolve, reject) => {
         const timer = setTimeout(
-          () => reject(new Error(`R-A-01: ${label} timed out after ${EXTRACTION_TIMEOUT_MS}ms`)),
+          () =>
+            reject(
+              new Error(
+                `R-A-01: ${label} timed out after ${EXTRACTION_TIMEOUT_MS}ms`
+              )
+            ),
           EXTRACTION_TIMEOUT_MS
         );
         fn().then(
-          (v) => { clearTimeout(timer); resolve(v); },
-          (e) => { clearTimeout(timer); reject(e); }
+          v => {
+            clearTimeout(timer);
+            resolve(v);
+          },
+          e => {
+            clearTimeout(timer);
+            reject(e);
+          }
         );
       });
     }
 
-    const fastExtraction = () => Promise.resolve({ images: [], pageCount: 5, pagesRendered: 5 });
+    const fastExtraction = () =>
+      Promise.resolve({ images: [], pageCount: 5, pagesRendered: 5 });
     const result = await withExtractionTimeout(fastExtraction, "test");
     expect(result.pageCount).toBe(5);
   });
