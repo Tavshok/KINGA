@@ -30,7 +30,7 @@
     "BUILT_IN_FORGE_API_URL": "https://forge.manus.ai",
     "GOOGLE_AI_API_KEY": "AIzaSyDNDyux_lsTBSUSITVHkL_9w8gKVZ3jQVk",
     "JWT_SECRET": "2W3Mb6vwNCSuE5itEunTYB",
-    "KINGA_MAINTENANCE_MODE": "true",
+    "KINGA_MAINTENANCE_MODE": "false",
     "KINGA_STAGING_DATABASE_URL": "mysql://289ZyKGJwbC2SkB.kinga_verify:Kinga_06052026@gateway01.eu-central-1.prod.aws.tidbcloud.com:4000/kinga_staging?ssl={\"rejectUnauthorized\":true}",
     "OAUTH_SERVER_URL": "https://api.manus.im",
     "OWNER_NAME": "Tavonga Shoko",

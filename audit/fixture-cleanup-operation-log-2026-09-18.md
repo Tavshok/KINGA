@@ -55,6 +55,20 @@ The two regeneration-history records both describe the same non-production lifec
 
 The prior two-stage closure check did not surface these rows because they reference pre-existing claims rather than the 138 claims selected by the frozen creation-time criterion. The strengthened all-table timestamp closure correctly identified them. The live database has not been changed after the public maintenance freeze: no archive restore, deletion, update, or schema change has been issued against it.
 
+## Owner decision and completed transaction
+
+The owner explicitly directed removal of the two regeneration-history and seven report-provenance records as **test-run residue**, while retaining their 101 parent claims. A fresh full-closure rehearsal therefore included those nine owner-authorized artifacts. It passed on the encrypted disposable restore with no protected-claim reference violation.
+
+The primary frozen transaction then removed **176 users**, **138 claims**, and their complete materialized dependency manifest across 32 tables. Its exact row-count ledger matched the preflight target for every table. A follow-on residual check found that two domain-specific audit timestamp columns had not belonged to the original conventional timestamp inventory: `claim_events.emitted_at` and `tenant_isolation_violations.occurred_at`. A second, independently rehearsed residual transaction deleted **6 claim-event rows** and **22 tenant-isolation audit rows** whose timestamps were at or after the frozen 18 September cutoff. The residual test did not target any user or claim and passed with the exact expected 2-table ledger.
+
+## Independent postflight
+
+The final independent verifier passed with the following results: **1 user**, **101 claims**, zero user or claim rows created after the cutoff, zero regeneration or report-provenance rows after the cutoff, zero non-migration timestamped rows after the cutoff, zero physical foreign-key orphans, and zero remaining direct claim/user-reference orphans outside the known legacy claimant association.
+
+The verifier separately records an inherited condition that predates this fixture cleanup: 97 of the 101 protected, pre-cutoff claims have a non-null `claimant_id` that does not match the sole remaining `users.id`. This is a legacy soft-association/data-contract issue, not a physical foreign-key violation and not a row created by this cleanup. It was deliberately preserved because those claims are protected and no remediation of their claimant association was authorized. It must be investigated in a separate, read-only-backed maintenance task before treating the legacy association as a clean foreign-key contract.
+
+The encrypted archive and independent disposable restore proof remain valid for the frozen pre-cleanup state. The passphrase is neither recorded nor retained in this document. Maintenance mode has been set to false and its focused regression passed against the isolated CI database; publication of that configuration is the final operational step.
+
 **Next control:** obtain an explicit choice to either preserve the nine protected-claim records as part of the protected dependency closure, or extend the reset scope to delete the nine test-run history/provenance records while retaining all 101 parent claims. The complete closure rehearsal will then be repeated before the live transaction.
 
 ## References
