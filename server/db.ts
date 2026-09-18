@@ -113,6 +113,20 @@ export async function getDb() {
 }
 
 /**
+ * Releases the current process-local database pool. The application does not
+ * call this during normal request handling; the isolated Vitest harness uses
+ * it after each test file so module isolation cannot accumulate idle pools.
+ */
+export async function closeDbPool(): Promise<void> {
+  const pool = _pool;
+  _db = null;
+  _pool = null;
+  if (pool) {
+    await pool.end();
+  }
+}
+
+/**
  * R-INF-01: Execute a DB operation with a per-query statement timeout.
  *
  * TiDB/MySQL does not have a per-pool query timeout option in mysql2, so we
