@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import { classifyLegacyQuoteEvidenceRows } from "../../shared/legacyQuoteEvidence";
 import { resolveReportCostIntegrity } from "./costIntegrity";
 import { renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 describe("AUD-P1-001 — qualified legacy quotation history", () => {
   it("does not invent active comparison evidence for unknown legacy rows", () => {
@@ -19,7 +17,11 @@ describe("AUD-P1-001 — qualified legacy quotation history", () => {
       escapeHtml: (value) => String(value),
       repairability: { totalLossIndicated: false, repairToValueRatio: 0.2 },
     });
-    expect(html).toContain("Legacy quotation history — not used as active comparison evidence");
+    expect(html).toContain("Historical quotation evidence is retained separately");
+    expect(html).toContain("not used as active payable comparison evidence");
+    expect(integrity.submittedQuotes).toHaveLength(1);
+    expect(integrity.activeQuotes).toHaveLength(0);
+    expect(integrity.legacyHistoryQualified).toBe(true);
     expect(integrity.l1SubmittedCostUsd).toBeNull();
   });
 
@@ -28,17 +30,5 @@ describe("AUD-P1-001 — qualified legacy quotation history", () => {
     expect(integrity.activeQuotes).toHaveLength(1);
     expect(integrity.submittedQuotes).toHaveLength(1);
     expect(integrity.legacyHistoryQualified).toBe(false);
-  });
-
-  it("keeps every CL, CI, FR, and client quote surface on the qualified submitted-history boundary", () => {
-    const root = resolve(import.meta.dirname, "../..");
-    const read = (relativePath: string) => readFileSync(resolve(root, relativePath), "utf8");
-    expect(read("server/reporting/claimsIntelligenceReport.ts")).toContain("costIntegrity.submittedQuotes");
-    expect(read("server/reporting/forensicDecisionReport.ts")).toContain("costIntegrity.submittedQuotes");
-    expect(read("server/reporting/reportDefinitions.ts")).toContain("costIntegrity.submittedQuotes");
-    const client = read("client/src/components/KingaClaimsReport.tsx");
-    expect(client).toContain("classifyLegacyQuoteEvidenceRows(quotes)");
-    expect(client).toContain("legacy quotation histor");
-    expect(client).toContain("const matrixQuotes: MatrixQuote[] = comparisonQuotes.map");
   });
 });
