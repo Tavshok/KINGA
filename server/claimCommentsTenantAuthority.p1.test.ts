@@ -18,10 +18,12 @@ let viewerId = 0;
 let authorId = 0;
 let foreignClaimId = 0;
 let foreignCommentId = 0;
+let localClaimId = 0;
+let localCommentId = 0;
 
 beforeAll(async () => {
   const db = await getDb();
-  if (!db) throw new Error("Live database is required for claim comment authority coverage");
+  if (!db) throw new Error("CI database is required for claim comment authority coverage");
 
   await upsertUser({ openId: viewerOpenId, name: "Tenant A Viewer", email: `${viewerOpenId}@test.local`, loginMethod: "test", lastSignedIn: new Date().toISOString() });
   await upsertUser({ openId: authorOpenId, name: "Tenant B Author", email: `${authorOpenId}@test.local`, loginMethod: "test", lastSignedIn: new Date().toISOString() });
@@ -33,7 +35,6 @@ beforeAll(async () => {
 
   const inserted = await db.insert(claims).values({
     claimNumber: `COMMENT-AUTH-${stamp}`,
-    claimantId: 1,
     tenantId: tenantB,
     status: "submitted",
     workflowState: "created",
@@ -52,14 +53,34 @@ beforeAll(async () => {
     requiresResponse: false,
     body: "foreign-tenant comment fixture",
   });
+  const localInserted = await db.insert(claims).values({
+    claimNumber: `COMMENT-AUTH-LOCAL-${stamp}`,
+    tenantId: tenantA,
+    status: "submitted",
+    workflowState: "created",
+    createdAt: new Date(),
+  });
+  localClaimId = Number((localInserted as any)[0]?.insertId ?? (localInserted as any).insertId);
+  localCommentId = await createClaimComment({
+    claimId: localClaimId,
+    tenantId: tenantA,
+    authorUserId: authorId,
+    authorRole: "insurer",
+    toRoles: [],
+    toUserIds: [viewerId],
+    toEmails: [],
+    commentType: "general",
+    requiresResponse: false,
+    body: "same-tenant numeric-recipient fixture",
+  });
 });
 
 afterAll(async () => {
   const db = await getDb();
   if (!db) return;
   await db.execute(`DELETE ccr FROM claim_comment_reads ccr INNER JOIN claim_comments cc ON cc.id = ccr.comment_id WHERE cc.tenant_id IN ('${tenantA}', '${tenantB}')`);
-  await db.delete(claimComments).where(inArray(claimComments.id, [foreignCommentId]));
-  await db.delete(claims).where(eq(claims.id, foreignClaimId));
+  await db.delete(claimComments).where(inArray(claimComments.id, [foreignCommentId, localCommentId]));
+  await db.delete(claims).where(inArray(claims.id, [foreignClaimId, localClaimId]));
   await db.delete(users).where(inArray(users.openId, [viewerOpenId, authorOpenId]));
 });
 
@@ -72,7 +93,7 @@ describe("claim comments — real database tenant authority", () => {
   it("does not mark a foreign-tenant comment as read", async () => {
     await expect(markCommentRead(foreignCommentId, viewerId, tenantA)).resolves.toBe(false);
     const db = await getDb();
-    if (!db) throw new Error("Live database unavailable");
+    if (!db) throw new Error("CI database unavailable");
     const rows = await db.execute(`SELECT 1 AS read_marker FROM claim_comment_reads WHERE comment_id = ${foreignCommentId} AND user_id = ${viewerId}`);
     expect((rows as any)[0]).toHaveLength(0);
   });
@@ -80,10 +101,30 @@ describe("claim comments — real database tenant authority", () => {
   it("does not resolve or otherwise act on a foreign-tenant comment", async () => {
     await expect(resolveCommentThread(foreignCommentId, viewerId, tenantA)).resolves.toBe(false);
     const db = await getDb();
-    if (!db) throw new Error("Live database unavailable");
+    if (!db) throw new Error("CI database unavailable");
     const [comment] = await db.select({ isResolved: claimComments.isResolved })
       .from(claimComments)
       .where(and(eq(claimComments.id, foreignCommentId), eq(claimComments.tenantId, tenantB)));
     expect(comment?.isResolved).toBe(0);
+  });
+
+  it("matches numeric recipients only within the caller's tenant across notification operations", async () => {
+    const { getMyNotifications, getUnreadCommentCount, markAllNotificationsRead } = await import("./claim-comments-db");
+    const email = `${viewerOpenId}@test.local`;
+
+    const notifications = await getMyNotifications(viewerId, "insurer", email, tenantA);
+    expect(notifications.map((notification) => notification.id)).toContain(localCommentId);
+    expect(notifications.map((notification) => notification.id)).not.toContain(foreignCommentId);
+    await expect(getUnreadCommentCount(viewerId, "insurer", email, tenantA)).resolves.toBe(1);
+
+    await expect(markAllNotificationsRead(viewerId, "insurer", email, tenantA)).resolves.toBeUndefined();
+    await expect(getUnreadCommentCount(viewerId, "insurer", email, tenantA)).resolves.toBe(0);
+
+    const db = await getDb();
+    if (!db) throw new Error("CI database unavailable");
+    const localReads = await db.execute(`SELECT 1 AS read_marker FROM claim_comment_reads WHERE comment_id = ${localCommentId} AND user_id = ${viewerId}`);
+    const foreignReads = await db.execute(`SELECT 1 AS read_marker FROM claim_comment_reads WHERE comment_id = ${foreignCommentId} AND user_id = ${viewerId}`);
+    expect((localReads as any)[0]).toHaveLength(1);
+    expect((foreignReads as any)[0]).toHaveLength(0);
   });
 });

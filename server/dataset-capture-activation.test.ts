@@ -1,9 +1,21 @@
 // @ts-nocheck
-import { describe, it, expect, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { appRouter } from "./routers";
 import { getDb } from "./db";
-import { claims, aiAssessments, claimIntelligenceDataset, users } from "../drizzle/schema";
-import { eq, sql } from "drizzle-orm";
+import {
+  aiAssessments,
+  auditTrail,
+  claimEvents,
+  claimInvolvementTracking,
+  claimIntelligenceDataset,
+  claims,
+  modelTrainingQueue,
+  recoveryCases,
+  recoveryCorrespondenceLog,
+  users,
+  workflowAuditTrail,
+} from "../drizzle/schema";
+import { eq, inArray, sql } from "drizzle-orm";
 
 describe("Dataset Capture Activation", () => {
   let testClaimId: number;
@@ -21,7 +33,7 @@ describe("Dataset Capture Activation", () => {
       name: "Dataset Test User",
       role: "admin",
       insurerRole: "claims_manager",
-      tenant_id: "test-tenant",
+      tenantId: "test-tenant",
     });
     
     // Get the created user
@@ -40,7 +52,7 @@ describe("Dataset Capture Activation", () => {
       incidentDate: new Date(),
       reportedDate: new Date(),
       status: "repair_in_progress",
-      tenant_id: "test-tenant",
+      tenantId: "test-tenant",
       technicallyApprovedBy: testUserId,
       technicallyApprovedAt: new Date(),
       approvedAmount: 150000, // R1,500.00
@@ -55,17 +67,42 @@ describe("Dataset Capture Activation", () => {
     // Create KINGA assessment for the claim
     await db.insert(aiAssessments).values({
       claimId: testClaimId,
-      assessmentStatus: "completed",
       estimatedCost: 145000, // R1,450.00
       confidenceScore: 85,
-      damageComponents: JSON.stringify([
+      detectedDamageTypes: JSON.stringify(["bumper", "hood"]),
+      damagedComponentsJson: JSON.stringify([
         { component: "Front Bumper", severity: "moderate" },
         { component: "Hood", severity: "minor" },
       ]),
-      fraudRiskScore: 15,
+      fraudScore: 15,
+      fraudRiskLevel: "low",
       fraudIndicators: JSON.stringify([]),
       createdAt: new Date(),
     });
+  });
+
+  afterEach(async () => {
+    const db = await getDb();
+    if (!db || !testClaimId) return;
+
+    const recoveryCaseIds = (await db.select({ id: recoveryCases.id })
+      .from(recoveryCases)
+      .where(eq(recoveryCases.claimId, testClaimId)))
+      .map((row) => row.id);
+
+    await db.delete(modelTrainingQueue).where(eq(modelTrainingQueue.claimId, testClaimId));
+    await db.delete(claimIntelligenceDataset).where(eq(claimIntelligenceDataset.claimId, testClaimId));
+    await db.delete(claimInvolvementTracking).where(eq(claimInvolvementTracking.claimId, testClaimId));
+    await db.delete(workflowAuditTrail).where(eq(workflowAuditTrail.claimId, testClaimId));
+    await db.delete(auditTrail).where(eq(auditTrail.claimId, testClaimId));
+    await db.delete(claimEvents).where(eq(claimEvents.claimId, testClaimId));
+    if (recoveryCaseIds.length > 0) {
+      await db.delete(recoveryCorrespondenceLog).where(inArray(recoveryCorrespondenceLog.recoveryCaseId, recoveryCaseIds));
+      await db.delete(recoveryCases).where(eq(recoveryCases.claimId, testClaimId));
+    }
+    await db.delete(aiAssessments).where(eq(aiAssessments.claimId, testClaimId));
+    await db.delete(claims).where(eq(claims.id, testClaimId));
+    await db.delete(users).where(eq(users.id, testUserId));
   });
   
   describe("Claim Completion with Dataset Capture", () => {
@@ -118,11 +155,16 @@ describe("Dataset Capture Activation", () => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      const countResult = await db.select({ count: sql<number>`count(*)` })
+      const [dataset] = await db.select()
         .from(claimIntelligenceDataset)
         .where(eq(claimIntelligenceDataset.claimId, testClaimId));
       
-      expect(countResult[0].count).toBeGreaterThan(0);
+      expect(dataset).toMatchObject({
+        claimId: testClaimId,
+        tenantId: "test-tenant",
+        aiEstimatedCost: 145000,
+        finalFraudOutcome: "legitimate",
+      });
     });
     
     it("should not fail claim completion if dataset capture fails", async () => {
@@ -131,11 +173,11 @@ describe("Dataset Capture Activation", () => {
       
       // Reset claim state to repair_in_progress for this test
       await db.update(claims).set({ status: "repair_in_progress" }).where(eq(claims.id, testClaimId));
-      // NOTE: We intentionally keep the AI assessment intact — the workflow engine requires it
-      // for state transition validation. Dataset capture failure is tested by the try/catch
-      // in claim-completion.ts which catches any error from captureClaimIntelligenceDataset.
-      // The previous approach of deleting the AI assessment no longer works because the
-      // workflow engine now validates the AI assessment before allowing the transition.
+      // Keep the assessment required by the workflow, but corrupt only its owned
+      // dataset field so capture fails after the governance transition succeeds.
+      await db.update(aiAssessments)
+        .set({ detectedDamageTypes: "{not-valid-json" })
+        .where(eq(aiAssessments.claimId, testClaimId));
       
       const caller = appRouter.createCaller({
         user: {
@@ -163,6 +205,11 @@ describe("Dataset Capture Activation", () => {
       expect(updatedClaim[0].status).toBe("completed");
       expect(updatedClaim[0].closedBy).toBe(testUserId);
       expect(updatedClaim[0].closedAt).toBeDefined();
+
+      const countResult = await db.select({ count: sql<number>`count(*)` })
+        .from(claimIntelligenceDataset)
+        .where(eq(claimIntelligenceDataset.claimId, testClaimId));
+      expect(countResult[0].count).toBe(0);
     });
     
     it("should only capture dataset on successful completion", async () => {

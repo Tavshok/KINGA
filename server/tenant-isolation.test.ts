@@ -64,14 +64,15 @@ describe("Tenant Isolation", () => {
 
     // Create test users for tenant A
     const userAResult = await db.execute(
-      `INSERT INTO users (email, name, role, openId) VALUES 
-      ('tenant-a-user-${testRunId}@test.com', 'Tenant A User', 'insurer', 'tenant-a-user-${testRunId}')`
+      `INSERT INTO users (email, name, role, insurer_role, tenant_id, openId) VALUES
+      ('tenant-a-user-${testRunId}@test.com', 'Tenant A User', 'insurer', 'claims_processor', 'tenant_a', 'tenant-a-user-${testRunId}')`
     );
     tenantAUserId = (userAResult as any)[0]?.insertId || (userAResult as any).insertId;
+    tenantAInsurerUser.id = tenantAUserId;
 
     const assessorAResult = await db.execute(
-      `INSERT INTO users (email, name, role, openId) VALUES 
-      ('tenant-a-assessor-${testRunId}@test.com', 'Tenant A Assessor', 'assessor', 'tenant-a-assessor-${testRunId}')`
+      `INSERT INTO users (email, name, role, tenant_id, openId) VALUES
+      ('tenant-a-assessor-${testRunId}@test.com', 'Tenant A Assessor', 'assessor', 'tenant_a', 'tenant-a-assessor-${testRunId}')`
     );
     tenantAAssessorId = (assessorAResult as any)[0]?.insertId || (assessorAResult as any).insertId;
 
@@ -87,14 +88,15 @@ describe("Tenant Isolation", () => {
 
     // Create test users for tenant B
     const userBResult = await db.execute(
-      `INSERT INTO users (email, name, role, openId) VALUES 
-      ('tenant-b-user-${testRunId}@test.com', 'Tenant B User', 'insurer', 'tenant-b-user-${testRunId}')`
+      `INSERT INTO users (email, name, role, insurer_role, tenant_id, openId) VALUES
+      ('tenant-b-user-${testRunId}@test.com', 'Tenant B User', 'insurer', 'claims_processor', 'tenant_b', 'tenant-b-user-${testRunId}')`
     );
     tenantBUserId = (userBResult as any)[0]?.insertId || (userBResult as any).insertId;
+    tenantBInsurerUser.id = tenantBUserId;
 
     const assessorBResult = await db.execute(
-      `INSERT INTO users (email, name, role, openId) VALUES 
-      ('tenant-b-assessor-${testRunId}@test.com', 'Tenant B Assessor', 'assessor', 'tenant-b-assessor-${testRunId}')`
+      `INSERT INTO users (email, name, role, tenant_id, openId) VALUES
+      ('tenant-b-assessor-${testRunId}@test.com', 'Tenant B Assessor', 'assessor', 'tenant_b', 'tenant-b-assessor-${testRunId}')`
     );
     tenantBAssessorId = (assessorBResult as any)[0]?.insertId || (assessorBResult as any).insertId;
 
@@ -194,18 +196,22 @@ describe("Tenant Isolation", () => {
       expect(claimA).toBeDefined();
       expect(claimA?.tenantId).toBe("tenant_a");
 
-      // Tenant A cannot access tenant B's claim
-      const claimB = await callerA.claims.getById({ id: tenantBClaimId });
-      expect(claimB).toBeUndefined();
+      // Tenant A cannot access tenant B's claim.
+      await expect(callerA.claims.getById({ id: tenantBClaimId })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: "Claim not found",
+      });
 
       // Tenant B can access their own claim
       const claimB2 = await callerB.claims.getById({ id: tenantBClaimId });
       expect(claimB2).toBeDefined();
       expect(claimB2?.tenantId).toBe("tenant_b");
 
-      // Tenant B cannot access tenant A's claim
-      const claimA2 = await callerB.claims.getById({ id: tenantAClaimId });
-      expect(claimA2).toBeUndefined();
+      // Tenant B cannot access tenant A's claim.
+      await expect(callerB.claims.getById({ id: tenantAClaimId })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: "Claim not found",
+      });
     });
   });
 
@@ -415,9 +421,11 @@ describe("Tenant Isolation", () => {
       const callerA = appRouter.createCaller({ user: tenantAInsurerUser });
       const callerB = appRouter.createCaller({ user: tenantBInsurerUser });
 
-      // Verify tenant A cannot access any tenant B data
-      const claimB = await callerA.claims.getById({ id: tenantBClaimId });
-      expect(claimB).toBeUndefined();
+      // Verify tenant A cannot access any tenant B data.
+      await expect(callerA.claims.getById({ id: tenantBClaimId })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: "Claim not found",
+      });
 
       const quotesB = await callerA.quotes.byClaim({ claimId: tenantBClaimId });
       expect(quotesB.length).toBe(0);
@@ -425,9 +433,11 @@ describe("Tenant Isolation", () => {
       const assessmentB = await callerA.aiAssessments.byClaim({ claimId: tenantBClaimId });
       expect(assessmentB).toBeNull();
 
-      // Verify tenant B cannot access any tenant A data
-      const claimA = await callerB.claims.getById({ id: tenantAClaimId });
-      expect(claimA).toBeUndefined();
+      // Verify tenant B cannot access any tenant A data.
+      await expect(callerB.claims.getById({ id: tenantAClaimId })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: "Claim not found",
+      });
 
       const quotesA = await callerB.quotes.byClaim({ claimId: tenantAClaimId });
       expect(quotesA.length).toBe(0);

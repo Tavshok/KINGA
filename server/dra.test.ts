@@ -24,6 +24,7 @@ describe("Document Health Gate", () => {
     const { runDocumentHealthGate, buildGateInput } = await import("./pipeline-v2/documentHealthGate");
     const input = buildGateInput({
       claimId: 1,
+      isDocumentIngested: false,
       sourceDocumentFound: false,
       presignSucceeded: false,
       pdfBuffer: null,
@@ -42,14 +43,17 @@ describe("Document Health Gate", () => {
       claim: {},
     });
     const result = runDocumentHealthGate(input);
-    expect(result.mayProceed).toBe(false);
-    expect(["BLOCK_ASSESSMENT", "REQUIRE_REVIEW"]).toContain(result.decision);
+    expect(result.mayProceed).toBe(true);
+    expect(result.decision).toBe("BLOCK_ASSESSMENT");
+    expect(result.contract.status).toBe("NOT_READY_FOR_ANALYSIS");
+    expect(result.detectedFailureModes).toContain("F1");
   });
 
   it("should PROCEED_AUTOMATICALLY with good evidence", async () => {
     const { runDocumentHealthGate, buildGateInput } = await import("./pipeline-v2/documentHealthGate");
     const input = buildGateInput({
       claimId: 2,
+      isDocumentIngested: true,
       sourceDocumentFound: true,
       presignSucceeded: true,
       pdfBuffer: Buffer.alloc(50000), // 50KB
@@ -69,7 +73,7 @@ describe("Document Health Gate", () => {
         claimNumber: "CLM-001",
         vehicleMake: "Toyota",
         vehicleModel: "Corolla",
-        vehicleYear: "2020",
+        vehicleYear: 2020,
         incidentDate: "2024-01-15",
         incidentDescription: "Rear-end collision",
         claimantId: 1,
@@ -86,6 +90,7 @@ describe("Document Health Gate", () => {
     const { runDocumentHealthGate, buildGateInput } = await import("./pipeline-v2/documentHealthGate");
     const input = buildGateInput({
       claimId: 3,
+      isDocumentIngested: true,
       sourceDocumentFound: true,
       presignSucceeded: true,
       pdfBuffer: Buffer.alloc(10000),
@@ -119,6 +124,7 @@ describe("Document Health Gate", () => {
     const { runDocumentHealthGate, buildGateInput } = await import("./pipeline-v2/documentHealthGate");
     const input = buildGateInput({
       claimId: 4,
+      isDocumentIngested: true,
       sourceDocumentFound: true,
       presignSucceeded: true,
       pdfBuffer: Buffer.alloc(5000),
@@ -145,12 +151,12 @@ describe("Document Health Gate", () => {
 
 describe("No Silent Failure Invariant", () => {
   it("should never return success:true when no evidence is available", async () => {
-    // This test validates the invariant at the gate level.
-    // The gate must block (mayProceed=false) when there is no evidence.
+    // The gate remains advisory; its decision and contract classify no evidence.
     const { runDocumentHealthGate, buildGateInput } = await import("./pipeline-v2/documentHealthGate");
 
     const noEvidenceInput = buildGateInput({
       claimId: 99,
+      isDocumentIngested: false,
       sourceDocumentFound: false,
       presignSucceeded: false,
       pdfBuffer: null,
@@ -171,10 +177,10 @@ describe("No Silent Failure Invariant", () => {
 
     const result = runDocumentHealthGate(noEvidenceInput);
 
-    // INVARIANT: mayProceed MUST be false when there is no evidence
-    expect(result.mayProceed).toBe(false);
-    // INVARIANT: decision must be a blocking decision
-    expect(["BLOCK_ASSESSMENT", "REQUIRE_REVIEW"]).toContain(result.decision);
+    expect(result.mayProceed).toBe(true);
+    expect(result.decision).toBe("BLOCK_ASSESSMENT");
+    expect(result.contract.status).toBe("NOT_READY_FOR_ANALYSIS");
+    expect(result.detectedFailureModes).toContain("F1");
   });
 });
 

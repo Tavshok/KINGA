@@ -1,15 +1,12 @@
 /**
- * E2E Real-Claim Test — Wave 1–4 Verification
+ * E2E Test-Owned Claim Fixture — Wave 1–4 Verification
  * ============================================
- * Uses REAL claim data from the database (Toyota Camry 2020, assessment 14280001,
- * claim 10360091) and constructs a Physics Truth Layer matching that vehicle's
+ * Creates a disposable CI claim and assessment, then constructs a Physics Truth
+ * Layer matching that fixture's Toyota Camry 2020 vehicle profile and
  * physics profile, then runs all four waves against it to verify end-to-end wiring.
  *
- * Why no pre-existing PTL in DB:
- *   All 2,452 existing assessments predate Wave 1 deployment. The PTL write
- *   path in db.ts line 1860 is correctly implemented and will fire on the
- *   next claim that completes a full pipeline run. This test verifies the
- *   wave engines using real claim metadata and realistic physics values.
+ * The test never reads a historical or live claim identifier. Its database
+ * rows are created and removed only in the isolated kinga_ci_test database.
  *
  * Real vehicle data used:
  *   Toyota Camry 2020 — mass 1,540 kg (manufacturer spec)
@@ -18,9 +15,9 @@
  *   Airbag deployed, structural damage confirmed
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getDb } from "./db";
-import { aiAssessments, physicsValidationRecords } from "../drizzle/schema";
+import { aiAssessments, claims } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import type { PhysicsTruth } from "./pipeline-v2/physicsTruth";
 import { runIntegrityEngine } from "./pipeline-v2/stage-integrity";
@@ -29,20 +26,20 @@ import { runExplainabilityEngine } from "./pipeline-v2/stage-explainability";
 import { buildValidationPrediction, computeValidationStats } from "./pipeline-v2/stage-validation-loop";
 import { evidencePluginRegistry } from "./pipeline-v2/evidencePluginRegistry";
 
-// ── Real DB identifiers ───────────────────────────────────────────────────────
-const REAL_CLAIM_ID = 10360091;
-const REAL_ASSESSMENT_ID = 14280001;
+let fixtureClaimId: number;
+let fixtureAssessmentId: number;
+const fixtureTenantId = `e2e-physics-${Date.now()}`;
 
 // ── PTL built from real Toyota Camry 2020 vehicle data ───────────────────────
 // Toyota Camry 2020: mass 1,540 kg (manufacturer spec), frontal collision at 50 km/h
 // Crush depth 0.18m → Campbell implied speed = 0.18 × sqrt(1,200,000/1540) = 15.8 m/s = 56.9 km/h
 // Ratio = 56.9/50 = 1.14 → well below 3.0 threshold → clean claim
-function makeRealClaimPTL(): PhysicsTruth {
+function makeFixturePTL(claimId: number, assessmentId: number): PhysicsTruth {
   return {
     schemaVersion: "1.0",
     sealedAt: new Date().toISOString(),
-    claimRef: `CLM-${REAL_CLAIM_ID}`,
-    pipelineRunId: `run-${REAL_ASSESSMENT_ID}`,
+    claimRef: `E2E-PHYSICS-${claimId}`,
+    pipelineRunId: `fixture-run-${assessmentId}`,
     vehicle: {
       make: "Toyota",
       model: "Camry",
@@ -75,7 +72,7 @@ function makeRealClaimPTL(): PhysicsTruth {
         canonicalSourceReason: "VGE single-image calibration (VGR not available — only one suitable image)",
         vgrContributingImages: 0,
         vgrViewAngles: { frontal: 1, angle45: 0, side: 0, unknown: 0 },
-        vgrAgreementLevel: "N/A",
+        vgrAgreementLevel: "NOT_AVAILABLE",
         perspectiveCorrected: true,
         vehicleProfileUsed: "Toyota Camry 2020",
         referenceObjectsSummary: ["wheel", "number_plate"],
@@ -206,6 +203,12 @@ function makeRealClaimPTL(): PhysicsTruth {
     },
     latentDamage: null,
     structuralLoadPath: null,
+    brakingDistanceM: null,
+    brakingFrictionCoefficient: null,
+    impactCausation: null,
+    causationSpeedCeilingKmh: null,
+    reversingNarrativeContradiction: null,
+    causationSpeedExceedsCeiling: null,
     integrityCheck: {
       passed: true,
       flags: [],
@@ -229,25 +232,33 @@ function makeRealClaimPTL(): PhysicsTruth {
 }
 
 let ptl: PhysicsTruth;
-let realAssessmentFound = false;
 
 beforeAll(async () => {
-  ptl = makeRealClaimPTL();
-
-  // Verify the real assessment exists in the DB
   const db = await getDb();
-  const [assessment] = await db
-    .select({ id: aiAssessments.id, claimId: aiAssessments.claimId })
-    .from(aiAssessments)
-    .where(eq(aiAssessments.id, REAL_ASSESSMENT_ID))
-    .limit(1);
+  if (!db) throw new Error("CI database is required for the E2E physics fixture");
+  const claimResult = await db.insert(claims).values({
+    claimNumber: `E2E-PHYSICS-${Date.now()}`,
+    tenantId: fixtureTenantId,
+    status: "submitted",
+    vehicleMake: "Toyota",
+    vehicleModel: "Camry",
+    vehicleYear: 2020,
+  });
+  fixtureClaimId = Number((claimResult as any)[0]?.insertId ?? (claimResult as any).insertId);
+  const assessmentResult = await db.insert(aiAssessments).values({
+    claimId: fixtureClaimId,
+    estimatedCost: 150000,
+    fraudRiskLevel: "low",
+  });
+  fixtureAssessmentId = Number((assessmentResult as any)[0]?.insertId ?? (assessmentResult as any).insertId);
+  ptl = makeFixturePTL(fixtureClaimId, fixtureAssessmentId);
+});
 
-  if (assessment) {
-    realAssessmentFound = true;
-    console.log(`[E2E] Real assessment confirmed in DB: id=${assessment.id}, claimId=${assessment.claimId}`);
-  } else {
-    console.warn(`[E2E] Assessment ${REAL_ASSESSMENT_ID} not found in DB`);
-  }
+afterAll(async () => {
+  const db = await getDb();
+  if (!db || !fixtureClaimId) return;
+  await db.delete(aiAssessments).where(eq(aiAssessments.claimId, fixtureClaimId));
+  await db.delete(claims).where(eq(claims.id, fixtureClaimId));
 });
 
 // ── Wave 1: Physics Truth Layer ───────────────────────────────────────────────
@@ -304,9 +315,13 @@ describe("Wave 1 — Physics Truth Layer (Toyota Camry 2020, real DB claim)", ()
     console.log(`  Completeness: ${ptl.evidenceCompleteness.completenessNote}`);
   });
 
-  it("real assessment exists in DB (confirms DB connectivity)", () => {
-    expect(realAssessmentFound).toBe(true);
-    console.log(`  DB: assessment ${REAL_ASSESSMENT_ID} confirmed`);
+  it("test-owned assessment fixture exists in the isolated database", async () => {
+    const db = await getDb();
+    const [assessment] = await db.select({ id: aiAssessments.id, claimId: aiAssessments.claimId })
+      .from(aiAssessments)
+      .where(eq(aiAssessments.id, fixtureAssessmentId))
+      .limit(1);
+    expect(assessment).toMatchObject({ id: fixtureAssessmentId, claimId: fixtureClaimId });
   });
 });
 
@@ -371,10 +386,10 @@ describe("Wave 3A — Integrity Engine (real Toyota Camry 2020 physics)", () => 
     expect(integrityResult.integrityScore).toBeGreaterThanOrEqual(70);
   });
 
-  it("INT-01 speed/crush ratio check passes (Campbell 56.9 km/h vs ensemble 50 km/h — ratio 1.14)", () => {
-    const int01 = integrityResult.flags.filter(f => f.code === "INT-01" && f.severity === "CRITICAL");
-    expect(int01.length).toBe(0);
-    console.log("  INT-01 (speed/crush ratio): PASS — ratio 1.14 < 3.0 threshold");
+  it("speed/crush ratio is surfaced as a non-critical current integrity finding", () => {
+    const critical = integrityResult.flags.filter((flag) => flag.code === "INT-01-SPEED_CRUSH_CRITICAL");
+    expect(critical).toHaveLength(0);
+    expect(integrityResult.flags.some((flag) => flag.code === "INT-01-SPEED_CRUSH_WARNING")).toBe(true);
   });
 
   it("all integrity flags have required fields", () => {
@@ -476,7 +491,7 @@ describe("Wave 3C — Explainability Engine (real Toyota Camry 2020 physics)", (
     const allSteps = allChains.flatMap((c: any) => c.steps ?? []);
     const methods = allSteps.map((s: any) => s.methodology).filter(Boolean);
     const hasCampbell = methods.some((m: string) => m.toUpperCase().includes("CAMPBELL")) ||
-      citations.some((c: string) => c.toUpperCase().includes("CAMPBELL"));
+      citations.some((citation: any) => citation.method === "CAMPBELL");
     expect(hasCampbell).toBe(true);
     console.log(`  Methodologies: ${[...new Set(methods)].join(", ")}`);
   });
@@ -485,7 +500,7 @@ describe("Wave 3C — Explainability Engine (real Toyota Camry 2020 physics)", (
 // ── Wave 4A: Validation Loop ──────────────────────────────────────────────────
 describe("Wave 4A — Validation Loop (real Toyota Camry 2020 PTL)", () => {
   it("buildValidationPrediction produces a valid prediction from real PTL", () => {
-    const prediction = buildValidationPrediction({ claimId: String(REAL_CLAIM_ID), assessmentId: REAL_ASSESSMENT_ID, physicsTruth: ptl });
+    const prediction = buildValidationPrediction({ claimId: String(fixtureClaimId), assessmentId: fixtureAssessmentId, physicsTruth: ptl });
     expect(prediction).not.toBeNull();
     // predicted_speed_kmh from the returned record
     const speed = prediction['predicted_speed_kmh'] as number;
@@ -497,7 +512,7 @@ describe("Wave 4A — Validation Loop (real Toyota Camry 2020 PTL)", () => {
   });
 
   it("computeValidationStats with simulated actual speed 48 km/h (close to predicted 50)", () => {
-    const prediction = buildValidationPrediction({ claimId: String(REAL_CLAIM_ID), assessmentId: REAL_ASSESSMENT_ID, physicsTruth: ptl });
+    const prediction = buildValidationPrediction({ claimId: String(fixtureClaimId), assessmentId: fixtureAssessmentId, physicsTruth: ptl });
     const record = {
       ...prediction,
       actualSpeedKmh: "48.0",
@@ -509,11 +524,11 @@ describe("Wave 4A — Validation Loop (real Toyota Camry 2020 PTL)", () => {
     // Field is 'totalValidated' not 'validatedCount'
     expect(stats.totalValidated).toBe(1);
     expect(stats.ciCoverageRate).toBeDefined();
-    console.log(`  Stats: MAPE=${stats.speedMAPE.toFixed(1)}%, CI coverage=${(stats.ciCoverageRate * 100).toFixed(0)}%, grade dist=${JSON.stringify(stats.gradeDistribution)}`);
+    console.log(`  Stats: MAPE=${stats.speedMAPE.toFixed(1)}%, CI coverage=${stats.ciCoverageRate.toFixed(0)}%, grade dist=${JSON.stringify(stats.gradeDistribution)}`);
   });
 
   it("computeValidationStats with simulated actual speed 80 km/h (fraud case — 60% deviation)", () => {
-    const prediction = buildValidationPrediction({ claimId: String(REAL_CLAIM_ID), assessmentId: REAL_ASSESSMENT_ID, physicsTruth: ptl });
+    const prediction = buildValidationPrediction({ claimId: String(fixtureClaimId), assessmentId: fixtureAssessmentId, physicsTruth: ptl });
     const record = {
       ...prediction,
       actualSpeedKmh: "80.0",
@@ -527,7 +542,7 @@ describe("Wave 4A — Validation Loop (real Toyota Camry 2020 PTL)", () => {
 });
 
 // ── Wave 4B: Evidence Plugin Registry ────────────────────────────────────────
-describe("Wave 4B — Evidence Plugin Registry (real claim context)", () => {
+describe("Wave 4B — Evidence Plugin Registry (test-owned claim context)", () => {
   it("registry has 3 stub plugins registered", () => {
     const plugins = evidencePluginRegistry.getAll();
     expect(plugins.length).toBe(3);
@@ -539,7 +554,7 @@ describe("Wave 4B — Evidence Plugin Registry (real claim context)", () => {
   });
 
   it("all stub plugins return UNAVAILABLE (no live data source connected)", async () => {
-    const summary = await evidencePluginRegistry.getStatusSummary();
+    const summary = await evidencePluginRegistry.getStatusSummary(String(fixtureClaimId), fixtureAssessmentId);
     expect(summary.length).toBe(3);
     for (const s of summary) {
       expect(s.status).toBe("UNAVAILABLE");
@@ -547,8 +562,8 @@ describe("Wave 4B — Evidence Plugin Registry (real claim context)", () => {
     }
   });
 
-  it("runAll returns empty array for real claim (UNAVAILABLE stubs — correct)", async () => {
-    const contributions = await evidencePluginRegistry.runAll(REAL_CLAIM_ID, ptl);
+  it("runAll returns an empty array for the fixture claim while stubs are unavailable", async () => {
+    const contributions = await evidencePluginRegistry.runAll(String(fixtureClaimId), fixtureAssessmentId);
     expect(Array.isArray(contributions)).toBe(true);
     expect(contributions.length).toBe(0);
     console.log(`  Contributions: ${contributions.length} (0 expected — all stubs UNAVAILABLE)`);
@@ -567,31 +582,15 @@ describe("Wave 4B — Evidence Plugin Registry (real claim context)", () => {
   });
 });
 
-// ── DB Verification ───────────────────────────────────────────────────────────
-describe("DB — physics_validation_records table and PTL write path", () => {
-  it("physics_validation_records table is reachable", async () => {
-    const db = await getDb();
-    const rows = await db
-      .select({ id: physicsValidationRecords.id })
-      .from(physicsValidationRecords)
-      .limit(1);
-    expect(Array.isArray(rows)).toBe(true);
-    console.log(`  physics_validation_records: ${rows.length} rows (0 = no claims processed since Wave 4 deployed)`);
-  });
-
-  it("real assessment 14280001 exists in DB (confirms DB connectivity)", () => {
-    expect(realAssessmentFound).toBe(true);
-    console.log(`  Assessment ${REAL_ASSESSMENT_ID} confirmed in DB ✓`);
-  });
-
-  it("PTL write path is correctly wired — db.ts:1860 writes physicsTruthJson", () => {
+// ── Engine wiring verification ─────────────────────────────────────────────────
+describe("Wave engine wiring", () => {
+  it("imports all Wave 1–4 engine boundaries", () => {
     // Verify the import chain is intact by confirming the engine functions are callable
     expect(typeof runIntegrityEngine).toBe("function");
     expect(typeof runUncertaintyPropagation).toBe("function");
     expect(typeof runExplainabilityEngine).toBe("function");
     expect(typeof buildValidationPrediction).toBe("function");
     expect(typeof computeValidationStats).toBe("function");
-    console.log("  All Wave 1–4 engine functions importable and callable ✓");
-    console.log("  db.ts:1860 — physicsTruthJson = result.physicsTruth ? JSON.stringify(...) : null ✓");
+    console.log("  All Wave 1–4 engine functions importable and callable with test-owned data ✓");
   });
 });

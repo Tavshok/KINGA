@@ -49,7 +49,6 @@ import {
   createPanelBeaterQuote,
   getQuotesByClaimId,
   getQuotesByPanelBeater,
-  createAssessorEvaluation,
   getAssessorEvaluationByClaimId,
   updateAssessorEvaluation,
   createAppointment,
@@ -77,6 +76,8 @@ import {
   attestAssessorReport,
   submitAssessorReportForReview,
   decideAssessorReportReview,
+  getPendingAssessorReportReview,
+  acceptAssessorReportReview,
   getAssessorReportReviewQueue,
   getLatestAcceptedAssessorEvaluation,
 } from "./db";
@@ -343,6 +344,24 @@ export const integrityRouter = router({
       };
     }),
 });
+
+function readAssessorReportPayload(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === "string") {
+    try {
+      const firstParse = JSON.parse(value);
+      const parsed = typeof firstParse === "string" ? JSON.parse(firstParse) : firstParse;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // The acceptance guard below intentionally rejects malformed report payloads.
+    }
+  }
+  return {};
+}
 
 export const appRouter = router({
   truthSynthesis: truthSynthesisRouter,
@@ -992,22 +1011,34 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const tenantId = ctx.user.tenantId;
         if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Review access denied" });
-        const result = await decideAssessorReportReview({ reviewId: input.reviewId, tenantId, reviewerUserId: ctx.user.id, decision: input.decision, decisionReason: input.decisionReason });
-        const report = await getAssessorReportById(result.review.reportId, tenantId);
+        const pendingReview = await getPendingAssessorReportReview({ reviewId: input.reviewId, tenantId, reviewerUserId: ctx.user.id });
+        const report = await getAssessorReportById(pendingReview.reportId, tenantId);
         if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Report not found" });
         if (input.decision === "accepted") {
-          const payload = (report.reportPayload || {}) as Record<string, unknown>;
+          const payload = readAssessorReportPayload(report.reportPayload);
           if (!Number(payload.estimatedRepairCost) || !Number(payload.estimatedDuration) || !String(payload.damageAssessment || "").trim()) {
             throw new TRPCError({ code: "PRECONDITION_FAILED", message: "An accepted assessor report requires repair cost, duration, and damage assessment" });
           }
-          await createAssessorEvaluation({
-            claimId: report.claimId, assessorId: report.assessorUserId, tenantId,
-            estimatedRepairCost: Number(payload.estimatedRepairCost || 0), laborCost: payload.laborCost ? Number(payload.laborCost) : undefined,
-            partsCost: payload.partsCost ? Number(payload.partsCost) : undefined, estimatedDuration: Number(payload.estimatedDuration || 0),
-            damageAssessment: String(payload.damageAssessment || "Accepted assessor report"), recommendations: payload.recommendations ? String(payload.recommendations) : undefined,
-            fraudRiskLevel: (payload.fraudRiskLevel as any) || "low", status: "completed", sourceReportId: report.id, sourceReportVersion: report.versionNumber, acceptedReviewId: input.reviewId,
-          } as any);
         }
+        if (input.decision === "accepted") {
+          const payload = readAssessorReportPayload(report.reportPayload);
+          await acceptAssessorReportReview({
+            reviewId: input.reviewId,
+            tenantId,
+            reviewerUserId: ctx.user.id,
+            decisionReason: input.decisionReason,
+            evaluation: {
+              claimId: report.claimId, assessorId: report.assessorUserId, tenantId,
+              estimatedRepairCost: Number(payload.estimatedRepairCost || 0), laborCost: payload.laborCost ? Number(payload.laborCost) : undefined,
+              partsCost: payload.partsCost ? Number(payload.partsCost) : undefined, estimatedDuration: Number(payload.estimatedDuration || 0),
+              damageAssessment: String(payload.damageAssessment || "Accepted assessor report"), recommendations: payload.recommendations ? String(payload.recommendations) : undefined,
+              fraudRiskLevel: (payload.fraudRiskLevel as any) || "low", status: "completed", sourceReportId: report.id, sourceReportVersion: report.versionNumber, acceptedReviewId: input.reviewId,
+            } as any,
+            audit: { claimId: report.claimId, userId: ctx.user.id, action: "assessor_report_review_accepted", entityType: "assessor_report_review", changeDescription: input.decisionReason },
+          });
+          return { success: true };
+        }
+        await decideAssessorReportReview({ reviewId: input.reviewId, tenantId, reviewerUserId: ctx.user.id, decision: input.decision, decisionReason: input.decisionReason });
         await createAuditEntry({ claimId: report.claimId, userId: ctx.user.id, action: `assessor_report_review_${input.decision}`, entityType: "assessor_report_review", changeDescription: input.decisionReason });
         return { success: true };
       }),

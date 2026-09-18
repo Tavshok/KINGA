@@ -113,5 +113,7 @@ vi.mock("mysql2", async importOriginal => {
 
 afterAll(async () => {
   const { closeDbPool } = await vi.importActual<typeof import("./db")>("./db");
-  await closeDbPool();
+  if (typeof closeDbPool === "function") {
+    await closeDbPool();
+  }
 });

@@ -7,9 +7,9 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { getDb } from "./db";
-import { workflowAuditTrail, isoAuditLogs, auditTrail } from "../drizzle/schema";
+import { workflowAuditTrail, isoAuditLogs, auditTrail, claims, users } from "../drizzle/schema";
 import { and, eq } from "drizzle-orm";
-import { SYSTEM_USER_ID, insertIsoAuditLog, insertWorkflowAudit } from "./utils/audit-helpers";
+import { insertIsoAuditLog, insertWorkflowAudit } from "./utils/audit-helpers";
 
 describe("AUDIT-01: Correct audit table routing", () => {
   let db: any;
@@ -18,11 +18,26 @@ describe("AUDIT-01: Correct audit table routing", () => {
   const testClaimId = 90000000 + Number(Date.now() % 1000000);
   const testUserId = 91000000 + Number(Date.now() % 1000000);
   const testAuditUserId = 92000000 + Number(Date.now() % 1000000);
+  const testSystemUserId = 93000000 + Number(Date.now() % 1000000);
   const hashResourceId = `fixture-hash-${fixtureStamp}`;
 
   beforeAll(async () => {
     db = await getDb();
     if (!db) throw new Error("DB unavailable — cannot run AUDIT-01 tests");
+
+    await db.insert(users).values({
+      id: testSystemUserId,
+      openId: `SYSTEM-AUDIT-${fixtureStamp}`,
+      name: "KINGA System Audit Fixture",
+      role: "admin",
+      emailVerified: 1,
+    });
+    await db.insert(claims).values({
+      id: testClaimId,
+      claimNumber: `AUDIT-01-${fixtureStamp}`,
+      tenantId: testTenantId,
+      status: "submitted",
+    });
   });
 
   it("insertWorkflowAudit writes to workflowAuditTrail with correct fields", async () => {
@@ -52,7 +67,7 @@ describe("AUDIT-01: Correct audit table routing", () => {
   it("insertIsoAuditLog (system actor) writes ISO audit data and an integrity hash", async () => {
     await insertIsoAuditLog(db, {
       tenantId: testTenantId,
-      userId: SYSTEM_USER_ID,
+      userId: testSystemUserId,
       userRole: "system",
       actionType: "update",
       resourceType: "claim",
@@ -62,7 +77,7 @@ describe("AUDIT-01: Correct audit table routing", () => {
     });
     const [row] = await db.select().from(isoAuditLogs).where(and(
       eq(isoAuditLogs.tenantId, testTenantId),
-      eq(isoAuditLogs.userId, SYSTEM_USER_ID),
+      eq(isoAuditLogs.userId, testSystemUserId),
       eq(isoAuditLogs.resourceType, "claim"),
       eq(isoAuditLogs.resourceId, String(testClaimId)),
     ));
@@ -116,17 +131,16 @@ describe("AUDIT-01: Correct audit table routing", () => {
     expect(description).toMatchObject({ tenantId: testTenantId, test: true });
   });
 
-  it("SYSTEM_USER_ID matches the reserved system user in the DB", async () => {
-    const { users } = await import("../drizzle/schema");
-    const [systemUser] = await db.select().from(users).where(eq(users.id, SYSTEM_USER_ID)).limit(1);
-    expect(systemUser).toMatchObject({ openId: "SYSTEM", name: "KINGA System" });
+  it("uses an isolated system-actor fixture", async () => {
+    const [systemUser] = await db.select().from(users).where(eq(users.id, testSystemUserId)).limit(1);
+    expect(systemUser).toMatchObject({ openId: `SYSTEM-AUDIT-${fixtureStamp}`, name: "KINGA System Audit Fixture" });
   });
 
   it("integrityHash matches SHA-256 of JSON.stringify(payload)", async () => {
     const crypto = await import("crypto");
     const payload = {
       tenantId: testTenantId,
-      userId: SYSTEM_USER_ID,
+      userId: testSystemUserId,
       userRole: "system",
       actionType: "update",
       resourceType: "claim",
@@ -138,7 +152,7 @@ describe("AUDIT-01: Correct audit table routing", () => {
     await insertIsoAuditLog(db, payload);
     const [row] = await db.select().from(isoAuditLogs).where(and(
       eq(isoAuditLogs.tenantId, testTenantId),
-      eq(isoAuditLogs.userId, SYSTEM_USER_ID),
+      eq(isoAuditLogs.userId, testSystemUserId),
       eq(isoAuditLogs.resourceType, "claim"),
       eq(isoAuditLogs.resourceId, hashResourceId),
     ));
@@ -150,16 +164,16 @@ describe("AUDIT-01: Correct audit table routing", () => {
 
     // Full, immutable sentinels ensure each delete can match only this suite's rows.
     await db.delete(workflowAuditTrail).where(and(eq(workflowAuditTrail.claimId, testClaimId), eq(workflowAuditTrail.userId, testUserId), eq(workflowAuditTrail.comments, "AUDIT-01 test entry"), eq(workflowAuditTrail.previousState, "intake_queue"), eq(workflowAuditTrail.newState, "under_assessment")));
-    await db.delete(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, SYSTEM_USER_ID), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, String(testClaimId))));
+    await db.delete(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, testSystemUserId), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, String(testClaimId))));
     await db.delete(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, testUserId), eq(isoAuditLogs.resourceType, "routing_policy"), eq(isoAuditLogs.resourceId, "policy-v2-test")));
-    await db.delete(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, SYSTEM_USER_ID), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, hashResourceId)));
+    await db.delete(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, testSystemUserId), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, hashResourceId)));
     await db.delete(auditTrail).where(and(eq(auditTrail.userId, testAuditUserId), eq(auditTrail.action, "SUPER_AUDIT_VIEW_CLAIM"), eq(auditTrail.entityType, "claim"), eq(auditTrail.entityId, testClaimId)));
 
     const [workflowRows, escalationRows, policyRows, hashRows, auditRows] = await Promise.all([
       db.select({ id: workflowAuditTrail.id }).from(workflowAuditTrail).where(and(eq(workflowAuditTrail.claimId, testClaimId), eq(workflowAuditTrail.userId, testUserId), eq(workflowAuditTrail.comments, "AUDIT-01 test entry"), eq(workflowAuditTrail.previousState, "intake_queue"), eq(workflowAuditTrail.newState, "under_assessment"))),
-      db.select({ id: isoAuditLogs.id }).from(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, SYSTEM_USER_ID), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, String(testClaimId)))),
+      db.select({ id: isoAuditLogs.id }).from(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, testSystemUserId), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, String(testClaimId)))),
       db.select({ id: isoAuditLogs.id }).from(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, testUserId), eq(isoAuditLogs.resourceType, "routing_policy"), eq(isoAuditLogs.resourceId, "policy-v2-test"))),
-      db.select({ id: isoAuditLogs.id }).from(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, SYSTEM_USER_ID), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, hashResourceId))),
+      db.select({ id: isoAuditLogs.id }).from(isoAuditLogs).where(and(eq(isoAuditLogs.tenantId, testTenantId), eq(isoAuditLogs.userId, testSystemUserId), eq(isoAuditLogs.resourceType, "claim"), eq(isoAuditLogs.resourceId, hashResourceId))),
       db.select({ id: auditTrail.id }).from(auditTrail).where(and(eq(auditTrail.userId, testAuditUserId), eq(auditTrail.action, "SUPER_AUDIT_VIEW_CLAIM"), eq(auditTrail.entityType, "claim"), eq(auditTrail.entityId, testClaimId))),
     ]);
     expect(workflowRows).toHaveLength(0);
@@ -167,5 +181,8 @@ describe("AUDIT-01: Correct audit table routing", () => {
     expect(policyRows).toHaveLength(0);
     expect(hashRows).toHaveLength(0);
     expect(auditRows).toHaveLength(0);
+
+    await db.delete(claims).where(eq(claims.id, testClaimId));
+    await db.delete(users).where(and(eq(users.id, testSystemUserId), eq(users.openId, `SYSTEM-AUDIT-${fixtureStamp}`)));
   });
 });
