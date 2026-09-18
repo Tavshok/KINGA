@@ -16,8 +16,9 @@ describe("portal conformance regressions", () => {
   it("routes client valuation through My Portal and redirects legacy Agency valuation paths", () => {
     const app = readClient("App.tsx");
     expect(app).toContain('path="/client/valuation"');
-    expect(app).toContain('<RedirectToPortal to="/client/valuation" />');
-    expect(app).toContain('<RedirectToPortal to="/client/valuation/bulk" />');
+    expect(app).toContain('path="/client/valuation/bulk"');
+    expect(app).toContain('<Route path="/agency/valuation"><RedirectToPortal to="/agency" /></Route>');
+    expect(app).toContain('<Route path="/agency/valuation/bulk"><RedirectToPortal to="/agency" /></Route>');
   });
 
   it("keeps professional workspace action links on routes that exist", () => {
@@ -35,9 +36,10 @@ describe("portal conformance regressions", () => {
     expect(agency).toContain("trpc.agencyBroker.createClient.useMutation");
     expect(agency).toContain("trpc.agencyBroker.myQuoteRequests.useQuery");
     expect(agency).toContain("trpc.agencyBroker.listAvailableInsurers.useQuery");
-    expect(agency).toContain("trpc.agencyBroker.createAgencyClaim.useMutation");
-    expect(agency).toContain("trpc.agencyBroker.requestQuotes.useMutation");
-    expect(agency).toContain("Create & Dispatch Requests");
+    expect(agency).toContain("trpc.agencyInsuranceService.createInsuranceServiceRequest.useMutation");
+    expect(agency).toContain("trpc.agencyInsuranceService.confirmAndDispatchInsuranceServiceRequest.useMutation");
+    expect(agency).toContain("Create Market Valuation & Condition Record");
+    expect(agency).toContain("Confirm & Invite Insurers");
     expect(agencyRouter).toContain("listAvailableInsurers: agencyProcedure");
   });
 
@@ -133,7 +135,6 @@ describe("portal conformance regressions", () => {
     const agency = readClient("pages/KingaAgency.tsx");
 
     expect(agency).toContain("Agency Service Workspace");
-    expect(agency).toContain("Client Requests & Quotes");
     expect(agency).toContain("Client Service Requests");
     expect(agency).toContain("Open Client Workspace");
     expect(agency).toContain("Add a client and create a service request before dispatching selected insurer quote requests.");
@@ -225,7 +226,7 @@ describe("portal conformance regressions", () => {
     expect(claimant).toContain("setLocation('/insurance/quote')");
     expect(claimant).not.toContain("Visit the Agency portal to request an insurance quote");
     expect(app).toContain('path="/insurance/quote"');
-    expect(app).toContain('<ProtectedRoute allowedRoles={["user", "claimant", "fleet_admin", "fleet_manager", "fleet_driver", "admin", "platform_super_admin"]}>');
+    expect(app).toContain('<ProtectedRoute domain="customer">');
     expect(insurance).toContain("requestQuote: protectedProcedure");
     expect(insurance).toContain("const customerId = ctx.user.id;");
     expect(insurance).not.toContain("const customerId = 1;");
@@ -239,8 +240,8 @@ describe("portal conformance regressions", () => {
     expect(insurance).toContain("submitPaymentProof: protectedProcedure");
     expect(insurance).toContain("quote.customerId !== ctx.user.id");
     expect(insurance).toContain("getPendingPayments: protectedProcedure");
-    expect(insurance).toContain("eq(insuranceQuotes.tenantId, ctx.user.tenantId ?? '__unassigned__')");
-    expect(insurance).toContain("This quote belongs to another insurer tenant.");
+    expect(insurance).toContain("eq(insuranceQuotes.tenantId, actorTenantId)");
+    expect(insurance).toContain("requireQuoteTenant(quote, actorTenantId)");
     expect(insurance).toContain("if (!isAdminRole(ctx.user.role) && policy.customerId !== ctx.user.id)");
   });
 });

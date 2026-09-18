@@ -104,11 +104,11 @@ export async function getClaimComments(
          AND (
            cc.author_user_id = ?
            OR JSON_CONTAINS(cc.to_roles, JSON_QUOTE(?))
-           OR JSON_CONTAINS(cc.to_user_ids, CAST(? AS JSON))
+           OR JSON_CONTAINS(cc.to_user_ids, ?)
            OR JSON_CONTAINS(cc.to_emails, JSON_QUOTE(?))
          )
        ORDER BY cc.createdAt ASC`,
-      [claimId, tenantId, tenantId, userId, userRole, userId, userEmail]
+      [claimId, tenantId, tenantId, userId, userRole, JSON.stringify(userId), userEmail]
     );
 
     const comments = (rows as any[]).map(parseComment);
@@ -185,13 +185,13 @@ export async function getMyNotifications(
          AND cc.author_user_id != ?
          AND (
            JSON_CONTAINS(cc.to_roles, JSON_QUOTE(?))
-           OR JSON_CONTAINS(cc.to_user_ids, CAST(? AS JSON))
+           OR JSON_CONTAINS(cc.to_user_ids, ?)
            OR JSON_CONTAINS(cc.to_emails, JSON_QUOTE(?))
          )
          ${filterClause}
        ORDER BY cc.createdAt DESC
        LIMIT 100`,
-      [userId, tenantId, tenantId, userId, userRole, userId, userEmail]
+      [userId, tenantId, tenantId, userId, userRole, JSON.stringify(userId), userEmail]
     );
 
     return (rows as any[]).map(r => ({ ...parseComment(r), isRead: !!r.isRead }));
@@ -221,13 +221,13 @@ export async function getUnreadCommentCount(
          AND cc.author_user_id != ?
          AND (
            JSON_CONTAINS(cc.to_roles, JSON_QUOTE(?))
-           OR JSON_CONTAINS(cc.to_user_ids, CAST(? AS JSON))
+           OR JSON_CONTAINS(cc.to_user_ids, ?)
            OR JSON_CONTAINS(cc.to_emails, JSON_QUOTE(?))
          )
          AND NOT EXISTS (
            SELECT 1 FROM claim_comment_reads ccr WHERE ccr.comment_id = cc.id AND ccr.user_id = ?
          )`,
-      [tenantId, tenantId, userId, userRole, userId, userEmail, userId]
+      [tenantId, tenantId, userId, userRole, JSON.stringify(userId), userEmail, userId]
     );
     return (rows as any[])[0]?.cnt ?? 0;
   } finally {
@@ -362,13 +362,13 @@ export async function markAllNotificationsRead(
          AND cc.author_user_id != ?
          AND (
            JSON_CONTAINS(cc.to_roles, JSON_QUOTE(?))
-           OR JSON_CONTAINS(cc.to_user_ids, CAST(? AS JSON))
+           OR JSON_CONTAINS(cc.to_user_ids, ?)
            OR JSON_CONTAINS(cc.to_emails, JSON_QUOTE(?))
          )
          AND NOT EXISTS (
            SELECT 1 FROM claim_comment_reads ccr WHERE ccr.comment_id = cc.id AND ccr.user_id = ?
          )`,
-      [tenantId, tenantId, userId, userRole, userId, userEmail, userId]
+      [tenantId, tenantId, userId, userRole, JSON.stringify(userId), userEmail, userId]
     );
     const ids = (rows as any[]).map(r => r.id);
     if (ids.length === 0) return;

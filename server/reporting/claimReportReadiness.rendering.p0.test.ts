@@ -61,6 +61,8 @@ describe("P0 no-write rendered report readiness consumer matrix", () => {
       expect(html).toContain("assessment intelligence");
       expect(html).not.toContain('data-kinga-report-readiness="ready_for_report_inputs"');
     }
-    expect(mocks.end).toHaveBeenCalledTimes(3);
+    // CI resolves one canonical record, FR resolves a canonical record plus its
+    // forensic model, and CL uses one report-scoped connection.
+    expect(mocks.end).toHaveBeenCalledTimes(4);
   });
 });

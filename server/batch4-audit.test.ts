@@ -51,17 +51,17 @@ describe('R-A-22: document_category fallback in validateAndNormalise', () => {
     expect(src).toContain("return (q.quote_type ?? 'repair') !== 'parts_supplier';");
   });
 
-  it('Stage 9 repairQuotes filter uses document_category when available', async () => {
+  it('Stage 9 L1 submitted totals filter uses document_category when available', async () => {
     const fs = await import('fs');
     const src = fs.readFileSync(
       new URL('../server/pipeline-v2/stage-9-cost.ts', import.meta.url).pathname,
       'utf8'
     );
-    // repairQuotes filter must use document_category
-    const repairQuotesBlock = src.match(/const repairQuotes = allQuotes\.filter[\s\S]*?}\);/);
-    expect(repairQuotesBlock).not.toBeNull();
-    expect(repairQuotesBlock![0]).toContain("if (q.document_category) return q.document_category === 'repair_quote'");
-    expect(repairQuotesBlock![0]).toContain("return q.quote_type !== 'parts_supplier'");
+    // The canonical ledger is filtered through activeRepairQuotes before L1 totals.
+    const submittedTotalsBlock = src.match(/const allSubmittedTotalsForL1 = activeRepairQuotes[\s\S]*?}\);/);
+    expect(submittedTotalsBlock).not.toBeNull();
+    expect(submittedTotalsBlock![0]).toContain("if (q.document_category) return q.document_category === 'repair_quote'");
+    expect(submittedTotalsBlock![0]).toContain("return (q.quote_type ?? 'repair') !== 'parts_supplier'");
   });
 
   it('vision extraction path applies name-based heuristic for document_category', async () => {
@@ -159,10 +159,10 @@ describe('Batch 3 confirmations: console.warn PII check', () => {
     expect(warnWindow).toMatch(/instanceof Error \? \w+\.message : String\(\w+\)/);
   });
 
-  it('routers.ts narrativeErr console.warn logs only assessment.id and error message', async () => {
+  it('vehicle valuation narrativeErr console.warn logs only assessment.id and error message', async () => {
     const fs = await import('fs');
     const src = fs.readFileSync(
-      new URL('../server/routers.ts', import.meta.url).pathname,
+      new URL('../server/routers/vehicle-valuation-core.ts', import.meta.url).pathname,
       'utf8'
     );
     const narrativeBlock = src.match(/catch \(narrativeErr: unknown\)[\s\S]*?console\.warn\([\s\S]*?\)/);

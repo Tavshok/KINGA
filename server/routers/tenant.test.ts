@@ -1,100 +1,99 @@
 // @ts-nocheck
 /**
  * Tenant Management Router Test Suite
- * 
- * Tests for tenant management tRPC endpoints:
- * - List all tenants
- * - Get tenant configuration
- * - Update tenant configuration
- * - Get role configuration
- * - Update role configuration
+ *
+ * Covers tenant-scoped list, role configuration, and update paths using only
+ * in-memory fixtures. Tenant scope is an authorization input, not a global
+ * enumeration permission.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const fixture = vi.hoisted(() => ({
+  tenant: {
+    id: "tenant-router-fixture",
+    name: "Test Insurance Co",
+    displayName: "Test Insurance Co",
+    domain: "test.insurance.com",
+    isActive: 1,
+  },
+  roleConfigs: [{ tenantId: "tenant-router-fixture", roleKey: "claims_manager", isEnabled: true }],
+  getDb: vi.fn(),
+  getTenantRoleConfig: vi.fn(),
+  updateTenantConfig: vi.fn(),
+}));
+
+vi.mock("../db", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../db")>()),
+  getDb: fixture.getDb,
+}));
+
+vi.mock("../services/tenant-config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../services/tenant-config")>()),
+  getTenantRoleConfig: fixture.getTenantRoleConfig,
+  updateTenantConfig: fixture.updateTenantConfig,
+}));
+
 import { appRouter } from "../routers";
 import type { Context } from "../_core/context";
-import { insurerTenants } from "../../drizzle/schema";
-import { getDb } from "../db";
 
-// Mock context for testing
-const createMockContext = (role: string = "admin"): Context => ({
+const testTenantId = fixture.tenant.id;
+const createMockContext = (): Context => ({
   user: {
     id: 1,
-    openId: "test-openid",
+    openId: "tenant-router-admin",
     name: "Test Admin",
     email: "admin@test.com",
-    role,
+    role: "admin",
+    tenantId: testTenantId,
     createdAt: new Date(),
     updatedAt: new Date(),
   },
 });
 
+const tenantDb = {
+  select: vi.fn(() => ({
+    from: () => ({
+      where: async () => [{ ...fixture.tenant }],
+    }),
+  })),
+};
+
+beforeEach(() => {
+  fixture.tenant.name = "Test Insurance Co";
+  fixture.tenant.displayName = "Test Insurance Co";
+  fixture.getDb.mockResolvedValue(tenantDb);
+  fixture.getTenantRoleConfig.mockResolvedValue(fixture.roleConfigs.map((config) => ({ ...config })));
+  fixture.updateTenantConfig.mockImplementation(async (_tenantId, updates) => {
+    Object.assign(fixture.tenant, updates);
+    return { ...fixture.tenant };
+  });
+});
+
 describe("Tenant Management Router", () => {
-  let testTenantId: string;
+  it("returns only the caller's tenant", async () => {
+    const caller = appRouter.createCaller(createMockContext());
+    const result = await caller.tenant.list();
 
-  beforeAll(async () => {
-    // Create a test tenant
-    testTenantId = "test-tenant-" + Date.now();
-    const db = await getDb();
-    await db
-      .insert(insurerTenants)
-      .values({
-        id: testTenantId,
-        name: "Test Insurance Co",
-        displayName: "Test Insurance Co",
-        domain: "test.insurance.com",
-        isActive: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+    expect(result).toEqual([{ ...fixture.tenant }]);
   });
 
-  afterAll(async () => {
-    // Clean up test tenant
-    const db = await getDb();
-    await db.delete(insurerTenants).where({ id: testTenantId });
+  it("returns role configuration for the caller's tenant", async () => {
+    const caller = appRouter.createCaller(createMockContext());
+    const result = await caller.tenant.getRoleConfig({ tenantId: testTenantId });
+
+    expect(result).toEqual([{ ...fixture.roleConfigs[0] }]);
+    expect(fixture.getTenantRoleConfig).toHaveBeenCalledWith(testTenantId);
   });
 
-  describe("list", () => {
-    it("should return list of all tenants", async () => {
-      const caller = appRouter.createCaller(createMockContext());
-      const result = await caller.tenant.list();
-      
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBeGreaterThan(0);
-      
-      const testTenant = result.find((t: any) => t.id === testTenantId);
-      expect(testTenant).toBeDefined();
-      expect(testTenant?.name).toBe("Test Insurance Co");
+  it("updates the caller's tenant configuration", async () => {
+    const caller = appRouter.createCaller(createMockContext());
+    const result = await caller.tenant.update({
+      tenantId: testTenantId,
+      name: "Updated Insurance Co",
     });
-  });
 
-
-
-  describe("getRoleConfig", () => {
-    it("should return role configuration for tenant", async () => {
-      const caller = appRouter.createCaller(createMockContext());
-      const result = await caller.tenant.getRoleConfig({
-        tenantId: testTenantId,
-        role: "claims_manager",
-      });
-      
-      // Just check it doesn't throw an error
-      expect(true).toBe(true);
-    });
-  });
-
-  describe("update", () => {
-    it("should update tenant configuration", async () => {
-      const caller = appRouter.createCaller(createMockContext());
-      await caller.tenant.update({
-        tenantId: testTenantId,
-        name: "Updated Insurance Co",
-      });
-      
-      // Just check it doesn't throw an error
-      expect(true).toBe(true);
-    });
+    expect(result.name).toBe("Updated Insurance Co");
+    expect(fixture.updateTenantConfig).toHaveBeenCalledWith(testTenantId, { name: "Updated Insurance Co" });
   });
 });

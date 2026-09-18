@@ -28,7 +28,7 @@ describe("persisted quote line-item flow", () => {
   it("loads quote_line_items in report generation for quote comparison output", () => {
     const reports = source("server/reporting/reportDefinitions.ts");
 
-    expect(reports).toContain("FROM quote_line_items WHERE quote_id = ?");
-    expect(reports).toContain("quoteLineItemsMap.set(Number(q.id), liRows)");
+    expect(reports).toContain('resolveReportRecord({ claimId, tenantId, audience: "claim_assessment" })');
+    expect(reports).toContain("record.evidence.quoteEvidence");
   });
 });
