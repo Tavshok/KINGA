@@ -10,7 +10,7 @@
  *  - Structural profile builder
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import {
   lookupANCAPRating,
   lookupGlobalNCAP,
@@ -18,6 +18,11 @@ import {
   decodeVINNHTSA,
   buildVehicleStructuralProfile,
 } from "./vehicle-structural-intelligence";
+
+// Vitest's restoreAllMocks() does not undo process-wide stubGlobal() calls.
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ANCAP RATING LOOKUPS
