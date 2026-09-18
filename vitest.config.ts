@@ -28,6 +28,7 @@ export default defineConfig({
         singleFork: true,
       },
     },
+    setupFiles: ["server/test-database-isolation.setup.ts"],
     clearMocks: true,
     restoreMocks: true,
     testTimeout: 180_000, // 3 minutes for LLM-heavy integration tests

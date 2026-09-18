@@ -11,7 +11,7 @@
     "check": "tsc --noEmit",
     "check:conflicts": "node scripts/check-conflict-markers.mjs",
     "format": "prettier --write .",
-    "test": "vitest run",
+    "test": "tsx scripts/run-isolated-vitest.ts",
 
     "check:known-fixture-orphans": "node server/test-helpers/check-known-fixture-orphans.mjs",
     "test:portal": "vitest run server/portal-conformance.test.ts",

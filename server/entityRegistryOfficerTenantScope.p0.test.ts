@@ -14,7 +14,7 @@ describe("DRV-005 police officer badge tenant scope", () => {
     tenantA = `test-drv005-a-${stamp}`;
     tenantB = `test-drv005-b-${stamp}`;
     badge = `DRV005-${stamp}`;
-    connection = await mysql.createConnection({ uri: process.env.DATABASE_URL! });
+    connection = await mysql.createConnection(process.env.DATABASE_URL!);
     const claimNumbers = [1, 2, 3, 4].map((sequence) => `DRV005-${stamp}-${sequence}`);
     await connection.execute("INSERT INTO claims (claim_number, tenant_id, status) VALUES (?, ?, 'submitted'), (?, ?, 'submitted'), (?, ?, 'submitted'), (?, ?, 'submitted')", [claimNumbers[0], tenantA, claimNumbers[1], tenantA, claimNumbers[2], tenantA, claimNumbers[3], tenantB]);
     const [claims] = await connection.execute<any[]>("SELECT id, claim_number FROM claims WHERE claim_number IN (?, ?, ?, ?)", claimNumbers);
