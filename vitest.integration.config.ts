@@ -18,6 +18,7 @@ export default defineConfig({
     ],
     pool: "forks",
     poolOptions: { forks: { singleFork: true } },
+    setupFiles: ["server/test-database-isolation.setup.ts"],
     clearMocks: true,
     restoreMocks: true,
     testTimeout: 180_000,

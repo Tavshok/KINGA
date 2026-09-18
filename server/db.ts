@@ -62,6 +62,7 @@ import {
   tenants
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { assertTestDatabasePoolTarget } from './_core/test-database-guard';
 import { logger } from './logger';
 import * as dbPipeline from './db-pipeline.ts';
 import { getTenantRates, notifyTenantProcessors } from './db/intelligence-db';
@@ -74,6 +75,9 @@ let _pool: mysql.Pool | null = null;
 // Lazily create the drizzle instance with a proper connection pool.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
+    // This must remain outside the generic connection-error catch below: an
+    // unsafe test target is a policy violation, not a recoverable outage.
+    assertTestDatabasePoolTarget(process.env.DATABASE_URL);
     try {
       _pool = mysql.createPool({
         uri: process.env.DATABASE_URL,
