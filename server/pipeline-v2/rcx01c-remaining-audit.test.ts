@@ -82,11 +82,8 @@ describe("R-CX-01c: stage-5 valuation prompt generalisation", () => {
 
   it("should use tenantCurrencyCode in write_off verdictReason", () => {
     expect(stage5Content).toContain("Repair cost (${tenantCurrencyCode}");
-    // Engine may use a dynamic threshold (Math.round(WRITE_OFF_RATIO_THRESHOLD * 100))
-    // or a literal "75%" — both are acceptable
-    const hasLiteral = stage5Content.includes("Exceeds 75% threshold");
-    const hasDynamic = stage5Content.includes("Exceeds ") && stage5Content.includes("% threshold");
-    expect(hasLiteral || hasDynamic).toBe(true);
+    expect(stage5Content).toContain("WRITE_OFF_RECOMMENDATION_THRESHOLD");
+    expect(stage5Content).toContain("economic write-off recommendation threshold");
   });
 
   it("should use tenantCurrencyCode in borderline verdictReason", () => {

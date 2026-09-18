@@ -55,7 +55,7 @@ describe("Production rendering guard removal", () => {
       "utf-8"
     );
     expect(src).toContain("d.imageUrls");
-    expect(src).toContain("extractMultipleQuotesFromPageImages(pdfPageImages");
+    expect(src).toMatch(/extractMultipleQuotesFromPageImages\s*\(\s*pdfPageImages/);
   });
 
   it("quoteExtractionEngine.ts must export extractMultipleQuotesFromPageImages", () => {

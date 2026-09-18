@@ -10,6 +10,7 @@ describe("fleet lookup tenant authority", () => {
     const drivers = source.slice(source.indexOf("getFleetDrivers:"), source.indexOf("getMyDrivers:"));
     expect(vehicle).toContain("requireFleetReadAccess(db, ctx.user, vehicle.fleetId)");
     expect(drivers).toContain("requireFleetReadAccess(db, ctx.user, input.fleetId)");
-    expect(drivers).toContain("eq(fleetDrivers.tenantId, fleet.tenantId ?? ctx.user.tenantId ?? \"\")");
+    expect(drivers).toContain("const tenantId = requireFleetTenant(ctx.user)");
+    expect(drivers).toContain("eq(fleetDrivers.tenantId, tenantId)");
   });
 });

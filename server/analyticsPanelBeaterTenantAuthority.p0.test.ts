@@ -6,7 +6,7 @@ const source = fs.readFileSync(path.resolve(process.cwd(), "server/routers/analy
 
 describe("analytics panel-beater tenant authority", () => {
   it("uses the resolved tenant to constrain panel-beater analytics before aggregation", () => {
-    expect(source).toContain("const panelBeaterTenantFilter = tenantId");
+    expect(source).toContain("const panelBeaterTenantFilter = eq(panelBeaters.tenantId, tenantId)");
     expect(source).toContain("eq(panelBeaters.tenantId, tenantId)");
     expect(source).toContain(".where(panelBeaterTenantFilter)");
   });

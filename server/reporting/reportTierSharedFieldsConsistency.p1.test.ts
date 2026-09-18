@@ -112,7 +112,7 @@ describe("report tier shared-field consistency", () => {
   });
 
   it.each([
-    ["unavailable", { isComplete: false, l2Status: "incomplete_scope", canonicalQuoteLedger: [] }, "Unavailable — reconciliation required."],
+    ["unavailable", { isComplete: false, l2Status: "incomplete_scope", canonicalQuoteLedger: [] }, "Unavailable — active comparison evidence is incomplete"],
     ["partial evidence", { isComplete: false, l2Status: "evidence_qualified", l2EvidenceQualifiedComparisonUsd: 90, canonicalQuoteLedger: [{ panelBeater: "Repairer A", totalCostUsd: 100, currency: "USD", status: "active" }] }, "Partial evidence comparison"],
     ["final L2", { isComplete: true, l2Status: "complete", l1LowestSubmittedCostUsd: 100, l2CompositeOptimisedCostUsd: 90, canonicalQuoteLedger: [{ panelBeater: "Repairer A", totalCostUsd: 100, currency: "USD", status: "active" }] }, "Final L2"],
   ])("renders an identical canonical cost state across all tiers: %s", async (_name, composite, expected) => {
