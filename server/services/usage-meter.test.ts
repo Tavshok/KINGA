@@ -55,9 +55,14 @@ beforeAll(async () => {
   const rows = await db
     .select({ id: claims.id })
     .from(claims)
-    .where(sql`${claims.claimNumber} IN (${sql.join(TEST_CLAIM_NUMBERS.map(n => sql`${n}`), sql`, `)})`);
+    .where(
+      sql`${claims.claimNumber} IN (${sql.join(
+        TEST_CLAIM_NUMBERS.map(n => sql`${n}`),
+        sql`, `
+      )})`
+    );
 
-  TEST_CLAIM_IDS = rows.map((r) => r.id);
+  TEST_CLAIM_IDS = rows.map(r => r.id);
   if (TEST_CLAIM_IDS.length < 10) {
     throw new Error(`Expected 10 test claim IDs, got ${TEST_CLAIM_IDS.length}`);
   }
@@ -194,7 +199,11 @@ describe("Usage Metering Infrastructure", () => {
       await recordAIEvaluation("tenant-001", c2);
       await recordFastTrackTriggered("tenant-001", c3);
       await recordAutoApproval("tenant-001", c4);
-      await recordAssessorToolUsage("tenant-001", c5, "premium-damage-analysis");
+      await recordAssessorToolUsage(
+        "tenant-001",
+        c5,
+        "premium-damage-analysis"
+      );
 
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -206,7 +215,7 @@ describe("Usage Metering Infrastructure", () => {
 
       expect(events.length).toBe(5);
 
-      const eventTypes = events.map((e) => e.eventType);
+      const eventTypes = events.map(e => e.eventType);
       expect(eventTypes).toContain("CLAIM_PROCESSED");
       expect(eventTypes).toContain("AI_EVALUATED");
       expect(eventTypes).toContain("FAST_TRACK_TRIGGERED");
@@ -239,12 +248,21 @@ describe("Usage Metering Infrastructure", () => {
         .limit(1);
 
       expect(event.metadata).toBeDefined();
-      const storedMetadata = typeof event.metadata === "string"
-        ? JSON.parse(event.metadata)
-        : event.metadata;
+      const storedMetadata =
+        typeof event.metadata === "string"
+          ? JSON.parse(event.metadata)
+          : event.metadata;
       expect(storedMetadata.configVersion).toBe(1);
       expect(storedMetadata.confidenceScore).toBe(92.5);
       expect(storedMetadata.toolName).toBe("premium-damage-analysis");
+
+      const [metadataType] = await db
+        .select({ value: sql<string>`JSON_TYPE(${usageEvents.metadata})` })
+        .from(usageEvents)
+        .where(sql`${usageEvents.id} = ${eventId}`)
+        .limit(1);
+
+      expect(metadataType?.value).toBe("OBJECT");
     });
   });
 

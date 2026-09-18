@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { getDb } from "../db";
+import { getDb } from "./db";
 /**
  * Silent Metering System
  * 
@@ -56,7 +56,7 @@ export interface MeteringEvent {
   resourceType?: string;
   quantity?: number;
   processingTimeMs?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -67,6 +67,8 @@ export interface MeteringEvent {
  */
 export async function trackUsageEvent(event: MeteringEvent): Promise<void> {
   try {
+    const db = await getDb();
+    if (!db) return;
     const computeUnits = COMPUTE_UNIT_COSTS[event.eventType] * (event.quantity || 1);
     const estimatedCost = computeUnits * COST_PER_COMPUTE_UNIT;
 
@@ -81,7 +83,7 @@ export async function trackUsageEvent(event: MeteringEvent): Promise<void> {
       computeUnits: computeUnits.toFixed(4),
       processingTimeMs: event.processingTimeMs,
       estimatedCost: estimatedCost.toFixed(4),
-      metadata: event.metadata ? JSON.stringify(event.metadata) : null,
+      metadata: event.metadata ?? null,
       timestamp: new Date(),
     });
   } catch (error) {
@@ -118,7 +120,7 @@ export async function trackAIAssessment(params: {
   claimId: number;
   userId?: number;
   processingTimeMs?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }): Promise<void> {
   await trackUsageEvent({
     tenantId: params.tenantId,

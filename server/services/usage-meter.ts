@@ -23,13 +23,15 @@ export interface UsageEventMetadata {
   eventType: UsageEventType;
   quantity?: number;
   referenceId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
  * Record a usage event with duplicate protection
  */
-export async function recordUsageEvent(params: UsageEventMetadata): Promise<number | null> {
+export async function recordUsageEvent(
+  params: UsageEventMetadata
+): Promise<number | null> {
   const db = await getDb();
   if (!db) {
     throw new Error("Database connection not available");
@@ -49,7 +51,9 @@ export async function recordUsageEvent(params: UsageEventMetadata): Promise<numb
       .limit(1);
 
     if (existingEvent) {
-      console.log(`[UsageMeter] Duplicate event detected: ${params.referenceId}`);
+      console.log(
+        `[UsageMeter] Duplicate event detected: ${params.referenceId}`
+      );
       return null; // Event already recorded
     }
   }
@@ -61,12 +65,14 @@ export async function recordUsageEvent(params: UsageEventMetadata): Promise<numb
     eventType: params.eventType,
     quantity: params.quantity || 1,
     referenceId: params.referenceId,
-    metadata: params.metadata ? JSON.stringify(params.metadata) : undefined,
+    metadata: params.metadata,
   };
 
   const [result] = await db.insert(usageEvents).values(eventData);
 
-  console.log(`[UsageMeter] Recorded event: ${params.eventType} for tenant ${params.tenantId}`);
+  console.log(
+    `[UsageMeter] Recorded event: ${params.eventType} for tenant ${params.tenantId}`
+  );
 
   return result.insertId;
 }
@@ -77,7 +83,7 @@ export async function recordUsageEvent(params: UsageEventMetadata): Promise<numb
 export async function recordClaimProcessed(
   tenantId: string,
   claimId: number,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<number | null> {
   return recordUsageEvent({
     tenantId,
@@ -94,7 +100,7 @@ export async function recordClaimProcessed(
 export async function recordAIEvaluation(
   tenantId: string,
   claimId: number,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<number | null> {
   return recordUsageEvent({
     tenantId,
@@ -111,7 +117,7 @@ export async function recordAIEvaluation(
 export async function recordFastTrackTriggered(
   tenantId: string,
   claimId: number,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<number | null> {
   return recordUsageEvent({
     tenantId,
@@ -128,7 +134,7 @@ export async function recordFastTrackTriggered(
 export async function recordAutoApproval(
   tenantId: string,
   claimId: number,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<number | null> {
   return recordUsageEvent({
     tenantId,
@@ -146,7 +152,7 @@ export async function recordAssessorToolUsage(
   tenantId: string,
   claimId: number,
   toolName: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<number | null> {
   return recordUsageEvent({
     tenantId,
@@ -163,7 +169,7 @@ export async function recordAssessorToolUsage(
 export async function recordFleetVehicleActive(
   tenantId: string,
   vehicleId: number,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<number | null> {
   return recordUsageEvent({
     tenantId,
@@ -179,7 +185,7 @@ export async function recordFleetVehicleActive(
 export async function recordAgencyPolicyBound(
   tenantId: string,
   policyId: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<number | null> {
   return recordUsageEvent({
     tenantId,
