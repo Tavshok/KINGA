@@ -1,5 +1,5 @@
 import { ENV } from "./env";
-import { logger } from '../logger';
+import { logger } from "../logger";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -20,7 +20,12 @@ export type FileContent = {
   type: "file_url";
   file_url: {
     url: string;
-    mime_type?: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4" ;
+    mime_type?:
+      | "audio/mpeg"
+      | "audio/wav"
+      | "application/pdf"
+      | "audio/mp4"
+      | "video/mp4";
   };
 };
 
@@ -223,6 +228,14 @@ const assertApiKey = () => {
   }
 };
 
+function assertNoDirectLlmAccessDuringTests(): void {
+  if (process.env.NODE_ENV === "test" || process.env.VITEST) {
+    throw new Error(
+      "Direct LLM access is disabled during tests. Mock server/_core/llm at the test boundary."
+    );
+  }
+}
+
 const normalizeResponseFormat = ({
   responseFormat,
   response_format,
@@ -269,6 +282,7 @@ const normalizeResponseFormat = ({
 };
 
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
+  assertNoDirectLlmAccessDuringTests();
   assertApiKey();
   // M-03: Circuit breaker check — throws CIRCUIT_OPEN if the circuit is OPEN.
   // HALF_OPEN allows exactly one probe through; onSuccess/onFailure update state.
@@ -358,7 +372,9 @@ async function _invokeLLMRaw(params: InvokeParams): Promise<InvokeResult> {
   } catch (fetchErr: any) {
     clearTimeout(timeoutId);
     if (fetchErr.name === "AbortError") {
-      throw new Error(`LLM invoke timed out after ${callTimeoutMs / 1000} seconds (connection)`);
+      throw new Error(
+        `LLM invoke timed out after ${callTimeoutMs / 1000} seconds (connection)`
+      );
     }
     throw fetchErr;
   }
@@ -380,7 +396,9 @@ async function _invokeLLMRaw(params: InvokeParams): Promise<InvokeResult> {
   } catch (bodyErr: any) {
     clearTimeout(timeoutId);
     if (bodyErr.name === "AbortError") {
-      throw new Error(`LLM invoke timed out after ${callTimeoutMs / 1000} seconds (response body stalled)`);
+      throw new Error(
+        `LLM invoke timed out after ${callTimeoutMs / 1000} seconds (response body stalled)`
+      );
     }
     throw bodyErr;
   }
@@ -429,11 +447,7 @@ export class LlmCircuitBreaker {
   private readonly _failureThreshold: number;
   private readonly _cooldownMs: number;
 
-  constructor(
-    failureThreshold = 5,
-    _windowMs = 60_000,
-    cooldownMs = 60_000,
-  ) {
+  constructor(failureThreshold = 5, _windowMs = 60_000, cooldownMs = 60_000) {
     this._failureThreshold = failureThreshold;
     this._cooldownMs = cooldownMs;
   }
@@ -470,9 +484,9 @@ export class LlmCircuitBreaker {
       throw new Error(
         `CIRCUIT_OPEN: LLM circuit breaker is open after ${
           this._consecutiveFailures
-        } consecutive failures. Retry after ${
-          Math.ceil(this._cooldownMs / 1000)
-        }s.`
+        } consecutive failures. Retry after ${Math.ceil(
+          this._cooldownMs / 1000
+        )}s.`
       );
     }
     // HALF_OPEN: allow exactly one probe through (caller must call onSuccess/onFailure)
@@ -498,7 +512,11 @@ export class LlmCircuitBreaker {
       logger.error(
         "LlmCircuitBreaker",
         `Circuit OPENED after ${this._consecutiveFailures} consecutive failures`,
-        { consecutiveFailures: this._consecutiveFailures, totalTrips: this._totalTrips, err }
+        {
+          consecutiveFailures: this._consecutiveFailures,
+          totalTrips: this._totalTrips,
+          err,
+        }
       );
     }
   }
@@ -536,18 +554,46 @@ function isTransientError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   const msg = err.message.toLowerCase();
   // Timeout errors from invokeLLM
-  if (msg.includes('timed out')) return true;
+  if (msg.includes("timed out")) return true;
   // Network-level failures
-  if (msg.includes('fetch failed') || msg.includes('network') || msg.includes('econnreset') || msg.includes('econnrefused')) return true;
+  if (
+    msg.includes("fetch failed") ||
+    msg.includes("network") ||
+    msg.includes("econnreset") ||
+    msg.includes("econnrefused")
+  )
+    return true;
   // HTTP 429 rate limit or 503 service unavailable
-  if (msg.includes('429') || msg.includes('503') || msg.includes('rate limit') || msg.includes('overloaded')) return true;
+  if (
+    msg.includes("429") ||
+    msg.includes("503") ||
+    msg.includes("rate limit") ||
+    msg.includes("overloaded")
+  )
+    return true;
   // Truncated/empty API responses — the LLM returned a partial or empty body.
   // These are transient API failures, not permanent schema errors.
-  if (msg.includes('unexpected end of json') || msg.includes('unexpected token') || msg.includes('empty response')) return true;
+  if (
+    msg.includes("unexpected end of json") ||
+    msg.includes("unexpected token") ||
+    msg.includes("empty response")
+  )
+    return true;
   // Unterminated string — JSON output was cut off mid-token (max_tokens too low)
-  if (msg.includes('unterminated string') || msg.includes('position ') || msg.includes('bad escaped character')) return true;
+  if (
+    msg.includes("unterminated string") ||
+    msg.includes("position ") ||
+    msg.includes("bad escaped character")
+  )
+    return true;
   // SyntaxError with empty string — JSON.parse('') or JSON.parse('{}')
-  if (err instanceof SyntaxError && (msg.includes('json') || msg.includes('unexpected') || msg.includes('unterminated'))) return true;
+  if (
+    err instanceof SyntaxError &&
+    (msg.includes("json") ||
+      msg.includes("unexpected") ||
+      msg.includes("unterminated"))
+  )
+    return true;
   return false;
 }
 
@@ -568,8 +614,8 @@ export async function withRetry<T>(
   maxAttempts = 3,
   backoffMs: number[] = [2000, 4000, 8000],
   onRetry?: (attempt: number, err: unknown) => void,
-  engineLabel = 'withRetry',
-  meta?: Record<string, unknown>,
+  engineLabel = "withRetry",
+  meta?: Record<string, unknown>
 ): Promise<T> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {

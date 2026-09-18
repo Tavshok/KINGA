@@ -2,12 +2,20 @@
 // Preconfigured storage helpers for Manus WebDev templates
 // Uses the Biz-provided storage proxy (Authorization: Bearer <token>)
 
-import { ENV } from './_core/env';
+import { ENV } from "./_core/env";
 
 type StorageConfig = { baseUrl: string; apiKey: string };
 
 /** Hard timeout for all storage API calls — prevents pipeline hangs if S3/proxy is slow */
 const STORAGE_TIMEOUT_MS = 30_000;
+
+function assertNoDirectStorageAccessDuringTests(): void {
+  if (process.env.NODE_ENV === "test" || process.env.VITEST) {
+    throw new Error(
+      "Direct storage access is disabled during tests. Mock server/storage at the test boundary."
+    );
+  }
+}
 
 /**
  * Wrapper around fetch() that aborts after STORAGE_TIMEOUT_MS.
@@ -24,7 +32,9 @@ async function fetchWithTimeout(
     return response;
   } catch (err: any) {
     if (err?.name === "AbortError" || controller.signal.aborted) {
-      throw new Error(`Storage request timed out after ${STORAGE_TIMEOUT_MS / 1000}s — ${url}`);
+      throw new Error(
+        `Storage request timed out after ${STORAGE_TIMEOUT_MS / 1000}s — ${url}`
+      );
     }
     throw err;
   } finally {
@@ -103,6 +113,7 @@ export async function storagePut(
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream"
 ): Promise<{ key: string; url: string }> {
+  assertNoDirectStorageAccessDuringTests();
   const { baseUrl, apiKey } = getStorageConfig();
   const key = normalizeKey(relKey);
   const uploadUrl = buildUploadUrl(baseUrl, key);
@@ -132,7 +143,8 @@ export async function storagePut(
 export async function storageGet(
   relKey: string,
   expiresInSeconds?: number
-): Promise<{ key: string; url: string; }> {
+): Promise<{ key: string; url: string }> {
+  assertNoDirectStorageAccessDuringTests();
   const { baseUrl, apiKey } = getStorageConfig();
   const key = normalizeKey(relKey);
   return {
