@@ -7,7 +7,7 @@
  * All vi.mock factories are self-contained (no external variable references)
  * because vi.mock is hoisted before variable declarations.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ── Mock: pdfjs-dist (used for scan detection in Step 1) ─────────────────────
 // Plain vi.fn() — return value is set per-test in restoreMockDefaults().
@@ -142,6 +142,14 @@ function mockFetch(width = 800, height = 600) {
     arrayBuffer: () => Promise.resolve(buf.buffer),
   } as any);
 }
+
+// Restore the process-global fetch implementation after every test because
+// later single-fork suites use it for their own loopback HTTP requests.
+const originalFetch = global.fetch;
+
+afterEach(() => {
+  global.fetch = originalFetch;
+});
 
 function makeSharpInst(width = 800, height = 600) {
   const fakePng = makeNonUniformBuf(width * height);
