@@ -66,6 +66,7 @@ import { assertTestDatabasePoolTarget } from './_core/test-database-guard';
 import { logger } from './logger';
 import * as dbPipeline from './db-pipeline.ts';
 import { getTenantRates, notifyTenantProcessors } from './db/intelligence-db';
+import { handleVehicleRegistryRequiredAuditFailure } from './vehicle-registry-audit-alert';
 import { resolveKingaWriteOffRecommendation } from '../shared/writeOffRecommendation';
 
 import type { MySql2Database } from 'drizzle-orm/mysql2';
@@ -3329,7 +3330,7 @@ export async function triggerAiAssessment(claimId: number) {
         impactZone: acc?.impactPoint ?? null,
       });
     } catch (e: any) {
-      console.warn(`[VehicleRegistry] Post-pipeline upsert failed for claim ${claimId}:`, e.message?.substring(0, 100));
+      await handleVehicleRegistryRequiredAuditFailure(e);
     }
   });
 

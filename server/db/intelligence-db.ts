@@ -17,6 +17,29 @@ import {
   type VehicleBenchmarkContext,
 } from "../pipeline-v2/vehicleBenchmarkHierarchy";
 
+export type ClaimEventInput = {
+  claimId: number;
+  eventType: string;
+  userId?: number;
+  userRole?: string;
+  tenantId?: string;
+  eventPayload?: Record<string, unknown>;
+};
+
+export class RequiredClaimEventPersistenceError extends Error {
+  readonly claimId: number;
+  readonly eventType: string;
+  readonly originalError: unknown;
+
+  constructor(params: Pick<ClaimEventInput, "claimId" | "eventType">, originalError: unknown) {
+    super(`Required claim event persistence failed: ${params.eventType} for claim ${params.claimId}`);
+    this.name = "RequiredClaimEventPersistenceError";
+    this.claimId = params.claimId;
+    this.eventType = params.eventType;
+    this.originalError = originalError;
+  }
+}
+
 export async function emitClaimEvent(params: {
   claimId: number;
   eventType: string;
@@ -46,6 +69,33 @@ export async function emitClaimEvent(params: {
   } catch (error) {
     console.error(`[Events] Failed to emit ${params.eventType}:`, error);
     // Non-blocking: don't throw, just log
+  }
+}
+
+/**
+ * Persist a claim event whose absence must be visible to the caller.
+ *
+ * This deliberately does not change the best-effort contract of emitClaimEvent.
+ */
+export async function emitRequiredClaimEvent(params: ClaimEventInput): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) {
+      throw new Error("Database not available");
+    }
+    await db.insert(claimEvents).values({
+      claimId: params.claimId,
+      eventType: params.eventType,
+      userId: params.userId,
+      userRole: params.userRole,
+      tenantId: params.tenantId,
+      eventPayload: params.eventPayload || null,
+      emittedAt: new Date().toISOString(),
+    });
+    console.log(`[Events] Emitted required ${params.eventType} for claim ${params.claimId}`);
+  } catch (error) {
+    console.error(`[Events] Failed to emit required ${params.eventType}:`, error);
+    throw new RequiredClaimEventPersistenceError(params, error);
   }
 }
 
