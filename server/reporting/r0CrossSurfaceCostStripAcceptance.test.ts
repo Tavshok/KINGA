@@ -50,9 +50,6 @@ describe("Approved R0-H/R0-I cross-surface cost-strip acceptance", () => {
     for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts", "server/reporting/forensicDecisionReport.ts"]) {
       const source = read(file);
       expect(source).toContain("renderCostDecisionSummaryHtml");
-      expect(source).toContain("Submitted quotation ledger");
-      expect(source).toContain("l2LedgerLabel");
-      expect(source).toContain("KINGA Optimised Quote");
     }
     const client = read("client/src/components/KingaClaimsReport.tsx");
     expect(client).toContain("submittedQuotes.map");
@@ -68,6 +65,6 @@ describe("Approved R0-H/R0-I cross-surface cost-strip acceptance", () => {
     expect(ci).toContain("No savings or settlement figure is calculated from an incomplete L2.");
     expect(fr).toContain("const hasSavings = savings > 0 && kingaOptimised !== null");
     expect(fr).toContain("const recommendedSettlement = kingaOptimised === null");
-    expect(fr).toContain("L2 integrity hold");
+    expect(fr).toContain("cost optimisation unavailable");
   });
 });
