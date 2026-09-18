@@ -1,13 +1,13 @@
 /**
  * Unit tests for photoEnrichment service
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ── Mock global fetch so isUrlAccessible always returns accessible ──────────────
 // Without this, isUrlAccessible() makes real HTTP requests to example.com URLs
 // which fail in the test environment, causing analyzePhoto to return the fallback
-// (impactZone: 'unknown') instead of the mocked LLM response.
-vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 200 }));
+// (impactZone: 'unknown') instead of the mocked LLM response. The stub is scoped
+// per test, and is explicitly undone below so it cannot alter later HTTP tests.
 
 // ── Mock invokeLLM ─────────────────────────────────────────────────────────────
 vi.mock('../_core/llm', () => ({
@@ -52,6 +52,11 @@ const REAR_LLM_RESPONSE = {
 describe('enrichDamagePhotos', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 200 }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('returns empty result when no photo URLs provided', async () => {
