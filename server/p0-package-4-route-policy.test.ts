@@ -7,12 +7,14 @@ const read = (relativePath: string) => fs.readFileSync(path.join(root, relativeP
 
 describe("P0 Package 4 — route admission policy", () => {
   const protectedRoute = read("client/src/components/ProtectedRoute.tsx");
+  const roleRouting = read("client/src/lib/roleRouting.ts");
   const roleGuard = read("client/src/components/RoleGuard.tsx");
   const app = read("client/src/App.tsx");
   const tenantRouter = read("server/routers/tenant.ts");
 
   it("admits platform-super-admin to the client-detail portal domain without changing backend object checks", () => {
-    expect(protectedRoute).toContain('portal: ["claimant", "admin", "platform_super_admin"]');
+    expect(protectedRoute).toContain("PORTAL_DOMAIN_ROLE_MAP");
+    expect(roleRouting).toContain('portal: ["claimant", "admin", "platform_super_admin"]');
   });
 
   it("uses the shared canonical admin helper for the insurer portal-shell override", () => {

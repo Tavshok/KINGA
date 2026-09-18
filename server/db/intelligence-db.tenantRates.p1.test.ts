@@ -58,7 +58,9 @@ describe("AUD-P1-016 tenant-rate override loader", () => {
   it("imports the tenant-rate reader into the assessment entry module before invoking it", () => {
     const dbSource = readFileSync(resolve(import.meta.dirname, "../db.ts"), "utf8");
 
-    expect(dbSource).toContain("import { getTenantRates } from './db/intelligence-db';");
+    expect(dbSource).toMatch(
+      /import\s*\{[^}]*\bgetTenantRates\b[^}]*\}\s*from\s*["']\.\/db\/intelligence-db["'];/
+    );
     expect(dbSource).toContain("tenantRates = await getTenantRates(claim.tenantId);");
   });
 });
