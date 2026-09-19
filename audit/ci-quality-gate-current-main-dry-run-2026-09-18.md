@@ -34,7 +34,7 @@ Run `35405679170` then passed checkout, package setup, frozen dependency install
 
 Run `35407262390` then reduced the hosted suite to the three session-revocation cases. Its JWT key was non-empty, but its session payload used an empty application identifier, which the verifier correctly rejects as an invalid cookie. The Vitest step now also supplies the disposable `VITE_APP_ID=kinga-ci-test-app`; an unset-host-environment simulation with only the disposable CI database URL, JWT key, and application identifier passed all four session-revocation tests. The next hosted rerun remains required before any merge or branch-protection decision.
 
-The full constrained simulation then removed host `VITE_APP_ID`, `JWT_SECRET`, and Forge provider variables, supplied only the workflow’s disposable database URL, JWT key, and application identifier, and completed every gate successfully: provisioner, conflict check, baseline comparison, **563 passed / 1 skipped test files**, **9,442 passed / 4 skipped tests**, and production build. It completed in **135.68 seconds** and emitted no external-provider request indicator. This is the final local reproduction of the hosted job before its next GitHub rerun.
+The full constrained simulation then removed host `VITE_APP_ID`, `JWT_SECRET`, and Forge provider variables, supplied only the workflow’s disposable database URL, JWT key, and application identifier, and completed every gate successfully: provisioner, conflict check, baseline comparison, **563 passed / 1 skipped test files**, **9,442 passed / 4 skipped tests**, and production build. It completed in **135.68 seconds** and emitted no external-provider request indicator. The subsequent hosted run `35407810791` passed the complete workflow in **3 minutes 46 seconds**, confirming the stable check context **`KINGA Quality Gate / quality-gate`** before any branch-protection decision. [5]
 
 ## References
 
@@ -42,3 +42,4 @@ The full constrained simulation then removed host `VITE_APP_ID`, `JWT_SECRET`, a
 [2]: ../scripts/ci/typecheck-baseline.mjs "TypeScript diagnostic baseline comparator"
 [3]: ../.github/workflows/kinga-quality-gate.yml "KINGA Quality Gate workflow"
 [4]: ../server/truthReconciliationEngine.test.ts "Truth Reconciliation Engine idempotency regression"
+[5]: https://github.com/Tavshok/KINGA/actions/runs/35407810791 "Successful KINGA Quality Gate pull-request run"

@@ -36,11 +36,11 @@ The only JWT key in the workflow is a fixed, non-secret value scoped to the **Fu
 
 The schema snapshot is refreshed only through a reviewed source change. A refresh must be schema-only, must be checked for the absence of data statements, must retain the loopback-only database name, and must be validated by a disposable full-suite run before review. The `ci/typecheck-baseline.json` file is also a reviewed source artifact. A maintainer may refresh it only by running `node scripts/ci/typecheck-baseline.mjs --write-baseline` from a known `main` revision, documenting the source commit and the reason for the change. The workflow cannot invoke that mode.
 
-## Validation plan
+## Hosted validation result
 
-The workflow review pull request is its first real hosted run. Validation requires the check to complete and to publish the exact planned context: **`KINGA Quality Gate / quality-gate`**. Its test stage must report the green isolated suite rather than connect to a live endpoint. The TypeScript artifact must show zero new diagnostics relative to the committed baseline.
+The review pull request’s final hosted run completed successfully on 19 September 2026. Run `35407810791` completed the exact planned check context: **`KINGA Quality Gate / quality-gate`**. It passed frozen dependency installation, local test utilities, disposable database provisioning, conflict checking, the TypeScript baseline comparison, the full guarded test suite, and the production build. [6]
 
-Branch protection remains intentionally unmodified. Only after the workflow is merged and has produced a stable successful run on `main` should a separate decision be requested to require the `KINGA Quality Gate / quality-gate` check, require branches to be current, and apply the other proposed merge controls.
+Branch protection remains intentionally unmodified. The remaining sequence is review and merge of the workflow PR, observation of the same context on `main`, then a separate owner decision on whether to require `KINGA Quality Gate / quality-gate`, require branches to be current, or apply any other merge control.
 
 ## References
 
@@ -49,3 +49,4 @@ Branch protection remains intentionally unmodified. Only after the workflow is m
 [3]: ../../scripts/ci/provision-isolated-test-db.mjs "Ephemeral Actions MariaDB provisioner"
 [4]: https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-nodejs "GitHub Actions guidance for building and testing Node.js"
 [5]: https://docs.github.com/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches "GitHub documentation on protected branches"
+[6]: https://github.com/Tavshok/KINGA/actions/runs/35407810791 "Successful KINGA Quality Gate pull-request run"
