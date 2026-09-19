@@ -400,6 +400,13 @@
       "when": 1771494069999,
       "tag": "0060_role_assignment_audit_fleet_platform_enum",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "5",
+      "when": 1789824033337,
+      "tag": "0061_workos_auth_transactions",
+      "breakpoints": true
     }
   ]
 }

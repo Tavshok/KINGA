@@ -43,6 +43,8 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
+import { startWorkOSAuthTransactionCleanup } from "./workos-auth-transaction-cleanup";
+import { createWorkOSHumanAuthRouter } from "./workos-auth-routes";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -155,6 +157,13 @@ export async function createApplication(options: { includeFrontend?: boolean } =
   
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
+  // The WorkOS path is absent until a separately approved environment enables
+  // the exact server-only gate and supplies valid canonical provider settings.
+  if (ENV.workosHumanAuthEnabled) {
+    app.use("/api/auth/workos", createWorkOSHumanAuthRouter());
+    startWorkOSAuthTransactionCleanup();
+  }
 
   // Diagnostic endpoint — shows cookie presence and auth state on deployed server
   // Remove after login loop is resolved

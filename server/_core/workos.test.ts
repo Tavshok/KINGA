@@ -9,7 +9,7 @@ import {
 const validConfig: WorkOSProviderConfig = {
   apiKey: "sk_test_provider_secret",
   clientId: "client_test_123",
-  redirectUri: "https://app.example.test/api/oauth/workos/callback",
+  redirectUri: "https://app.example.test/api/auth/workos/callback",
 };
 
 type FakeClient = {
@@ -82,10 +82,11 @@ describe("WorkOS AuthKit provider adapter", () => {
 
   it.each([
     "not a URL",
-    "http://app.example.test/api/oauth/workos/callback",
-    "https://user:password@app.example.test/api/oauth/workos/callback",
-    "https://app.example.test/api/oauth/workos/callback?unexpected=value",
-    "https://app.example.test/api/oauth/workos/callback#fragment",
+    "http://app.example.test/api/auth/workos/callback",
+    "https://user:password@app.example.test/api/auth/workos/callback",
+    "https://app.example.test/api/auth/workos/callback?unexpected=value",
+    "https://app.example.test/api/auth/workos/callback#fragment",
+    "https://app.example.test/api/oauth/workos/callback",
   ])("rejects an unsafe configured redirect URI: %s", redirectUri => {
     expectProviderError(
       () => createWorkOSAuthProvider({ ...validConfig, redirectUri }),
@@ -96,7 +97,7 @@ describe("WorkOS AuthKit provider adapter", () => {
   it("rejects an HTTP localhost callback unless an explicit local-only option is supplied", () => {
     const localConfig = {
       ...validConfig,
-      redirectUri: "http://localhost:3000/api/oauth/workos/callback",
+      redirectUri: "http://localhost:3000/api/auth/workos/callback",
     };
 
     expectProviderError(
@@ -114,7 +115,7 @@ describe("WorkOS AuthKit provider adapter", () => {
     expect(() =>
       createWorkOSAuthProvider({
         ...validConfig,
-        redirectUri: "https://localhost:3000/api/oauth/workos/callback",
+        redirectUri: "https://localhost:3000/api/auth/workos/callback",
       })
     ).not.toThrow();
   });
@@ -145,7 +146,7 @@ describe("WorkOS AuthKit provider adapter", () => {
 
     await expect(
       provider.getAuthorizationUrl({
-        redirectUri: "https://attacker.example.test/api/oauth/workos/callback",
+        redirectUri: "https://attacker.example.test/api/auth/workos/callback",
         state: "package-c-state",
         codeChallenge: "package-c-pkce-challenge",
       })

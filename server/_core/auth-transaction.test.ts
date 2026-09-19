@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { AUTH_TRANSACTION_TTL_MS } from "./auth-transaction-policy";
 import {
@@ -50,23 +49,13 @@ function isAuthTransactionError(
 }
 
 describe("WorkOS local authentication transaction", () => {
-  it("has no production route or provider caller in Package C1", () => {
-    const coreIndex = readFileSync(
-      new URL("./index.ts", import.meta.url),
-      "utf8"
-    );
-    const oauthRoute = readFileSync(
-      new URL("./oauth.ts", import.meta.url),
-      "utf8"
-    );
-    const cookieHelper = readFileSync(
-      new URL("./cookies.ts", import.meta.url),
-      "utf8"
+  it("remains independent of HTTP routes and provider SDKs", async () => {
+    const source = await import("node:fs/promises").then(({ readFile }) =>
+      readFile(new URL("./auth-transaction.ts", import.meta.url), "utf8")
     );
 
-    expect(coreIndex).not.toContain("auth-transaction");
-    expect(oauthRoute).not.toContain("auth-transaction");
-    expect(cookieHelper).not.toContain('from "./auth-transaction"');
+    expect(source).not.toContain("express");
+    expect(source).not.toContain("@workos-inc/node");
   });
 
   it.each([

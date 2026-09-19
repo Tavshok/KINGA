@@ -24,6 +24,12 @@ export const ENV = {
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   /**
+   * Default-off server-only gate for the separately configured WorkOS human
+   * authentication route. No client code reads this value and no provider
+   * configuration is evaluated unless the route is mounted.
+   */
+  workosHumanAuthEnabled: process.env.WORKOS_HUMAN_AUTH_ENABLED === "true",
+  /**
    * Comma-separated list of Heartbeat task UIDs allowed to trigger
    * /api/scheduled/intake-escalation and /api/scheduled/stuck-recovery.
    *
