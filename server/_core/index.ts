@@ -55,6 +55,7 @@ import { runIntakeEscalationJob, startIntakeEscalationJob } from "../intake-esca
 import { runStuckAssessmentRecoveryJob, startStuckAssessmentRecoveryJob } from "../stuck-assessment-recovery-job";
 import { checkRecoveryDeadlines } from "../recovery/recoveryDeadlineAlerts";
 import { sdk } from "./sdk";
+import { verifyLocalSession } from "./kinga-session";
 import { ENV } from "./env";
 import { getRuntimeReadiness } from "./runtime-readiness";
 import { resolveListenPort } from "./runtime-listen";
@@ -190,7 +191,7 @@ export async function createApplication(options: { includeFrontend?: boolean } =
       return;
     }
     try {
-      const session = await sdk.verifySession(sessionCookie);
+      const session = await verifyLocalSession(sessionCookie);
       result.session = session ? { openId: session.openId, hasName: !!session.name } : null;
       if (!session) { res.json({ ...result, step: "VERIFY_FAILED" }); return; }
       const { getUserByOpenId } = await import("../db");
