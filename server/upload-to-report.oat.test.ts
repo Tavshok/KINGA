@@ -202,6 +202,7 @@ describe("isolated authenticated upload-to-report operational acceptance", () =>
       .limit(1);
     expect(intakeClaim).toMatchObject({
       id: claimId,
+      claimantId: null,
       sourceDocumentId: document.id,
       claimSource: "document_ingestion",
     });
