@@ -26,7 +26,7 @@ import {
 import { Truck, Building2 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import InsuranceRequestWizard from "@/components/InsuranceRequestWizard";
-import { getLoginUrl } from "@/const";
+import { startDefaultLogin } from "@/auth/login-navigation";
 import { toast } from "sonner";
 
 type Tab = "dashboard" | "vehicles" | "valuations" | "insurance" | "claims" | "company";
@@ -122,7 +122,7 @@ export default function ClientPortal() {
             <User className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
             <h2 className="text-lg font-semibold mb-2">Sign In to Your KINGA Portal</h2>
             <p className="text-sm text-muted-foreground mb-4">Manage your vehicles, valuations, insurance, and claims — all in one place.</p>
-            <Button className="w-full" onClick={() => window.location.href = getLoginUrl("/client")}>
+            <Button className="w-full" onClick={() => startDefaultLogin("/client")}>
               Sign In to KINGA
             </Button>
           </CardContent>

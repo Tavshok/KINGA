@@ -128,25 +128,27 @@ describe("M-05 — migration script documents TiDB FULLTEXT limitation and adds 
   });
 });
 
-describe("M-01 — routers.ts unbounded query fixes", () => {
-  const src = readFile("server/routers.ts");
+describe("M-01 — bounded query fixes", () => {
+  const routerSrc = readFile("server/routers.ts");
+  const insuranceSrc = readRouter("insurance-core.ts");
 
   it("assessorSubscriptions list has .limit(200)", () => {
-    expect(src).toMatch(/from\(asSubs\)\.orderBy\(asSubs\.tier\)\.limit\(200\)/);
+    expect(routerSrc).toMatch(/from\(asSubs\)\.orderBy\(asSubs\.tier\)\.limit\(200\)/);
   });
 
   it("pendingQuotes by status has .limit(500)", () => {
-    // Find the SELECT query that uses payment_submitted (not the UPDATE SET)
-    const idx = src.indexOf(".where(eq(insuranceQuotes.status, 'payment_submitted'))");
+    const idx = insuranceSrc.indexOf("eq(insuranceQuotes.status, 'payment_submitted')");
     expect(idx).toBeGreaterThan(-1);
-    const context = src.slice(idx, idx + 100);
+    const context = insuranceSrc.slice(idx, idx + 300);
+    expect(context).toContain("eq(insuranceQuotes.tenantId, actorTenantId)");
     expect(context).toContain(".limit(500)");
   });
 
   it("insuranceQuotes by customerId has .limit(100)", () => {
-    const idx = src.indexOf("insuranceQuotes.customerId, ctx.user.id");
+    const idx = insuranceSrc.indexOf("eq(insuranceQuotes.customerId, ctx.user.id)");
     expect(idx).toBeGreaterThan(-1);
-    const context = src.slice(idx, idx + 200);
+    const context = insuranceSrc.slice(idx, idx + 300);
+    expect(context).toContain("eq(insuranceQuotes.tenantId, actorTenantId)");
     expect(context).toContain(".limit(100)");
   });
 });

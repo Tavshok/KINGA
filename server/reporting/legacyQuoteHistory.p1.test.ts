@@ -19,7 +19,7 @@ describe("AUD-P1-001 — qualified legacy quotation history", () => {
       escapeHtml: (value) => String(value),
       repairability: { totalLossIndicated: false, repairToValueRatio: 0.2 },
     });
-    expect(html).toContain("Legacy quotation history — not used as active comparison evidence");
+    expect(html).toContain("Historical quotation evidence is retained separately and is not used as active payable comparison evidence.");
     expect(integrity.l1SubmittedCostUsd).toBeNull();
   });
 
@@ -33,9 +33,10 @@ describe("AUD-P1-001 — qualified legacy quotation history", () => {
   it("keeps every CL, CI, FR, and client quote surface on the qualified submitted-history boundary", () => {
     const root = resolve(import.meta.dirname, "../..");
     const read = (relativePath: string) => readFileSync(resolve(root, relativePath), "utf8");
-    expect(read("server/reporting/claimsIntelligenceReport.ts")).toContain("costIntegrity.submittedQuotes");
+    expect(read("server/reporting/claimsIntelligenceReport.ts")).toContain("resolveReportQuoteEvidencePresentation");
     expect(read("server/reporting/forensicDecisionReport.ts")).toContain("costIntegrity.submittedQuotes");
-    expect(read("server/reporting/reportDefinitions.ts")).toContain("costIntegrity.submittedQuotes");
+    expect(read("server/reporting/reportDefinitions.ts")).toContain("resolveReportQuoteEvidencePresentation");
+    expect(read("server/reporting/costDecisionPresentation.ts")).toContain("legacyHistoryQualified");
     const client = read("client/src/components/KingaClaimsReport.tsx");
     expect(client).toContain("classifyLegacyQuoteEvidenceRows(quotes)");
     expect(client).toContain("legacy quotation histor");

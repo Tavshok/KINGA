@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { afterAll, vi } from "vitest";
 import {
   assertIsolatedTestDatabaseUrl,
   assertTestDatabaseEnvironment,
@@ -109,4 +109,11 @@ vi.mock("mysql2/promise", async importOriginal => {
 vi.mock("mysql2", async importOriginal => {
   const actual = await importOriginal<typeof import("mysql2")>();
   return guardPromiseModule(actual);
+});
+
+afterAll(async () => {
+  const { closeDbPool } = await vi.importActual<typeof import("./db")>("./db");
+  if (typeof closeDbPool === "function") {
+    await closeDbPool();
+  }
 });

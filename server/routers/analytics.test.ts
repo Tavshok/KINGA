@@ -8,21 +8,52 @@
  * - Get SLA compliance metrics
  */
 
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  getDb: vi.fn(),
+}));
+
+vi.mock("../db", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../db")>()),
+  getDb: mocks.getDb,
+}));
+
 import { appRouter } from "../routers";
 import type { Context } from "../_core/context";
 
 // Mock context for testing
-const createMockContext = (role: string = "admin"): Context => ({
+const testTenantId = "analytics-router-fixture";
+const createMockContext = (role: string = "insurer"): Context => ({
   user: {
     id: 1,
     openId: "test-openid",
     name: "Test Insurer",
     email: "insurer@test.com",
     role,
+    insurerRole: "claims_manager",
+    tenantId: testTenantId,
     createdAt: new Date(),
     updatedAt: new Date(),
   },
+});
+
+const emptyAnalyticsDb = {
+  execute: vi.fn().mockResolvedValue([[]]),
+  select: vi.fn(() => ({
+    from: () => ({
+      where: () => ({
+        orderBy: () => ({
+          limit: async () => [],
+        }),
+      }),
+    }),
+  })),
+};
+
+beforeEach(() => {
+  emptyAnalyticsDb.execute.mockResolvedValue([[]]);
+  mocks.getDb.mockResolvedValue(emptyAnalyticsDb);
 });
 
 describe("Executive Analytics Router", () => {

@@ -13,7 +13,7 @@ import { ClaimDecisionReportStandardView } from "../../client/src/components/Cla
 import { getKingaClaimsReportAudience } from "../../client/src/lib/reportAudience";
 
 const claimantRouteSource = readFileSync(
-  resolve(process.cwd(), "client/src/pages/ClaimDecisionReport.tsx"),
+  resolve(process.cwd(), "client/src/pages/ClaimDecisionReport.page.tsx"),
   "utf8",
 );
 const insurerRouteSource = readFileSync(

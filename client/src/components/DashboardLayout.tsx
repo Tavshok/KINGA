@@ -25,7 +25,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getLoginUrl } from "@/const";
+import { startDefaultLogin } from "@/auth/login-navigation";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   LayoutDashboard, LogOut, PanelLeft, Users, AlertCircle, Network, FileBarChart,
@@ -177,7 +177,7 @@ export default function DashboardLayout({
           </div>
           <Button
             onClick={() => {
-              window.location.href = getLoginUrl();
+              startDefaultLogin();
             }}
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"

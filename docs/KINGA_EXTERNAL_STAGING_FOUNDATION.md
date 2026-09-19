@@ -4,7 +4,7 @@
 
 ## 1. Scope and intent
 
-KINGA’s external production migration begins with a staging foundation, not a production cutover. This package makes the minimum runtime declarations and probe semantics explicit, records the platform-coupled boundaries still requiring replacement, and adds a small CI contract that can run without a database or external credentials.
+KINGA’s external production migration begins with a staging foundation, not a production cutover. This package makes the minimum runtime declarations and probe semantics explicit, records the platform-coupled boundaries still requiring replacement, and adds a small CI contract that can run without any live database or external credentials.
 
 The package preserves the current managed implementation. It does **not** switch authentication, storage, scheduled jobs, reports, pipeline execution, WebSockets, provider calls, frontend hosting, or data access to an external system.
 
@@ -16,7 +16,7 @@ The package preserves the current managed implementation. It does **not** switch
 | `GET /healthz` | Liveness probe showing that the API process can answer a request and identify its release version. | Database health, authentication health, or business-function health. |
 | `GET /readyz` | Readiness probe for the declared runtime configuration; returns HTTP 503 when required declaration names are missing or malformed. | Any live external-service integration or security acceptance gate. |
 | `server/_core/runtime-listen.ts` | Keeps local managed fallback-port behaviour but requires an external host to bind exactly the assigned `PORT`. | WebSocket ingress configuration or a complete hosting integration. |
-| `.github/workflows/external-staging-readiness.yml` | Runs conflict, runtime-contract and server-bundle checks without credentials or deployment. | Full-suite correctness, database integration, external cloud deploy, or staging acceptance. |
+| `.github/workflows/external-staging-readiness.yml` | Provisions an ephemeral loopback MariaDB solely to satisfy the repository’s fail-closed test guard, then runs conflict, runtime-contract and server-bundle checks without credentials or deployment. | Full-suite correctness, database-backed acceptance, external cloud deploy, or staging acceptance. |
 
 The `readyz` response contains configuration names and status only. It is intentionally marked `verificationScope: "configuration-only"`; it must never be used as a tenant-security or data-integrity acceptance result.
 
@@ -82,7 +82,7 @@ Do not activate external traffic or mark a staging deployment accepted when any 
 
 The runtime readiness contract has focused unit coverage for managed defaults, missing external declarations, complete non-production external declarations, production HTTPS enforcement, invalid runtime modes, and exact external port binding. These tests verify only the contract’s behaviour.
 
-The companion workflow runs the conflict-marker check, those focused tests and the server bundle. It deliberately does not run a cloud deploy, TiDB migration, external identity flow, provider call, storage operation or database-backed acceptance suite.
+The companion workflow runs the conflict-marker check, those focused tests and the server bundle. The focused tests do not query application data. An ephemeral loopback MariaDB is provisioned only because the shared test harness refuses to run without an explicitly isolated database target. The workflow deliberately does not run a cloud deploy, TiDB migration, external identity flow, provider call, storage operation or database-backed acceptance suite.
 
 ## 8. Next approved engineering boundary
 

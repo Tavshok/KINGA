@@ -21,7 +21,10 @@ import { eq, or, and, sql } from "drizzle-orm";
 import { vehicleRegistry, claims } from "../drizzle/schema";
 import type { VehicleRegistry, InsertVehicleRegistry } from "../drizzle/schema";
 import { getDb } from "./db";
-import { emitClaimEvent } from "./db/intelligence-db";
+import {
+  emitRequiredClaimEvent,
+  RequiredClaimEventPersistenceError,
+} from "./db/intelligence-db";
 
 // ─── Normalisation helpers ────────────────────────────────────────────────────
 
@@ -79,6 +82,33 @@ export interface VehicleRiskSummary {
   isWrittenOff: boolean;
   damageZoneCounts: Record<string, number>;
   claimIds: number[];
+}
+
+export type CrossTenantContainmentAuditInput = {
+  claimId: number;
+  tenantId?: string | null;
+  matchedBy: "vin" | "registration_number";
+  existingVehicleRegistryId: number;
+  existingTenantId?: string | null;
+};
+
+export async function persistCrossTenantContainmentAudit(
+  input: CrossTenantContainmentAuditInput,
+  emit = emitRequiredClaimEvent
+): Promise<void> {
+  await emit({
+    claimId: input.claimId,
+    eventType: "vehicle_registry_cross_tenant_match_contained",
+    userRole: "system",
+    tenantId: input.tenantId ?? undefined,
+    eventPayload: {
+      matchedBy: input.matchedBy,
+      existingVehicleRegistryId: input.existingVehicleRegistryId,
+      existingTenantId: input.existingTenantId ?? null,
+      incomingTenantId: input.tenantId ?? null,
+      action: "claim_retained_without_registry_attachment",
+    },
+  });
 }
 
 // ─── Mass source priority ─────────────────────────────────────────────────────
@@ -160,7 +190,8 @@ export function updateDamageZoneCounts(
  * Upsert a vehicle record in the registry.
  *
  * Returns the registry record ID and a risk summary.
- * Never throws — failures are caught and logged so the claim pipeline continues.
+ * Routine enrichment failures are caught and logged so the claim pipeline continues.
+ * A failed cross-tenant containment audit is rethrown for the caller to alert on.
  */
 export async function upsertVehicleRegistry(
   input: VehicleUpsertInput
@@ -211,18 +242,12 @@ export async function upsertVehicleRegistry(
       console.warn(
         `[VehicleRegistry] Contained cross-tenant ${matchedBy} match for claim ${input.claimId}; existing vehicle ${existing.id} was not mutated`,
       );
-      await emitClaimEvent({
+      await persistCrossTenantContainmentAudit({
         claimId: input.claimId,
-        eventType: "vehicle_registry_cross_tenant_match_contained",
-        userRole: "system",
         tenantId: input.tenantId ?? undefined,
-        eventPayload: {
-          matchedBy,
-          existingVehicleRegistryId: existing.id,
-          existingTenantId: existing.tenantId,
-          incomingTenantId: input.tenantId ?? null,
-          action: "claim_retained_without_registry_attachment",
-        },
+        matchedBy,
+        existingVehicleRegistryId: existing.id,
+        existingTenantId: existing.tenantId,
       });
       return null;
     }
@@ -386,6 +411,9 @@ export async function upsertVehicleRegistry(
       claimIds: newClaimIds,
     };
   } catch (err: any) {
+    if (err instanceof RequiredClaimEventPersistenceError) {
+      throw err;
+    }
     console.error(`[VehicleRegistry] Upsert failed for claim ${input.claimId}: ${err.message}`);
     return null;
   }

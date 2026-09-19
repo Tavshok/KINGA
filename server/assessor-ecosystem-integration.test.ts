@@ -14,7 +14,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { appRouter } from "./routers";
-import { getDb } from "./db";
+import { acceptAssessorReportReview, getDb } from "./db";
 import { users, assessors, assessorInsurerRelationships, assessorMarketplaceReviews, claims, auditTrail, assessorEvaluations, assessorReports, assessorReportReviews, aiAssessments, claimEvents, claimAssignments } from "../drizzle/schema";
 import { eq, and, like, inArray } from "drizzle-orm";
 
@@ -104,6 +104,18 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
     const [externalAssessorUser] = await db.select().from(users).where(eq(users.openId, externalAssessorOpenId)).limit(1);
     externalAssessorUserId = externalAssessorUser.id;
 
+    const reviewerOpenId = `test_claims_manager_${ts}`;
+    await db.insert(users).values({
+      openId: reviewerOpenId,
+      email: `claims.manager.${ts}@testinsurer.co.zw`,
+      name: "Test Claims Manager",
+      role: "insurer",
+      insurerRole: "claims_manager",
+      tenantId,
+      emailVerified: 1,
+    });
+    const [reviewerUser] = await db.select().from(users).where(eq(users.openId, reviewerOpenId)).limit(1);
+
     // Create assessor user (for marketplace self-registration)
     const assessorOpenId = `test_assessor_user_${ts}`;
     await db.insert(users).values({
@@ -135,7 +147,7 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
       emailVerified: 1,
     });
     const [claimantUser] = await db.select().from(users).where(eq(users.openId, claimantOpenId)).limit(1);
-    ownedUserIds.push(insurerUser.id, processorUser.id, externalAssessorUser.id, assessorUser.id, claimantUser.id);
+    ownedUserIds.push(insurerUser.id, processorUser.id, reviewerUser.id, externalAssessorUser.id, assessorUser.id, claimantUser.id);
 
     // Claim 1: Minor Damage (Harare)
     const [claim1Result] = await db.insert(claims).values({
@@ -726,6 +738,10 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
         title: "Test assessor report",
         reportPayload: evaluationInput,
       });
+      // Backward compatibility: MariaDB returns legacy JSON payloads as strings.
+      await db.update(assessorReports)
+        .set({ reportPayload: JSON.stringify(evaluationInput) })
+        .where(eq(assessorReports.id, draft.reportId));
       await expect(caller.assessorReports.attest({ reportId: draft.reportId })).resolves.toEqual({ success: true });
       const reviewRoute = await caller.assessorReports.submitForReview({ reportId: draft.reportId });
       expect(reviewRoute.reviewerRole).toBe("claims_manager");
@@ -798,6 +814,75 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
       await expect(externalCaller.assessorReports.submitForReview({ reportId: draft.reportId })).resolves.toMatchObject({ reviewerRole: "claims_manager" });
     });
 
+    it("Test 7.3b: malformed persisted payload cannot accept a review or supersede another report", async () => {
+      const [pendingReview] = await db.select().from(assessorReportReviews).where(and(
+        eq(assessorReportReviews.claimId, testClaimId3),
+        eq(assessorReportReviews.tenantId, tenantId),
+        eq(assessorReportReviews.status, "pending"),
+      )).limit(1);
+      const [pendingReport] = await db.select().from(assessorReports)
+        .where(eq(assessorReports.id, pendingReview.reportId)).limit(1);
+      await db.update(assessorReports)
+        .set({ reportPayload: "{malformed-json" })
+        .where(eq(assessorReports.id, pendingReport.id));
+
+      const [reviewerUser] = await db.select().from(users).where(eq(users.id, pendingReview.reviewerUserId)).limit(1);
+      const reviewer = appRouter.createCaller({ user: { id: reviewerUser.id, openId: reviewerUser.openId, email: reviewerUser.email, name: reviewerUser.name, role: reviewerUser.role, tenantId: reviewerUser.tenantId } } as any);
+      await expect(reviewer.assessorReports.decideReview({
+        reviewId: pendingReview.id,
+        decision: "accepted",
+        decisionReason: "Malformed payload must not be accepted",
+      })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+
+      const [reviewAfter] = await db.select().from(assessorReportReviews).where(eq(assessorReportReviews.id, pendingReview.id)).limit(1);
+      const [reportAfter] = await db.select().from(assessorReports).where(eq(assessorReports.id, pendingReport.id)).limit(1);
+      const evaluations = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, testClaimId3));
+      expect(reviewAfter.status).toBe("pending");
+      expect(reportAfter.status).toBe("under_review");
+      expect(evaluations).toHaveLength(0);
+    });
+
+    it("Test 7.3c: a post-decision persistence failure rolls back acceptance state", async () => {
+      const [pendingReview] = await db.select().from(assessorReportReviews).where(and(
+        eq(assessorReportReviews.claimId, testClaimId3),
+        eq(assessorReportReviews.status, "pending"),
+      )).limit(1);
+      const [report] = await db.select().from(assessorReports).where(eq(assessorReports.id, pendingReview.reportId)).limit(1);
+
+      await expect(acceptAssessorReportReview({
+        reviewId: pendingReview.id,
+        tenantId,
+        reviewerUserId: pendingReview.reviewerUserId,
+        decisionReason: "Injected evaluation failure must roll back",
+        evaluation: {
+          claimId: 99999999,
+          assessorId: report.assessorUserId,
+          tenantId,
+          estimatedRepairCost: 150000,
+          estimatedDuration: 3,
+          damageAssessment: "Injected failure fixture",
+          status: "completed",
+          sourceReportId: report.id,
+          sourceReportVersion: report.versionNumber,
+          acceptedReviewId: pendingReview.id,
+        },
+        audit: {
+          claimId: testClaimId3,
+          userId: pendingReview.reviewerUserId,
+          action: "assessor_report_review_accepted",
+          entityType: "assessor_report_review",
+          changeDescription: "Injected evaluation failure must roll back",
+        },
+      })).rejects.toThrow();
+
+      const [reviewAfter] = await db.select().from(assessorReportReviews).where(eq(assessorReportReviews.id, pendingReview.id)).limit(1);
+      const [reportAfter] = await db.select().from(assessorReports).where(eq(assessorReports.id, report.id)).limit(1);
+      const evaluations = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, testClaimId3));
+      expect(reviewAfter.status).toBe("pending");
+      expect(reportAfter.status).toBe("under_review");
+      expect(evaluations).toHaveLength(0);
+    });
+
     it("Test 7.4: native report requires original evidence before a draft exists", async () => {
       const assessorCaller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId } } as any);
       await expect(assessorCaller.assessorReports.createDraft({ claimId: testClaimId1, creationMethod: "native_upload", title: "Missing original", reportPayload: evaluationInput })).rejects.toThrow("requires its original uploaded file");
@@ -823,6 +908,32 @@ describe("KINGA Assessor Ecosystem Integration Tests (KINGA-TEST-2026-024)", () 
       expect(reports.some((report: any) => report.status === "superseded")).toBe(true);
       const evaluations = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, testClaimId1));
       expect(evaluations.at(-1)?.sourceReportId).toBe(secondDraft.reportId);
+    });
+
+    it("Test 7.6: concurrent acceptance attempts have exactly one winner and one evaluation", async () => {
+      const assessorCaller = appRouter.createCaller({ user: { id: internalAssessorUserId, role: "assessor", tenantId } } as any);
+      const draft = await assessorCaller.assessorReports.createDraft({
+        claimId: testClaimId1,
+        creationMethod: "kinga_assisted",
+        title: "Concurrent acceptance report",
+        reportPayload: evaluationInput,
+      });
+      await assessorCaller.assessorReports.attest({ reportId: draft.reportId });
+      const route = await assessorCaller.assessorReports.submitForReview({ reportId: draft.reportId });
+      const [reviewerUser] = await db.select().from(users).where(eq(users.id, route.reviewerUserId)).limit(1);
+      const reviewer = appRouter.createCaller({ user: { id: reviewerUser.id, openId: reviewerUser.openId, email: reviewerUser.email, name: reviewerUser.name, role: reviewerUser.role, tenantId: reviewerUser.tenantId } } as any);
+
+      const outcomes = await Promise.allSettled([
+        reviewer.assessorReports.decideReview({ reviewId: route.reviewId, decision: "accepted", decisionReason: "Concurrent acceptance A" }),
+        reviewer.assessorReports.decideReview({ reviewId: route.reviewId, decision: "accepted", decisionReason: "Concurrent acceptance B" }),
+      ]);
+      expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+      expect(outcomes.filter((outcome) => outcome.status === "rejected")).toHaveLength(1);
+
+      const [review] = await db.select().from(assessorReportReviews).where(eq(assessorReportReviews.id, route.reviewId)).limit(1);
+      const evaluations = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.sourceReportId, draft.reportId));
+      expect(review.status).toBe("accepted");
+      expect(evaluations).toHaveLength(1);
     });
   });
 

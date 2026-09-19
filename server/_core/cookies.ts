@@ -1,5 +1,7 @@
 import type { CookieOptions, Request } from "express";
 
+import { AUTH_TRANSACTION_TTL_MS } from "./auth-transaction-policy";
+
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 function isLocalhost(req: Request): boolean {
@@ -30,6 +32,28 @@ export function getSessionCookieOptions(
 
   return {
     httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: !local,
+  };
+}
+
+/**
+ * Options for the short-lived browser-binding cookie owned by a future Package
+ * D callback. Package C1 only defines the policy; it does not set or clear a
+ * cookie, register a route, or create a login transaction at runtime.
+ */
+export function getAuthTransactionCookieOptions(
+  req: Request
+): Pick<
+  CookieOptions,
+  "domain" | "httpOnly" | "maxAge" | "path" | "sameSite" | "secure"
+> {
+  const local = isLocalhost(req);
+
+  return {
+    httpOnly: true,
+    maxAge: AUTH_TRANSACTION_TTL_MS,
     path: "/",
     sameSite: "lax",
     secure: !local,

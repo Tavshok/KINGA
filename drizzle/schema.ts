@@ -3780,6 +3780,25 @@ export const users = mysqlTable("users", {
 	index("idx_users_phone_tenant").on(table.phoneNumber, table.tenantId),
 ]);
 export type User = typeof users.$inferSelect;
+
+/**
+ * Short-lived, one-time server-side transactions for the default-off WorkOS
+ * human-auth callback. Browser-visible state and binding values are stored only
+ * as SHA-256 hashes; the raw PKCE verifier is deleted on first consumption.
+ */
+export const workosAuthTransactions = mysqlTable("workos_auth_transactions", {
+	stateHash: varchar("state_hash", { length: 43 }).notNull().primaryKey(),
+	provider: varchar("provider", { length: 32 }).notNull(),
+	browserBindingHash: varchar("browser_binding_hash", { length: 43 }).notNull(),
+	codeVerifier: varchar("code_verifier", { length: 128 }).notNull(),
+	redirectUri: varchar("redirect_uri", { length: 2048 }).notNull(),
+	returnTo: varchar("return_to", { length: 2048 }).notNull(),
+	createdAt: timestamp("created_at", { mode: "string" }).notNull(),
+	expiresAt: timestamp("expires_at", { mode: "string" }).notNull(),
+}, (table) => [
+	index("workos_auth_transactions_expires_at_idx").on(table.expiresAt),
+]);
+
 export const varianceDatasets = mysqlTable("variance_datasets", {
 	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),

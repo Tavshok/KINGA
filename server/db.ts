@@ -66,6 +66,7 @@ import { assertTestDatabasePoolTarget } from './_core/test-database-guard';
 import { logger } from './logger';
 import * as dbPipeline from './db-pipeline.ts';
 import { getTenantRates, notifyTenantProcessors } from './db/intelligence-db';
+import { handleVehicleRegistryRequiredAuditFailure } from './vehicle-registry-audit-alert';
 import { resolveKingaWriteOffRecommendation } from '../shared/writeOffRecommendation';
 
 import type { MySql2Database } from 'drizzle-orm/mysql2';
@@ -109,6 +110,20 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+/**
+ * Releases the current process-local database pool. The application does not
+ * call this during normal request handling; the isolated Vitest harness uses
+ * it after each test file so module isolation cannot accumulate idle pools.
+ */
+export async function closeDbPool(): Promise<void> {
+  const pool = _pool;
+  _db = null;
+  _pool = null;
+  if (pool) {
+    await pool.end();
+  }
 }
 
 /**
@@ -918,6 +933,69 @@ export async function decideAssessorReportReview(input: {
   }
   await db.update(assessorReports).set({ status: input.decision }).where(eq(assessorReports.id, review.reportId));
   return { review, reviewedAt: now };
+}
+
+export async function getPendingAssessorReportReview(input: {
+  reviewId: number;
+  tenantId: string;
+  reviewerUserId: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [review] = await db.select().from(assessorReportReviews).where(and(
+    eq(assessorReportReviews.id, input.reviewId),
+    eq(assessorReportReviews.tenantId, input.tenantId),
+    eq(assessorReportReviews.reviewerUserId, input.reviewerUserId),
+    eq(assessorReportReviews.status, "pending"),
+  )).limit(1);
+  if (!review) throw new Error("No pending authorised assessor report review is available");
+  return review;
+}
+
+export async function acceptAssessorReportReview(input: {
+  reviewId: number;
+  tenantId: string;
+  reviewerUserId: number;
+  decisionReason: string;
+  evaluation: InsertAssessorEvaluation;
+  audit: InsertAuditTrailEntry;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.transaction(async (tx) => {
+    const [review] = await tx.select().from(assessorReportReviews).where(and(
+      eq(assessorReportReviews.id, input.reviewId),
+      eq(assessorReportReviews.tenantId, input.tenantId),
+      eq(assessorReportReviews.reviewerUserId, input.reviewerUserId),
+      eq(assessorReportReviews.status, "pending"),
+    )).limit(1);
+    if (!review) throw new Error("No pending authorised assessor report review is available");
+
+    const now = new Date().toISOString();
+    const reviewUpdate = await tx.update(assessorReportReviews).set({
+      status: "accepted",
+      decisionReason: input.decisionReason,
+      reviewedAt: now,
+    }).where(and(
+      eq(assessorReportReviews.id, input.reviewId),
+      eq(assessorReportReviews.status, "pending"),
+    ));
+    if (Number((reviewUpdate as any)[0]?.affectedRows ?? (reviewUpdate as any).affectedRows ?? 0) !== 1) {
+      throw new Error("No pending authorised assessor report review is available");
+    }
+
+    await tx.update(assessorReports).set({ status: "superseded", supersededAt: now }).where(and(
+      eq(assessorReports.claimId, review.claimId),
+      eq(assessorReports.tenantId, input.tenantId),
+      eq(assessorReports.status, "accepted"),
+      notInArray(assessorReports.id, [review.reportId]),
+    ));
+    await tx.update(assessorReports).set({ status: "accepted" }).where(eq(assessorReports.id, review.reportId));
+    await tx.insert(assessorEvaluations).values(input.evaluation);
+    await tx.insert(auditTrail).values(input.audit);
+    return { review, reviewedAt: now };
+  });
 }
 
 export async function getAssessorReportReviewQueue(tenantId: string, reviewerUserId: number) {
@@ -3329,7 +3407,7 @@ export async function triggerAiAssessment(claimId: number) {
         impactZone: acc?.impactPoint ?? null,
       });
     } catch (e: any) {
-      console.warn(`[VehicleRegistry] Post-pipeline upsert failed for claim ${claimId}:`, e.message?.substring(0, 100));
+      await handleVehicleRegistryRequiredAuditFailure(e);
     }
   });
 

@@ -1,4 +1,5 @@
 import { WorkOS } from "@workos-inc/node";
+import { WORKOS_AUTH_CALLBACK_PATH } from "./workos-auth-constants";
 
 /**
  * Server-only configuration for the WorkOS AuthKit adapter. Values are read
@@ -156,11 +157,12 @@ function validateRedirectUri(
     parsed.username ||
     parsed.password ||
     parsed.search ||
-    parsed.hash
+    parsed.hash ||
+    parsed.pathname !== WORKOS_AUTH_CALLBACK_PATH
   ) {
     throw new WorkOSProviderError(
       "WORKOS_INVALID_CONFIGURATION",
-      "WorkOS redirect URI must be an exact HTTPS callback URL, or an HTTP localhost callback in local development."
+      "WorkOS redirect URI must use the canonical callback path with no query, fragment, or userinfo."
     );
   }
 

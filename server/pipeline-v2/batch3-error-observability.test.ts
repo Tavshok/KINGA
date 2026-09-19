@@ -32,9 +32,9 @@ describe('R-GH-15: context.ts tenant extraction error observability', () => {
   });
 });
 
-// ─── R-GH-16: routers.ts primary data path catch blocks ──────────────────────
-describe('R-GH-16: routers.ts error observability', () => {
-  const src = readFileSync(resolve(SERVER_DIR, 'routers.ts'), 'utf8');
+// ─── R-GH-16: vehicle valuation router catch blocks ─────────────────────────
+describe('R-GH-16: vehicle valuation router error observability', () => {
+  const src = readFileSync(resolve(SERVER_DIR, 'routers/vehicle-valuation-core.ts'), 'utf8');
 
   it('narrative generation catch block uses typed error and console.warn', () => {
     expect(src).toContain('catch (narrativeErr: unknown)');

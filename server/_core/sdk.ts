@@ -1,12 +1,16 @@
-import { AXIOS_TIMEOUT_MS, COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { AXIOS_TIMEOUT_MS } from "@shared/const";
 import { ForbiddenError } from "@shared/_core/errors";
 import axios, { type AxiosInstance } from "axios";
-import { parse as parseCookieHeader } from "cookie";
 import type { Request } from "express";
-import { SignJWT, jwtVerify } from "jose";
-import type { User } from "../../drizzle/schema";
-import * as db from "../db";
 import { ENV } from "./env";
+import {
+  createLocalSessionToken,
+  readLocalSessionCookie,
+  resolveActiveLocalUser,
+  signLocalSession,
+  verifyLocalSession,
+  type LocalSessionPayload,
+} from "./kinga-session";
 import type {
   ExchangeTokenRequest,
   ExchangeTokenResponse,
@@ -14,9 +18,13 @@ import type {
   GetUserInfoWithJwtRequest,
   GetUserInfoWithJwtResponse,
 } from "./types/manusTypes";
-// Utility function
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === "string" && value.length > 0;
+function assertNoDirectOAuthAccessDuringTests(): void {
+  if (process.env.NODE_ENV === "test" || process.env.VITEST) {
+    throw new Error(
+      "Direct OAuth access is disabled during tests. Mock server/_core/sdk at the test boundary."
+    );
+  }
+}
 
 // ── Heartbeat cron identity support ──────────────────────────────────────────
 // These must be declared before SDKServer because authenticateRequest uses them.
@@ -30,8 +38,10 @@ export type AuthenticatedUser = import("../../drizzle/schema").User & {
   isCron?: boolean;
 };
 
-function buildCronUser(userInfo: GetUserInfoWithJwtResponse): AuthenticatedUser {
-  const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+function buildCronUser(
+  userInfo: GetUserInfoWithJwtResponse
+): AuthenticatedUser {
+  const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
   // Cast via unknown: cron callers are synthetic identities and intentionally
   // omit DB-only fields (passwordHash, organizationId, etc.).
   return {
@@ -65,11 +75,8 @@ function buildCronUser(userInfo: GetUserInfoWithJwtResponse): AuthenticatedUser 
   } as unknown as AuthenticatedUser;
 }
 
-export type SessionPayload = {
-  openId: string;
-  appId: string;
-  name: string;
-};
+/** @deprecated Import LocalSessionPayload from kinga-session for new code. */
+export type SessionPayload = LocalSessionPayload;
 
 const EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
 const GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
@@ -87,8 +94,8 @@ class OAuthService {
 
   private decodeState(state: string): string {
     // state = btoa(redirectUri) — the Manus OAuth server always sends back the
-    // same state that was passed to /app-auth. getLoginUrl in const.ts uses the
-    // original plain-base64 format. Do NOT change this to JSON parsing.
+    // same state that was passed to /app-auth. The client navigation facade
+    // preserves this plain-base64 format. Do NOT change this to JSON parsing.
     return atob(state);
   }
 
@@ -96,6 +103,7 @@ class OAuthService {
     code: string,
     state: string
   ): Promise<ExchangeTokenResponse> {
+    assertNoDirectOAuthAccessDuringTests();
     const payload: ExchangeTokenRequest = {
       clientId: ENV.appId,
       grantType: "authorization_code",
@@ -114,6 +122,7 @@ class OAuthService {
   async getUserInfoByToken(
     token: ExchangeTokenResponse
   ): Promise<GetUserInfoResponse> {
+    assertNoDirectOAuthAccessDuringTests();
     const { data } = await this.client.post<GetUserInfoResponse>(
       GET_USER_INFO_PATH,
       {
@@ -194,20 +203,6 @@ class SDKServer {
     } as GetUserInfoResponse;
   }
 
-  private parseCookies(cookieHeader: string | undefined) {
-    if (!cookieHeader) {
-      return new Map<string, string>();
-    }
-
-    const parsed = parseCookieHeader(cookieHeader);
-    return new Map(Object.entries(parsed));
-  }
-
-  private getSessionSecret() {
-    const secret = ENV.cookieSecret;
-    return new TextEncoder().encode(secret);
-  }
-
   /**
    * Create a session token for a Manus user openId
    * @example
@@ -217,95 +212,26 @@ class SDKServer {
     openId: string,
     options: { expiresInMs?: number; name?: string } = {}
   ): Promise<string> {
-    return this.signSession(
-      {
-        openId,
-        appId: ENV.appId,
-        name: options.name || "",
-      },
-      options
-    );
+    return createLocalSessionToken(openId, options);
   }
 
   async signSession(
     payload: SessionPayload,
     options: { expiresInMs?: number } = {}
   ): Promise<string> {
-    const issuedAt = Date.now();
-    // ── SESSION-DURATION-N-01 ────────────────────────────────────────────────────
-    // Default session duration: 1 year (ONE_YEAR_MS).
-    //
-    // Rationale: KINGA's primary intake channel is WhatsApp, where claimants and
-    // assessors interact via mobile. Forcing re-authentication every 7–30 days
-    // creates friction for field users who are mid-claim. The 1-year default is
-    // intentional, not an oversight.
-    //
-    // Revocation: The isActive=0 check in authenticateRequest() provides the
-    // revocation mechanism — deactivated accounts are rejected at request time
-    // even if their JWT is still cryptographically valid. See Pre-Batch-3 fix.
-    //
-    // No stale-tenantId risk: tenantId is NOT stored in the JWT payload. It is
-    // loaded fresh from the database on every request via getUserByOpenId().
-    // Changing a user's tenantId in the DB takes effect on the next request.
-    //
-    // Known constraint: If the database is unavailable, the isActive check cannot
-    // run and the request will fail with INTERNAL_SERVER_ERROR (not a security
-    // bypass — the request is rejected, not allowed through).
-    // ────────────────────────────────────────────────────────────────────────────
-    const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
-    const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
-    const secretKey = this.getSessionSecret();
-
-    return new SignJWT({
-      openId: payload.openId,
-      appId: payload.appId,
-      name: payload.name,
-    })
-      .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-      .setExpirationTime(expirationSeconds)
-      .sign(secretKey);
+    return signLocalSession(payload, options);
   }
 
   async verifySession(
     cookieValue: string | undefined | null
   ): Promise<{ openId: string; appId: string; name: string } | null> {
-    if (!cookieValue) {
-      console.warn("[Auth] Missing session cookie");
-      return null;
-    }
-
-    try {
-      const secretKey = this.getSessionSecret();
-      const { payload } = await jwtVerify(cookieValue, secretKey, {
-        algorithms: ["HS256"],
-      });
-      const { openId, appId, name } = payload as Record<string, unknown>;
-
-      if (
-        !isNonEmptyString(openId) ||
-        !isNonEmptyString(appId)
-        // NOTE: name is intentionally NOT required — users without a display name
-        // on their Manus account will have name="" in the JWT. Rejecting empty name
-        // permanently locks those users out. Name is not a security-critical field.
-      ) {
-        console.warn("[Auth] Session payload missing required fields (openId or appId)");
-        return null;
-      }
-
-      return {
-        openId,
-        appId,
-        name,
-      };
-    } catch (error) {
-      console.warn("[Auth] Session verification failed", String(error));
-      return null;
-    }
+    return verifyLocalSession(cookieValue);
   }
 
   async getUserInfoWithJwt(
     jwtToken: string
   ): Promise<GetUserInfoWithJwtResponse> {
+    assertNoDirectOAuthAccessDuringTests();
     const payload: GetUserInfoWithJwtRequest = {
       jwtToken,
       projectId: ENV.appId,
@@ -329,8 +255,7 @@ class SDKServer {
 
   async authenticateRequest(req: Request): Promise<AuthenticatedUser> {
     // Regular authentication flow
-    const cookies = this.parseCookies(req.headers.cookie);
-    const sessionCookie = cookies.get(COOKIE_NAME);
+    const sessionCookie = readLocalSessionCookie(req);
     const session = await this.verifySession(sessionCookie);
 
     if (!session) {
@@ -342,40 +267,13 @@ class SDKServer {
     // They are not real users — skip the DB lookup and return a synthetic user.
     if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {
       const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
-      if (!userInfo.taskUid) throw ForbiddenError("Cron session missing task_uid");
+      if (!userInfo.taskUid)
+        throw ForbiddenError("Cron session missing task_uid");
       return buildCronUser(userInfo);
     }
     // ── Regular user path (unchanged) ───────────────────────────────────────
 
-    const sessionUserId = session.openId;
-    const signedInAt = new Date().toISOString();
-    let user = await db.getUserByOpenId(sessionUserId);
-
-    // ── KINGA-AUTH-01: fail closed for every missing identity ─────────────────
-    // A valid session proves token origin, not continuing account entitlement.
-    // If the DB row is absent, it may have been deleted as a revocation action.
-    // Do not re-sync or upsert from an authenticated request: that would recreate
-    // a deleted identity (including via a stale JWT) and defeat revocation.
-    // Interactive OAuth callback is the only account-provisioning path.
-    if (!user) {
-      console.warn(`[Auth] Rejected missing user openId=${sessionUserId}`);
-      throw ForbiddenError("User not found");
-    }
-
-    // ── Revocation check ──────────────────────────────────────────────────────
-    // isActive=0 means the account has been explicitly deactivated by an admin.
-    // A valid JWT for a deactivated account must be rejected immediately.
-    // Hard-deleted users are now also blocked by the KINGA-AUTH-01 guard above.
-    if (user.isActive === 0) {
-      console.warn(`[Auth] Rejected deactivated user id=${user.id} openId=${user.openId}`);
-      throw ForbiddenError("Account has been deactivated");
-    }
-
-    // Update only an existing row. Upsert here could recreate an account if an
-    // administrator deletes it between the read above and this activity update.
-    await db.updateUserLastSignedIn(user.openId, signedInAt);
-
-    return user;
+    return resolveActiveLocalUser(session.openId);
   }
 }
 

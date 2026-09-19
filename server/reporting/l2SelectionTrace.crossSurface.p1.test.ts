@@ -86,7 +86,7 @@ describe("AUD-P1-006 executed L2 selection traceability across CL, CI, and FR", 
       expect(html).toContain("Defective Extraction");
       expect(html).toContain("KINGA Optimised Quote");
     }
-    expect(end).toHaveBeenCalledTimes(3);
+    expect(end).toHaveBeenCalledTimes(4);
   });
 
   it("keeps KINGA Optimised Quote visible as a review-required priced scope across CL, CI, and FR", async () => {
@@ -189,6 +189,7 @@ describe("AUD-P1-006 executed L2 selection traceability across CL, CI, and FR", 
       label: "Economic and technical write-off recommended",
       detail: "KINGA’s complete repair-to-value assessment is 85.0%, meeting the 70% economic threshold; dedicated structural analysis and severe physics evidence also support technical write-off.",
       writeOffRecommended: true,
+      writeOffWarning: false,
       repairToValueRatio: 0.85,
       economicEvidenceComplete: true,
       technicalEvidenceComplete: true,
