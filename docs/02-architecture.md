@@ -8,7 +8,7 @@
 | API layer | tRPC 11 (type-safe RPC, no REST routes for features) |
 | Backend | Express 4 (tRPC adapter + raw Express for multipart upload) |
 | Database | MySQL / TiDB via Drizzle ORM |
-| Auth | Manus OAuth — session cookie, JWT-signed |
+| Auth | Manus OAuth is active; WorkOS human-auth callback path is implemented but default-off; KINGA owns the session cookie and JWT |
 | File storage | S3 (via `storagePut` / `storageGet` in `server/storage.ts`) |
 | AI | `invokeLLM()` helper (`server/_core/llm.ts`) — server-side only |
 | PDF ingestion | `pdftoppm` (poppler-utils system binary) + `pdfjs-dist` fallback |
@@ -70,6 +70,21 @@ drizzle/
 The required-check rollout was verified with a deliberately failing probe pull request. GitHub rejected its merge attempt, and the probe was closed without merge. Protection applies to administrators, requires the branch to be current and conversations to be resolved, and disallows force pushes and branch deletion. The formerly overlapping raw-TypeScript CI/CD Pipeline workflow was retired in PR #110 after the new gate was live and proven.
 
 The temporary sole-operator accommodation sets the required approval count to zero because GitHub does not permit an author to satisfy their own required review. This is not a permanent security posture. When a second person with write access is available, protection must be changed to require one approving review and to dismiss stale approvals.
+
+---
+
+## WorkOS Human-Authentication Activation Sequence
+
+The current application login remains Manus OAuth. Package D added a guarded WorkOS start/callback path, but it is absent unless the exact server-only variable `WORKOS_HUMAN_AUTH_ENABLED` is `true`. While that flag is false, the application does not mount WorkOS routes, create the WorkOS transaction store, or start its verifier-cleanup loop. An environment can therefore run safely before migration `0061` is applied, provided WorkOS remains disabled.
+
+Before any staging or production environment enables WorkOS human authentication, the following sequence is mandatory:
+
+1. Apply `0061_workos_auth_transactions`.
+2. Verify the `workos_auth_transactions` table, its primary key, and the `workos_auth_transactions_expires_at_idx` expiry index.
+3. Configure the approved server-only WorkOS values, including the one canonical callback URI.
+4. Set `WORKOS_HUMAN_AUTH_ENABLED=true` only for the expressly approved environment.
+
+This order is a deployment dependency, not a browser decision. Client code must not expose WorkOS configuration, enable the flag, select WorkOS from a URL or local state, or replace the active Manus login journey until a separately approved provider-selection and activation package authorizes that work. The durable WorkOS transaction table, callback, linker, and cleanup remain default-off infrastructure; KINGA’s local session remains the sole application authority.
 
 ---
 
