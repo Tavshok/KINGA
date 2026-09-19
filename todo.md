@@ -1,4 +1,5 @@
 # KINGA Platform — Active Todo List
+
 # Audited: June 2026 | Replaced 12,469-line accumulation with clean active list
 
 - [x] Added a provider-neutral runtime-mode/readiness contract that preserves current managed defaults and exposes no secret values; focused contract tests pass 5/5.
@@ -592,24 +593,28 @@
 ## ForensicAuditReport — Fix Plan (Completed June 2026)
 
 ### Data Integrity
+
 - [x] FAR-1: Police report data path unified — claimRecord0?.policeReport?.reportNumber is primary, aiAssessment?.policeReportNumber is fallback
 - [x] FAR-2: Photo fallback from claimDocuments table — if bridge.photoUrls and damagePhotosJson are both empty, FAR query now reads damage_photo entries from claimDocuments
 - [x] FAR-3: KINGA Estimate row — green left border (4px solid #15803d) added to visually distinguish it from submitted quote rows
 - [x] FAR-4: "0 pts" → "Not triggered" with muted italic style and tooltip
 
 ### P1 Layout
+
 - [x] FAR-P1-1: Vehicle Damage Map — full-width, centred, maxWidth 320px (confirmed in code)
 - [x] FAR-P1-2: Decision Flowchart — nodeW=130, diamondW=120 (applied)
 - [x] FAR-P1-3: Quote Reconciliation — redesigned from pill tags to 3-column discrepancy table
 - [x] FAR-P1-4: Section 9 pending state — compact horizontal strip with lock icon
 
 ### P2 Layout
+
 - [x] FAR-P2-1: Analysis Methods filter — "Corroborates speed range" rows hidden; only numeric results + outliers shown
 - [x] FAR-P2-2: Quality Score table — maxWidth: 480 applied
 - [x] FAR-P2-3: Validation grid padding — reduced to 2px 5px
 - [x] FAR-P2-4: Confidence Meter — 3-bar strip (FCDI / Data Completeness / Physics) added to Section 0
 
 ### Structural
+
 - [x] FAR-S1: Glossary column widths — Term: 55px, Full Name: maxWidth 180px, Definition: fills remainder
 - [x] FAR-S2: Legacy formula names retired — M1–M5 now use KINGA-branded names throughout
 - [x] FAR-S3: White gap elimination — section-heading and sub-heading margins reduced
@@ -688,11 +693,13 @@
 ## Executive Dashboard v2 Implementation
 
 ### Phase 1: Critical Fixes
+
 - [x] Replace hardcoded DEMO_MONTH_COMPARISON with real analytics.getMonthComparison procedure
 - [x] Add recovery report case handlers (recovery.case_summary, recovery.performance, recovery.third_party_profiles) to generateReportHtml
 - [x] Fix Net Exposure formula in analytics.getFinancialOverview (totalReserves - totalRecovered)
 
 ### Phase 2: Visual Redesign
+
 - [x] Add Inter font via Google Fonts CDN in client/index.html
 - [x] Add exec design tokens to client/src/index.css
 - [ ] Create ExecutivePeriodContext with global period state (deferred — requires state management refactor)
@@ -703,6 +710,7 @@
 - [ ] Add Demo Mode banner (deferred)
 
 ### Phase 3: New Components
+
 - [x] analytics.getExecutiveAlerts procedure + Executive Alerts Centre component
 - [x] analytics.getMonthComparison procedure + Month Comparison Strip component (real data)
 - [x] analytics.getClaimsAgeing procedure + Claims Ageing Panel component
@@ -715,6 +723,7 @@
 - [x] Wire Recovery Dashboard to recovery.getKPIs + recovery.getCases (already wired in RecoveryPortal.tsx)
 
 ### Phase 4: Executive Report
+
 - [x] executive.full_report added to REPORT_ACCESS + switch statement in reportDefinitions.ts
 - [x] generateExecutiveFullReport HTML template (7 sections)
 - [x] AI narrative integration (6 LLM calls, parallel)
@@ -724,6 +733,7 @@
 ---
 
 ## OBSOLETE — Items to Delete on Next Cleanup
+
 > These sections existed in the original todo.md but have been fully superseded.
 > Safe to delete entirely:
 
@@ -962,17 +972,21 @@
 ## Combined Sprint 2 Fix Pass + Sprint 3 (June 22, 2026)
 
 ### Phase 0 — Risk Manager C4/C7 Investigation
+
 - [x] Phase 0: Investigate Risk Manager SLADeadlineChip / AttentionRequired regression vs scoring error; document findings; restore if warranted
 
 ### Phase 1 — Sprint 2 Must-Fix Defects
+
 - [x] Task 1: D-S2-05 — Surface dispute reason in Claims Manager claim detail + notifyOwner trigger in initiateDispute
 - [x] Task 2: D-S2-03 — WorkloadDistributionPanel staleness fix (poll interval or cross-portal invalidation)
 
 ### Phase 2 — Sprint 2 Deferred Fixes
+
 - [x] Task 3: D-S2-02 — Consolidate financial threshold into server/shared/constants.ts
 - [x] Task 4: D-S2-04 — Add isActive/deactivatedAt to user schema; update deactivateUser + getPendingRegistrations
 
 ### Sprint 3 — Fleet Manager + Recovery Completion
+
 - [x] Task 5: Fleet Manager Vehicle Tracking tab (real data, stubs flagged) — already complete in prior sprint
 - [x] Task 6: Fleet Manager Risk Analytics tab (claim frequency + driver risk) — already complete in prior sprint
 - [x] Task 7: Fleet Manager escalation action on claim rows (Option A: flagClaimForReview procedure + dialog + AttentionRequiredPanel Rule 8)
@@ -1068,19 +1082,23 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Batch 8 — Observability & Structured Logging (R-OBS)
 
 **Design decisions confirmed by user (2026-07-09):**
+
 - R-OBS-03: Use module-level logger singleton — NOT an optional per-call callback parameter. Callback approach reintroduces the 'silently missing' failure pattern found throughout the audit. Must be consistent with how withRetry/withTimeout were applied globally.
 - R-OBS-05: User requires the list of 8 highest-risk engines before ranking. Present the list first, get ranking, then implement.
 
 ### R-OBS-03 — Structured Logger Singleton
+
 - [x] R-OBS-03: Create server/logger.ts — module-level structured logger singleton; 22/22 tests pass (server/logger.test.ts). Wired into all 4 ctx.log construction sites in db.ts and routers.ts.
 
 ### R-OBS-05 — Engine-Level Timing & Observability
+
 - [x] R-OBS-05-SCOPE: Present list of 8 highest-risk engines to user for ranking before implementation
 - [x] R-OBS-05: Add per-engine timing instrumentation to the 8 ranked highest-risk engines. runWithTimeout covers stages 1,2,6,7,8,9,10; orchestrator.ts direct calls cover stage-3, stage-5, 7b-causal-reasoning. 29/29 tests pass (server/batch8-observability.test.ts).
 
 ### Other R-OBS items (pending scope confirmation)
+
 - [x] R-OBS-01: claimId threaded through all pipeline stages via logger.makePipelineLog(claimId) at all 4 ctx.log construction sites. Every pipeline log line carries a structured claimId field.
-- [x] R-OBS-02: logger.retry() wired into withRetry in server/_core/llm.ts — WARN for non-final attempts, ERROR for exhaustion. Carries engineLabel, attempt, maxAttempts, error message, and optional meta fields.
+- [x] R-OBS-02: logger.retry() wired into withRetry in server/\_core/llm.ts — WARN for non-final attempts, ERROR for exhaustion. Carries engineLabel, attempt, maxAttempts, error message, and optional meta fields.
 - [x] R-OBS-04: logger.stage() wired into onStageComplete callback in server/db.ts — emits structured stage completion events with stageId, durationMs, status (completed/degraded/failed/skipped), and claimId.
 
 ---
@@ -1123,8 +1141,11 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
   - stage-8-fraud.ts: four-engine fraud architecture, score aggregation overview (new)
   - All other files confirmed to already have adequate module-level comments
 - 235/249 tests pass; 14 pre-existing failures confirmed (quoteExtractionEngine x12, costDecisionEngine x2)
+
 ---
+
 ## Batch 9e — Mermaid Flowcharts for All Groups A–H Pipeline Modules
+
 - [x] Group A (5 flowcharts): pdf-image-extractor, stage-1-ingestion, stage-2-extraction, stage-3-structured-extraction, quote-extraction-engine
 - [x] Group B (3 flowcharts): image-intelligence, image-classifier, document-preprocessor
 - [x] Group C (3 flowcharts): evidence-strength-scorer, claim-quality-scorer, speed-inference-ensemble
@@ -1138,6 +1159,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] All 46 files committed to main: commit d28b503a
 
 ---
+
 ## Batch 10a — Silent Bug Investigation + 3 Fixes (2026-07-10)
 
 - [x] Investigate: line-item persistence bug (documentedLineItems gap) — confirmed historical-only, 2 claims affected
@@ -1149,6 +1171,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] Backfill 2 historical quote_line_items records (claims 7260001, 6570001) — low priority, data hygiene
 
 ---
+
 ## Batch 10b — Live End-to-End Pipeline Run (2026-07-10)
 
 - [ ] Upload VOLTRONMINECOR6002812(1).pdf to S3 and create a real claim record in the database
@@ -1157,6 +1180,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] Deliver the full live run report to the user
 
 ---
+
 ## Batch 10b — Live End-to-End Pipeline Run (VOLTRON-MINECOR-6002812)
 
 - [x] Run live pipeline on real Zimbabwe motor claim (Voltron Mining, Isuzu MUX, Mvuma-Kwekwe Road)
@@ -1168,7 +1192,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] Investigate consistency_check_json using different field names (critical_conflicts) vs the consistencyScore metric referenced in todo
 
 ---
+
 ## TRE v4.0 — Autonomous Trust Operations Platform (2026-07-12)
+
 - [x] E1 Trust Event Bus: trustEventBus singleton, conflictDetectedEvent, slaBreachEvent, subscribe/unsubscribe, getClaimEvents, getStats, clearHistory, resetStats
 - [x] E2 Trust Impact Analysis Engine: analyseImpact, analyseMultiEventImpact — section propagation, severity, certificate impact
 - [x] E3 Autonomous Resolution Queue: createConflictResolutionTask, enqueue, getPendingTasks, resolve, escalate, getStats, clear
@@ -1183,6 +1209,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Pre-test checkpoint: 46e7ca99
 
 ## Physics / Stage 2.6 Fixes — Jul 13 2026
+
 - [x] TRE Fix 1: speed reads ensemble consensusSpeedKmh first (28 km/h for VOLTRON, not 70)
 - [x] TRE Fix 2: day-count split — daysToLodge (4402, late-submission gap) vs claimProcessingDays (KINGA age)
 - [x] ForensicAuditReport: updated day-count labels to daysToLodge / claimProcessingDays
@@ -1195,16 +1222,19 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Physics Engine Strategic Roadmap (July 2026)
 
 ### Pre-Launch (Required — 4 days total)
+
 - [ ] **P1 — Velocity range in report** — Replace single consensus speed with low/mid/high km/h range from `physicsNumerical.velocity_range`. Add braking coherence note when stated speed > physics lower bound: "Stated travel speed [X] km/h is consistent with physics lower bound [Y] km/h if the vehicle decelerated over approximately [Z] metres before impact." UI change only — data already in pipeline. (1 day)
 - [ ] **P2 — Speed discrepancy → fraud score** — Wire `speedInferenceEnsemble.consensusSpeedKmh` into Stage 8 fraud scoring. When stated speed > 1.5× consensus speed AND confidence MEDIUM/HIGH, add `speed_claim_inconsistency` fraud indicator with calibrated score contribution. Closes the most important missing link between physics and fraud. (2 days)
 - [ ] **P3 — Methodology disclosure in report** — Replace "methodology available under confidentiality undertaking" with: method names (Campbell, FMVSS 208, momentum), input sources, assumptions (vehicle mass assumed, friction coefficient assumed, braking not modelled), velocity range, and expert review pathway statement. (1 day)
 
 ### Post-Launch Phase 1 (First 90 days — 15 days total)
+
 - [ ] **P4 — Latent damage probability → cost reserve** — Wire `physicsAnalysis.latentDamageProbability` into Stage 9. When engine/transmission/frame probability > 0.3, add hidden damage contingency line to cost estimate and flag for adjudicator. (3 days)
 - [ ] **P5 — Energy-conditioned damage pattern validation** — Extend `damagePatternValidationEngine` to accept `energyDissipatedKj` and condition expected component list on both direction AND energy level. A 20 km/h frontal ≠ 60 km/h frontal in expected components. Currently both get identical pattern match. (5 days)
 - [ ] **P6 — Physics-grounded cost envelope** — Wire `physicsAnalysis` into `costRealismValidator`. Compute expected cost range from energy × component count × market rates. Flag repair quotes exceeding physics upper bound. This is the most powerful fraud detection capability currently absent from the system. (7 days)
 
 ### Post-Launch Phase 2 (90–180 days)
+
 - [ ] **P7 — Braking coherence model** — Implement pre-impact speed model: given stated speed + road type + friction coefficient (0.7 tarmac / 0.4 gravel), compute minimum braking distance and resulting impact speed. Distinguish coherent deceleration from genuine inconsistency. Resolves the 70 km/h vs 28 km/h "contradiction" in VOLTRON and similar claims. (5 days)
 - [ ] **P8 — Calibration dataset** — Build ground-truth dataset of claims with known outcomes (fraud confirmed / legitimate / contested). Calibrate fraud score contributions from physics signals empirically. Without calibration, score weights are engineering estimates. (ongoing)
 - [ ] **P9 — Expert review integration** — For LOW confidence or plausibility-check-fired claims, add escalation pathway to qualified accident reconstructionist. AI provides structured evidence package; expert provides court-admissible opinion. (10 days)
@@ -1212,30 +1242,35 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Document Reliability Architecture — Phase 1 (Active)
 
 ### Phase 2 — Pipeline State Machine
+
 - [x] DRA-P2-1: Add new document pipeline states to claims.documentProcessingStatus in schema.ts: DOCUMENT_VALIDATING, DOCUMENT_READY, ANALYSIS_RUNNING, DOCUMENT_FAILED, RECOVERY_ATTEMPTED, HUMAN_REVIEW_REQUIRED
 - [x] DRA-P2-2: Add new claim status values to claims.status enum: document_failed, recovery_attempted, human_review_required
 - [x] DRA-P2-3: Update workflow-validator.ts ClaimStatus type and ALLOWED_TRANSITIONS with new states
 - [x] DRA-P2-4: Update db.ts triggerAiAssessment() to use new states at each transition point
 
 ### Phase 3 — Document Health Gate
+
 - [x] DRA-P3-1: Create server/pipeline-v2/documentHealthGate.ts with 6-dimension ingestion confidence scoring
 - [x] DRA-P3-2: Implement Evidence Completeness Contract (required vs optional fields)
 - [x] DRA-P3-3: Implement threshold routing: >=90% auto-proceed, 70-90% warn, 40-70% require review, <40% block
 - [x] DRA-P3-4: Wire documentHealthGate into db.ts triggerAiAssessment() before pipeline runs
 
 ### Phase 4 — Recovery Ladder
+
 - [x] DRA-P4-1: Add pdfimages embedded image extraction as first fallback when pdftoppm produces 0 pages
 - [x] DRA-P4-2: Add pdftotext OCR text-only path as second fallback
 - [x] DRA-P4-3: Add human escalation path as final fallback (sets HUMAN_REVIEW_REQUIRED state)
 - [x] DRA-P4-4: Update pdfToImages.ts renderPdfToImages() to return structured failure reasons
 
 ### Phase 5 — No Silent Failure Invariant
+
 - [x] DRA-P5-1: Create server/pipeline-v2/ingestionFailureReport.ts with structured IngestionFailureReport type
 - [x] DRA-P5-2: Block assessment_complete unless all 4 conditions met (ingestion passed, analysis executed, confidence threshold, audit trail)
 - [x] DRA-P5-3: Trigger notifyOwner on every ingestion failure with failure type and recommended action
 - [x] DRA-P5-4: Ensure placeholder path (no PDF + no photos) routes to DOCUMENT_FAILED not assessment_complete
 
 ### Phase 6 — TypeScript + VOLTRON + Checkpoint
+
 - [x] DRA-P6-1: TypeScript EXIT:0 on server-check tsconfig (0 errors)
 - [ ] DRA-P6-2: VOLTRON re-run (claim 8880001) — confirm pipeline still completes correctly
 - [ ] DRA-P6-3: Degraded claim test (claim 9330001) — confirm it now routes to DOCUMENT_FAILED not assessment_complete
@@ -1287,8 +1322,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] FIX-UPLOAD-1: Verify upload endpoint returns proper error response when multer rejects a file (add multer error handler middleware)
 
 ## Document Health Gate Fix — 2026-07-19
+
 - [x] Root cause: pdftoppm fails on production for non-scanned PDFs (typed assessment documents). Gate input pagesRendered=0 + renderFailed=true → critical block → document_failed
-- [x] Fix: When _pdfBuffer downloaded successfully, set pagesRendered=1 and renderFailed=false. LLM reads PDF natively via file_url proxy — pdftoppm images not required for non-scanned PDFs
+- [x] Fix: When \_pdfBuffer downloaded successfully, set pagesRendered=1 and renderFailed=false. LLM reads PDF natively via file_url proxy — pdftoppm images not required for non-scanned PDFs
 - [x] Reset 3 stuck claims (10239902, 10209903, 10209902) from document_failed → intake_pending
 
 ---
@@ -1302,6 +1338,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Guard aiFlaggedClaims to exclude claims still in pipeline-running states
 
 ## Report Design Alignment — Approved Reference (2026-07-20)
+
 - [ ] Replace Claims Intelligence report template with approved dark-theme design (black bg, KINGA green accents, monospaced claim ref, score strip, section cards)
 - [ ] Replace Standard / Forensic report template with approved white-theme design (left-border accents, structured tables, VERIFIED badge, section headers)
 - [ ] Align kingaDesignSystem.ts cover layout to match approved PDF: dark cover block with green KPI strip, white body pages with left-rule section headers
@@ -1327,26 +1364,31 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Voltron FDR Remediation — 12-Bug Fix Sprint (23 July 2026)
 
 ### CRITICAL
+
 - [x] Bug #1 — Photo count resolves to 0 (ife.photoCount doesn't exist; claim_documents has 0 rows for claim 8880001)
 - [x] Bug #2 — Speed bar chart uses 2-bar fallback instead of 6-method ensemble (physics.speedInferenceEnsemble.methods[].speedKmh)
 
 ### HIGH
+
 - [x] Bug #3 — Physics Consistency and FCDI cells both read forensicAudit.overallScore (should use physics.physicsScore)
 - [x] Bug #4 — Data Completeness shows hardcoded 75% fallback instead of actual ife.completenessScore (46%)
 - [x] Bug #5 — KINGA Optimised Estimate shows $0.00 with self-contradictory 100% savings label
 - [x] Bug #6 — Incident date predates vehicle model year — not flagged in §02 or §09
 
 ### MEDIUM
+
 - [x] Bug #7 — pipeline_jobs table has 0 rows; stage telemetry not persisted (upsertPipelineJob call path)
 - [x] Bug #8 — Currency hardcoded to $ (USD) — rename fmtUSD → fmtCurrency(amount, currency)
 - [x] Bug #9 — Deceleration displayed with 16 significant digits (needs toFixed(2))
 - [x] Bug #10 — Policy details (policy_number, sum_insured, policy_excess) missing from §02
 
 ### LOW
+
 - [ ] Bug #11 — Dead CIR-only CSS retained in FDR stylesheet (~2 KB) — split fdrStyles/cirStyles
 - [ ] Bug #12 — claim_documents vs ingestion_documents routing gap
 
 ### Verification
+
 - [ ] Re-run LIVE-RUN-VOLTRON-001 end-to-end and verify all 12 fixes field-by-field
 - [ ] Confirm pipeline_jobs has 11 rows with real durations after Bug #7 fix
 - [ ] Test currency formatting against a Zambian (ZMW) claim
@@ -1358,24 +1400,29 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Pipeline Integration Fixes — Cost Audit Sprint (July 2026)
 
 ### CRITICAL
+
 - [ ] Fix Stage 3 degraded path: all degraded/error returns must include empty inputRecovery structure (not undefined)
 - [ ] Fix Stage 9: fallback to panel_beater_quotes DB table when stage3.inputRecovery.extracted_quotes is empty
 
 ### HIGH
+
 - [ ] Sweep all pipeline stages for silent ?? [] / ?? 0 fallbacks where a sibling DB table holds real data
 - [ ] Fix vehicle_market_value display: divide by 100 (currently rendering raw cents as dollars)
 - [ ] Fix $75,340.91 total-quoted figure: verify whether it was sourced correctly or was coincidentally correct despite Stage 9 reading empty quotes
 
 ### MEDIUM
+
 - [x] BUG-13: pipeline_jobs 6 stages stuck at running (6.5A/6.5B never call recordStage; degraded stages drain after process exits)
 - [ ] BUG-14: .cover-head-legacy dead CSS not stripped from FDR
 - [ ] BUG-15: Verdict strip label "Market Value" → "Insured Value"
 - [ ] BUG-16: Document register missing from §08 (ingestion_documents data available)
 
 ### LOW
+
 - [ ] BUG-17: Seed data — estimated_value for VOLTRON-001 should be 3,000,000 cents ($30,000)
 
 ### Verification
+
 - [ ] Re-run LIVE-RUN-VOLTRON-001 and confirm Stage 9 surfaces exactly 3 quotes matching panel_beater_quotes
 - [ ] Confirm §06/§07 quote sections and cost table reflect the 3 real quotes
 - [ ] Confirm $75,340.91 total-quoted figure reconciles (or update if incorrect)
@@ -1393,12 +1440,19 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## L2 Formula Rebuild — Confirmed Correct Architecture (July 2026)
 
 ### The correct L2 formula (confirmed by product owner):
+
 ### 1. Normalise all quotes to total-cost-of-operation (parts + associated labour per component)
+
 ### 2. L1 = lowest normalised quote total across all repairers
+
 ### 3. K = KINGA benchmark/model price for the full repair
+
 ### 4. If K exists and |L1-K|/L1 ≤ 0.30: L2 = min(L1, K)
+
 ### 5. If K exists and |L1-K|/L1 > 0.30: L2 = L1 (model is outlier; accept market floor)
+
 ### 6. If K does not exist (T3/T4): L2 = L1
+
 ### L2 ≤ L1 ALWAYS. KINGA never increases cost burden on insurer.
 
 - [ ] REBUILD-L2-1: Delete the per-component cherry-pick logic from buildCompositeQuote entirely
@@ -1418,12 +1472,14 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Claims Report (Process) & Claims Intelligence Report (Protect) — Redesign July 2026
 
 ### Phase 1: Pipeline Bug Fixes
+
 - [x] Verify kingaOptimised/benchmark computation is invoked on claim.intelligence path — confirmed display-only bug, pipeline correct
 - [x] Wire real fraud_score_breakdown_json to §3 Risk Indicators — rawIndicators wired with fallback
 - [x] Fix tier badge: claimsIntelligenceReport.ts line 173 — now reads "Protect Tier · Intelligence Assessment"
 - [ ] Fix reportDefinitions.ts line 72 comment: "Claims Intelligence Report (Process tier)" → "Protect Tier"
 
 ### Phase 2: Shared Design System Components
+
 - [x] Add BarTable() helper to kingaDesignSystem.ts — table-based horizontal bar chart (no CSS flex/grid widths)
 - [x] Add PhotoZonePanel() helper — table-based photo thumbnail grid with zone labels
 - [x] Add SectionTab() helper — consistent section header with tier badge
@@ -1431,6 +1487,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Add Callout() helper — table-safe callout box (replaces fc/finding-box divs)
 
 ### Phase 3: Process Tier (claim.assessment) Redesign
+
 - [x] Rewrite generateClaimAssessmentReport to use KINGA design system (not legacy base.ts)
 - [ ] §1 Claim Overview — real data, table-based KV grid
 - [ ] §2 Assessment Summary — real fraud score, confidence, recommendation
@@ -1441,6 +1498,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] Upgrade banner — physicsAnomaly-driven CTA to Protect or Forensic
 
 ### Phase 4: Protect Tier (claim.intelligence) Redesign
+
 - [x] §P Policy & Coverage — wire coverageRows from real repairIntel.policyExclusions (not hardcoded static data)
 - [x] §2 Cost Intelligence — wire compositeLineItems.selectedCostUsd as KINGA Benchmark column (not unit_price copy)
 - [x] §3 Risk Indicators — wire real fraud_score_breakdown_json indicators (not canned strings)
@@ -1448,6 +1506,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Fix tier badge to "Protect Tier · Intelligence Assessment"
 
 ### Phase 5: Verification
+
 - [ ] Verify both reports against Voltron claim (LIVE-RUN-VOLTRON-001)
 - [ ] Verify both reports against a second claim
 - [ ] Confirm no data integrity contradictions (submitted ≠ KINGA benchmark, fraud indicators real)
@@ -1576,7 +1635,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] End-to-end verification: 111/111 tests pass, 152/152 physics tests pass, TypeScript 0 errors, dev server clean restart
 
 ---
+
 ## Intake Pipeline Reliability Fix (July 2026)
+
 - [ ] Fix 1: Startup intake sweep — on server start, find all intake_pending/document_failed claims with source documents and trigger pipeline (catches setImmediate lost on restart)
 - [ ] Fix 2: Recovery job Case 11 — auto-retry document_failed claims that have a source document (server restart killed the pipeline before it could run)
 - [ ] Fix 3: Normalise watchdog DPS — watchdog timer sets status='document_failed' + dps='DOCUMENT_FAILED' consistently (not just dps='failed')
@@ -1586,7 +1647,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] Fix 7: Dashboard pending query — ensure all intake_pending + document_failed + analysis_complete claims are visible
 
 ---
+
 ## Intake Pipeline Reliability Fixes (2026-07-28)
+
 - [x] Root cause identified: setImmediate pipeline trigger lost on server restart (tsx watch)
 - [x] Case 11 added to recovery job: auto-retry document_failed claims with source document (>5 min)
 - [x] Case 12 added to recovery job: fire pipeline for intake_pending claims with lost trigger (>3 min)
@@ -1597,7 +1660,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] All claim sources (web, WhatsApp, mobile, simulator) now benefit from startup sweep + recovery job
 
 ---
+
 ## Forensic Enhancements (Jul 2026)
+
 - [x] Impact causation classification: SELF_REVERSING / THIRD_PARTY_REAR_STRIKE / THIRD_PARTY_REVERSED_INTO_STATIONARY_CLAIMANT / THIRD_PARTY_REVERSED_INTO_MOVING_CLAIMANT / MUTUAL_REVERSING / FORWARD_IMPACT / UNKNOWN
 - [x] Causation speed ceiling gate: SELF_REVERSING ≤ 20 km/h, MUTUAL_REVERSING ≤ 15 km/h
 - [x] Reversing narrative contradiction check: SELF_REVERSING + named third party = WARNING flag
@@ -1610,7 +1675,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Causation fields wired through Stage 5 → orchestrator → PhysicsTruth → report
 
 ---
+
 ## §04 Panel Restyle (Jul 2026)
+
 - [x] §04 Impact Causation Classification panel: restyled to white-card/status-pill/border-bar pattern using sectionTab(), co(), p(), kvRow() helpers — removed full-card colour fills
 - [x] §04b Forensic Findings Summary panel: restyled to match native report CSS system (white-card, status pills, callout boxes)
 - [x] stage-5-assembly.ts TypeScript errors fixed: ImpactCausation import added, return type updated, nullable declarations corrected
@@ -1618,21 +1685,26 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Screenshot rendered: kinga-screenshots/forensic-panels-v2-restyled.png
 
 ---
+
 ## Platform Readiness Remediation Sprint (July 2026)
 
 ### Phase 1 (checkpoint 391f494d)
+
 - [x] Fix 1: SQL injection in integrityRouter — replaced raw sql interpolation with Drizzle parameterised queries (gte + eq conditions)
-- [x] Fix 7: Script relocation — moved debug-insert.ts, trigger-pipeline.ts, voltron-trigger.ts, stuck-assessment-recovery-job.ts to server/scripts/; added server/scripts/** to vitest exclude list; TypeScript errors reduced from 47 → 7
+- [x] Fix 7: Script relocation — moved debug-insert.ts, trigger-pipeline.ts, voltron-trigger.ts, stuck-assessment-recovery-job.ts to server/scripts/; added server/scripts/\*\* to vitest exclude list; TypeScript errors reduced from 47 → 7
 
 ### Phase 2 (checkpoint d211290d)
+
 - [x] Fix 4: Shared PLATFORM_ROLES — created shared/roles.ts as single source of truth (14 platform roles + 5 insurer roles); updated server/routers/platform-user-roles.ts and client/src/pages/PlatformUserRoleManager.tsx to import from shared/roles.ts; client now includes fleet_admin/fleet_manager/fleet_driver (previously missing)
 - [x] Fix 5: inspection_id FK on claim_documents — added inspectionId nullable FK column to drizzle/schema.ts; applied via SQL ALTER TABLE; added PRIMARY KEY to inspections.id (was missing — pre-existing Epic 3 schema bug); updated inspections.ts addMeasurement + addObservation to backfill inspectionId on linked claimDocuments
-- [x] Test fixes: added 'engineer' + 'platform_super_admin' to KNOWN_ROLES in reporting.test.ts; added engineer reports to domain-only exclusion list in reporting.access.test.ts; added server/scripts/** to vitest exclude list
+- [x] Test fixes: added 'engineer' + 'platform_super_admin' to KNOWN_ROLES in reporting.test.ts; added engineer reports to domain-only exclusion list in reporting.access.test.ts; added server/scripts/\*\* to vitest exclude list
 
 ### Phase 3 (checkpoint — current)
+
 - [x] Fix 2+3: Workflow engine consolidation (BLOCKER) — audited all three workflow implementations; redirected the one remaining call site in routers.ts from deprecated transitionWorkflowState() to canonical workflow-engine.ts transition() (full governance: audit trail + segregation of duties + role permission matrix); added @deprecated JSDoc to transitionWorkflowState(); documented consolidation in workflow.ts module header
 
 ### Remaining (not in this sprint)
+
 - [ ] Fix 6: Remove @ts-nocheck from workflow-engine.ts and the ~40 remaining high-value server files
 
 ## Epic 5-A — Global Search & Navigation
@@ -1662,6 +1734,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Batch 3 — Reliability & Performance (Production Readiness Audit)
 
 ### Ticket 3.1 — M-02/M-06: PDF Renderer Concurrency Queue + Retry
+
 - [x] Install p-limit package
 - [ ] Add bounded concurrency queue (concurrency=3) around renderHtmlToPdf in pdfRenderer.ts
 - [ ] Switch waitUntil from "networkidle0" to "domcontentloaded" in page.setContent()
@@ -1671,7 +1744,8 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Checkpoint 3.1
 
 ### Ticket 3.2 — M-03: LLM Circuit Breaker
-- [ ] Implement LlmCircuitBreaker class in server/_core/llm.ts (CLOSED/OPEN/HALF_OPEN states)
+
+- [ ] Implement LlmCircuitBreaker class in server/\_core/llm.ts (CLOSED/OPEN/HALF_OPEN states)
 - [ ] Circuit opens after 5 consecutive failures within 60s window
 - [ ] Half-open probe after 60s cooldown; closes on success, re-opens on failure
 - [x] Wrap invokeLLM with circuit breaker check (throws CIRCUIT_OPEN error when open)
@@ -1682,6 +1756,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Checkpoint 3.2
 
 ### Ticket 3.3 — M-01: Pagination Sweep (Unbounded Queries)
+
 - [x] Add .limit(100) to analytics.ts assessors query
 - [x] Add .limit(100) to intelligence-platform.ts listFleets
 - [x] Fixed 7 truly unbounded queries across analytics.ts and intelligence-platform.ts
@@ -1690,6 +1765,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Checkpoint 3.3
 
 ### Ticket 3.4 — M-05: Full-Text Search Index
+
 - [x] TiDB does not support FULLTEXT; added composite B-tree indexes instead (4 indexes applied)
 - [x] Documented TiDB FULLTEXT limitation; users.name TEXT prefix index skipped (timeout)
 - [x] Switched 34 identifier columns to prefix LIKE (query%) in global-search.ts
@@ -1698,6 +1774,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Checkpoint 3.4
 
 ### Batch 3 Final
+
 - [x] Confirmed 44 pre-existing TS errors are in unrelated files; 0 new errors from Batch 3
 - [x] Full test suite: 280 files, 8403 passed, 3 skipped, 0 failed
 - [x] TypeScript: 0 new errors in Batch 3 files (44 pre-existing in unrelated files)
@@ -1715,6 +1792,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Ticket 4.4 (N-03): Add KINGA-N-03 calibration flag comments to accidentPhysics.ts, physics-deviation-calculator.ts, and existing calibration blocks
 
 ## Batch 4 Remediation — Tenant Isolation Violations Root Cause Fix
+
 - [x] KINGA-AUTH-01: Fix fail-closed re-sync guard in authenticateRequest — only re-sync platform owner, reject all other missing users (prevents hard-deleted users from being re-created via OAuth sync on every request with a valid JWT)
 - [x] KINGA-AUTH-01: Added 4 vitest tests in server/auth.resync.test.ts covering: non-owner missing user rejected, OAuth server not called for missing users, active user allowed, deactivated user rejected
 - [x] Root cause analysis complete: User 2 violations were from hard-deleted user re-synced on every request; User 1 violations were from browser session open before admin bypass deployment; both stopped at 21:10-21:11 UTC when browser closed
@@ -1723,12 +1801,14 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Epic 4.5 — Portal Integration Completion
 
 ### Priority 1 (Release Blockers)
+
 - [ ] D-3: Add `engineer` to DOMAIN_ROLE_MAP in ProtectedRoute.tsx
 - [ ] D-4: Add `engineer` to ROLE_PORTAL_MAP in roleRouting.ts
 - [ ] D-10: Route fleet_admin/fleet_manager to FleetManagerDashboard (Epic 4)
 
 ### Priority 2
-- [ ] D-2: Apply EngineerWorkspaceLayout to all /engineer/* routes in App.tsx
+
+- [ ] D-2: Apply EngineerWorkspaceLayout to all /engineer/\* routes in App.tsx
 - [ ] D-6: Add VehicleRegistry nav links for risk_manager, claims_manager, executive, insurer_admin
 - [ ] D-8: Add agency.vehicle_verification and agency.vehicle_valuation to REPORT_CATALOGUE
 - [ ] D-7: Add Vehicle Valuation tab/panel to KingaAgency.tsx
@@ -1736,6 +1816,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] D-11: Add Portfolio Intelligence nav links for executive and risk_manager
 
 ### Priority 3
+
 - [ ] D-1: Add fleet-approvals to TABS array in ClaimsManagerDashboard.tsx
 - [ ] D-5: Wrap InsurerAdminDashboard in InsurerPortalLayout in App.tsx
 
@@ -1788,22 +1869,26 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Phase 4.5 — Admin Platform Audit & Defect Fixes
 
 ### DEF-001: vehicleDamageHistory vehicleRegistration
+
 - [x] DEF-001: Add vehicleRegistration column to vehicleDamageHistory in schema.ts
 - [x] DEF-001: Run DB migration to add vehicle_registration column
 - [x] DEF-001: Update completeClaim to populate vehicleRegistration on insert
 
 ### DEF-002: fleet.addVehicle tRPC exposure
+
 - [x] DEF-002: Add addVehicle tRPC mutation to fleet-accounts.ts router
 - [x] DEF-002: Add AddVehicleDialog component to FleetManagement.tsx (fleet.registerVehicle already exists; fleetAccounts.addVehicle added as complementary path)
 - [x] DEF-002: Wire addVehicle mutation to dialog submit handler
 
 ### DEF-003: inspections projectId FK
+
 - [x] DEF-003: Add projectId column to inspections table in schema.ts
 - [x] DEF-003: Run DB migration to add project_id column
 - [x] DEF-003: Update inspections.create to accept optional projectId
 - [x] DEF-003: Update InspectionProjectsTab to pass projectId when creating inspections (FK in place; projectId passed at inspection creation time)
 
 ### Admin Platform Audit
+
 - [x] ADMIN-AUDIT: Complete audit of all 10 admin domains
 - [x] ADMIN-AUDIT: Deliver Admin Completion Matrix and priority implementation plan
 
@@ -1812,18 +1897,21 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Phase 1 — Product Experience Transformation (Approved 5 Aug 2026)
 
 ### Portal Entry Validation
+
 - [x] P1-ENTRY-01: Audit OnboardingManager — engineer/panel_beater/fleet_admin/assessor roles added
 - [x] P1-ENTRY-02: Audit PortalHub — fleet path fixed to /claimant/fleet-dashboard; fleet_admin/fleet_manager roles added
 - [x] P1-ENTRY-03: Audit role routing — all roles verified in ROLE_PORTAL_MAP
 - [x] P1-ENTRY-04: Fixed: PortalHub fleet URL mismatch; OnboardingWalkthrough missing 4 roles
 
 ### Sprint 2: Engineer Dashboard (Highest Priority)
+
 - [x] P1-ENG-01: Add inspections.getProjectDashboard tRPC procedure
 - [x] P1-ENG-02: Replace EngineerDashboard.tsx with KingaPortalShell project-first workspace
 - [x] P1-ENG-03: Wire InspectionProjectsTab as primary tab
 - [x] P1-ENG-04: Add KPI strip: Active Projects, Inspections Due, Pending Reports, Total Inspections
 
 ### Sprint 1: Intelligence + Global Search
+
 - [ ] P1-INTEL-01: Create ClaimIntelligenceHeader component (action-driving layer)
 - [ ] P1-INTEL-02: Wire ClaimIntelligenceHeader into Claims Manager claim detail
 - [ ] P1-INTEL-03: Wire compact ClaimIntelligenceHeader into Assessor assignment view
@@ -1831,6 +1919,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] P1-SEARCH-01: Activate GlobalSearchBar (change variant from icon to bar)
 
 ### Sprint 3: Platform Command Centre + Personalised Headers
+
 - [ ] P1-PLAT-01: Add platformObservability.getCommandCentreMetrics procedure
 - [ ] P1-PLAT-02: Replace PlatformOverviewDashboard with KINGA Command Centre
 - [ ] P1-PLAT-03: Add personalised greeting strip to ClaimsManagerDashboard
@@ -1840,6 +1929,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] P1-FLEET-02: Populate Fleet Manager Dashboard KPI strip with real data
 
 ### Sprint 4: Settlement + Document Requests
+
 - [ ] P1-SETTLE-01: DB migration — add payment_status, payment_date to final_approval_records
 - [ ] P1-SETTLE-02: DB migration — add comment_type, document_type_requested, deadline, fulfilled_at to claim_comments
 - [ ] P1-SETTLE-03: Add claims.requestDocuments tRPC procedure
@@ -1852,9 +1942,11 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] P1-SETTLE-10: Add lifecycle progress bar to Claims Manager claim cards
 
 ### Sprint 5: Navigation Standardisation
+
 - [ ] P1-NAV-01: Standardise tab labels across all portals
 
 ### End-to-End Journey Validation
+
 - [ ] P1-E2E-01: Customer journey validation
 - [ ] P1-E2E-02: Claims journey validation
 - [ ] P1-E2E-03: Engineering journey validation
@@ -1867,6 +1959,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Ship Readiness Remediation (Phase 1.5)
 
 ### Sprint 1 — Critical
+
 - [ ] SR-C03: Add authorizePayment mutation (financial_decision → payment_authorized)
 - [ ] SR-C03: Add Authorise Payment button to InternalAssessorDashboard
 - [ ] SR-C02: Add rejectClaim mutation with rejectionReason parameter
@@ -1875,6 +1968,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] SR-C04: Add Mark Repair Complete button to PanelBeaterDashboard
 
 ### Sprint 2 — High
+
 - [ ] SR-H05: Add acceptQuote mutation to agency router
 - [ ] SR-H05: Add Accept Quote button to KingaAgency quotations tab
 - [ ] SR-H01: Add engineering inspection report generator
@@ -1883,11 +1977,13 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] SR-H02: Write rejection event to auditTrail on rejectClaim
 
 ### Sprint 3 — High
+
 - [ ] SR-H04: Add claimant notification on claim state change
 - [ ] SR-H03: Add insurer admin claim override/reject procedure
 - [ ] SR-H06: Surface OAuth recovery URL on login page
 
 ### Sprint 4 — Medium
+
 - [ ] SR-M01: Create /claimant/documents page and register route
 - [ ] SR-M03: Wire inspections.list into EngineerAssignments page
 - [ ] SR-M04: Add repair photo upload to PanelBeaterDashboard
@@ -1916,38 +2012,45 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## Phase 9 — Unified Client Portal (Next)
 
 ### Vision
+
 One login, one experience. A client can be a claimant, request valuations, request insurance,
 and manage their personal vehicles — all from /client. Distinct from the Fleet Management Portal
 which is for corporate fleet operators.
 
 ### Architecture
+
 - [x] P9-A01: Create /client route with ClientPortalLayout (persistent sidebar: Dashboard | My Vehicles | Valuations | Insurance | Claims)
 - [x] P9-A02: Add personal_vehicles table (id, userId, registration, make, model, year, vin, colour, notes, createdAt)
 - [x] P9-A03: Add personalVehicles tRPC router (addVehicle, listMyVehicles, updateVehicle, deleteVehicle)
 - [x] P9-A04: ClientPortalLayout accessible to ALL authenticated users regardless of primary role
 
 ### Dashboard Tab
+
 - [x] P9-D01: Client Dashboard — summary cards: vehicles, open claims, pending quotes, active policies
 - [x] P9-D02: Recent activity feed (last 5 events across all journeys)
 - [x] P9-D03: Quick action buttons: Request Valuation, Submit Claim, Add Vehicle
 
 ### My Vehicles Tab
+
 - [x] P9-PV01: Personal vehicle list — add/edit/delete (reg, make, model, year, VIN, colour)
 - [x] P9-PV02: Per-vehicle card: last valuation, open claims, policy status, history link
 - [x] P9-PV03: Link existing valuations and claims to a vehicle by registration match
 
 ### Valuations Tab
+
 - [x] P9-V01: Valuation history list (all requests by email/userId)
 - [x] P9-V02: Teaser vs full report status with unlock CTA
 - [x] P9-V03: New valuation wizard (reuse /get-a-quote flow inline or redirect)
 - [x] P9-V04: Accept quote from Valuations tab (reuse acceptQuote mutation)
 
 ### Insurance Tab
+
 - [x] P9-I01: Pending quotes list (status=quoted, amber highlight, Accept Quote button)
 - [x] P9-I02: Active policies list (status=accepted, premium, expiry, excess)
 - [x] P9-I03: Policy detail view (coverage, vehicle, documents)
 
 ### Claims Tab
+
 - [x] P9-C01: Claims list (all claimant's claims with workflow state)
 - [x] P9-C02: Plain-language claim timeline per claim
 - [x] P9-C03: Submit new claim button (redirect to /claimant/submit)
@@ -1958,6 +2061,7 @@ which is for corporate fleet operators.
 ## Phase 10 — Document Delivery + Multi-Product Insurance
 
 ### Track A: Policy Document Delivery
+
 - [x] P10-DA01: Add quotation_request_documents table (id, quotationRequestId, userId, documentType, title, fileName, fileUrl, s3Key, fileSize, mimeType, sentByAgentId, deliveredToClient tinyint, emailedToClient tinyint, notes, createdAt)
 - [x] P10-DA02: Add sendDocumentToClient mutation to insurance-phase7 router (base64 upload → S3 → DB → in-app notification to client userId)
 - [x] P10-DA03: Add getMyDocuments query (client-side: returns all documents for the current user's quotation requests)
@@ -1965,6 +2069,7 @@ which is for corporate fleet operators.
 - [x] P10-DA05: Client Portal Insurance tab: Documents sub-section showing all agent-sent documents with download links
 
 ### Track B: Multi-Product Insurance Catalogue
+
 - [x] P10-DB01: Add productCategory column to quotation_requests (motor | property | engineering | liability | bonds | other)
 - [x] P10-DB02: Extend insuranceType enum with non-motor products: plant_all_risks, assets_all_risks, electronic_equipment, contractors_all_risks, erection_all_risks, homeowners, fire_and_perils, public_liability, employers_liability, professional_indemnity, fidelity_guarantee, bonds, travel, personal_accident
 - [x] P10-DB03: Add non-motor intake fields to quotation_requests: insuredAssetDescription, insuredAssetValue, coverageAddress, businessType, projectValue, projectDuration, bondType, bondAmount, bondBeneficiary
@@ -1978,6 +2083,7 @@ which is for corporate fleet operators.
 ## Code Maintainability Split — Aug 2026 (Target: every file under 400–600 lines)
 
 ### Phase 1: server/routers.ts splits
+
 - [ ] SPLIT-R01: Extract claims router (3,526 lines) → server/routers/claims-core.ts
 - [ ] SPLIT-R02: Extract aiAssessments router (1,771 lines) → server/routers/ai-assessments-core.ts
 - [ ] SPLIT-R03: Extract quotes router (564 lines) → server/routers/quotes-core.ts
@@ -1986,6 +2092,7 @@ which is for corporate fleet operators.
 - [ ] SPLIT-R06: Verify routers.ts is under 600 lines after all extractions
 
 ### Phase 2: server/db.ts splits
+
 - [ ] SPLIT-D01: Extract claim query helpers → server/db-claims.ts
 - [ ] SPLIT-D02: Extract assessment query helpers → server/db-assessments.ts
 - [ ] SPLIT-D03: Extract quote query helpers → server/db-quotes.ts
@@ -1993,17 +2100,20 @@ which is for corporate fleet operators.
 - [ ] SPLIT-D05: Verify db.ts is under 400 lines after all extractions
 
 ### Phase 3: server/pipeline-v2/orchestrator.ts splits
+
 - [ ] SPLIT-O01: Extract stage 1-5 orchestration → orchestrator-intake.ts
 - [ ] SPLIT-O02: Extract stage 6-10 orchestration → orchestrator-analysis.ts
 - [ ] SPLIT-O03: Extract stage 11-14 orchestration → orchestrator-decision.ts
 - [ ] SPLIT-O04: Keep orchestrator.ts as thin coordinator under 400 lines
 
 ### Phase 4: server/reporting splits
+
 - [ ] SPLIT-REP01: Extract CL report sections → reporting/cl-report/
 - [ ] SPLIT-REP02: Extract CI report sections → reporting/ci-report/
 - [ ] SPLIT-REP03: Extract FR report sections → reporting/fr-report/
 
 ### Phase 5: client-side page splits
+
 - [ ] SPLIT-C01: Split InsurerComparisonView (2,601 lines) into tab sub-components
 - [ ] SPLIT-C02: Split ClaimDecisionReport (2,259 lines) into section sub-components
 - [ ] SPLIT-C03: Split ClaimsProcessorDashboard (1,972 lines) into tab sub-components
@@ -2190,7 +2300,7 @@ which is for corporate fleet operators.
 
 - [x] D-03 execution authority: owner approved D-03 only and accepted a sole-operator/reviewer/application-validation-owner exception for Tavonga Shoko, scoped strictly to the pinned 50-table/26-FK/111-index Wave 3 ledger. A controlled statement-14 TiDB compatibility stop occurred after accepted 1–13; the compatible revision and 174-statement ordinal-14 resumption ledger were independently verified before the owner completed the full 187-statement ledger. The authenticated final reconciliation passed for 73 tables, all 26 D-03 foreign keys, all 111 D-03 explicit indexes, structural metadata, and zero rows in every D-03 table. The exception expired with D-03 closure. No production action was authorised or performed.
 
-- [x] D-03 statement-14 TiDB compatibility stop: owner reports that exact ledger statements 1–13 completed hash-verified, creating 13 D-03 tables with zero rows; statement 14 (`cost_learning_records`) stopped on TiDB rejection of `TEXT DEFAULT ('[]')` / `TEXT DEFAULT ('{}')`. Preserved the accepted 1–13 partial state and applied the evidence-backed global source-metadata reconciliation across all 10 Wave 3–5 JSON-shaped `TEXT` defaults: `sql\`(JSON_ARRAY())\`` / `sql\`(JSON_OBJECT())\``. The immutable Wave 3 source remains untouched. The revised Wave 3 source changes only ordinal 14; the full revised 187-statement ledger, 187 files, and the 174-statement ordinal-14 resumption ledger/files passed deterministic re-generation and hash verification. No revised DDL has been sent; the owner must fresh-preflight and verify revised hashes before Claude Code resumes only at ordinal 14.
+- [x] D-03 statement-14 TiDB compatibility stop: owner reports that exact ledger statements 1–13 completed hash-verified, creating 13 D-03 tables with zero rows; statement 14 (`cost_learning_records`) stopped on TiDB rejection of `TEXT DEFAULT ('[]')` / `TEXT DEFAULT ('{}')`. Preserved the accepted 1–13 partial state and applied the evidence-backed global source-metadata reconciliation across all 10 Wave 3–5 JSON-shaped `TEXT` defaults: `sql\`(JSON_ARRAY())\``/`sql\`(JSON_OBJECT())\``. The immutable Wave 3 source remains untouched. The revised Wave 3 source changes only ordinal 14; the full revised 187-statement ledger, 187 files, and the 174-statement ordinal-14 resumption ledger/files passed deterministic re-generation and hash verification. No revised DDL has been sent; the owner must fresh-preflight and verify revised hashes before Claude Code resumes only at ordinal 14.
 
 - [x] D-03 closure reconciliation: owner-reported successful hash-verified completion of revised ordinal 14 and ordinals 15–187 was independently reconciled through authenticated read-only TiDB metadata and row-count queries. The final staging state matched the revised pinned source exactly: 73 expected/live tables, 1,009 expected/live D-03 columns with 0 mismatches, 35 expected/live cumulative FK definitions, 177 source-explicit index definitions including 111 D-03 definitions with 0 mismatches, 96 expected/live primary/unique keyed-column rows, and 0 rows across all 50 D-03 tables. D-03 formally closed on 14 September 2026; its D-03-only sole-operator/reviewer/application-validation exception expired and does not carry forward.
 
@@ -2214,7 +2324,7 @@ which is for corporate fleet operators.
 
 - [x] Natural/composite-unique staging packet: prepared only the review packet for the approved four-statement transition (`DROP INDEX unique_assessor_tenant`; create the three owner-confirmed unique pair indexes) against the closed 188-table staging baseline. Pinned source, manifest, individual statement hashes, and ordered-file hash `81f1cba9f009ea414edd06c3bb8fbaf34fc462d25e3a5f6063a6731aa6ab1ab5`; generated five hash-pinned read-only preflight queries for inventory, zero rows, target columns, current indexes, and duplicate pairs; and required local Claude Code one-statement execution with strict stop-and-report behavior. Deterministic generator verification and focused source-contract Vitest passed. Packet preparation did not grant execution authority, modify staging, change accounts/grants, or authorize production. The owner must separately record the narrow sole operator/reviewer/application-validation-owner exception and authorize execution after reviewing the packet.
 
-- [x] NCU-01 fresh read-only preflight: Tavonga Shoko explicitly accepted the NCU-01 sole operator/reviewer/application-validation-owner exception, restricted to the four hash-pinned NCU-01 statements on `KINGA-staging`; it expires at NCU-01 closure, stop, abandonment, or approved-window expiry and transfers no recovery, deployment, D-06, or production authority. The owner authorized fresh read-only preflight only. Fresh authenticated evidence passed: same-day Starter snapshot visible; exact source-matching 188-table inventory; zero rows across all 188 tables; 3/3 target tables and 41/41 target columns source-matching; only the expected pre-transition non-unique assessor index exists; all three planned unique indexes absent; all three duplicate-pair checks zero; and the exact runner has only global USAGE plus `SELECT, CREATE, REFERENCES, ALTER, INDEX` on `kinga_staging`.*. Source/ledger/query integrity and focused 3/3 Vitest passed. Evidence: `audit/natural-composite-unique-staging-2026-09-15/read-only-preflight-evidence.md`. No DDL is authorized until a separate post-preflight owner decision.
+- [x] NCU-01 fresh read-only preflight: Tavonga Shoko explicitly accepted the NCU-01 sole operator/reviewer/application-validation-owner exception, restricted to the four hash-pinned NCU-01 statements on `KINGA-staging`; it expires at NCU-01 closure, stop, abandonment, or approved-window expiry and transfers no recovery, deployment, D-06, or production authority. The owner authorized fresh read-only preflight only. Fresh authenticated evidence passed: same-day Starter snapshot visible; exact source-matching 188-table inventory; zero rows across all 188 tables; 3/3 target tables and 41/41 target columns source-matching; only the expected pre-transition non-unique assessor index exists; all three planned unique indexes absent; all three duplicate-pair checks zero; and the exact runner has only global USAGE plus `SELECT, CREATE, REFERENCES, ALTER, INDEX` on `kinga_staging`.\*. Source/ledger/query integrity and focused 3/3 Vitest passed. Evidence: `audit/natural-composite-unique-staging-2026-09-15/read-only-preflight-evidence.md`. No DDL is authorized until a separate post-preflight owner decision.
 
 - [x] NCU-01 execution and closure: Tavonga Shoko separately authorized only the four hash-pinned NCU-01 statements on `KINGA-staging` through the owner’s local Claude Code environment. The owner reported all four immediately hash-verified ordinals succeeded. Independent authenticated read-only postflight confirmed exact 188-table inventory, zero rows across all 188 tables, source-matching 3-table/41-column target structure, removal of `unique_assessor_tenant`, and creation of all three approved unique pair-index definitions with `non_unique=0` and correct ordered columns. All three duplicate-pair controls remained zero. Closure evidence: `audit/natural-composite-unique-staging-2026-09-15/independent-postflight-and-closure-2026-09-15.md`. The NCU-01 sole-role exception expires at this closure; no broader staging or production authority transfers.
 
@@ -2266,3 +2376,5 @@ which is for corporate fleet operators.
 - [ ] **WorkOS Package F — local session extraction proposal:** review-only proposal at `docs/authentication/workos-package-f-local-session-extraction-proposal-2026-09-19.md` defines a source-only, provider-neutral extraction of KINGA’s existing HS256 local-session issuance, verification, ordinary local-user entitlement checks, and normal-session cookie policy from the Manus HTTP client. It preserves the active Manus callback, browser flow, one-year session lifetime, current JWT/cookie contract, database-backed authorization, and default-off WorkOS posture. It explicitly excludes provider selection/configuration, WorkOS changes, OAuth-state changes, schema/data changes, cookie or JWT policy hardening, `cron_` service identity, impersonation semantics, and all external/staging/production action. It requires a separate later implementation authorization.
 - [x] **WorkOS Package F implementation — local session extraction (19 September 2026):** On isolated branch `feat/local-session-extraction`, extracted only the established KINGA HS256 local-session mechanics into `server/_core/kinga-session.ts`: three fixed claims (`openId`, `appId`, `name`), existing one-year or explicit expiry, HS256-only verifier, normal cookie read, and update-only active-local-user entitlement check. `sdk.ts` now keeps only compatibility delegates plus its existing Manus HTTP and `cron_` bridge; the active Manus callback calls the local issuer while preserving provider exchange, upsert, audit, `ONE_YEAR_MS` cookie, and redirect behavior. No client navigation, WorkOS source/configuration, schema, migration, environment, data, staging, deployment, or provider switch was changed. Original KINGA-AUTH-01 deleted-user/resynchronization test files are byte-identical to main and pass unchanged. Focused matrix: 26/26 passed; full isolated suite: 575 files passed / 1 skipped and 9,531 tests passed / 4 skipped; `check:server` and diff check passed; zero new TypeScript diagnostics relative to current main. Evidence: `audit/workos-package-f-local-session-extraction-implementation-2026-09-19.md`. Independent source review and a review PR are still required before merge.
 - [x] **WorkOS Package F independent security review (19 September 2026):** Final read-only security/architecture review approved the compatibility extraction with no required changes. It verified identical current-main hashes for both original KINGA-AUTH-01 files (`auth.resync` and `session-revocation`), exact normal JWT/cookie behavior, no provider dependency in `kinga-session`, preserved active Manus callback, preserved `cron_` bridge without ordinary local-user lookup, and no expansion into WorkOS, Package G, or suspended impersonation behavior. The reviewer independently reproduced the guarded full-suite result: 575 files passed / 1 skipped and 9,531 tests passed / 4 skipped. The sole review observation was a blank line at the end of `todo.md`; it was removed. Package F is ready for source review PR publication only; merge remains separately gated.
+- [ ] **REC-SEC-01 recovery-deadline edge containment proposal (19 September 2026):** Review-only proposal at `docs/security/recovery-deadline-sweep-edge-containment-proposal-2026-09-19.md` addresses the confirmed P0 broken-function authorization on the public recovery-deadline sweep. It proposes a first change that denies every exact `POST /api/scheduled/recovery-deadline-sweep` request at ingress without origin forwarding, pauses any external caller until independently verified, and preserves all unrelated routes. A scheduler exception is expressly deferred until hosting/edge target, caller identity, route/method/audience binding, signing or mTLS trust chain, expiry/replay controls, and rollback are shown. IP ranges, proxy headers, browser cookies, task names, and user agents are explicitly prohibited as authority. The separate REC-SEC-02 source package must add exact non-human capability authorization, a fenced lease plus transactional effect idempotency, and correct the `notifyOwner() === false` case so alert suppression is written only after successful delivery. G1/G2 remain paused. Proposal review and owner approval are required before any edge/deployment action.
+- [x] **REC-SEC-01 independent containment review (19 September 2026):** Initial review correctly blocked a literal edge-path proposal because Express route equivalence and alternate public ingresses could bypass a single hostname/literal match, and ordinary rollback language could re-expose the known P0. The revised proposal now requires provider-specific normalization-order evidence for canonical, trailing-slash, duplicate-slash when normalized, encoded, dot-segment, case, and query representations; complete inventory/coverage or negative reachability for every public hostname, alias, direct service/origin URL, and routing layer; a permanent default-deny fallback; deployed production probes showing edge denial plus no matching origin log/metric/trace; and no scheduler exception until verified non-human identity material is independently evidenced. Final independent AppSec review approved with no required changes. The proposal remains review-only; no containment action has occurred.
