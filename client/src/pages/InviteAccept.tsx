@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
+import { getDefaultLoginUrl } from "@/auth/login-navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -215,7 +215,7 @@ export default function InviteAccept() {
 
   // Build login URL that returns the user to this page after OAuth
   const returnPath = `/invite/accept/${token}`;
-  const loginUrl = getLoginUrl(returnPath);
+  const loginUrl = getDefaultLoginUrl(returnPath);
 
   // If user is signed in but email doesn't match
   const emailMismatch = user && user.email && user.email !== invitation.email;

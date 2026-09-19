@@ -97,8 +97,8 @@ class OAuthService {
 
   private decodeState(state: string): string {
     // state = btoa(redirectUri) — the Manus OAuth server always sends back the
-    // same state that was passed to /app-auth. getLoginUrl in const.ts uses the
-    // original plain-base64 format. Do NOT change this to JSON parsing.
+    // same state that was passed to /app-auth. The client navigation facade
+    // preserves this plain-base64 format. Do NOT change this to JSON parsing.
     return atob(state);
   }
 

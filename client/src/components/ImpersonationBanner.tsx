@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { COOKIE_NAME } from "@shared/const";
-import { getLoginUrl } from "@/const";
 
 export function ImpersonationBanner() {
   const { data: state } = trpc.impersonation.getState.useQuery(undefined, {
