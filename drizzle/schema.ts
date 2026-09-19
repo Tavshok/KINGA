@@ -5720,6 +5720,57 @@ export const recoveryCases = mysqlTable("recovery_cases", {
 export type RecoveryCaseRow = typeof recoveryCases.$inferSelect;
 export type InsertRecoveryCase = typeof recoveryCases.$inferInsert;
 
+/**
+ * Non-human capability records for the recovery-deadline sweep. Credentials
+ * are provisioned outside source control; only a one-way KDF output is stored.
+ */
+export const recoverySweepServiceCapabilities = mysqlTable("recovery_sweep_service_capabilities", {
+  keyId: varchar("key_id", { length: 64 }).notNull().primaryKey(),
+  capability: varchar("capability", { length: 64 }).notNull(),
+  environment: varchar("environment", { length: 64 }).notNull(),
+  secretHash: varchar("secret_hash", { length: 512 }).notNull(),
+  status: mysqlEnum("status", ["active", "revoked"]).notNull().default("active"),
+  expiresAt: timestamp("expires_at", { mode: "string" }),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+  revokedAt: timestamp("revoked_at", { mode: "string" }),
+}, (table) => [
+  index("idx_recovery_sweep_capability_environment").on(table.capability, table.environment, table.status),
+]);
+
+/**
+ * One fenced lease serializes the global sweep across startup and HTTP callers.
+ * Fence values monotonically increase on acquisition and protect final writes.
+ */
+export const recoverySweepLeases = mysqlTable("recovery_sweep_leases", {
+  leaseName: varchar("lease_name", { length: 64 }).notNull().primaryKey(),
+  holderId: varchar("holder_id", { length: 64 }),
+  fence: bigint("fence", { mode: "number", unsigned: true }).notNull().default(0),
+  leaseExpiresAt: timestamp("lease_expires_at", { mode: "string" }),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+});
+
+/**
+ * Durable recovery-deadline notification effects. A unique effect key prevents
+ * overlapping sweep executions from staging the same suppression effect twice.
+ */
+export const recoveryDeadlineAlertOutbox = mysqlTable("recovery_deadline_alert_outbox", {
+  id: varchar("id", { length: 64 }).notNull().primaryKey(),
+  recoveryCaseId: int("recovery_case_id").notNull().references(() => recoveryCases.id, { onDelete: "restrict", onUpdate: "cascade" }),
+  effectKey: varchar("effect_key", { length: 128 }).notNull(),
+  state: mysqlEnum("state", ["pending", "dispatching", "delivered", "discarded"]).notNull().default("pending"),
+  attemptCount: int("attempt_count").notNull().default(0),
+  nextAttemptAt: timestamp("next_attempt_at", { mode: "string" }).notNull(),
+  claimedBy: varchar("claimed_by", { length: 64 }),
+  claimedFence: bigint("claimed_fence", { mode: "number", unsigned: true }),
+  claimedAt: timestamp("claimed_at", { mode: "string" }),
+  deliveredAt: timestamp("delivered_at", { mode: "string" }),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("uq_recovery_deadline_alert_effect").on(table.recoveryCaseId, table.effectKey),
+  index("idx_recovery_deadline_alert_outbox_due").on(table.state, table.nextAttemptAt),
+]);
+
 // ─── Recovery Correspondence Log ──────────────────────────────────────────────
 export const recoveryCorrespondenceLog = mysqlTable("recovery_correspondence_log", {
   id:             int("id").autoincrement().primaryKey(),

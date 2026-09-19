@@ -30,6 +30,12 @@ export const ENV = {
    */
   workosHumanAuthEnabled: process.env.WORKOS_HUMAN_AUTH_ENABLED === "true",
   /**
+   * Exact deployment-environment binding for the dedicated recovery sweep
+   * service capability. It has no default: an unset value makes the route deny.
+   */
+  recoveryDeadlineSweepEnvironment:
+    process.env.KINGA_RECOVERY_SWEEP_ENVIRONMENT ?? "",
+  /**
    * Comma-separated list of Heartbeat task UIDs allowed to trigger
    * /api/scheduled/intake-escalation and /api/scheduled/stuck-recovery.
    *
