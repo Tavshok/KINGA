@@ -407,6 +407,13 @@
       "when": 1789824033337,
       "tag": "0061_workos_auth_transactions",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "5",
+      "when": 1789837223285,
+      "tag": "0062_recovery_deadline_sweep_authorization",
+      "breakpoints": true
     }
   ]
 }

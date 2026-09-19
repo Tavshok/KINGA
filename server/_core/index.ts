@@ -54,6 +54,7 @@ import { setupWebSocketServer } from "../websocket";
 import { runIntakeEscalationJob, startIntakeEscalationJob } from "../intake-escalation-job";
 import { runStuckAssessmentRecoveryJob, startStuckAssessmentRecoveryJob } from "../stuck-assessment-recovery-job";
 import { checkRecoveryDeadlines } from "../recovery/recoveryDeadlineAlerts";
+import { createRecoveryDeadlineSweepHandler } from "../recovery/recovery-deadline-sweep-route";
 import { sdk } from "./sdk";
 import { verifyLocalSession } from "./kinga-session";
 import { ENV } from "./env";
@@ -211,34 +212,19 @@ export async function createApplication(options: { includeFrontend?: boolean } =
   registerAuditExportRoute(app);
 
   // ── Scheduled task endpoint: recovery deadline sweep ────────────────────
-  // Called daily by the Manus scheduled task agent:
-  //   POST /api/scheduled/recovery-deadline-sweep
-  //   Cookie: app_session_id=$SCHEDULED_TASK_COOKIE
-  // The platform injects a "user" role session cookie — any valid session is
-  // sufficient to authenticate. insurer_admin is excluded from the live badge
-  // but this sweep endpoint is accessible to any authenticated session.
+  // Only a dedicated, environment-bound KINGA service capability may enter.
+  // A KINGA human-session cookie is an explicit denial condition, even if the
+  // request also presents a bearer value. Route activation and credential
+  // provisioning remain separately gated operational decisions.
   // Keep-warm endpoint — called every 4 minutes by Heartbeat cron to prevent Cloud Run cold starts
   app.post("/api/scheduled/keepwarm", (_req: express.Request, res: express.Response) => {
     res.json({ ok: true, ts: Date.now() });
   });
 
-  app.post("/api/scheduled/recovery-deadline-sweep", async (req: express.Request, res: express.Response) => {
-    try {
-      // Require a valid session cookie (scheduled task cookie counts)
-      try {
-        await sdk.authenticateRequest(req);
-      } catch {
-        return res.status(401).json({ error: 'Unauthorized — valid session cookie required' });
-      }
-      console.log('[ScheduledSweep] Running recovery deadline sweep...');
-      await checkRecoveryDeadlines();
-      console.log('[ScheduledSweep] Recovery deadline sweep complete.');
-      return res.status(200).json({ ok: true, message: 'Recovery deadline sweep complete' });
-    } catch (err: any) {
-      console.error('[ScheduledSweep] Recovery deadline sweep failed:', err);
-      return res.status(500).json({ error: 'Sweep failed', detail: err?.message ?? String(err) });
-    }
-  });
+  app.post("/api/scheduled/recovery-deadline-sweep", createRecoveryDeadlineSweepHandler({
+    environment: ENV.recoveryDeadlineSweepEnvironment,
+    runSweep: checkRecoveryDeadlines,
+  }));
 
   // ── Heartbeat: intake escalation job (every 30 minutes) ───────────────────────────────────────
   // Replaces the in-process setInterval in intake-escalation-job.ts once deployed.
