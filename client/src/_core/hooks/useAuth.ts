@@ -1,4 +1,4 @@
-import { getLoginUrl } from "@/const";
+import { getDefaultLoginUrl } from "@/auth/login-navigation";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -16,8 +16,7 @@ type UseAuthOptions = {
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
-    options ?? {};
+  const { redirectOnUnauthenticated = false, redirectPath } = options ?? {};
   const utils = trpc.useUtils();
 
   // Dev role override state (only active in development)
@@ -116,8 +115,9 @@ export function useAuth(options?: UseAuthOptions) {
     if (meQuery.isLoading || logoutMutation.isPending) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
-    if (window.location.pathname === redirectPath) return;
-    window.location.href = redirectPath;
+    const destination = redirectPath ?? getDefaultLoginUrl();
+    if (window.location.pathname === destination) return;
+    window.location.href = destination;
   }, [
     redirectOnUnauthenticated,
     redirectPath,

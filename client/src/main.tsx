@@ -9,8 +9,8 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
+import { startDefaultLogin } from "./auth/login-navigation";
 import { KingaErrorBoundary } from "./components/KingaErrorBoundary";
-import { getLoginUrl } from "./const";
 import "./index.css";
 import "./styles/phase11.css";
 
@@ -24,7 +24,7 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  window.location.href = getLoginUrl();
+  startDefaultLogin();
 };
 
 queryClient.getQueryCache().subscribe(event => {

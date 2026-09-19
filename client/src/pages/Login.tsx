@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl, RETURN_PATH_STORAGE_KEY } from "@/const";
+import { getAccountRecoveryUrl, startDefaultLogin } from "@/auth/login-navigation";
+import { RETURN_PATH_STORAGE_KEY } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, LogOut, ArrowRight } from "lucide-react";
@@ -177,7 +178,7 @@ export default function Login() {
             size="lg"
             onClick={() => {
               // Pass returnPath so OAuth callback redirects user to the page they tried to access
-              window.location.href = getLoginUrl(decodedReturnPath);
+              startDefaultLogin(decodedReturnPath);
             }}
           >
             Sign In with Manus
@@ -191,16 +192,7 @@ export default function Login() {
           {/* SR-H06: Account recovery link — surfaces the Manus OAuth portal for password reset / account recovery */}
           <div className="text-center pt-2">
             <a
-              href={(() => {
-                const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
-                const appId = import.meta.env.VITE_APP_ID;
-                const redirectUri = `${window.location.origin}/api/oauth/callback`;
-                const url = new URL(`${oauthPortalUrl}/app-auth`);
-                url.searchParams.set('appId', appId);
-                url.searchParams.set('redirectUri', redirectUri);
-                url.searchParams.set('type', 'forgotPassword');
-                return url.toString();
-              })()}
+              href={getAccountRecoveryUrl()}
               className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
             >
               Forgot password or need account recovery?

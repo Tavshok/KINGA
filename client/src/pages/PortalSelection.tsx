@@ -14,7 +14,7 @@ import {
   Wrench, User, HardHat, Settings
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
-import { getLoginUrl } from "@/const";
+import { startDefaultLogin } from "@/auth/login-navigation";
 
 const CUSTOMER_JOURNEYS = [
   {
@@ -94,7 +94,7 @@ export default function PortalSelection({ loggedInUser, onGoToPortal }: PortalSe
 
   const handleJourneyClick = (journey: typeof CUSTOMER_JOURNEYS[0]) => {
     if (journey.requiresAuth) {
-      window.location.href = getLoginUrl(journey.href);
+      startDefaultLogin(journey.href);
     } else {
       setLocation(journey.href);
     }
@@ -106,7 +106,7 @@ export default function PortalSelection({ loggedInUser, onGoToPortal }: PortalSe
     if (loggedInUser) {
       setLocation(href);
     } else {
-      window.location.href = getLoginUrl(href);
+      startDefaultLogin(href);
     }
   };
 
@@ -114,7 +114,7 @@ export default function PortalSelection({ loggedInUser, onGoToPortal }: PortalSe
     if (loggedInUser && onGoToPortal) {
       onGoToPortal();
     } else {
-      window.location.href = getLoginUrl();
+      startDefaultLogin();
     }
   };
 

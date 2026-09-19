@@ -16,7 +16,7 @@ import {
   Download, LogOut, Loader2, User, Bell, Truck, Plus, AlertCircle, Tag
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
-import { getLoginUrl } from "@/const";
+import { startDefaultLogin } from "@/auth/login-navigation";
 
 export default function ClientProfile() {
   const { user, logout } = useAuth();
@@ -68,7 +68,7 @@ export default function ClientProfile() {
             <User className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
             <h2 className="text-lg font-semibold mb-2">Sign In to View Your Profile</h2>
             <p className="text-sm text-muted-foreground mb-4">Your KINGA profile contains your valuation reports, policy documents, and claim history.</p>
-            <Button className="w-full" onClick={() => window.location.href = getLoginUrl("/my-profile")}>
+            <Button className="w-full" onClick={() => startDefaultLogin("/my-profile")}>
               Sign In to KINGA
             </Button>
           </CardContent>

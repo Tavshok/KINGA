@@ -12,12 +12,14 @@
  *   a) Intercepts the /api/oauth/callback request that the Login page would
  *      trigger and replaces it with a route that sets a real JWT session cookie
  *      (signed with the same JWT_SECRET the server uses) and redirects to the
- *      returnPath encoded in the OAuth state parameter.
+ *      returnPath provided by the test. The real client keeps its optional
+ *      return path in browser-local storage; Manus OAuth state contains only
+ *      the callback URI.
  *   b) Stubs the /api/trpc/auth.me endpoint so the frontend receives a valid
  *      insurer user object and renders the claims-processor dashboard.
  *
  * This approach exercises the real navigation logic (ProtectedRoute, wouter,
- * getLoginUrl state encoding, parseState decoding) without requiring live
+ * provider-neutral client navigation state encoding, parseState decoding) without requiring live
  * OAuth credentials.
  */
 
@@ -65,19 +67,13 @@ async function createSessionToken(): Promise<string> {
 
 /**
  * Decode the OAuth `state` parameter from a URL.
- * Supports both the legacy plain-string format and the new JSON format.
  */
-function decodeState(url: string): { redirectUri: string; returnPath?: string } {
+function decodeState(url: string): { redirectUri: string } {
   try {
     const u = new URL(url);
     const state = u.searchParams.get("state") ?? "";
     const decoded = Buffer.from(state, "base64").toString("utf-8");
-    try {
-      const parsed = JSON.parse(decoded) as { redirectUri?: string; returnPath?: string };
-      if (parsed.redirectUri) return { redirectUri: parsed.redirectUri, returnPath: parsed.returnPath };
-    } catch {
-      return { redirectUri: decoded };
-    }
+    return { redirectUri: decoded };
   } catch {
     // ignore
   }
@@ -129,17 +125,16 @@ test.describe("Post-login returnPath redirect", () => {
   });
 
   /**
-   * Step 2 — The Login page encodes returnPath in the OAuth state
+   * Step 2 — The Login page keeps the Manus OAuth state contract
    *
-   * When the user clicks "Sign in", getLoginUrl() is called with the current
-   * pathname (/login) — but the safePath guard strips /login and falls back to
-   * the path the user was trying to reach, which was passed as a query param or
-   * is encoded in the state.
+   * When the user clicks "Sign in", the provider-neutral navigation facade
+   * preserves the Manus state format: plain base64 for the callback URI only.
+   * Optional return paths are browser-local state, not OAuth state.
    *
    * This test verifies the state encoding by intercepting the navigation to the
-   * OAuth portal URL and checking that the state parameter contains a returnPath.
+   * OAuth portal URL and checking that the state parameter is decodable.
    */
-  test("OAuth state encodes the returnPath from the protected route", async ({ page }) => {
+  test("OAuth state contains only the callback URI", async ({ page }) => {
     // Navigate to the protected route first so it ends up in browser history
     await page.goto(`${BASE_URL}/insurer-portal/claims-processor`);
     await page.waitForURL(/\/login/, { timeout: 10_000 });
@@ -167,16 +162,11 @@ test.describe("Post-login returnPath redirect", () => {
     // Give the intercept a moment to fire
     await page.waitForTimeout(1000);
 
-    // If we captured the OAuth URL, verify it contains a state with returnPath
+    // If we captured the OAuth URL, verify it retains the plain callback state.
     if (capturedOAuthUrl) {
-      const { returnPath } = decodeState(capturedOAuthUrl);
-      // The returnPath should point to the claims-processor page
-      // (or be undefined if the Login page doesn't yet pass it explicitly)
-      if (returnPath) {
-        expect(returnPath).toContain("claims-processor");
-      }
-      // At minimum the state must be present and decodable
+      const { redirectUri } = decodeState(capturedOAuthUrl);
       expect(capturedOAuthUrl).toContain("state=");
+      expect(redirectUri).toBe(`${BASE_URL}/api/oauth/callback`);
     }
     // If no OAuth URL was captured (e.g., no sign-in button visible), the test
     // still passes — the important assertion is in Step 3 below.
@@ -200,28 +190,16 @@ test.describe("Post-login returnPath redirect", () => {
 
     // Intercept the OAuth callback and simulate a successful login by:
     //   a) Setting a valid session cookie
-    //   b) Redirecting to the target path (simulating what the server does when
-    //      returnPath is present in the state)
+    //   b) Redirecting to the test-owned target path after the browser-side
+    //      return-path handoff has completed.
     const sessionToken = await createSessionToken();
 
     await page.route(`${BASE_URL}/api/oauth/callback**`, async (route: Route) => {
-      // Extract returnPath from the state query param if present
-      const reqUrl = route.request().url();
-      const urlObj = new URL(reqUrl);
-      const state = urlObj.searchParams.get("state") ?? "";
-      let redirectTo = targetPath;
-      if (state) {
-        const { returnPath } = decodeState(`https://dummy.test?state=${state}`);
-        if (returnPath && returnPath.startsWith("/") && returnPath !== "/login") {
-          redirectTo = returnPath;
-        }
-      }
-
       // Fulfill with a redirect response that sets the session cookie
       await route.fulfill({
         status: 302,
         headers: {
-          Location: `${BASE_URL}${redirectTo}`,
+          Location: `${BASE_URL}${targetPath}`,
           "Set-Cookie": `${COOKIE_NAME}=${sessionToken}; Path=/; HttpOnly; SameSite=Lax`,
         },
         body: "",
@@ -278,37 +256,19 @@ test.describe("Post-login returnPath redirect", () => {
 // These are kept here as documentation and can be extracted to a .test.ts file.
 // ---------------------------------------------------------------------------
 
-test.describe("getLoginUrl state encoding (unit)", () => {
-  test("decodeState round-trips the returnPath correctly", () => {
-    const returnPath = "/insurer-portal/claims-processor";
-    const statePayload = Buffer.from(
-      JSON.stringify({
-        redirectUri: `${BASE_URL}/api/oauth/callback`,
-        returnPath,
-      })
-    ).toString("base64");
-
-    const fakeUrl = `https://oauth.example.com/app-auth?state=${statePayload}`;
-    const { returnPath: decoded } = decodeState(fakeUrl);
-
-    expect(decoded).toBe(returnPath);
-  });
-
+test.describe("Manus OAuth state compatibility (unit)", () => {
   test("decodeState handles legacy plain-string state", () => {
     const redirectUri = `${BASE_URL}/api/oauth/callback`;
     const legacyState = Buffer.from(redirectUri).toString("base64");
     const fakeUrl = `https://oauth.example.com/app-auth?state=${legacyState}`;
-    const { redirectUri: decoded, returnPath } = decodeState(fakeUrl);
+    const { redirectUri: decoded } = decodeState(fakeUrl);
 
     expect(decoded).toBe(redirectUri);
-    expect(returnPath).toBeUndefined();
   });
 
   test("decodeState returns a string (not undefined) for malformed state", () => {
-    // The server's parseState() catches JSON parse errors and returns the raw
-    // decoded string (which may be garbled bytes for truly invalid base64).
-    // The important invariant is that redirectUri is always a string — never
-    // undefined — so the server can safely use it without a null check.
+    // The helper falls back to a string redirect target so the simulated route
+    // always has a safe value to use.
     const fakeUrl = "https://oauth.example.com/app-auth?state=!!!invalid!!!";
     const { redirectUri } = decodeState(fakeUrl);
     expect(typeof redirectUri).toBe("string");
