@@ -2495,7 +2495,7 @@ export const claimsRouter = router({
       await notifyClaimApproval({
         claimId: input.claimId,
         claimNumber: claim.claimNumber,
-        claimantId: claim.claimantId ?? 0,
+        claimantId: claim.claimantId,
         approvedAmount,
         selectedPanelBeater: panelBeater?.businessName || 'Selected Panel Beater',
         tenantId,
