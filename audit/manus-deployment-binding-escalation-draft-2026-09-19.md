@@ -1,10 +1,11 @@
 # Draft: Manus Support Escalation — Suspected Corrupted Production Deployment Binding
 
-**Draft timestamp:** 2026-09-19T21:41:45Z  
-**Status:** **Prepared for owner review; not submitted**  
-**Product:** KINGA — Manus-hosted insurance claims application  
-**Manus project:** `YbS42LwGroxbVepAMjk4bS`  
-**Task:** `wXdylySoP0CyrXQBgASmxL`  
+**Draft timestamp:** 2026-09-19T21:41:45Z
+**Submitted timestamp:** 2026-09-19T22:05:33Z
+**Status:** **Submitted with owner approval; awaiting Manus Support response**
+**Product:** KINGA — Manus-hosted insurance claims application
+**Manus project:** `YbS42LwGroxbVepAMjk4bS`
+**Task:** `wXdylySoP0CyrXQBgASmxL`
 **Public domain:** `kingaai-ybs42lwg.manus.space`
 
 ## Suggested subject
@@ -16,6 +17,8 @@
 Hello Manus Support,
 
 We need assistance investigating a suspected **corrupted or misbound production deployment binding** for the KINGA project. This is not a generic request to retry a failed publish. We have performed a controlled source-to-public verification that shows the public domain is not receiving the current backend revision, despite merged source, a passing required quality gate, and successful managed-workspace checkpoints.
+
+This is a **recurring issue**, not a first-time report. The project has raised materially similar deployment/publish-not-reflecting-on-the-public-domain problems multiple times previously, roughly weekly, without a durable resolution. The controlled marker evidence below is intended to let the issue be investigated as a possible account-level or deployment-binding fault rather than treated as another routine publish retry.
 
 The project is `YbS42LwGroxbVepAMjk4bS`; the relevant task is `wXdylySoP0CyrXQBgASmxL`; the affected public domain is `kingaai-ybs42lwg.manus.space`.
 
@@ -48,17 +51,17 @@ Please investigate and answer these specific questions:
 
 Please preserve the project, database, current managed configuration, and public domain during investigation. Do not recommend deleting and recreating the project as a first response; that is not an equivalent deployment reset and would be unsafe for this production system.
 
-The attached investigation record contains the exact chronology, public probe results, self-service control inventory, and recovery-route evidence.
+The retained investigation record contains the exact chronology, public probe results, self-service control inventory, and recovery-route evidence. It can be provided on request.
 
 Thank you.
 
-## Attachment and evidence set
+## Submission and evidence set
 
-Attach the completed [self-service deployment and route reconciliation record][1]. The request should cite PR [#125][2] as the merged emergency recovery-route default-deny release and PR [#126][3] as the merged non-secret marker release. Do **not** attach credentials, cookies, database connection strings, user records, or other personal data.
+The owner-approved message was submitted at the timestamp above. The Messenger integration did not expose its underlying file input to the supported browser attachment mechanism, so the record was not attached and the submitted text accurately states that it can be provided on request. The submission includes direct citations to PR [#125][2] and PR [#126][3]. No credentials, cookies, database connection strings, user records, or other personal data were submitted.
 
-## Review checklist before submission
+## Approved submission boundary
 
-The owner should confirm that the project ID, task ID, public domain, marker string, and desired support request remain accurate. This draft intentionally requests diagnosis and a safe binding repair; it does not authorize Manus to delete, recreate, migrate, disable maintenance, change application data, or alter identity credentials.
+The submission requests diagnosis and a safe binding repair only. It does not authorize Manus to delete, recreate, migrate, disable maintenance, change application data, or alter identity credentials.
 
 ## References
 
