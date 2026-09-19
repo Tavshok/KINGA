@@ -1,6 +1,6 @@
 # REC-SEC-02: Recovery-Deadline Sweep Source Remediation
 
-**Status:** Approved source-only remediation plan; implementation in progress on `fix/recovery-deadline-service-authorization`.
+**Status:** Implemented and published for review on `fix/recovery-deadline-service-authorization`; not merged, deployed, provisioned, or activated.
 
 ## Purpose and scope
 
@@ -47,6 +47,19 @@ The source package must prove the following on `kinga_ci_test` only:
 - a confirmed `true` creates exactly one delivered effect and one matching suppression update.
 
 The package also requires focused test execution through the fail-closed isolated test runner, schema provisioning for `kinga_ci_test`, server-bundle validation, formatter and conflict-marker checks, changed-path comparison with `main`, and independent application-security review before a review pull request is opened.
+
+## Validation evidence
+
+All execution used the fail-closed isolated test runner and its loopback `kinga_ci_test` database. No test used the application `DATABASE_URL`, a staging database, or a production database.
+
+| Check | Result |
+| --- | --- |
+| Focused source matrix | 29 tests across five files passed: capability admission/denial, HTTP boundary, lease and outbox behavior, startup/HTTP overlap, stale-fence containment, notification `false`/throw retryability, delivered suppression, maintenance startup behavior, and CI schema contract. |
+| Full isolated suite | 579 test files passed, one skipped; 9,557 tests passed, four skipped. |
+| Isolated schema proof | Migration `0062_recovery_deadline_sweep_authorization.sql` applied successfully to `kinga_ci_test`; the matching full-schema snapshot is contract-tested. |
+| Server validation | The server bundle built successfully. `git diff --check` and a strict conflict-marker scan passed. |
+| TypeScript comparison | No diagnostics arose in changed REC-SEC-02 paths. The inherited total was 1,000 diagnostics on both this branch and current `main`. |
+| Independent AppSec review | Approved with no mandatory fixes. The only residual is the explicitly documented at-least-once remote-notification boundary if a process fails after a remote delivery acknowledgement but before the fenced database transaction commits. |
 
 ## Explicitly deferred
 
