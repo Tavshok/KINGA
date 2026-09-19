@@ -13,15 +13,23 @@ import {
 
 export type RuntimeReadinessResolver = () => RuntimeReadiness;
 
+/**
+ * Static, non-secret marker for REC-SEC deployment verification. It proves
+ * that the expected backend source, rather than an earlier backend revision
+ * or a cached frontend response, serves the public liveness route.
+ */
+export const DEPLOYMENT_PROBE_MARKER = "recsec-20260919T2054Z";
+
 export function registerRuntimeProbes(
   app: Express,
-  resolveReadiness: RuntimeReadinessResolver = getRuntimeReadiness,
+  resolveReadiness: RuntimeReadinessResolver = getRuntimeReadiness
 ): void {
   app.get("/healthz", (_req: Request, res: Response) => {
     res.status(200).json({
       status: "ok",
       service: "kinga-api",
       releaseVersion: resolveReadiness().releaseVersion,
+      deploymentProbe: DEPLOYMENT_PROBE_MARKER,
     });
   });
 
