@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { createAuditEntry } from "../db";
 import { getSessionCookieOptions } from "./cookies";
+import { createLocalSessionToken } from "./kinga-session";
 import { sdk } from "./sdk";
 
 function getQueryParam(req: Request, key: string): string | undefined {
@@ -98,7 +99,7 @@ export function registerOAuthRoutes(app: Express) {
 
       // Use email or openId as fallback so the JWT name field is never empty.
       const displayName = userInfo.name || userInfo.email || userInfo.openId || "user";
-      const sessionToken = await sdk.createSessionToken(userInfo.openId, {
+      const sessionToken = await createLocalSessionToken(userInfo.openId, {
         name: displayName,
         expiresInMs: ONE_YEAR_MS,
       });
