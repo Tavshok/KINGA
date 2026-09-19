@@ -1,7 +1,10 @@
 import express from "express";
 import { createServer } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
-import { registerRuntimeProbes } from "./runtime-probes";
+import {
+  DEPLOYMENT_PROBE_MARKER,
+  registerRuntimeProbes,
+} from "./runtime-probes";
 import type { RuntimeReadiness } from "./runtime-readiness";
 
 const ready: RuntimeReadiness = {
@@ -19,9 +22,14 @@ describe("KINGA deployment probes", () => {
   const servers: ReturnType<typeof createServer>[] = [];
 
   afterEach(async () => {
-    await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve, reject) => {
-      server.close((error) => error ? reject(error) : resolve());
-    })));
+    await Promise.all(
+      servers.splice(0).map(
+        server =>
+          new Promise<void>((resolve, reject) => {
+            server.close(error => (error ? reject(error) : resolve()));
+          })
+      )
+    );
   });
 
   async function request(path: string, readiness: RuntimeReadiness) {
@@ -29,9 +37,10 @@ describe("KINGA deployment probes", () => {
     registerRuntimeProbes(app, () => readiness);
     const server = createServer(app);
     servers.push(server);
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     const address = server.address();
-    if (!address || typeof address === "string") throw new Error("Expected TCP test server address");
+    if (!address || typeof address === "string")
+      throw new Error("Expected TCP test server address");
     return fetch(`http://127.0.0.1:${address.port}${path}`);
   }
 
@@ -43,6 +52,7 @@ describe("KINGA deployment probes", () => {
       status: "ok",
       service: "kinga-api",
       releaseVersion: "probe-test",
+      deploymentProbe: DEPLOYMENT_PROBE_MARKER,
     });
   });
 
