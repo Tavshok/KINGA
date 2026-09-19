@@ -63,6 +63,16 @@ drizzle/
 
 ---
 
+## Delivery Controls
+
+`main` is protected by the **KINGA Quality Gate** GitHub Actions check. The check installs the locked dependency graph, detects unresolved conflict markers, compares TypeScript diagnostics to the committed inherited-debt baseline, provisions and guards a disposable MariaDB test target, runs the isolated full Vitest suite, and builds the production bundle. The test runner rejects the live or external application database; automated tests use only the disposable `kinga_ci_test` target.
+
+The required-check rollout was verified with a deliberately failing probe pull request. GitHub rejected its merge attempt, and the probe was closed without merge. Protection applies to administrators, requires the branch to be current and conversations to be resolved, and disallows force pushes and branch deletion. The formerly overlapping raw-TypeScript CI/CD Pipeline workflow was retired in PR #110 after the new gate was live and proven.
+
+The temporary sole-operator accommodation sets the required approval count to zero because GitHub does not permit an author to satisfy their own required review. This is not a permanent security posture. When a second person with write access is available, protection must be changed to require one approving review and to dismiss stale approvals.
+
+---
+
 ## tRPC Router Structure
 
 The root router is in `server/routers.ts` and merges sub-routers from `server/routers/`:
