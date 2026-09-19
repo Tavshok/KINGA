@@ -1,17 +1,19 @@
-# WorkOS Package G: KINGA Service-Identity Separation and Human-Eligibility Proposal
+# WorkOS Package G: Split Service-Identity and Human-Eligibility Design
 
 **Date:** 19 September 2026
 **Author:** Manus AI
 **Status:** **Review only.** This document authorizes no source, test, schema, migration, credential, WorkOS, scheduler, staging, production, deployment, or data action.
 
-## Decision requested
+## Approved design boundary and implementation split
 
-Approve the **revised design boundary** for Package G. A future implementation has two coupled goals:
+The owner approved the **revised Package G design boundary** on 19 September 2026 after final independent review. The design deliberately becomes two separately reviewed and merged implementation packages:
 
-1. Replace the current `cron_` synthetic-user/Manus bridge with **KINGA-only service principals** that hold explicit route capabilities, not human cookies or provider identities.
-2. Establish a durable, transactionally enforceable **human-auth eligibility** model so a WorkOS callback can prove that an existing local user is explicitly eligible for human linking and is not an agency-restricted proxy, service identity, synthetic identity, QA identity, or unresolved legacy subject.
+1. **G1 — service-principal model and scheduled-execution safety.** This implementation may add the durable service-principal/verifier, exact capability registry, fenced execution lease, effect idempotency/outbox, and isolated tests. It may not activate a route, issue a credential, retire the `cron_` adapter, alter an existing scheduler of record, call an external service, or enable WorkOS.
+2. **G2 — human-auth eligibility and agency-association integrity.** This later package will require its own proposal, owner decision on eligibility governance details and legacy reconciliation, isolated implementation, independent review, and source-review PR before it can add classification/association schema or change WorkOS admission.
 
-The proposal does not activate WorkOS. Manus remains the active human login provider; `WORKOS_HUMAN_AUTH_ENABLED` remains false; Package D’s route remains default-off; and KINGA remains the only issuer and authority for application sessions.
+The approval does not activate WorkOS. Manus remains the active human login provider; `WORKOS_HUMAN_AUTH_ENABLED` remains false; Package D’s route remains default-off; and KINGA remains the only issuer and authority for application sessions.
+
+The approved implementation decisions for G1 are: **Argon2id** is the primary credential verifier, with documented `scrypt` fallback only if Argon2id cannot be adopted; the baseline is a 90-day maximum credential lifetime with one active credential per environment-and-capability; intake escalation and stuck recovery are candidate capabilities only; and the fenced lease plus transactional outbox/effect-idempotency contract is mandatory before a future route activation. The scheduler of record, exact job-window/renewal policy, credential issuer/delivery/rotation process, audit retention, and route activation remain later owner gates.
 
 > **Definition:** A **service principal** is a non-human, KINGA-owned credential subject that can invoke one named machine capability. It is not a `users` row, browser session, WorkOS user, Manus user, tenant member, or tRPC human context.
 
@@ -31,29 +33,29 @@ The active Manus OAuth callback continues to authenticate humans and issue KINGA
 
 Current in-process intake-escalation and stuck-recovery jobs remain active. The existing HTTP routes still authenticate through `sdk.authenticateRequest`, recognize a `cron_` cookie identity, and call the same mutation-capable job functions that startup scheduling invokes. Package G must not change or retire this behavior until a route-by-route migration has a shared durable execution lease. [5]
 
-| Current endpoint                              | Current rule                                                                   | Package G status                                      |
-| --------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| `POST /api/scheduled/keepwarm`                | Public.                                                                        | Excluded from the first service-principal tranche.    |
-| `POST /api/scheduled/intake-escalation`       | `cron_` Manus bridge plus task UID allowlist; same job also starts in-process. | Candidate only after shared lease and route decision. |
-| `POST /api/scheduled/stuck-recovery`          | `cron_` Manus bridge plus task UID allowlist; same job also starts in-process. | Candidate only after shared lease and route decision. |
-| `POST /api/scheduled/recovery-deadline-sweep` | Any authenticated human-like identity may invoke it.                           | Explicitly deferred pending policy decision.          |
+| Current endpoint                              | Current rule                                                                   | Package G status                                                               |
+| --------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `POST /api/scheduled/keepwarm`                | Public.                                                                        | Excluded from the first service-principal tranche.                             |
+| `POST /api/scheduled/intake-escalation`       | `cron_` Manus bridge plus task UID allowlist; same job also starts in-process. | Candidate only after shared lease and route decision.                          |
+| `POST /api/scheduled/stuck-recovery`          | `cron_` Manus bridge plus task UID allowlist; same job also starts in-process. | Candidate only after shared lease and route decision.                          |
+| `POST /api/scheduled/recovery-deadline-sweep` | Any authenticated human-like identity may invoke it.                           | Excluded from G1. A separate read-only authorization review is now authorised. |
 
 The current wildcard default for `HEARTBEAT_ALLOWED_TASK_UIDS` is not an acceptable target model. Package G does **not** alter it now. A later service route has no wildcard capability, task UID, or alias mapping. [5]
 
 ## Proposed source boundary after separate implementation approval
 
-| Future component                          | Proposed responsibility                                                                                                  | Explicit exclusion                                                                                   |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `service_credentials` schema and verifier | Opaque service credentials, lifecycle state, explicit capability records, verification, and sanitized audit integration. | `users`, local browser JWTs, WorkOS/Manus tokens, provider calls, and generic tRPC context.          |
-| Pre-body service route boundary           | Header-only machine authentication, exact capability check, body rejection, timeout, and generic response.               | Cookie, query-token, URL-token, request-body token, or human-session fallback.                       |
-| Durable scheduled execution lease         | One atomic execution lease/window per named job, shared by in-process and migrated HTTP trigger paths.                   | Process-local-only locking or two independent schedulers mutating the same job without coordination. |
-| Human-auth eligibility model              | Authoritative local classification, lifecycle/audit constraints, and guarded WorkOS admission recheck.                   | Automatic classification, data deletion, user/tenant creation, role assignment, or mapping adoption. |
-| Agency-association integrity migration    | Explicit association semantics, user-reference indexes, cardinality/integrity rules, and legacy state.                   | Silent reinterpretation of current shared-pointer records.                                           |
-| Focused test fixtures                     | Test-owned service credentials, human candidates, agency states, scheduler leases, and adversarial races.                | Live, staging, populated, or production data.                                                        |
+| Future component                          | Package | Proposed responsibility                                                                                                  | Explicit exclusion                                                                                   |
+| ----------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `service_credentials` schema and verifier | G1      | Opaque service credentials, lifecycle state, explicit capability records, verification, and sanitized audit integration. | `users`, local browser JWTs, WorkOS/Manus tokens, provider calls, and generic tRPC context.          |
+| Pre-body service route boundary           | G1      | Header-only machine authentication, exact capability check, body rejection, timeout, and generic response.               | Cookie, query-token, URL-token, request-body token, or human-session fallback.                       |
+| Durable scheduled execution lease         | G1      | One atomic execution lease/window per named job, shared by in-process and migrated HTTP trigger paths.                   | Process-local-only locking or two independent schedulers mutating the same job without coordination. |
+| Human-auth eligibility model              | G2      | Authoritative local classification, lifecycle/audit constraints, and guarded WorkOS admission recheck.                   | Automatic classification, data deletion, user/tenant creation, role assignment, or mapping adoption. |
+| Agency-association integrity migration    | G2      | Explicit association semantics, user-reference indexes, cardinality/integrity rules, and legacy state.                   | Silent reinterpretation of current shared-pointer records.                                           |
+| Focused test fixtures                     | G1 / G2 | Test-owned service credentials, human candidates, agency states, scheduler leases, and adversarial races.                | Live, staging, populated, or production data.                                                        |
 
 No future Package G route may be mounted while `WORKOS_HUMAN_AUTH_ENABLED` is false merely because Package G tables exist. Package G service routes require their own separately named server gate and environment-specific activation authority; WorkOS human authentication remains controlled only by its existing exact gate.
 
-## Part A — KINGA-only service-principal model
+## G1 — KINGA-only service-principal model and scheduled-execution safety
 
 ### Credential and capability records
 
@@ -103,7 +105,7 @@ The job runner must also write a durable per-window **effect idempotency record*
 
 The exact owner decision is whether the non-production/staging scheduler of record is **only in-process** or **an external service credential** for each route. The implementation cannot enable both uncontrolled. During a controlled transition, both trigger paths may exist only if they share one fenced execution record and effect-idempotency contract. It must define maximum runtime and renewal rules, no-overlap response for `already-running` / `already-completed`, lease-expiry takeover, retry classes/backoff, timeout/cancellation, missed-run handling, stale-holder behavior, outbox delivery/retry, and rollback before route activation.
 
-## Part B — authoritative human-auth eligibility
+## G2 — authoritative human-auth eligibility and agency integrity
 
 ### New, explicit model
 
@@ -161,30 +163,32 @@ All future tests use only guarded `pnpm test` against disposable `kinga_ci_test`
 | Non-regression      | Active Manus OAuth, Package F local JWT/cookie contract, KINGA-AUTH-01 deleted/deactivated-user tests, default-off WorkOS routes, and ordinary human context remain unchanged.                                                                                                                                                                                                                   |
 | Audit hygiene       | Lifecycle and request events use safe identifiers/fixed outcome categories; no bearer, verifier, hash, header, cookie, email, request body, provider token, or provider ID is stored.                                                                                                                                                                                                            |
 
-## Owner decisions required before implementation
+## Owner decisions and remaining gates
 
-| Decision               | Proposed baseline                                                                                                    | Owner decision required                                                                                                                                                                         |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Eligibility governance | Non-null deny-by-default state on every user and audited privileged transitions.                                     | Confirm classification owner, transitions, audit access/retention, legacy reconciliation authority, and break-glass.                                                                            |
-| Agency semantics       | Explicit proxy vs verified-human association meaning; legacy shared pointers remain denied pending disposition.      | Decide whether any independently verified claimant may eventually be `human_eligible`, and approve legacy disposition criteria.                                                                 |
-| Database integrity     | Indexed canonical-email and association predicates; FK/equivalent integrity; transaction-wide recheck.               | Approve migration/constraint approach after scratch proof.                                                                                                                                      |
-| Service verifier       | Application DB metadata plus Argon2id or reviewed scrypt fallback.                                                   | Approve storage boundary, exact algorithm/dependency/parameters, and upgrade plan.                                                                                                              |
-| Credential operations  | 90-day maximum, one active credential per environment/capability, limited overlap.                                   | Approve issuer, secure delivery, rotation/revocation owner, overlap, audit retention, and incident/break-glass authority.                                                                       |
-| Initial routes         | Intake escalation and stuck recovery are only candidates.                                                            | Approve/defer each route and decide recovery-deadline policy.                                                                                                                                   |
-| Scheduler migration    | One fenced durable execution/window plus idempotent-effect outbox shared by every trigger during a named transition. | Select scheduler of record, job windows, maximum runtime/renewal, retry/backoff, timeout, missed-run, outbox delivery policy, observation window, and route-specific rollback/removal criteria. |
-| Network posture        | No assumed IP, proxy, or mTLS trust.                                                                                 | Approve verified proxy/mTLS/network restrictions after infrastructure evidence.                                                                                                                 |
+| Decision               | Current owner decision                                                                            | Remaining gate                                                                                                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Eligibility governance | **Approved:** non-null deny-by-default baseline.                                                  | G2 must separately propose the classification-transition writer, approval/audit lifecycle, retention, break-glass, and legacy-reconciliation authority.                            |
+| Agency semantics       | **Approved:** shared-pointer legacy records stay denied; no automatic conversion.                 | G2 must separately decide whether an independently verified claimant can ever be eligible and propose migration/constraint proof.                                                  |
+| Database integrity     | Not yet approved for source change.                                                               | G2 scratch proof must establish canonical-email and association indexes, integrity/cardinality constraints, and the transaction protocol.                                          |
+| Service verifier       | **Approved:** Argon2id primary; documented `scrypt` fallback only if Argon2id is unadoptable.     | G1 must propose exact parameters, dependency, storage boundary, and upgrade path before implementation finalization.                                                               |
+| Credential operations  | **Approved:** maximum 90 days and one active credential per environment/capability.               | G1 must separately establish issuer, secure delivery, rotation/revocation owner, overlap, audit retention, and incident/break-glass controls.                                      |
+| Initial routes         | **Approved as candidates only:** intake escalation and stuck recovery.                            | G1 must not activate either. Recovery-deadline sweep receives a separate read-only authorization review now.                                                                       |
+| Scheduler migration    | **Approved required shape:** fenced execution/window plus idempotent-effect transactional outbox. | G1 must propose scheduler of record, job windows, maximum runtime/renewal, retry/backoff, timeout, missed-run, outbox delivery, observation, and rollback before route activation. |
+| Network posture        | **Approved:** do not assume trust in IP, proxy, or mTLS.                                          | Future route activation must present verified environment-specific network evidence and any restriction proposal.                                                                  |
 
 ## Deliberate non-actions
 
-This proposal does not classify or modify any existing user, agency association, tenant, or WorkOS mapping; create a service credential; add a table or migration; install a hashing package; modify a route; configure a scheduler; enable a WorkOS flag; register a callback; contact WorkOS; change staging/production; deploy; or call any external service.
+This proposal itself does not classify or modify any existing user, agency association, tenant, or WorkOS mapping; create a service credential; add a table or migration; install a hashing package; modify a route; configure a scheduler; enable a WorkOS flag; register a callback; contact WorkOS; change staging/production; deploy; or call any external service. The owner has separately authorized an isolated **G1 source implementation** under the limits recorded above; no G1 activation is authorized.
 
-## Next decision after proposal review
+## Authorised next steps
 
-Approval authorizes only this **revised Package G design boundary**. A later implementation request must first resolve the owner decisions above or deliberately narrow the package. It will require an isolated branch, scratch migration proof, focused disposable-DB tests, an independent security review, a source-review PR, and separate activation authority for every environment and route.
+The owner approved G1 implementation first: an isolated service-principal and scheduler-fencing/outbox source package, with disposable-database migration proof, focused tests, independent security review, and a source-review PR. It must not issue a credential, mount or activate a route, retire the `cron_` bridge, alter a live scheduler, or contact an external service.
+
+G2 remains a future, separately proposed and approved human-eligibility/agency-integrity package. It cannot be folded into G1. Recovery-deadline-sweep authorization receives a separate read-only review now, independent of either implementation package.
 
 ## Independent proposal review
 
-The first review blocked the draft because permanent exclusion based on the current `restricted_claimant_user_id` field would also exclude deliberately linked verified humans, and because no present schema/locking mechanism safely serialized association absence or changes with a WorkOS callback. It also required a durable shared scheduler lease rather than treating credential authentication as duplicate-execution protection. The first revision replaced the field shortcut with a non-null user eligibility state, explicit agency-association semantics, indexed transaction-wide locking, legacy deny-by-default treatment, and a shared execution lease. A second review then required fencing and effect-level idempotency: an expired lease by itself cannot prevent a paused stale worker from resuming after takeover. This revision requires monotonically fenced writes/terminal transitions and a per-window transactional outbox/effect idempotency contract. A final independent review is required before publication.
+The first review blocked the draft because permanent exclusion based on the current `restricted_claimant_user_id` field would also exclude deliberately linked verified humans, and because no present schema/locking mechanism safely serialized association absence or changes with a WorkOS callback. It also required a durable shared scheduler lease rather than treating credential authentication as duplicate-execution protection. The first revision replaced the field shortcut with a non-null user eligibility state, explicit agency-association semantics, indexed transaction-wide locking, legacy deny-by-default treatment, and a shared execution lease. A second review then required fencing and effect-level idempotency: an expired lease by itself cannot prevent a paused stale worker from resuming after takeover. This revision requires monotonically fenced writes/terminal transitions and a per-window transactional outbox/effect idempotency contract. The **final independent security/architecture review completed and approved** this design on 19 September 2026 with no required changes.
 
 ## References
 
