@@ -78,9 +78,21 @@ function makeMinimalInput(overrides: Partial<TREInput> = {}): TREInput {
         totalDamageAreaM2: null,
         structuralDamage: false,
       },
-      policeReport: { present: false, caseNumber: null, station: null, officerName: null },
+      policeReport: {
+        present: false,
+        caseNumber: null,
+        station: null,
+        officerName: null,
+      },
       damage: { components: [], zones: [], totalComponentCount: 0 },
-      repairQuote: { lineItems: [], totalUsd: 0, laborUsd: 0, partsUsd: 0, panelBeaterName: null, quotationDate: null },
+      repairQuote: {
+        lineItems: [],
+        totalUsd: 0,
+        laborUsd: 0,
+        partsUsd: 0,
+        panelBeaterName: null,
+        quotationDate: null,
+      },
       insuranceContext: {
         insurerName: "Test Insurer",
         policyNumber: "POL-TEST-001",
@@ -89,7 +101,11 @@ function makeMinimalInput(overrides: Partial<TREInput> = {}): TREInput {
         excessAmountUsd: 500,
         bettermentUsd: null,
       },
-      dataQuality: { completenessScore: 75, missingFields: [], validationIssues: [] },
+      dataQuality: {
+        completenessScore: 75,
+        missingFields: [],
+        validationIssues: [],
+      },
       marketRegion: "ZW",
       assumptions: [],
     } as any,
@@ -118,7 +134,6 @@ function makeMinimalInput(overrides: Partial<TREInput> = {}): TREInput {
 // ─── Test suite ──────────────────────────────────────────────────────────────
 
 describe("TRE — runTruthReconciliationEngine", () => {
-
   it("1. produces a ClaimTruthObject with all required top-level sections from minimal input", () => {
     const cto = runTruthReconciliationEngine(makeMinimalInput());
 
@@ -226,7 +241,9 @@ describe("TRE — runTruthReconciliationEngine", () => {
   it("8. Truth Certificate — certified=CERTIFIED when no blocking reasons", () => {
     const cto = runTruthReconciliationEngine(makeMinimalInput());
     // With no integrity gate blocks and no impossible timelines, should be CERTIFIED or CERTIFIED_WITH_WARNINGS
-    expect(["CERTIFIED", "CERTIFIED_WITH_WARNINGS"]).toContain(cto.certification.certificate.certified);
+    expect(["CERTIFIED", "CERTIFIED_WITH_WARNINGS"]).toContain(
+      cto.certification.certificate.certified
+    );
     expect(cto.certification.certificate.blockingReasons).toHaveLength(0);
   });
 
@@ -238,13 +255,17 @@ describe("TRE — runTruthReconciliationEngine", () => {
 
     const cto = runTruthReconciliationEngine(input);
     expect(cto.certification.certificate.certified).toBe("BLOCKED");
-    expect(cto.certification.certificate.blockingReasons.length).toBeGreaterThan(0);
+    expect(
+      cto.certification.certificate.blockingReasons.length
+    ).toBeGreaterThan(0);
   });
 
   it("10. TruthGraph — produced with nodes", () => {
     const cto = runTruthReconciliationEngine(makeMinimalInput());
     expect(cto.certification.truthGraph).toBeDefined();
-    expect(Object.keys(cto.certification.truthGraph.nodes).length).toBeGreaterThan(0);
+    expect(
+      Object.keys(cto.certification.truthGraph.nodes).length
+    ).toBeGreaterThan(0);
   });
 
   it("11. Provenance — every TruthGraph node has a non-empty canonicalOwner and fieldPath", () => {
@@ -266,16 +287,41 @@ describe("TRE — runTruthReconciliationEngine", () => {
     // Strip timestamps and hash before comparison
     const strip = (cto: ClaimTruthObject) => {
       const { generatedAt, certification, ...rest } = cto;
-      const { certificate, ...certRest } = certification;
-      const { ctoHash, ...certFields } = certificate;
-      return { ...rest, certification: { ...certRest, certificate: certFields } };
+      const { certificate, truthGraph, ...certRest } = certification;
+      const {
+        certificateId: _certificateId,
+        generatedAt: _certificateGeneratedAt,
+        ctoHash,
+        ...certFields
+      } = certificate;
+      const {
+        generatedAt: _truthGraphGeneratedAt,
+        nodes,
+        ...graphFields
+      } = truthGraph;
+      const normalizedNodes = Object.fromEntries(
+        Object.entries(nodes).map(([fieldPath, node]) => {
+          const { computedAt: _computedAt, ...nodeFields } = node;
+          return [fieldPath, nodeFields];
+        })
+      );
+      return {
+        ...rest,
+        certification: {
+          ...certRest,
+          certificate: certFields,
+          truthGraph: { ...graphFields, nodes: normalizedNodes },
+        },
+      };
     };
 
     expect(strip(cto1)).toEqual(strip(cto2));
   });
 
   it("13. Null-safety — TRE does not throw when all optional inputs are null", () => {
-    expect(() => runTruthReconciliationEngine(makeMinimalInput())).not.toThrow();
+    expect(() =>
+      runTruthReconciliationEngine(makeMinimalInput())
+    ).not.toThrow();
   });
 
   it("14. Decision recommendation — APPROVE when CTL says APPROVE and no blocks", () => {
@@ -333,7 +379,9 @@ describe("TRE — runTruthReconciliationEngine", () => {
   it("20. cost — optimisedCostUsd is 0 when no cost analysis is provided", () => {
     // CTOCost uses 'optimisedCostUsd', not 'finalCostUsd'.
     // When costAnalysis=null, optimisedCostUsd defaults to 0.
-    const cto = runTruthReconciliationEngine(makeMinimalInput({ costAnalysis: null }));
+    const cto = runTruthReconciliationEngine(
+      makeMinimalInput({ costAnalysis: null })
+    );
     expect(cto.cost.optimisedCostUsd).toBe(0);
   });
 });

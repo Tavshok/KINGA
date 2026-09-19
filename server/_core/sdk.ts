@@ -18,6 +18,14 @@ import type {
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
 
+function assertNoDirectOAuthAccessDuringTests(): void {
+  if (process.env.NODE_ENV === "test" || process.env.VITEST) {
+    throw new Error(
+      "Direct OAuth access is disabled during tests. Mock server/_core/sdk at the test boundary."
+    );
+  }
+}
+
 // ── Heartbeat cron identity support ──────────────────────────────────────────
 // These must be declared before SDKServer because authenticateRequest uses them.
 
@@ -30,8 +38,10 @@ export type AuthenticatedUser = import("../../drizzle/schema").User & {
   isCron?: boolean;
 };
 
-function buildCronUser(userInfo: GetUserInfoWithJwtResponse): AuthenticatedUser {
-  const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+function buildCronUser(
+  userInfo: GetUserInfoWithJwtResponse
+): AuthenticatedUser {
+  const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
   // Cast via unknown: cron callers are synthetic identities and intentionally
   // omit DB-only fields (passwordHash, organizationId, etc.).
   return {
@@ -96,6 +106,7 @@ class OAuthService {
     code: string,
     state: string
   ): Promise<ExchangeTokenResponse> {
+    assertNoDirectOAuthAccessDuringTests();
     const payload: ExchangeTokenRequest = {
       clientId: ENV.appId,
       grantType: "authorization_code",
@@ -114,6 +125,7 @@ class OAuthService {
   async getUserInfoByToken(
     token: ExchangeTokenResponse
   ): Promise<GetUserInfoResponse> {
+    assertNoDirectOAuthAccessDuringTests();
     const { data } = await this.client.post<GetUserInfoResponse>(
       GET_USER_INFO_PATH,
       {
@@ -288,7 +300,9 @@ class SDKServer {
         // on their Manus account will have name="" in the JWT. Rejecting empty name
         // permanently locks those users out. Name is not a security-critical field.
       ) {
-        console.warn("[Auth] Session payload missing required fields (openId or appId)");
+        console.warn(
+          "[Auth] Session payload missing required fields (openId or appId)"
+        );
         return null;
       }
 
@@ -306,6 +320,7 @@ class SDKServer {
   async getUserInfoWithJwt(
     jwtToken: string
   ): Promise<GetUserInfoWithJwtResponse> {
+    assertNoDirectOAuthAccessDuringTests();
     const payload: GetUserInfoWithJwtRequest = {
       jwtToken,
       projectId: ENV.appId,
@@ -342,7 +357,8 @@ class SDKServer {
     // They are not real users — skip the DB lookup and return a synthetic user.
     if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {
       const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
-      if (!userInfo.taskUid) throw ForbiddenError("Cron session missing task_uid");
+      if (!userInfo.taskUid)
+        throw ForbiddenError("Cron session missing task_uid");
       return buildCronUser(userInfo);
     }
     // ── Regular user path (unchanged) ───────────────────────────────────────
@@ -367,7 +383,9 @@ class SDKServer {
     // A valid JWT for a deactivated account must be rejected immediately.
     // Hard-deleted users are now also blocked by the KINGA-AUTH-01 guard above.
     if (user.isActive === 0) {
-      console.warn(`[Auth] Rejected deactivated user id=${user.id} openId=${user.openId}`);
+      console.warn(
+        `[Auth] Rejected deactivated user id=${user.id} openId=${user.openId}`
+      );
       throw ForbiddenError("Account has been deactivated");
     }
 
