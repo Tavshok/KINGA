@@ -32,12 +32,21 @@ The recovery path does **not** receive the maintenance `503`; it receives a `403
 | Multiple environment/instance mapping | 2026-09-19T20:51:15Z | **No exposed slot/binding selector** | Managed-project status identifies one running project version; project controls expose no preview/production slot or domain target. API metadata is being inspected read-only. |
 | CLI/API force redeploy | 2026-09-19T20:50:33Z | **No documented or discoverable control** | Available managed-project operations include checkpoint, debug, restart of the development server, secrets, and database operations, but no production force-redeploy. |
 | Existing public version marker | 2026-09-19T20:53:25Z | **Current source marker absent at public domain** | `/healthz` exists in source since 1 September but returns a Google-style 404 publicly. `/readyz` is preempted by the live maintenance gate. |
+| Fresh explicit marker publish | 2026-09-19T21:04:29Z | **Failed to reach public backend** | PR #126 was merged after the required quality gate passed and workspace checkpoint `9eab780c` was created. A single fresh no-cache `/healthz` probe still returned the same Google-style 404 and no marker. |
 
 The owner-requested explicit marker release is being prepared as a separate, minimal diagnostic change with an isolated test. It will add only a static non-secret field to the maintenance-allowed `/healthz` response. Its expected public value is documented before any new publish attempt.
 
 **2026-09-19T20:55:22Z — marker release review:** The isolated marker branch adds `deploymentProbe: "recsec-20260919T2054Z"` to the existing `/healthz` JSON response and asserts it in the liveness contract test. The focused isolated test passed **3/3**; the bundled server check, formatting check, and diff-whitespace check also passed. Independent review approved the release: the marker is static and non-secret, does not disclose configuration or tenant data, does not affect `/readyz`, and does not alter maintenance or authorization behavior. Review PR: [#126][4].
 
 The original direct test invocation was correctly stopped by the repository's dedicated-database guard. Its required loopback CI invocation then passed. This demonstrates that the validation followed the protected `kinga_ci_test` policy and did not touch the managed application database.
+
+**2026-09-19T21:04:29Z — fresh publish result:** PR #126 merged as GitHub merge commit `50713526212853197ce8163432ba911a35feac32`; the managed workspace then synchronized it and checkpointed version `9eab780c`. One delayed, fresh, no-cache public request to `/healthz?recsec_marker_probe=20260919T2101Z` nevertheless returned the unchanged Google-style `404` and did not include `deploymentProbe: "recsec-20260919T2054Z"`. The public binding therefore did **not** receive the requested new backend source. This decisively rules out merely trusting the UI/checkpoint state as deployment evidence.
+
+## Final Status at 2026-09-19T21:04:29Z
+
+The self-service deployment controls have been exhausted without performing an unsafe project deletion. The evidence is **not** consistent with a stale response cache: independent Cloudflare requests carried distinct request IDs, while the explicit post-merge marker still failed to arrive. The public domain has a functioning application-level maintenance gate for ordinary paths, but a separate pre-application scheduled-route gate handles `/api/scheduled/*` and returns `403` before the application middleware. That boundary denies anonymous and placeholder-cookie calls; it has not been proven to deny a genuine human session, so the P0 should remain classified as **not fully closed**.
+
+The current practical mitigation is the owner-authorized maintenance gate, which returns `503` for normal application routes and suppresses in-process maintenance writers. Package G1/G2 remain paused. Full durable REC-SEC-02 stays queued, and no scheduler exception or identity credential has been created.
 
 ## Route-Reconciliation Lead
 
