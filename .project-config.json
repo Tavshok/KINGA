@@ -16,10 +16,10 @@
   ],
   "git_remote": {
     "repo_url": "s3://vida-prod-gitrepo/webdev-git/310419663031527958/YbS42LwGroxbVepAMjk4bS",
-    "access_key_id": "ASIAZV3A2ECZDVDKYKH6",
-    "secret_access_key": "/v9UO7N18B7IKqfSFhbKYLuXKsv94QwU8c4HoOfS",
-    "session_token": "IQoJb3JpZ2luX2VjEID//////////wEaCXVzLWVhc3QtMSJHMEUCIDp4YnPJYtKoTNAtyyLGIS2HCMpF3D5joBC4qlNDYNqeAiEApPMf8MSwDYL/jmgw9DRG5wO5mca/LzvrTGebjdFz0CQq9gMISBAEGgw2NjUzODYwOTg4NjYiDNHKrwCYfiSHuVHgvyrTA86pP/6iRre0+KfCfkUQ0qFnqwCcetjgtb2lIHUENVBLmZr+kRGj35qULvxy8Rx0HHlwV4KgTFv458ARiZ3VXBi5Gf5+3ipG2aOIW5uUUk6yWMmjrJwQ8qP1WMgsAANCNL4g4HyDeHsns8PP5AidYf886lVkYH8oMg8eecruYspSD5cXoa5bKq+sO/hNFgwfzOvqLNwegcpRTCvEvFl3K6m1dXe0lohVLyCrWr56UiZ5CsJeuLWOppzy+KVY2KzK338V7O6C4YqK4gEsWRVdlDT4dGEVlGDKzlFPh0ucMVgzOhaXInJ4edOvYwCg5IrLhZxMckUNZDW3OkAEQGakTz/XjMETtOHGyk9MbO0I+ags8sz0rsuPp8xmd1rdKNNymiGWbNH23uEKZ2ca8Cei1fKnRG1g2LFyIZMlX4CTF9CjepUnAPokfK+r6pijd+ynScNP8Jijodzl9+rLhH9VnYGQ2V2yrh6xDuaOruJQfrr6Y6jU9Ctk8IZZacgtxkueKvAGvBSBexTqC3EEEch1HPQyWSZxiep23vvJM/UzrjlpTNrSMd0Z/Bzb3imWMTFoEFNQRgzQ0klBpBshdo04P9Tq1tsBpTv+C46crk8MAwrq2N+LMPOztdUGOp0BWmYEkgIt0IuuX+In1GPLrV5UOhR1k8g5OoCSpvPVgDjQamSQ5FlCP/PPrlUmzTkU6sMziP89x6udl6sFlkGzEksisLk/5kUAnfzJvfuRQkKqmfgplMTWNHYGPD9tCoYXIGAAM6y8OeW0CPDLU0f29IYy+nxaDDmqElFBnIXyPZMmxN8VCgFEX5hmgXGdGf6oz4SD2ovBGRGoiTQQIg==",
-    "expiration": "2026-09-19T03:34:11.000Z",
+    "access_key_id": "ASIAZV3A2ECZHD33RZYB",
+    "secret_access_key": "i+werz9x62bXDsCsB6XlwsW6LjPGR0G7QNRDXuoM",
+    "session_token": "IQoJb3JpZ2luX2VjEJr//////////wEaCXVzLWVhc3QtMSJIMEYCIQCj0BiS5CL/XjFpqi4nnT4OxSRZcQxYlGGN6KjZaMNPAAIhANmZW5SKqZooZUD4qcmeuzQKGM79tcNpIW7pFH64AhgfKvYDCGEQBBoMNjY1Mzg2MDk4ODY2IgxXdJKshLztRofCRvMq0wOaAUVM2E4pDSrEM4SctHK716f/Cphf2GL2uDzAdxQq9bCyldpInBjyquDJMgFhorC1KPpRsCMQCLNjoI+4m3gwOd3DrNZed1UxGv6V7/GuZ80bzBmwxG/BdX1x5R4bq1M2Y0Unvt5hkXWND8PwMr4KfZ0fjVr8FEsSlEleHA4vvs23VWYFupmXRKMsK110Ma30q8b8LjUUcFIAsZeOIwNBfR63lqtJdoW+WcDCSwplXrDU9GNMpETzRo/U622Le9xx74R84dB/CenbTl5F0OQqFBzv7iFBPghV4vTynt7efgxhbfMVH5AUKopGHFhUhelqvFHk+ZDRj8FfszSUsEvoJdqHfF22MKxE4mGwGg0oRuAog1t47xk+YIkRXrXQlvDeCHnsudALnLWDIrd1xgIOuWHUDoo/dwV9pTJRSY91hqBGCYitXnlX7m0c/FjMymu0Aoz6pwNmt8KDHknyYgtxCQ1twMh46KxwNDsWk4A3/T2IuyQb7YGI9kLvo1kmZRDBxmwQ5QuXwtaFwd6LTobZzsfCQlSAyKtDKXTmt0tR8xdMiQ31UZDl5/wEL5Cd9BYS/tcxPOlV4OTBdRlsuM71ptp7bHn30xOaCavrEod1TJ+YfzDohbvVBjqcAfXiBF5cwucOCYzVB9Eh9F+ulYSPIC3KOmcBCrs61ZsgDOJOThyEG9pYXQ/CqV4u3PklixZSHxo66B0d10vskIZFMZ0kwa8jU5qkLrah88ctry2YG+CW1DMyLETYiH3tjRenK/gShQs5alNwOJ1DnPujyiezUTjQ33ZIQZ9dH3stdBl8j5nTXXWWue0wVOck0JJJlPHQhZtLAHswew==",
+    "expiration": "2026-09-20T05:14:16.000Z",
     "backend": "GIT_BACKEND_S3"
   },
   "name": "kinga-replit",
@@ -30,7 +30,7 @@
     "BUILT_IN_FORGE_API_URL": "https://forge.manus.ai",
     "GOOGLE_AI_API_KEY": "AIzaSyDNDyux_lsTBSUSITVHkL_9w8gKVZ3jQVk",
     "JWT_SECRET": "2W3Mb6vwNCSuE5itEunTYB",
-    "KINGA_MAINTENANCE_MODE": "false",
+    "KINGA_MAINTENANCE_MODE": "true",
     "KINGA_STAGING_DATABASE_URL": "mysql://289ZyKGJwbC2SkB.kinga_verify:Kinga_06052026@gateway01.eu-central-1.prod.aws.tidbcloud.com:4000/kinga_staging?ssl={\"rejectUnauthorized\":true}",
     "OAUTH_SERVER_URL": "https://api.manus.im",
     "OWNER_NAME": "Tavonga Shoko",
