@@ -6738,6 +6738,22 @@ CREATE TABLE `whatsapp_sessions` (
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `workos_auth_transactions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `workos_auth_transactions` (
+  `state_hash` varchar(43) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `provider` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `browser_binding_hash` varchar(43) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code_verifier` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `redirect_uri` varchar(2048) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `return_to` varchar(2048) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL,
+  `expires_at` timestamp NOT NULL,
+  PRIMARY KEY (`state_hash`) /*T![clustered_index] CLUSTERED */,
+  KEY `workos_auth_transactions_expires_at_idx` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `workflow_audit_trail`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
@@ -6827,4 +6843,3 @@ CREATE TABLE `workflow_templates` (
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-

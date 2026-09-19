@@ -56,6 +56,15 @@ export interface HumanAuthTransactionStore {
   }): Promise<PendingHumanAuthTransaction | null>;
 }
 
+/**
+ * Package D's durable store also supports compensating cleanup if authorization
+ * URL construction fails after a transaction has been persisted. This optional
+ * interface preserves Package C's intentionally minimal test-store contract.
+ */
+export interface DiscardableHumanAuthTransactionStore {
+  discardByState(state: string): Promise<void>;
+}
+
 export type AuthTransactionErrorCode =
   | "AUTH_TRANSACTION_INVALID_RETURN_PATH"
   | "AUTH_TRANSACTION_INVALID_INPUT"
@@ -96,7 +105,7 @@ function nowOrThrow(value: Date | undefined): Date {
   return now;
 }
 
-function hashOpaqueValue(value: string): string {
+export function hashAuthTransactionOpaqueValue(value: string): string {
   return createHash("sha256").update(value).digest("base64url");
 }
 
@@ -279,8 +288,8 @@ export async function createHumanAuthTransaction(
 
   await store.create({
     provider: input.provider,
-    stateHash: hashOpaqueValue(state),
-    browserBindingHash: hashOpaqueValue(browserBinding),
+    stateHash: hashAuthTransactionOpaqueValue(state),
+    browserBindingHash: hashAuthTransactionOpaqueValue(browserBinding),
     codeVerifier,
     redirectUri: input.redirectUri,
     returnTo,
@@ -315,8 +324,10 @@ export async function consumeHumanAuthTransaction(
   requireOpaqueValue(input.state);
   requireOpaqueValue(input.browserBinding);
   const now = nowOrThrow(input.now);
-  const stateHash = hashOpaqueValue(input.state);
-  const browserBindingHash = hashOpaqueValue(input.browserBinding);
+  const stateHash = hashAuthTransactionOpaqueValue(input.state);
+  const browserBindingHash = hashAuthTransactionOpaqueValue(
+    input.browserBinding
+  );
   const transaction = await store.consume({
     provider: input.provider,
     stateHash,
