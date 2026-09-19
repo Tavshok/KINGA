@@ -64,6 +64,7 @@ jobs:
       - name: Full Vitest suite
         env:
           JWT_SECRET: ci-test-only-hs256-key-4f7a9c2e8d1b6f3a0c5e9b7d2f8a4c1e
+          VITE_APP_ID: kinga-ci-test-app
         run: pnpm test
       - name: Production build
         run: pnpm build
