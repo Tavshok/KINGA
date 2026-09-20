@@ -1,13 +1,36 @@
-// @ts-nocheck
-// Preconfigured storage helpers for Manus WebDev templates
-// Uses the Biz-provided storage proxy (Authorization: Bearer <token>)
+// Storage façade: managed deployments use Forge; external Render deployments
+// use only the configured S3-compatible object store. Both adapters expose the
+// same opaque-key and short-lived retrieval URL contract.
 
-import { ENV } from "./_core/env";
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-type StorageConfig = { baseUrl: string; apiKey: string };
+import {
+  ENV,
+  getConfiguredObjectStorageProvider,
+  getConfiguredRuntimeMode,
+} from "./_core/env";
+import { isValidDirectMediaHost } from "./_core/direct-provider-media";
 
-/** Hard timeout for all storage API calls — prevents pipeline hangs if S3/proxy is slow */
+type ForgeStorageConfig = { baseUrl: string; apiKey: string };
+
+export type DirectStorageConfig = {
+  bucket: string;
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  endpoint?: string;
+  forcePathStyle: boolean;
+};
+
+/** Hard timeout for managed Forge storage API calls. */
 const STORAGE_TIMEOUT_MS = 30_000;
+const DEFAULT_SIGNED_URL_SECONDS = 3600;
+const MAX_SIGNED_URL_SECONDS = 7 * 24 * 60 * 60;
 
 function assertNoDirectStorageAccessDuringTests(): void {
   if (process.env.NODE_ENV === "test" || process.env.VITEST) {
@@ -17,10 +40,6 @@ function assertNoDirectStorageAccessDuringTests(): void {
   }
 }
 
-/**
- * Wrapper around fetch() that aborts after STORAGE_TIMEOUT_MS.
- * Covers both the connection and the full response body read.
- */
 async function fetchWithTimeout(
   url: URL | string,
   init: RequestInit = {}
@@ -28,12 +47,14 @@ async function fetchWithTimeout(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), STORAGE_TIMEOUT_MS);
   try {
-    const response = await fetch(url, { ...init, signal: controller.signal });
-    return response;
-  } catch (err: any) {
-    if (err?.name === "AbortError" || controller.signal.aborted) {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err: unknown) {
+    if (
+      err instanceof Error &&
+      (err.name === "AbortError" || controller.signal.aborted)
+    ) {
       throw new Error(
-        `Storage request timed out after ${STORAGE_TIMEOUT_MS / 1000}s — ${url}`
+        `Storage request timed out after ${STORAGE_TIMEOUT_MS / 1000}s`
       );
     }
     throw err;
@@ -42,52 +63,120 @@ async function fetchWithTimeout(
   }
 }
 
-function getStorageConfig(): StorageConfig {
+function normalizeKey(relKey: string): string {
+  const key = relKey.replace(/^\/+/, "");
+  if (!key || key.includes("..") || key.includes("\\")) {
+    throw new Error("Storage key is invalid");
+  }
+  return key;
+}
+
+function normalizeSignedUrlTtl(expiresInSeconds?: number): number {
+  const ttl = expiresInSeconds ?? DEFAULT_SIGNED_URL_SECONDS;
+  if (!Number.isInteger(ttl) || ttl < 1 || ttl > MAX_SIGNED_URL_SECONDS) {
+    throw new Error(
+      `Storage URL expiry must be an integer between 1 and ${MAX_SIGNED_URL_SECONDS}`
+    );
+  }
+  return ttl;
+}
+
+function getForgeStorageConfig(): ForgeStorageConfig {
   const baseUrl = ENV.forgeApiUrl;
   const apiKey = ENV.forgeApiKey;
-
   if (!baseUrl || !apiKey) {
     throw new Error(
       "Storage proxy credentials missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY"
     );
   }
-
   return { baseUrl: baseUrl.replace(/\/+$/, ""), apiKey };
 }
 
-function buildUploadUrl(baseUrl: string, relKey: string): URL {
-  const url = new URL("v1/storage/upload", ensureTrailingSlash(baseUrl));
-  url.searchParams.set("path", normalizeKey(relKey));
-  return url;
+export function parseDirectStorageConfig(input: {
+  bucket: string;
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  endpoint: string;
+  forcePathStyle: boolean;
+}): DirectStorageConfig {
+  const bucket = input.bucket.trim();
+  const region = input.region.trim();
+  const accessKeyId = input.accessKeyId.trim();
+  const secretAccessKey = input.secretAccessKey.trim();
+  const endpoint = input.endpoint.trim();
+
+  if (!bucket || !region || !accessKeyId || !secretAccessKey) {
+    throw new Error(
+      "Direct S3 storage requires S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY"
+    );
+  }
+  if (endpoint) {
+    let parsed: URL;
+    try {
+      parsed = new URL(endpoint);
+    } catch {
+      throw new Error("S3_ENDPOINT must be a valid HTTPS URL");
+    }
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.username ||
+      parsed.password ||
+      parsed.port ||
+      parsed.pathname !== "/" ||
+      parsed.search ||
+      parsed.hash ||
+      !isValidDirectMediaHost(parsed.hostname)
+    ) {
+      throw new Error("S3_ENDPOINT must be a credential-free HTTPS URL");
+    }
+  }
+
+  return {
+    bucket,
+    region,
+    accessKeyId,
+    secretAccessKey,
+    ...(endpoint ? { endpoint } : {}),
+    forcePathStyle: input.forcePathStyle,
+  };
 }
 
-async function buildDownloadUrl(
-  baseUrl: string,
-  relKey: string,
-  apiKey: string,
-  expiresInSeconds?: number
-): Promise<string> {
-  const downloadApiUrl = new URL(
-    "v1/storage/downloadUrl",
-    ensureTrailingSlash(baseUrl)
-  );
-  downloadApiUrl.searchParams.set("path", normalizeKey(relKey));
-  if (expiresInSeconds) {
-    downloadApiUrl.searchParams.set("expiresIn", String(expiresInSeconds));
-  }
-  const response = await fetchWithTimeout(downloadApiUrl, {
-    method: "GET",
-    headers: buildAuthHeaders(apiKey),
+function getDirectStorageConfig(): DirectStorageConfig {
+  return parseDirectStorageConfig({
+    bucket: ENV.s3Bucket,
+    region: ENV.s3Region,
+    accessKeyId: ENV.s3AccessKeyId,
+    secretAccessKey: ENV.s3SecretAccessKey,
+    endpoint: ENV.s3Endpoint,
+    forcePathStyle: ENV.s3ForcePathStyle,
   });
-  return (await response.json()).url;
+}
+
+function directS3Client(config: DirectStorageConfig): S3Client {
+  return new S3Client({
+    region: config.region,
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+    },
+    ...(config.endpoint ? { endpoint: config.endpoint } : {}),
+    forcePathStyle: config.forcePathStyle,
+  });
 }
 
 function ensureTrailingSlash(value: string): string {
   return value.endsWith("/") ? value : `${value}/`;
 }
 
-function normalizeKey(relKey: string): string {
-  return relKey.replace(/^\/+/, "");
+function buildUploadUrl(baseUrl: string, key: string): URL {
+  const url = new URL("v1/storage/upload", ensureTrailingSlash(baseUrl));
+  url.searchParams.set("path", key);
+  return url;
+}
+
+function buildAuthHeaders(apiKey: string): HeadersInit {
+  return { Authorization: `Bearer ${apiKey}` };
 }
 
 function toFormData(
@@ -95,60 +184,152 @@ function toFormData(
   contentType: string,
   fileName: string
 ): FormData {
-  const blob =
-    typeof data === "string"
-      ? new Blob([data], { type: contentType })
-      : new Blob([data as any], { type: contentType });
+  const blob = new Blob([data as BlobPart], { type: contentType });
   const form = new FormData();
   form.append("file", blob, fileName || "file");
   return form;
 }
 
-function buildAuthHeaders(apiKey: string): HeadersInit {
-  return { Authorization: `Bearer ${apiKey}` };
+async function forgePut(
+  key: string,
+  data: Buffer | Uint8Array | string,
+  contentType: string
+): Promise<{ key: string; url: string }> {
+  const { baseUrl, apiKey } = getForgeStorageConfig();
+  const response = await fetchWithTimeout(buildUploadUrl(baseUrl, key), {
+    method: "POST",
+    headers: buildAuthHeaders(apiKey),
+    body: toFormData(data, contentType, key.split("/").pop() ?? key),
+  });
+  if (!response.ok) {
+    throw new Error(`Storage upload failed (${response.status})`);
+  }
+  const body = (await response.json()) as { url?: string };
+  if (!body.url) throw new Error("Storage upload returned no URL");
+  return { key, url: body.url };
 }
 
+async function forgeGet(
+  key: string,
+  expiresInSeconds?: number
+): Promise<{ key: string; url: string }> {
+  const { baseUrl, apiKey } = getForgeStorageConfig();
+  const url = new URL("v1/storage/downloadUrl", ensureTrailingSlash(baseUrl));
+  url.searchParams.set("path", key);
+  if (expiresInSeconds)
+    url.searchParams.set("expiresIn", String(expiresInSeconds));
+  const response = await fetchWithTimeout(url, {
+    method: "GET",
+    headers: buildAuthHeaders(apiKey),
+  });
+  if (!response.ok)
+    throw new Error(`Storage retrieval failed (${response.status})`);
+  const body = (await response.json()) as { url?: string };
+  if (!body.url) throw new Error("Storage retrieval returned no URL");
+  return { key, url: body.url };
+}
+
+async function directPut(
+  key: string,
+  data: Buffer | Uint8Array | string,
+  contentType: string
+): Promise<{ key: string; url: string }> {
+  const config = getDirectStorageConfig();
+  const client = directS3Client(config);
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: config.bucket,
+        Key: key,
+        Body: data,
+        ContentType: contentType,
+      })
+    );
+  } catch {
+    throw new Error("Direct S3 upload failed");
+  }
+  return directGetWithClient(key, config, client);
+}
+
+async function directGetWithClient(
+  key: string,
+  config: DirectStorageConfig,
+  client: S3Client,
+  expiresInSeconds?: number
+): Promise<{ key: string; url: string }> {
+  try {
+    const url = await getSignedUrl(
+      client,
+      new GetObjectCommand({ Bucket: config.bucket, Key: key }),
+      { expiresIn: normalizeSignedUrlTtl(expiresInSeconds) }
+    );
+    return { key, url };
+  } catch {
+    throw new Error("Direct S3 retrieval URL generation failed");
+  }
+}
+
+async function directGet(
+  key: string,
+  expiresInSeconds?: number
+): Promise<{ key: string; url: string }> {
+  const config = getDirectStorageConfig();
+  return directGetWithClient(
+    key,
+    config,
+    directS3Client(config),
+    expiresInSeconds
+  );
+}
+
+/**
+ * Stores application bytes under an opaque key. External mode is deliberately
+ * direct-only: it has no Forge fallback, even if Forge variables are present.
+ */
 export async function storagePut(
   relKey: string,
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream"
 ): Promise<{ key: string; url: string }> {
   assertNoDirectStorageAccessDuringTests();
-  const { baseUrl, apiKey } = getStorageConfig();
   const key = normalizeKey(relKey);
-  const uploadUrl = buildUploadUrl(baseUrl, key);
-  const formData = toFormData(data, contentType, key.split("/").pop() ?? key);
-  const response = await fetchWithTimeout(uploadUrl, {
-    method: "POST",
-    headers: buildAuthHeaders(apiKey),
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const message = await response.text().catch(() => response.statusText);
-    throw new Error(
-      `Storage upload failed (${response.status} ${response.statusText}): ${message}`
-    );
+  const runtimeMode = getConfiguredRuntimeMode(ENV.runtimeMode);
+  const provider = getConfiguredObjectStorageProvider(
+    runtimeMode,
+    ENV.objectStorageProvider
+  );
+  if (provider === "s3") {
+    return directPut(key, data, contentType);
   }
-  const url = (await response.json()).url;
-  return { key, url };
+  if (provider === "forge") {
+    return forgePut(key, data, contentType);
+  }
+  throw new Error("Unsupported object storage provider");
 }
 
-/**
- * Get a presigned download URL for a stored file.
- * @param relKey - Relative S3 key
- * @param expiresInSeconds - URL validity in seconds (default: platform default ~15 min).
- *   Pass 3600 for pipeline use-cases where the URL must survive a full pipeline run.
- */
+/** Returns a fresh short-lived URL for an already-authorized opaque key. */
 export async function storageGet(
   relKey: string,
   expiresInSeconds?: number
 ): Promise<{ key: string; url: string }> {
   assertNoDirectStorageAccessDuringTests();
-  const { baseUrl, apiKey } = getStorageConfig();
   const key = normalizeKey(relKey);
-  return {
-    key,
-    url: await buildDownloadUrl(baseUrl, key, apiKey, expiresInSeconds),
-  };
+  const runtimeMode = getConfiguredRuntimeMode(ENV.runtimeMode);
+  const provider = getConfiguredObjectStorageProvider(
+    runtimeMode,
+    ENV.objectStorageProvider
+  );
+  if (provider === "s3") {
+    return directGet(key, expiresInSeconds);
+  }
+  if (provider === "forge") {
+    return forgeGet(key, expiresInSeconds);
+  }
+  throw new Error("Unsupported object storage provider");
 }
+
+export const DIRECT_STORAGE_INTERNALS = {
+  normalizeKey,
+  normalizeSignedUrlTtl,
+  parseDirectStorageConfig,
+};

@@ -1,5 +1,7 @@
-import { ENV } from "./env";
+import { ENV, getConfiguredAiProvider, getConfiguredRuntimeMode } from "./env";
 import { logger } from "../logger";
+import { invokeDirectLlm } from "./direct-llm";
+import { parseAllowedMediaHosts } from "./direct-provider-media";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -283,19 +285,58 @@ const normalizeResponseFormat = ({
 
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   assertNoDirectLlmAccessDuringTests();
-  assertApiKey();
   // M-03: Circuit breaker check — throws CIRCUIT_OPEN if the circuit is OPEN.
   // HALF_OPEN allows exactly one probe through; onSuccess/onFailure update state.
   llmCircuitBreaker.allowRequest();
   let _circuitResult: InvokeResult;
   try {
-    _circuitResult = await _invokeLLMRaw(params);
+    _circuitResult = await invokeConfiguredLlm(params);
   } catch (err) {
     llmCircuitBreaker.onFailure(err);
     throw err;
   }
   llmCircuitBreaker.onSuccess();
   return _circuitResult;
+}
+
+function parseDirectMediaMaxBytes(value: string): number | undefined {
+  if (!value.trim()) return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 50 * 1024 * 1024) {
+    throw new Error(
+      "DIRECT_MEDIA_MAX_BYTES must be an integer between 1 and 52428800"
+    );
+  }
+  return parsed;
+}
+
+/**
+ * Routes only the external Render runtime to a provider-native adapter. The
+ * managed default remains the existing Forge adapter for backwards
+ * compatibility. There is deliberately no direct-mode fallback to Forge.
+ */
+async function invokeConfiguredLlm(
+  params: InvokeParams
+): Promise<InvokeResult> {
+  const runtimeMode = getConfiguredRuntimeMode(ENV.runtimeMode);
+  const provider = getConfiguredAiProvider(runtimeMode, ENV.aiProvider);
+  if (provider === "forge") {
+    assertApiKey();
+    return _invokeLLMRaw(params);
+  }
+
+  // Forge credentials may remain configured temporarily for the explicitly
+  // deferred owner-notification channel. Direct providers never consult them
+  // here and there is no retry or fallback path from direct AI to Forge.
+  return invokeDirectLlm(params, {
+    provider,
+    geminiApiKey: ENV.geminiApiKey,
+    geminiModel: ENV.geminiModel,
+    anthropicApiKey: ENV.anthropicApiKey,
+    anthropicModel: ENV.anthropicModel,
+    allowedHosts: parseAllowedMediaHosts(ENV.directMediaAllowedHosts),
+    maxBytes: parseDirectMediaMaxBytes(ENV.directMediaMaxBytes),
+  });
 }
 
 /** Internal implementation — does not interact with the circuit breaker. */
