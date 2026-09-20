@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getDb: vi.fn(),
@@ -51,6 +51,10 @@ describe("update-triggered recovery deadline alerts", () => {
     vi.setSystemTime(new Date("2026-09-20T12:00:00.000Z"));
     vi.clearAllMocks();
     mocks.notifyOwner.mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("checks one qualifying case, notifies, and records its alert timestamp", async () => {
