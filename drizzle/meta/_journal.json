@@ -414,6 +414,13 @@
       "when": 1789891200000,
       "tag": "0062_workos_package_g1_service_scheduler_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "5",
+      "when": 1789927695181,
+      "tag": "0063_workos_identity_mappings",
+      "breakpoints": true
     }
   ]
 }

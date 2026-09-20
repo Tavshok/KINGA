@@ -49,6 +49,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes mariadb-client poppler-utils
       - name: Provision disposable isolated test database
         run: pnpm exec tsx scripts/ci/provision-isolated-test-db.mjs
+      - name: Prove WorkOS identity mapping migration
+        run: pnpm exec tsx scripts/ci/prove-workos-identity-migration.mts
       - name: Reject unresolved conflict markers
         run: pnpm run check:conflicts
       - name: TypeScript baseline comparison
