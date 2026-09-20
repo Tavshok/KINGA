@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getRuntimeReadiness } from "./runtime-readiness";
+import { getG1ServiceRouteReadiness, getRuntimeReadiness } from "./runtime-readiness";
 
 describe("KINGA external runtime readiness contract", () => {
   it("keeps the current managed runtime contract explicit without exposing values", () => {
@@ -97,5 +97,43 @@ describe("KINGA external runtime readiness contract", () => {
     expect(readiness.invalidConfiguration).toContain(
       "KINGA_RUNTIME_MODE (must be managed or external)",
     );
+  });
+});
+
+describe("G1 service route readiness declaration", () => {
+  it.each([undefined, "", "false", "TRUE", "1", "yes"])(
+    "fails closed when G1_SERVICE_ROUTES_ENABLED is %s",
+    (value) => {
+      const readiness = getG1ServiceRouteReadiness({
+        G1_SERVICE_ROUTES_ENABLED: value,
+        KINGA_SERVICE_ENVIRONMENT: "ci-test",
+        KINGA_SCHEDULER_OF_RECORD: "owner-decision-pending",
+      });
+      expect(readiness.enabled).toBe(false);
+      expect(readiness.configurationReady).toBe(false);
+      expect(readiness.routeBoundaryMounted).toBe(false);
+    },
+  );
+
+  it("reports names and validation only, never values or inferred activation", () => {
+    const readiness = getG1ServiceRouteReadiness({
+      G1_SERVICE_ROUTES_ENABLED: "true",
+      KINGA_SERVICE_ENVIRONMENT: "ci-test",
+      KINGA_SCHEDULER_OF_RECORD: "not-selected-provider-neutral",
+    });
+    expect(readiness).toEqual({
+      enabled: true,
+      routeBoundaryMounted: false,
+      verificationScope: "configuration-only",
+      requiredConfiguration: [
+        "G1_SERVICE_ROUTES_ENABLED",
+        "KINGA_SERVICE_ENVIRONMENT",
+        "KINGA_SCHEDULER_OF_RECORD",
+      ],
+      missingConfiguration: [],
+      invalidConfiguration: [],
+      configurationReady: true,
+    });
+    expect(JSON.stringify(readiness)).not.toContain("not-selected-provider-neutral");
   });
 });

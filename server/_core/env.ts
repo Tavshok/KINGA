@@ -30,6 +30,12 @@ export const ENV = {
    */
   workosHumanAuthEnabled: process.env.WORKOS_HUMAN_AUTH_ENABLED === "true",
   /**
+   * Package G1 declaration only. No service-principal route is mounted by the
+   * source-only foundation, even when this exact value is true. A later owner-
+   * approved activation must separately compose and mount each canonical route.
+   */
+  g1ServiceRoutesEnabled: process.env.G1_SERVICE_ROUTES_ENABLED === "true",
+  /**
    * Comma-separated list of Heartbeat task UIDs allowed to trigger
    * /api/scheduled/intake-escalation and /api/scheduled/stuck-recovery.
    *
