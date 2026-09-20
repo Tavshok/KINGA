@@ -20,8 +20,14 @@ describe("WorkOS Package G1 migration contract", () => {
     ) as { entries: Array<{ idx: number; tag: string }> };
     const entry = journal.entries.find(item => item.tag === migrationTag);
     expect(entry).toMatchObject({ idx: 62, tag: migrationTag });
-    expect(journal.entries.at(-2)?.tag).toBe("0061_workos_auth_transactions");
-    expect(journal.entries.at(-1)?.tag).toBe(migrationTag);
+    const authTransactionPosition = journal.entries.findIndex(
+      item => item.tag === "0061_workos_auth_transactions"
+    );
+    const g1Position = journal.entries.findIndex(
+      item => item.tag === migrationTag
+    );
+    expect(authTransactionPosition).toBeGreaterThanOrEqual(0);
+    expect(g1Position).toBe(authTransactionPosition + 1);
 
     const hash = createHash("sha256").update(migrationSql).digest("hex");
     const loaded = readMigrationFiles({ migrationsFolder }).find(
