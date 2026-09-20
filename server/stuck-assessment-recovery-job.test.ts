@@ -12,7 +12,7 @@
  *   Queries 8-13 — additional sub-queries for retry-count checks, etc.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { runStuckAssessmentRecoveryJob } from "./stuck-assessment-recovery-job";
+import { runStartupCleanup, runStuckAssessmentRecoveryJob } from "./stuck-assessment-recovery-job";
 
 vi.mock("./db", () => ({
   getDb: vi.fn(),
@@ -150,5 +150,88 @@ describe("runStuckAssessmentRecoveryJob", () => {
     }));
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("DOC-20260101-CASE3"));
     consoleSpy.mockRestore();
+  });
+
+  it("emits a claim-specific startup reset error without a false completion", async () => {
+    const observationSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const db = buildDb([
+      [],
+      [{ id: 7001, claimNumber: "DOC-20260101-STARTUP-FAIL" }],
+      [{ recoveryRetryCount: 3 }],
+    ]);
+    db.update.mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockRejectedValue(Object.assign(new Error("db unavailable"), { code: "ETIMEDOUT" })),
+      }),
+    });
+    vi.mocked(getDb).mockResolvedValue(db);
+
+    await runStartupCleanup({ source: "startup_cleanup" });
+
+    const events = observationSpy.mock.calls
+      .map(call => String(call[0]))
+      .filter(value => value.includes('"event":"scheduled_claim_race_observation"'))
+      .map(value => JSON.parse(value));
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        action: "startup_cleanup_reset",
+        claim_ref: "claim:7001",
+        recovery_case: "StartupCleanupB",
+        phase: "error",
+        error_code: "TIMEOUT",
+      }),
+    ]));
+    expect(events).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        action: "startup_cleanup_reset",
+        claim_ref: "claim:7001",
+        phase: "side_effect_completed",
+      }),
+    ]));
+    observationSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it("does not emit recovery-mark-failed completion when its mutation fails", async () => {
+    const observationSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const db = buildDb([
+      [], [],
+      [{ id: 8001, claimNumber: "DOC-20260101-MARK-FAIL" }],
+      [{ recoveryRetryCount: 3 }],
+      [], [], [], [], [], [], [], [], [], [],
+    ]);
+    db.update.mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockRejectedValue(Object.assign(new Error("db unavailable"), { code: "ETIMEDOUT" })),
+      }),
+    });
+    vi.mocked(getDb).mockResolvedValue(db);
+
+    await runStuckAssessmentRecoveryJob();
+
+    const events = observationSpy.mock.calls
+      .map(call => String(call[0]))
+      .filter(value => value.includes('"event":"scheduled_claim_race_observation"'))
+      .map(value => JSON.parse(value));
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        action: "recovery_mark_failed",
+        claim_ref: "claim:8001",
+        recovery_case: "Case1",
+        phase: "error",
+        error_code: "TIMEOUT",
+      }),
+    ]));
+    expect(events).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        action: "recovery_mark_failed",
+        claim_ref: "claim:8001",
+        phase: "side_effect_completed",
+      }),
+    ]));
+    observationSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 });

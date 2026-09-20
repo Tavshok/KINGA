@@ -80,9 +80,57 @@
 import { getDb, withDbRetry, triggerAiAssessment } from "./db";
 import { claims, ingestionDocuments } from "../drizzle/schema";
 import { eq, and, or, notInArray, inArray, sql, lt, isNotNull } from "drizzle-orm";
+import {
+  createScheduledJobRunContext,
+  observeScheduledClaimRace,
+  observeScheduledClaimRaceError,
+  type ScheduledInvocationSource,
+  type ScheduledJobRunContext,
+} from "./_core/scheduled-claim-race-observability";
 
 const TEN_MINUTES_MS    = 10 * 60 * 1000;
 const MAX_RECOVERY_RETRIES = 3;
+
+type RecoveryInvocation = {
+  source?: ScheduledInvocationSource;
+  heartbeatTaskUid?: string;
+};
+
+function observeRecovery(
+  runContext: ScheduledJobRunContext,
+  phase: "candidate_selected" | "side_effect_intent" | "side_effect_completed",
+  action: string,
+  claimId: number,
+  recoveryCase: string
+): void {
+  observeScheduledClaimRace(runContext, {
+    phase,
+    action,
+    claimId,
+    recoveryCase,
+    outcome: phase === "side_effect_completed" ? "completed" : "attempted",
+  });
+}
+
+async function applyStartupCleanupUpdate(
+  db: any,
+  runContext: ScheduledJobRunContext,
+  claimId: number,
+  action: "startup_cleanup_reset",
+  recoveryCase: "StartupCleanupA" | "StartupCleanupB",
+  values: Record<string, unknown>
+): Promise<void> {
+  try {
+    await db.update(claims).set(values).where(eq(claims.id, claimId));
+  } catch (error) {
+    observeScheduledClaimRaceError(
+      runContext,
+      { action, claimId, recoveryCase },
+      error
+    );
+    throw error;
+  }
+}
 
 /**
  * Build a DB-side "older than N minutes" condition using NOW() from the database.
@@ -140,16 +188,21 @@ async function incrementRetryCount(claimId: number): Promise<number> {
  * intake_pending so it appears in the UI as a failed claim that needs manual attention.
  * This prevents claims from being silently stuck forever.
  */
-async function markAsFailedAfterMaxRetries(claimId: number, claimNumber: string, caseName: string): Promise<void> {
+async function markAsFailedAfterMaxRetries(
+  claimId: number,
+  claimNumber: string,
+  caseName: string,
+  runContext: ScheduledJobRunContext
+): Promise<boolean> {
   console.warn(
     `[StuckRecovery] Claim ${claimNumber} (id=${claimId}) — max retries (${MAX_RECOVERY_RETRIES}) reached in ${caseName}. ` +
     `Marking as processing_failed so it surfaces in the UI. Use 'Reset if Stuck' to manually re-queue.`
   );
   try {
-    await withDbRetry(async () => {
+    const marked = await withDbRetry(async () => {
       const db = await getDb();
-      if (!db) return;
-      return db.update(claims).set({
+      if (!db) return false;
+      await db.update(claims).set({
         status: "intake_pending",
         workflowState: "intake_queue",
         documentProcessingStatus: "failed",
@@ -157,9 +210,17 @@ async function markAsFailedAfterMaxRetries(claimId: number, claimNumber: string,
         aiAssessmentCompleted: 0,
         updatedAt: new Date().toISOString() as any,
       }).where(eq(claims.id, claimId));
+      return true;
     }, 3, 2000, `StuckRecovery markFailed claim ${claimId}`);
+    return marked === true;
   } catch (err) {
+    observeScheduledClaimRaceError(
+      runContext,
+      { action: "recovery_mark_failed", claimId, recoveryCase: caseName },
+      err
+    );
     console.error(`[StuckRecovery] Failed to mark claim ${claimId} as failed:`, err);
+    return false;
   }
 }
 
@@ -172,15 +233,22 @@ async function retriggerWithTracking(
   claimId: number,
   claimNumber: string,
   caseName: string,
+  runContext: ScheduledJobRunContext,
   preResetFn?: () => Promise<void>
 ): Promise<boolean> {
+  observeRecovery(runContext, "candidate_selected", "recovery_retrigger", claimId, caseName);
   const ok = await canRetrigger(claimId);
   if (!ok) {
-    await markAsFailedAfterMaxRetries(claimId, claimNumber, caseName);
+    observeRecovery(runContext, "side_effect_intent", "recovery_mark_failed", claimId, caseName);
+    const marked = await markAsFailedAfterMaxRetries(claimId, claimNumber, caseName, runContext);
+    if (marked) {
+      observeRecovery(runContext, "side_effect_completed", "recovery_mark_failed", claimId, caseName);
+    }
     return false;
   }
 
   try {
+    observeRecovery(runContext, "side_effect_intent", "recovery_retrigger", claimId, caseName);
     // Run any pre-reset (e.g. clearing aiAssessmentTriggered) before incrementing counter
     if (preResetFn) await preResetFn();
 
@@ -198,10 +266,27 @@ async function retriggerWithTracking(
     }
 
     triggerAiAssessment(claimId).catch((err: unknown) => {
+      observeScheduledClaimRaceError(
+        runContext,
+        { action: "recovery_retrigger", claimId, recoveryCase: caseName },
+        err
+      );
       console.error(`[StuckRecovery] Re-trigger failed for claim ${claimId}:`, err);
+    });
+    observeScheduledClaimRace(runContext, {
+      phase: "pipeline_trigger_dispatched",
+      action: "recovery_retrigger",
+      claimId,
+      recoveryCase: caseName,
+      outcome: "dispatched",
     });
     return true;
   } catch (err) {
+    observeScheduledClaimRaceError(
+      runContext,
+      { action: "recovery_retrigger", claimId, recoveryCase: caseName },
+      err
+    );
     console.error(`[StuckRecovery] Failed to re-trigger claim ${claimId}:`, err);
     return false;
   }
@@ -214,7 +299,14 @@ async function retriggerWithTracking(
  * the recovery job can re-trigger them on its first cycle.
  * Uses DB-side time comparison to avoid timezone issues.
  */
-export async function runStartupCleanup(): Promise<void> {
+export async function runStartupCleanup(
+  invocation: RecoveryInvocation = {}
+): Promise<void> {
+  const runContext = createScheduledJobRunContext(
+    "stuck-recovery",
+    invocation.source ?? "startup_cleanup",
+    invocation.heartbeatTaskUid
+  );
   try {
     const db = await getDb();
     if (!db) return;
@@ -245,27 +337,45 @@ export async function runStartupCleanup(): Promise<void> {
     if (orphaned.length > 0) {
       console.log(`[StartupCleanup] Found ${orphaned.length} orphaned claim(s) in active transient state — resetting to pending.`);
       for (const claim of orphaned) {
+        observeRecovery(runContext, "candidate_selected", "startup_cleanup_reset", claim.id, "StartupCleanupA");
+        observeRecovery(runContext, "side_effect_intent", "startup_cleanup_reset", claim.id, "StartupCleanupA");
         const ok = await canRetrigger(claim.id);
         if (!ok) {
           console.warn(`[StartupCleanup] Claim ${claim.claimNumber} (id=${claim.id}) has reached max retries — skipping reset.`);
-        await db.update(claims).set({
-          status: 'intake_pending' as any,
-          documentProcessingStatus: 'failed',
-          workflowState: 'intake_queue',
-          pipelineCurrentStage: null,
-          updatedAt: new Date().toISOString() as any,
-        }).where(eq(claims.id, claim.id));
+          await applyStartupCleanupUpdate(
+            db,
+            runContext,
+            claim.id,
+            "startup_cleanup_reset",
+            "StartupCleanupA",
+            {
+              status: "intake_pending" as any,
+              documentProcessingStatus: "failed",
+              workflowState: "intake_queue",
+              pipelineCurrentStage: null,
+              updatedAt: new Date().toISOString() as any,
+            }
+          );
+        observeRecovery(runContext, "side_effect_completed", "startup_cleanup_reset", claim.id, "StartupCleanupA");
         continue;
         }
         // Preserve aiAssessmentTriggered — if KINGA was actively running when the server
         // died, keep triggered=1 so the claim stays visible and Part B re-fires the pipeline.
-        await db.update(claims).set({
-          status: 'intake_pending' as any,
-          documentProcessingStatus: 'intake_pending',
-          workflowState: 'intake_queue',
-          pipelineCurrentStage: null,
-          updatedAt: new Date().toISOString() as any,
-        }).where(eq(claims.id, claim.id));
+        await applyStartupCleanupUpdate(
+          db,
+          runContext,
+          claim.id,
+          "startup_cleanup_reset",
+          "StartupCleanupA",
+          {
+            status: "intake_pending" as any,
+            documentProcessingStatus: "intake_pending",
+            workflowState: "intake_queue",
+            pipelineCurrentStage: null,
+            updatedAt: new Date().toISOString() as any,
+          }
+        );
+        observeRecovery(runContext, "side_effect_completed", "startup_cleanup_reset", claim.id, "StartupCleanupA");
         console.log(`[StartupCleanup] Reset claim ${claim.claimNumber} (id=${claim.id}) from '${claim.documentProcessingStatus}' -> intake_pending (aiAssessmentTriggered=${claim.aiAssessmentTriggered})`);
       }
     } else {
@@ -305,32 +415,64 @@ export async function runStartupCleanup(): Promise<void> {
         const ok = await canRetrigger(claim.id);
         if (!ok) {
           console.warn(`[StartupCleanup] Claim ${claim.claimNumber} (id=${claim.id}) has reached max retries — routing to document_failed.`);
-          await db.update(claims).set({
-            status: "document_failed" as any,
-            documentProcessingStatus: "DOCUMENT_FAILED",
-            workflowState: "intake_queue",
-            aiAssessmentTriggered: 0,
-            updatedAt: new Date().toISOString() as any,
-          }).where(eq(claims.id, claim.id));
+          observeRecovery(runContext, "candidate_selected", "startup_cleanup_reset", claim.id, "StartupCleanupB");
+          observeRecovery(runContext, "side_effect_intent", "startup_cleanup_reset", claim.id, "StartupCleanupB");
+          await applyStartupCleanupUpdate(
+            db,
+            runContext,
+            claim.id,
+            "startup_cleanup_reset",
+            "StartupCleanupB",
+            {
+              status: "document_failed" as any,
+              documentProcessingStatus: "DOCUMENT_FAILED",
+              workflowState: "intake_queue",
+              aiAssessmentTriggered: 0,
+              updatedAt: new Date().toISOString() as any,
+            }
+          );
+          observeRecovery(runContext, "side_effect_completed", "startup_cleanup_reset", claim.id, "StartupCleanupB");
           continue;
         }
         // Fire-and-forget: trigger the pipeline immediately on startup
         // Use a short stagger (500ms per claim) to avoid thundering herd on restart
+        observeRecovery(runContext, "candidate_selected", "startup_cleanup_trigger", claim.id, "StartupCleanupB");
         const staggerMs = untriggered.indexOf(claim) * 500;
         setTimeout(() => {
+          observeRecovery(runContext, "side_effect_intent", "startup_cleanup_trigger", claim.id, "StartupCleanupB");
           triggerAiAssessment(claim.id).catch((err: unknown) => {
+            observeScheduledClaimRaceError(
+              runContext,
+              { action: "startup_cleanup_trigger", claimId: claim.id, recoveryCase: "StartupCleanupB" },
+              err
+            );
             console.error(`[StartupCleanup] Pipeline trigger failed for claim ${claim.id}:`, err);
+          });
+          observeScheduledClaimRace(runContext, {
+            phase: "pipeline_trigger_dispatched",
+            action: "startup_cleanup_trigger",
+            claimId: claim.id,
+            recoveryCase: "StartupCleanupB",
+            outcome: "dispatched",
           });
         }, staggerMs);
         console.log(`[StartupCleanup] Queued pipeline trigger for intake_pending claim ${claim.claimNumber} (id=${claim.id}) in ${staggerMs}ms`);
       }
     }
   } catch (err) {
+    observeScheduledClaimRaceError(runContext, { action: "startup_cleanup" }, err);
     console.error("[StartupCleanup] Failed:", err);
   }
 }
 
-export async function runStuckAssessmentRecoveryJob(): Promise<void> {
+export async function runStuckAssessmentRecoveryJob(
+  invocation: RecoveryInvocation = {}
+): Promise<void> {
+  const runContext = createScheduledJobRunContext(
+    "stuck-recovery",
+    invocation.source ?? "direct",
+    invocation.heartbeatTaskUid
+  );
   let totalFixed = 0;
 
   try {
@@ -368,6 +510,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of completedButNotFinalised) {
         try {
+          observeRecovery(runContext, "candidate_selected", "recovery_finalize", claim.id, "Case3");
+          observeRecovery(runContext, "side_effect_intent", "recovery_finalize", claim.id, "Case3");
           await withDbRetry(async () => {
             const db = await getDb();
             if (!db) return;
@@ -380,9 +524,15 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery finalise claim ${claim.id}`);
+          observeRecovery(runContext, "side_effect_completed", "recovery_finalize", claim.id, "Case3");
           console.log(`[StuckRecovery] Finalised claim ${claim.claimNumber} (id=${claim.id}) -> analysis_complete + workflowState=ai_assessment_completed`);
           totalFixed++;
         } catch (err) {
+          observeScheduledClaimRaceError(
+            runContext,
+            { action: "recovery_finalize", claimId: claim.id, recoveryCase: "Case3" },
+            err
+          );
           console.error(`[StuckRecovery] Failed to finalise claim ${claim.id}:`, err);
         }
       }
@@ -418,7 +568,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of ranButIncomplete) {
         const triggered = await retriggerWithTracking(
-          claim.id, claim.claimNumber, 'Case5B',
+          claim.id, claim.claimNumber, 'Case5B', runContext,
           async () => {
             const db = await getDb();
             if (!db) return;
@@ -459,7 +609,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `with ai_assessment_triggered=0 — re-triggering pipeline`
       );
       for (const claim of neverStarted) {
-        const triggered = await retriggerWithTracking(claim.id, claim.claimNumber, 'Case1');
+        const triggered = await retriggerWithTracking(claim.id, claim.claimNumber, 'Case1', runContext);
         if (triggered) totalFixed++;
         else totalFixed++;
       }
@@ -492,7 +642,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of timedOut) {
         const triggered = await retriggerWithTracking(
-          claim.id, claim.claimNumber, 'Case2',
+          claim.id, claim.claimNumber, 'Case2', runContext,
           async () => {
             const db = await getDb();
             if (!db) return;
@@ -540,7 +690,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of crashedAndReset) {
         const triggered = await retriggerWithTracking(
-          claim.id, claim.claimNumber, 'Case4',
+          claim.id, claim.claimNumber, 'Case4', runContext,
           async () => {
             const db = await getDb();
             if (!db) return;
@@ -584,7 +734,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of stuckInActiveTransient) {
         const triggered = await retriggerWithTracking(
-          claim.id, claim.claimNumber, 'Case6',
+          claim.id, claim.claimNumber, 'Case6', runContext,
           async () => {
             const db = await getDb();
             if (!db) return;
@@ -639,6 +789,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of hardWallClock) {
         try {
+          observeRecovery(runContext, "candidate_selected", "recovery_reset", claim.id, "Case7");
+          observeRecovery(runContext, "side_effect_intent", "recovery_reset", claim.id, "Case7");
           await withDbRetry(async () => {
             const db = await getDb();
             if (!db) return;
@@ -654,12 +806,18 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-7 reset claim ${claim.id}`);
+          observeRecovery(runContext, "side_effect_completed", "recovery_reset", claim.id, "Case7");
           console.log(
             `[StuckRecovery] CASE 7: Reset claim ${claim.claimNumber} (id=${claim.id}) ` +
             `[stuck >5min in ${claim.status}/${claim.documentProcessingStatus}] -> intake_pending for retry`
           );
           totalFixed++;
         } catch (err) {
+          observeScheduledClaimRaceError(
+            runContext,
+            { action: "recovery_reset", claimId: claim.id, recoveryCase: "Case7" },
+            err
+          );
           console.error(`[StuckRecovery] Failed to hard-reset claim ${claim.id}:`, err);
         }
       }
@@ -694,6 +852,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of deadHeartbeat) {
         try {
+          observeRecovery(runContext, "candidate_selected", "recovery_reset", claim.id, "Case7b");
+          observeRecovery(runContext, "side_effect_intent", "recovery_reset", claim.id, "Case7b");
           await withDbRetry(async () => {
             const db = await getDb();
             if (!db) return;
@@ -711,12 +871,18 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               // pipelineRunUuid is intentionally NOT cleared — preserved for durable resume
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-7b reset claim ${claim.id}`);
+          observeRecovery(runContext, "side_effect_completed", "recovery_reset", claim.id, "Case7b");
           console.log(
             `[StuckRecovery] CASE 7b: Reset claim ${claim.claimNumber} (id=${claim.id}) ` +
             `[dead heartbeat in ${claim.status}/${claim.documentProcessingStatus}] -> intake_pending (runUuid preserved for resume)`
           );
           totalFixed++;
         } catch (err) {
+          observeScheduledClaimRaceError(
+            runContext,
+            { action: "recovery_reset", claimId: claim.id, recoveryCase: "Case7b" },
+            err
+          );
           console.error(`[StuckRecovery] Failed to heartbeat-reset claim ${claim.id}:`, err);
         }
       }
@@ -747,7 +913,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of stuckSubmitted) {
         const triggered = await retriggerWithTracking(
-          claim.id, claim.claimNumber, 'Case8',
+          claim.id, claim.claimNumber, 'Case8', runContext,
           async () => {
             const db = await getDb();
             if (!db) return;
@@ -792,6 +958,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of completedWithStaleDps) {
         try {
+          observeRecovery(runContext, "candidate_selected", "recovery_finalize", claim.id, "Case9");
+          observeRecovery(runContext, "side_effect_intent", "recovery_finalize", claim.id, "Case9");
           await withDbRetry(async () => {
             const db = await getDb();
             if (!db) return;
@@ -801,12 +969,18 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-9 fix claim ${claim.id}`);
+          observeRecovery(runContext, "side_effect_completed", "recovery_finalize", claim.id, "Case9");
           console.log(
             `[StuckRecovery] CASE 9: Fixed claim ${claim.claimNumber} (id=${claim.id}) ` +
             `dps '${claim.documentProcessingStatus}' -> 'ANALYSIS_COMPLETE' (report was already ready)`
           );
           totalFixed++;
         } catch (err) {
+          observeScheduledClaimRaceError(
+            runContext,
+            { action: "recovery_finalize", claimId: claim.id, recoveryCase: "Case9" },
+            err
+          );
           console.error(`[StuckRecovery] CASE 9: Failed to fix claim ${claim.id}:`, err);
         }
       }
@@ -849,7 +1023,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of stuckAssessmentPending) {
         const triggered = await retriggerWithTracking(
-          claim.id, claim.claimNumber, 'Case10',
+          claim.id, claim.claimNumber, 'Case10', runContext,
           async () => {
             const db = await getDb();
             if (!db) return;
@@ -910,7 +1084,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of stuckDocumentFailed) {
         const triggered = await retriggerWithTracking(
-          claim.id, claim.claimNumber, 'Case11',
+          claim.id, claim.claimNumber, 'Case11', runContext,
           async () => {
             const db = await getDb();
             if (!db) return;
@@ -969,7 +1143,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of untriggeredIntakePending) {
         const triggered = await retriggerWithTracking(
-          claim.id, claim.claimNumber, 'Case12',
+          claim.id, claim.claimNumber, 'Case12', runContext,
           async () => {
             // No pre-reset needed — claim is already in intake_pending with triggered=1
             // Just increment the retry counter and fire the lost trigger
@@ -990,6 +1164,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       console.log(`[StuckRecovery] Recovery complete — fixed ${totalFixed} claim(s).`);
     }
   } catch (err) {
+    observeScheduledClaimRaceError(runContext, { action: "stuck_recovery" }, err);
     console.error("[StuckRecovery] Job failed:", err);
   }
 }
@@ -1002,16 +1177,16 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
 export function startStuckAssessmentRecoveryJob(): void {
   console.log("[StuckRecovery] Initializing stuck assessment recovery job (every 10 minutes)...");
   // Run startup cleanup FIRST to reset any orphaned claims from previous server run
-  runStartupCleanup().then(() => {
+  runStartupCleanup({ source: "startup_cleanup" }).then(() => {
     // Then run the full recovery job immediately
-    return runStuckAssessmentRecoveryJob();
+    return runStuckAssessmentRecoveryJob({ source: "startup_immediate" });
   }).catch(err => {
     console.error("[StuckRecovery] Initial run failed:", err);
   });
 
   // Schedule to run every 10 minutes
   setInterval(() => {
-    runStuckAssessmentRecoveryJob().catch(err => {
+    runStuckAssessmentRecoveryJob({ source: "in_process_interval" }).catch(err => {
       console.error("[StuckRecovery] Scheduled run failed:", err);
     });
   }, TEN_MINUTES_MS);
