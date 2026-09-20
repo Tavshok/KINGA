@@ -180,7 +180,9 @@ uploadDocumentsRouter.post(
               const kingaRef = await generateKingaRef(tenantId);
 
               const [claimInsertResult] = await tx.insert(claims).values({
-                claimantId: 0,
+                // Claimant identity is unknown until extraction or verified linking.
+                // Persist that state as NULL, not a fabricated user ID such as zero.
+                claimantId: null,
                 claimNumber,
                 kingaRef,
                 policyNumber: policyNumberInput || undefined,
