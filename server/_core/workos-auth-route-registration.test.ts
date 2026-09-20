@@ -31,6 +31,7 @@ afterEach(async () => {
 
 describe("WorkOS human-auth route registration", () => {
   it("is absent by default even when WorkOS variables are incomplete", async () => {
+    vi.stubEnv("KINGA_MAINTENANCE_MODE", "false");
     vi.stubEnv("WORKOS_HUMAN_AUTH_ENABLED", "false");
     vi.stubEnv("WORKOS_API_KEY", "");
     vi.stubEnv("WORKOS_CLIENT_ID", "");
@@ -47,6 +48,7 @@ describe("WorkOS human-auth route registration", () => {
   });
 
   it("fails startup rather than mounting an enabled route with incomplete provider configuration", async () => {
+    vi.stubEnv("KINGA_MAINTENANCE_MODE", "false");
     vi.stubEnv("WORKOS_HUMAN_AUTH_ENABLED", "true");
     vi.stubEnv("WORKOS_API_KEY", "");
     vi.stubEnv("WORKOS_CLIENT_ID", "");
