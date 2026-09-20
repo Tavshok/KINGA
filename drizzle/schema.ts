@@ -3799,6 +3799,96 @@ export const workosAuthTransactions = mysqlTable("workos_auth_transactions", {
 	index("workos_auth_transactions_expires_at_idx").on(table.expiresAt),
 ]);
 
+/** KINGA-owned non-human credentials. No bearer or human identity is stored. */
+export const serviceCredentials = mysqlTable("service_credentials", {
+	credentialId: varchar("credential_id", { length: 64 }).notNull().primaryKey(),
+	safePrefix: varchar("safe_prefix", { length: 48 }).notNull(),
+	environment: varchar({ length: 32 }).notNull(),
+	principalName: varchar("principal_name", { length: 100 }).notNull(),
+	capability: mysqlEnum(["scheduled:intake-escalation:run", "scheduled:stuck-recovery:run"]).notNull(),
+	verifierAlgorithm: mysqlEnum("verifier_algorithm", ["scrypt-v1"]).notNull(),
+	saltBase64: varchar("salt_base64", { length: 128 }).notNull(),
+	verifierBase64: varchar("verifier_base64", { length: 43 }).notNull(),
+	lifecycleState: mysqlEnum("lifecycle_state", ["pending", "active", "suspended", "revoked", "expired"]).notNull(),
+	notBefore: timestamp("not_before", { mode: "string", fsp: 3 }).notNull(),
+	expiresAt: timestamp("expires_at", { mode: "string", fsp: 3 }).notNull(),
+	revokedAt: timestamp("revoked_at", { mode: "string", fsp: 3 }),
+	predecessorCredentialId: varchar("predecessor_credential_id", { length: 64 }),
+	successorCredentialId: varchar("successor_credential_id", { length: 64 }),
+	approvalReference: varchar("approval_reference", { length: 128 }).notNull(),
+	activeScopeKey: varchar("active_scope_key", { length: 320 }).generatedAlwaysAs(
+		sql`CASE WHEN lifecycle_state = 'active' AND revoked_at IS NULL THEN CONCAT(environment, ':', capability) ELSE NULL END`,
+		{ mode: "stored" }
+	),
+	createdAt: timestamp("created_at", { mode: "string", fsp: 3 }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { mode: "string", fsp: 3 }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+	uniqueIndex("service_credentials_active_scope_uq").on(table.activeScopeKey),
+	index("service_credentials_lookup_idx").on(table.environment, table.capability, table.lifecycleState),
+	index("service_credentials_expiry_idx").on(table.expiresAt),
+]);
+
+export const serviceCredentialAudit = mysqlTable("service_credential_audit", {
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull().primaryKey(),
+	credentialId: varchar("credential_id", { length: 64 }).notNull(),
+	action: mysqlEnum(["created", "activated", "suspended", "revoked", "expired", "rotated"]).notNull(),
+	outcome: mysqlEnum(["accepted", "rejected"]).notNull(),
+	approvalReference: varchar("approval_reference", { length: 128 }),
+	correlationReference: varchar("correlation_reference", { length: 128 }),
+	createdAt: timestamp("created_at", { mode: "string", fsp: 3 }).defaultNow().notNull(),
+}, (table) => [
+	index("service_credential_audit_credential_time_idx").on(table.credentialId, table.createdAt),
+	index("service_credential_audit_action_time_idx").on(table.action, table.createdAt),
+]);
+
+/** One durable row is the sole execution authority for a canonical job window. */
+export const scheduledJobExecutions = mysqlTable("scheduled_job_executions", {
+	id: bigint({ mode: "number", unsigned: true }).autoincrement().notNull().primaryKey(),
+	jobKey: mysqlEnum("job_key", ["intake-escalation", "stuck-recovery"]).notNull(),
+	windowKey: varchar("window_key", { length: 128 }).notNull(),
+	executionId: varchar("execution_id", { length: 36 }).notNull(),
+	generation: bigint({ mode: "number", unsigned: true }).notNull(),
+	status: mysqlEnum(["running", "completed", "failed", "cancelled"]).notNull(),
+	leaseExpiresAt: timestamp("lease_expires_at", { mode: "string", fsp: 3 }).notNull(),
+	attemptCount: int("attempt_count", { unsigned: true }).notNull().default(1),
+	takeoverCount: int("takeover_count", { unsigned: true }).notNull().default(0),
+	outcomeCode: varchar("outcome_code", { length: 64 }),
+	startedAt: timestamp("started_at", { mode: "string", fsp: 3 }).notNull(),
+	completedAt: timestamp("completed_at", { mode: "string", fsp: 3 }),
+	createdAt: timestamp("created_at", { mode: "string", fsp: 3 }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { mode: "string", fsp: 3 }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+	uniqueIndex("scheduled_job_executions_job_window_uq").on(table.jobKey, table.windowKey),
+	uniqueIndex("scheduled_job_executions_execution_id_uq").on(table.executionId),
+	index("scheduled_job_executions_lease_idx").on(table.status, table.leaseExpiresAt),
+	index("scheduled_job_executions_fence_idx").on(table.jobKey, table.windowKey, table.executionId, table.generation),
+]);
+
+/** Transactional effect records; delivery is intentionally not implemented in G1. */
+export const scheduledJobEffects = mysqlTable("scheduled_job_effects", {
+	effectKey: varchar("effect_key", { length: 64 }).notNull().primaryKey(),
+	jobKey: mysqlEnum("job_key", ["intake-escalation", "stuck-recovery"]).notNull(),
+	windowKey: varchar("window_key", { length: 128 }).notNull(),
+	executionId: varchar("execution_id", { length: 36 }).notNull(),
+	generation: bigint({ mode: "number", unsigned: true }).notNull(),
+	effectType: varchar("effect_type", { length: 100 }).notNull(),
+	subjectKey: varchar("subject_key", { length: 160 }).notNull(),
+	payload: json().notNull(),
+	status: mysqlEnum(["pending", "claimed", "completed", "failed"]).notNull().default("pending"),
+	attemptCount: int("attempt_count", { unsigned: true }).notNull().default(0),
+	availableAt: timestamp("available_at", { mode: "string", fsp: 3 }).notNull(),
+	claimReference: varchar("claim_reference", { length: 64 }),
+	claimExpiresAt: timestamp("claim_expires_at", { mode: "string", fsp: 3 }),
+	lastErrorCode: varchar("last_error_code", { length: 64 }),
+	dispatchedAt: timestamp("dispatched_at", { mode: "string", fsp: 3 }),
+	completedAt: timestamp("completed_at", { mode: "string", fsp: 3 }),
+	createdAt: timestamp("created_at", { mode: "string", fsp: 3 }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { mode: "string", fsp: 3 }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+	index("scheduled_job_effects_dispatch_idx").on(table.status, table.availableAt),
+	index("scheduled_job_effects_execution_idx").on(table.jobKey, table.windowKey, table.executionId, table.generation),
+	uniqueIndex("scheduled_job_effects_job_window_uq").on(table.jobKey, table.windowKey),
+]);
 export const varianceDatasets = mysqlTable("variance_datasets", {
 	id: int().autoincrement().notNull().primaryKey(),
 	historicalClaimId: int("historical_claim_id").notNull(),

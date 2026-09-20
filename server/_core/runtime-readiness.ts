@@ -28,6 +28,16 @@ export interface RuntimeReadiness {
   configurationReady: boolean;
 }
 
+export interface G1ServiceRouteReadiness {
+  enabled: boolean;
+  routeBoundaryMounted: false;
+  verificationScope: "configuration-only";
+  requiredConfiguration: readonly ["G1_SERVICE_ROUTES_ENABLED", "KINGA_SERVICE_ENVIRONMENT", "KINGA_SCHEDULER_OF_RECORD"];
+  missingConfiguration: string[];
+  invalidConfiguration: string[];
+  configurationReady: boolean;
+}
+
 const MANAGED_REQUIRED_CONFIGURATION = ["DATABASE_URL", "JWT_SECRET"] as const;
 
 /**
@@ -46,6 +56,12 @@ const EXTERNAL_REQUIRED_CONFIGURATION = [
   "KINGA_SCHEDULER_AUTH_MODE",
   "KINGA_JOB_EXECUTION_MODE",
   "KINGA_WEBSOCKET_MODE",
+] as const;
+
+const G1_REQUIRED_CONFIGURATION = [
+  "G1_SERVICE_ROUTES_ENABLED",
+  "KINGA_SERVICE_ENVIRONMENT",
+  "KINGA_SCHEDULER_OF_RECORD",
 ] as const;
 
 function present(env: RuntimeEnvironment, key: string): boolean {
@@ -116,5 +132,34 @@ export function getRuntimeReadiness(
     missingConfiguration,
     invalidConfiguration,
     configurationReady,
+  };
+}
+
+/** Configuration declaration only; it cannot mount or infer activation. */
+export function getG1ServiceRouteReadiness(
+  env: RuntimeEnvironment = process.env,
+): G1ServiceRouteReadiness {
+  const enabled = env.G1_SERVICE_ROUTES_ENABLED === "true";
+  const missingConfiguration = G1_REQUIRED_CONFIGURATION.filter((key) => !present(env, key));
+  const invalidConfiguration: string[] = [];
+
+  if (present(env, "G1_SERVICE_ROUTES_ENABLED")
+    && env.G1_SERVICE_ROUTES_ENABLED !== "true"
+    && env.G1_SERVICE_ROUTES_ENABLED !== "false") {
+    invalidConfiguration.push("G1_SERVICE_ROUTES_ENABLED (must be exactly true or false)");
+  }
+  if (present(env, "KINGA_SERVICE_ENVIRONMENT")
+    && !/^[a-z][a-z0-9-]{1,30}$/u.test(env.KINGA_SERVICE_ENVIRONMENT!)) {
+    invalidConfiguration.push("KINGA_SERVICE_ENVIRONMENT (must be a lowercase environment name)");
+  }
+
+  return {
+    enabled,
+    routeBoundaryMounted: false,
+    verificationScope: "configuration-only",
+    requiredConfiguration: G1_REQUIRED_CONFIGURATION,
+    missingConfiguration,
+    invalidConfiguration,
+    configurationReady: enabled && missingConfiguration.length === 0 && invalidConfiguration.length === 0,
   };
 }
