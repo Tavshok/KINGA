@@ -28,6 +28,14 @@ import {
   formatNotificationMessage,
 } from "./notification-service";
 import { insertIsoAuditLog, SYSTEM_USER_ID } from "./utils/audit-helpers";
+import {
+  createScheduledClaimBatchFingerprint,
+  createScheduledJobRunContext,
+  observeScheduledClaimRace,
+  observeScheduledClaimRaceError,
+  type ScheduledInvocationSource,
+  type ScheduledJobRunContext,
+} from "./_core/scheduled-claim-race-observability";
 
 // Processor selection logic moved to workload-balancing.ts service module
 
@@ -37,7 +45,8 @@ import { insertIsoAuditLog, SYSTEM_USER_ID } from "./utils/audit-helpers";
 async function autoAssignClaim(
   claim: any,
   processor: ProcessorWorkload,
-  thresholdHours: number
+  thresholdHours: number,
+  runContext: ScheduledJobRunContext
 ) {
   const hoursInQueue = Math.floor(
     (Date.now() - new Date(claim.createdAt).getTime()) / (1000 * 60 * 60)
@@ -45,7 +54,21 @@ async function autoAssignClaim(
 
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+  observeScheduledClaimRace(runContext, {
+    phase: "candidate_selected",
+    action: "intake_auto_assign",
+    claimId: claim.id,
+    tenantId: claim.tenantId,
+    outcome: "attempted",
+  });
+  observeScheduledClaimRace(runContext, {
+    phase: "side_effect_intent",
+    action: "intake_auto_assign",
+    claimId: claim.id,
+    tenantId: claim.tenantId,
+    outcome: "attempted",
+  });
+  try {
   await db
     .update(claims)
     .set({
@@ -80,6 +103,21 @@ async function autoAssignClaim(
       reason: `Manager inactivity - auto-assigned after ${hoursInQueue} hours (threshold: ${thresholdHours} hours)`,
     }),
   });
+  } catch (error) {
+    observeScheduledClaimRaceError(
+      runContext,
+      { action: "intake_auto_assign", claimId: claim.id, tenantId: claim.tenantId },
+      error
+    );
+    throw error;
+  }
+  observeScheduledClaimRace(runContext, {
+    phase: "side_effect_completed",
+    action: "intake_auto_assign",
+    claimId: claim.id,
+    tenantId: claim.tenantId,
+    outcome: "completed",
+  });
 
   console.log(
     `[Intake Escalation] Auto-assigned claim ${claim.claimNumber} to processor ${processor.processorName} ` +
@@ -93,7 +131,8 @@ async function autoAssignClaim(
  */
 async function escalateClaim(
   claim: any,
-  thresholdHours: number
+  thresholdHours: number,
+  runContext: ScheduledJobRunContext
 ) {
   const hoursInQueue = Math.floor(
     (Date.now() - new Date(claim.createdAt).getTime()) / (1000 * 60 * 60)
@@ -102,7 +141,21 @@ async function escalateClaim(
   // AUDIT-01: isoAuditLogs — system-triggered compliance event (no state change)
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-
+  observeScheduledClaimRace(runContext, {
+    phase: "candidate_selected",
+    action: "intake_escalate",
+    claimId: claim.id,
+    tenantId: claim.tenantId,
+    outcome: "attempted",
+  });
+  observeScheduledClaimRace(runContext, {
+    phase: "side_effect_intent",
+    action: "intake_escalate",
+    claimId: claim.id,
+    tenantId: claim.tenantId,
+    outcome: "attempted",
+  });
+  try {
   await insertIsoAuditLog(db as any, {
     tenantId: claim.tenantId,
     userId: SYSTEM_USER_ID,
@@ -122,6 +175,21 @@ async function escalateClaim(
       reason: `Manager inactivity - escalated after ${hoursInQueue} hours (threshold: ${thresholdHours} hours)`,
     }),
   });
+  } catch (error) {
+    observeScheduledClaimRaceError(
+      runContext,
+      { action: "intake_escalate", claimId: claim.id, tenantId: claim.tenantId },
+      error
+    );
+    throw error;
+  }
+  observeScheduledClaimRace(runContext, {
+    phase: "side_effect_completed",
+    action: "intake_escalate",
+    claimId: claim.id,
+    tenantId: claim.tenantId,
+    outcome: "completed",
+  });
 
   console.log(
     `[Intake Escalation] Escalated claim ${claim.claimNumber} (${hoursInQueue} hours in queue, threshold: ${thresholdHours})`
@@ -131,7 +199,7 @@ async function escalateClaim(
 /**
  * Process escalation for a single tenant
  */
-async function processTenantEscalation(tenant: any) {
+async function processTenantEscalation(tenant: any, runContext: ScheduledJobRunContext) {
   const {
     id: tenantId,
     name: tenantName,
@@ -177,6 +245,10 @@ async function processTenantEscalation(tenant: any) {
   console.log(
     `[Intake Escalation] Found ${staleClaims.length} stale claim(s) for tenant ${tenantName}`
   );
+  const notificationAction = mode === "auto_assign"
+    ? "intake_auto_assign_notification"
+    : "intake_escalation_notification";
+  const batchFingerprint = createScheduledClaimBatchFingerprint(staleClaims.map(claim => claim.id));
 
   if (mode === "auto_assign") {
     const processor = await findLowestWorkloadProcessor(tenantId);
@@ -186,14 +258,22 @@ async function processTenantEscalation(tenant: any) {
         `[Intake Escalation] No available processors for tenant ${tenantName} - cannot auto-assign`
       );
       for (const claim of staleClaims) {
-        await escalateClaim(claim, thresholdHours);
+        await escalateClaim(claim, thresholdHours, runContext);
       }
     } else {
       for (const claim of staleClaims) {
-        await autoAssignClaim(claim, processor, thresholdHours);
+        await autoAssignClaim(claim, processor, thresholdHours, runContext);
       }
 
       try {
+        observeScheduledClaimRace(runContext, {
+          phase: "side_effect_intent",
+          action: notificationAction,
+          tenantId,
+          batchFingerprint,
+          candidateCount: staleClaims.length,
+          outcome: "attempted",
+        });
         const managerUsers = await db
           .select()
           .from(users)
@@ -230,16 +310,42 @@ async function processTenantEscalation(tenant: any) {
           title: `⚠️ Intake Queue Auto-Assignment Alert - ${tenantName}`,
           content: `${staleClaims.length} claim(s) were automatically assigned to processor "${processor.processorName}" due to manager inactivity.\n\nTenant: ${tenantName}\nEscalation Threshold: ${thresholdHours} hours\nProcessor Workload: ${processor.weightedScore.toFixed(1)} (active: ${processor.activeClaims}, complex: ${processor.complexClaims}, high-risk: ${processor.highRiskClaims})\nAuto-Assigned Claims: ${staleClaims.map((c) => c.claimNumber).join(", ")}\n\nPlease review the Claims Manager Dashboard for details.`,
         });
+        observeScheduledClaimRace(runContext, {
+          phase: "side_effect_completed",
+          action: notificationAction,
+          tenantId,
+          batchFingerprint,
+          candidateCount: staleClaims.length,
+          outcome: "completed",
+        });
       } catch (error) {
+        observeScheduledClaimRaceError(
+          runContext,
+          {
+            action: notificationAction,
+            tenantId,
+            batchFingerprint,
+            candidateCount: staleClaims.length,
+          },
+          error
+        );
         console.error("[Intake Escalation] Failed to send auto-assignment notification:", error);
       }
     }
   } else {
     for (const claim of staleClaims) {
-      await escalateClaim(claim, thresholdHours);
+      await escalateClaim(claim, thresholdHours, runContext);
     }
 
     try {
+      observeScheduledClaimRace(runContext, {
+        phase: "side_effect_intent",
+        action: notificationAction,
+        tenantId,
+        batchFingerprint,
+        candidateCount: staleClaims.length,
+        outcome: "attempted",
+      });
       const managerUsers = await db
         .select()
         .from(users)
@@ -274,7 +380,25 @@ async function processTenantEscalation(tenant: any) {
         title: `⚠️ Intake Queue Escalation Alert - ${tenantName}`,
         content: `${staleClaims.length} claim(s) in the intake queue require immediate attention.\n\nTenant: ${tenantName}\nEscalation Threshold: ${thresholdHours} hours\nEscalated Claims: ${staleClaims.map((c) => c.claimNumber).join(", ")}\n\nThese claims have not been assigned to a processor. Please review the Claims Manager Dashboard and take action.`,
       });
+      observeScheduledClaimRace(runContext, {
+        phase: "side_effect_completed",
+        action: notificationAction,
+        tenantId,
+        batchFingerprint,
+        candidateCount: staleClaims.length,
+        outcome: "completed",
+      });
     } catch (error) {
+      observeScheduledClaimRaceError(
+        runContext,
+        {
+          action: notificationAction,
+          tenantId,
+          batchFingerprint,
+          candidateCount: staleClaims.length,
+        },
+        error
+      );
       console.error("[Intake Escalation] Failed to send escalation notification:", error);
     }
   }
@@ -283,7 +407,14 @@ async function processTenantEscalation(tenant: any) {
 /**
  * Main escalation job - processes all tenants
  */
-export async function runIntakeEscalationJob() {
+export async function runIntakeEscalationJob(
+  invocation: { source?: ScheduledInvocationSource; heartbeatTaskUid?: string } = {}
+) {
+  const runContext = createScheduledJobRunContext(
+    "intake-escalation",
+    invocation.source ?? "direct",
+    invocation.heartbeatTaskUid
+  );
   console.log("[Intake Escalation] Starting escalation job...");
 
   try {
@@ -308,7 +439,7 @@ export async function runIntakeEscalationJob() {
 
     for (const tenant of activeTenants) {
       try {
-        await processTenantEscalation(tenant);
+        await processTenantEscalation(tenant, runContext);
       } catch (error) {
         console.error(
           `[Intake Escalation] Error processing tenant ${tenant.name}:`,
@@ -331,7 +462,7 @@ export function startIntakeEscalationJob() {
 
   const THIRTY_MINUTES = 30 * 60 * 1000;
   setInterval(() => {
-    runIntakeEscalationJob();
+    runIntakeEscalationJob({ source: "in_process_interval" });
   }, THIRTY_MINUTES);
 
   console.log("[Intake Escalation] Cron job initialized successfully");

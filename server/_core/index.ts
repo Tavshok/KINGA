@@ -239,7 +239,7 @@ export async function createApplication(options: { includeFrontend?: boolean } =
         }
       }
       console.log(`[Heartbeat] intake-escalation triggered (taskUid: ${cronUser.taskUid ?? 'wildcard'})`);
-      await runIntakeEscalationJob();
+      await runIntakeEscalationJob({ source: "heartbeat", heartbeatTaskUid: cronUser.taskUid });
       console.log('[Heartbeat] intake-escalation complete');
       return res.status(200).json({ ok: true, job: 'intake-escalation', ts: Date.now() });
     } catch (err: any) {
@@ -278,7 +278,7 @@ export async function createApplication(options: { includeFrontend?: boolean } =
         }
       }
       console.log(`[Heartbeat] stuck-recovery triggered (taskUid: ${cronUser.taskUid ?? 'wildcard'})`);
-      await runStuckAssessmentRecoveryJob();
+      await runStuckAssessmentRecoveryJob({ source: "heartbeat", heartbeatTaskUid: cronUser.taskUid });
       console.log('[Heartbeat] stuck-recovery complete');
       return res.status(200).json({ ok: true, job: 'stuck-recovery', ts: Date.now() });
     } catch (err: any) {
