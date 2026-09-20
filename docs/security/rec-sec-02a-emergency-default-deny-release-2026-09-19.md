@@ -29,3 +29,11 @@ Merging and publishing this package will deliberately disable the public recover
 [1]: https://manus.im/docs/website-builder/publishing "Manus Publishing"
 [2]: https://manus.im/docs/website-builder/cloud-infrastructure "Manus Cloud Infrastructure"
 [3]: https://github.com/Tavshok/KINGA/blob/b4b6723e/server/_core/index.ts#L213-L241 "Vulnerable recovery-deadline sweep route before REC-SEC-02A"
+
+## Supersession note — 20 September 2026
+
+This document is retained as historical REC-SEC-02A design evidence. Its original status line became stale when PR #125 merged the temporary default-deny source into `main`; it must not be read as the current repository state.
+
+The owner has now decided to retire the recovery-deadline sweep rather than continue emergency route containment. The source registration for `POST /api/scheduled/recovery-deadline-sweep`, the temporary REC-SEC-02A denial handler, the in-process startup invocation, and the global scanner were deleted together. An ordinary request to the removed path now reaches normal Express `404` fall-through. The separate update-triggered `checkSingleCaseDeadline` behavior and manual Recovery Portal visibility remain.
+
+The durable REC-SEC-02 capability, fencing, lease, and outbox proposal is not part of this retirement and must not be merged to restore the retired sweep. It remains the required architectural pattern if proactive deadline automation is later rebuilt as a separately approved product feature.

@@ -53,8 +53,6 @@ import { uploadDocumentsRouter } from "../upload-documents";
 import { setupWebSocketServer } from "../websocket";
 import { runIntakeEscalationJob, startIntakeEscalationJob } from "../intake-escalation-job";
 import { runStuckAssessmentRecoveryJob, startStuckAssessmentRecoveryJob } from "../stuck-assessment-recovery-job";
-import { checkRecoveryDeadlines } from "../recovery/recoveryDeadlineAlerts";
-import { denyRecoveryDeadlineSweep } from "../recovery/recovery-deadline-sweep-default-deny-route";
 import { sdk } from "./sdk";
 import { verifyLocalSession } from "./kinga-session";
 import { ENV } from "./env";
@@ -121,12 +119,6 @@ export async function createApplication(options: { includeFrontend?: boolean } =
   }
 
   registerRuntimeProbes(app);
-
-  // ── REC-SEC-02A: recovery deadline sweep emergency default deny ─────────
-  // This exact path is registered after the maintenance gate but before any
-  // body parser. All non-maintenance POST representations therefore receive
-  // the same denial without parser, session, database, or scheduler work.
-  app.post("/api/scheduled/recovery-deadline-sweep", denyRecoveryDeadlineSweep);
 
   // ── Security headers (Phase 4.95) ────────────────────────────────────────
   // helmet sets X-Content-Type-Options, X-Frame-Options, X-XSS-Protection,
@@ -394,10 +386,7 @@ async function startServer() {
     startMaintenanceSensitiveJobs(ENV.maintenanceMode, {
       startIntakeEscalationJob,
       startStuckAssessmentRecoveryJob,
-      checkRecoveryDeadlines,
-      schedule: setTimeout,
       warn: console.warn,
-      error: console.error,
     });
   });
 
