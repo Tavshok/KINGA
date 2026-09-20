@@ -3,10 +3,7 @@ import { shouldStartMaintenanceWriteJobs } from "./maintenance-mode";
 type MaintenanceWriterDependencies = {
   startIntakeEscalationJob: () => void;
   startStuckAssessmentRecoveryJob: () => void;
-  checkRecoveryDeadlines: () => Promise<void>;
-  schedule: (callback: () => void, delayMs: number) => unknown;
   warn: (message: string) => void;
-  error: (message: string, error: unknown) => void;
 };
 
 /**
@@ -19,22 +16,12 @@ export function startMaintenanceSensitiveJobs(
 ): boolean {
   if (!shouldStartMaintenanceWriteJobs(maintenanceMode)) {
     dependencies.warn(
-      "[Maintenance] Intake escalation, stuck recovery, and recovery-deadline writers are suppressed."
+      "[Maintenance] Intake escalation and stuck recovery writers are suppressed."
     );
     return false;
   }
 
   dependencies.startIntakeEscalationJob();
   dependencies.startStuckAssessmentRecoveryJob();
-  dependencies.schedule(() => {
-    dependencies
-      .checkRecoveryDeadlines()
-      .catch(error =>
-        dependencies.error(
-          "[RecoveryDeadlineAlerts] Startup check failed:",
-          error
-        )
-      );
-  }, 15_000);
   return true;
 }

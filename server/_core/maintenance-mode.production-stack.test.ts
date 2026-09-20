@@ -73,10 +73,6 @@ describe("maintenance mode production route composition", () => {
         path: "/api/trpc/auth.me?batch=1&input=%7B%7D",
       },
       { path: "/api/scheduled/keepwarm", init: { method: "POST" } },
-      {
-        path: "/api/scheduled/recovery-deadline-sweep",
-        init: { method: "POST" },
-      },
       { path: "/api/scheduled/intake-escalation", init: { method: "POST" } },
       { path: "/api/scheduled/stuck-recovery", init: { method: "POST" } },
     ];
