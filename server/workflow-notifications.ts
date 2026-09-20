@@ -190,11 +190,15 @@ KINGA AI - Intelligent Claims Management
 export async function notifyClaimApproval(params: {
   claimId: number;
   claimNumber: string;
-  claimantId: number;
+  claimantId: number | null;
   approvedAmount: number;
   selectedPanelBeater: string;
   tenantId: string;
 }): Promise<boolean> {
+  // A document-ingestion claim can be approved before claimant extraction or
+  // verified linkage. Do not fabricate a user ID or issue a claimant notice.
+  if (params.claimantId === null) return false;
+
   const db = await getDb();
   if (!db) return false;
 
