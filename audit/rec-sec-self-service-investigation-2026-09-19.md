@@ -86,3 +86,9 @@ Every subsequent status report in this incident record will state an ISO 8601 UT
 [2]: https://kingaai-ybs42lwg.manus.space "KINGA public production domain"
 [3]: https://manus.im/app/wXdylySoP0CyrXQBgASmxL "KINGA Manus project task"
 [4]: https://github.com/Tavshok/KINGA/pull/126 "Deployment marker review pull request"
+
+## Final recovery-sweep disposition — 20 September 2026
+
+This investigation is retained as historical deployment and schedule evidence. By owner decision, the application source registration for `POST /api/scheduled/recovery-deadline-sweep`, its temporary REC-SEC-02A denial, the 15-second startup invocation, and `checkRecoveryDeadlines()` global scan were retired. The historic recovery-titled task sessions remain historical records; this source package did not inspect, create, change, pause, or delete any external schedule.
+
+Normal startup now starts only the intake-escalation and stuck-assessment-recovery writers. `checkSingleCaseDeadline()` remains on authorized recovery-case updates, and Recovery Portal/manual case-detail visibility remains. The removal intentionally leaves no time-driven proactive threshold or lapsed-case discovery. A future rebuild requires a separate product decision and the already-designed REC-SEC-02 fenced lease and durable outbox pattern; the unmerged durable branch must not be merged merely to restore this retired feature.

@@ -1,10 +1,9 @@
 // @ts-nocheck
 /**
- * KINGA Subrogation — Recovery Deadline Alert Checker
+ * KINGA Subrogation — Recovery Deadline Update Alert
  *
- * Runs on server startup and checks for recovery cases where the recovery
- * deadline is approaching. Sends notifications to the assigned recovery officer
- * (or the insurer admin if no officer is assigned) at:
+ * Runs only after an authorised recovery-case update. It sends a notification
+ * when that one case's deadline is approaching at:
  *   - 90 days before deadline
  *   - 60 days before deadline
  *   - 30 days before deadline
@@ -12,13 +11,14 @@
  *   - 7 days before deadline
  *
  * Notifications are sent via the Manus built-in notification system.
- * The last_recovery_deadline_alert_sent_at field prevents duplicate alerts within
- * the same threshold window.
+ * The last_recovery_deadline_alert_sent_at field prevents duplicate alerts
+ * within the same threshold window. There is intentionally no startup or
+ * scheduled global recovery-deadline sweep.
  */
 
 import { getDb } from "../db";
 import { recoveryCases } from "../../drizzle/schema";
-import { eq, and, lte, notInArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { notifyOwner } from "../_core/notification";
 
 // Alert thresholds in days
@@ -115,73 +115,6 @@ export async function checkSingleCaseDeadline(caseId: number): Promise<void> {
   }
 
   await sendAlert(rc, daysLeft, urgencyLabel(daysLeft));
-}
-
-export async function checkRecoveryDeadlines(): Promise<void> {
-  let db: any;
-  try {
-    db = await getDb();
-    if (!db) return;
-  } catch {
-    return;
-  }
-
-  const today = new Date();
-  const in90Days = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000)
-    .toISOString().split("T")[0];
-
-  // Fetch all active recovery cases with a recovery deadline within 90 days
-  const terminalStatuses = ["settled_full", "settled_partial", "closed_no_recovery", "archived"];
-
-  let activeCases: any[] = [];
-  try {
-    activeCases = await db
-      .select()
-      .from(recoveryCases)
-      .where(
-        and(
-          lte(recoveryCases.recoveryDeadline, in90Days),
-          notInArray(recoveryCases.status, terminalStatuses)
-        )
-      );
-  } catch (err) {
-    console.error("[RecoveryDeadlineAlerts] Failed to query recovery cases:", err);
-    return;
-  }
-
-  if (activeCases.length === 0) return;
-
-  console.log(`[RecoveryDeadlineAlerts] Checking ${activeCases.length} case(s) with approaching recovery deadlines`);
-
-  for (const rc of activeCases) {
-    if (!rc.recoveryDeadline) continue;
-
-    const daysLeft = daysUntil(rc.recoveryDeadline);
-    if (daysLeft < 0) {
-      // Already past deadline — send a lapsed alert if not already sent
-      if (!rc.recoveryDeadlineAlertSentAt) {
-        await sendAlert(rc, daysLeft, "LAPSED");
-      }
-      continue;
-    }
-
-    const threshold = shouldAlert(daysLeft);
-    if (!threshold) continue;
-
-    // Check if we already sent an alert recently
-    if (rc.recoveryDeadlineAlertSentAt) {
-      const lastAlertDate = new Date(rc.recoveryDeadlineAlertSentAt);
-      const daysSinceLastAlert = Math.floor((today.getTime() - lastAlertDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysSinceLastAlert < MIN_DAYS_BETWEEN_ALERTS) continue;
-
-      // Also skip if the last alert was sent when we were at the same or lower threshold
-      const lastDaysLeft = daysUntil(rc.recoveryDeadline) + daysSinceLastAlert;
-      const lastThreshold = shouldAlert(lastDaysLeft);
-      if (lastThreshold === threshold) continue;
-    }
-
-    await sendAlert(rc, daysLeft, urgencyLabel(daysLeft));
-  }
 }
 
 async function sendAlert(rc: any, daysLeft: number, urgency: string): Promise<void> {

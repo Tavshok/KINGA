@@ -47,7 +47,7 @@ describe("Package F cron session compatibility", () => {
     vi.clearAllMocks();
     mocks.jwtVerify.mockResolvedValue({
       payload: {
-        openId: "cron_recovery-deadline-sweep",
+        openId: "cron_intake-escalation",
         appId: "cron-session-test-app",
         name: "Heartbeat",
       },
@@ -58,9 +58,9 @@ describe("Package F cron session compatibility", () => {
     const getUserInfoWithJwt = vi
       .spyOn(sdk, "getUserInfoWithJwt")
       .mockResolvedValue({
-        openId: "cron_recovery-deadline-sweep",
+        openId: "cron_intake-escalation",
         name: "Heartbeat",
-        taskUid: "recovery-deadline-sweep",
+        taskUid: "intake-escalation",
       } as any);
 
     const user = await sdk.authenticateRequest({
@@ -68,9 +68,9 @@ describe("Package F cron session compatibility", () => {
     } as any);
 
     expect(user).toMatchObject({
-      openId: "cron_recovery-deadline-sweep",
+      openId: "cron_intake-escalation",
       isCron: true,
-      taskUid: "recovery-deadline-sweep",
+      taskUid: "intake-escalation",
     });
     expect(getUserInfoWithJwt).toHaveBeenCalledWith("cron-session-token");
     expect(mocks.getUserByOpenId).not.toHaveBeenCalled();

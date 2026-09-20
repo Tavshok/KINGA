@@ -72,3 +72,9 @@ The escalation message was submitted through the authenticated Manus Support mes
 [1]: https://github.com/Tavshok/KINGA/pull/125 "KINGA pull request 125: REC-SEC-02A emergency recovery-sweep default denial"
 [2]: https://kingaai-ybs42lwg.manus.space "KINGA public production domain"
 [3]: https://help.manus.im "Manus Help Center"
+
+## Supersession note — 20 September 2026
+
+This incident record is retained as historical deployment and security evidence. The owner subsequently approved source retirement of the recovery-deadline sweep because there is effectively no real recovery-case volume. The route registration, temporary REC-SEC-02A denial handler, startup timer, and global scanner were deleted together. Post-retirement source verification must therefore expect ordinary Express `404` fall-through for the absent path, not a route-owned REC-SEC-02A response. Historical production-binding findings and probes remain evidence of the state observed on 19 September; this source change makes no deployment, maintenance-setting, credential, or external-schedule change.
+
+The update-triggered single-case deadline check and manual Recovery Portal deadline/status visibility remain. Any later proactive automation must be rebuilt as a real feature using the REC-SEC-02 fencing, lease, and durable outbox design rather than reviving this temporary route.

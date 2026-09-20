@@ -68,3 +68,9 @@ The submission requests diagnosis and a safe binding repair only. It does not au
 [1]: /home/ubuntu/kinga-replit/audit/rec-sec-self-service-investigation-2026-09-19.md "REC-SEC self-service deployment and route reconciliation"
 [2]: https://github.com/Tavshok/KINGA/pull/125 "REC-SEC-02A emergency recovery-sweep default-deny pull request"
 [3]: https://github.com/Tavshok/KINGA/pull/126 "Deployment verification marker pull request"
+
+## Recovery-route supersession note — 20 September 2026
+
+This submitted escalation remains historical evidence of the 19 September production-binding concern; its original request and status have not been rewritten. The route-remediation portion is superseded by the owner's later product/security decision to retire the recovery-deadline sweep source registration, temporary REC-SEC-02A handler, startup timer, and global scanner. Once this source package is deployed through a separately authorized release, the removed path is expected to use ordinary Express `404` fall-through rather than the temporary route-owned denial described above.
+
+This retirement does not resolve, withdraw, or alter any broader platform deployment-binding question, and it makes no deployment, maintenance, credential, database, or schedule change. The retained update-triggered single-case check and manual Recovery Portal visibility do not replace proactive threshold and lapsed-case discovery. Any future automation must be approved as a real feature and use the REC-SEC-02 fencing, lease, and durable outbox pattern.
