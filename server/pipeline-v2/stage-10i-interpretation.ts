@@ -533,6 +533,18 @@ function extractCGIFindings(cgi: Stage9_5Output): InterpretedFinding[] {
 
   // Overall CGI verdict
   const verdict = cgi.conclusion?.verdict ?? null;
+  if (!cgi.available || verdict === "UNAVAILABLE") {
+    const reason = cgi.unavailableReason ?? "Contact geometry could not be assessed because the required quantitative inputs were unavailable.";
+    return [{
+      label: "Geometry Coherence Verdict",
+      value: "UNAVAILABLE",
+      classification: "UNAVAILABLE",
+      interpretation: `Contact geometry was not assessed. ${reason}`,
+      businessImpact: "No geometry coherence conclusion was made and no geometry-based fraud or hidden-damage signal should be used for this claim.",
+      recommendedAction: "Request the missing calibrated geometry evidence or rerun the physics analysis before relying on contact-geometry conclusions.",
+      sourceEngine: "CGI",
+    }];
+  }
   findings.push({
     label: "Geometry Coherence Verdict",
     value: verdict ?? "N/A",

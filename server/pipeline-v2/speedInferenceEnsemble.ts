@@ -813,7 +813,8 @@ export interface EnsembleInput {
   bodyType: string | null | undefined;
   collisionDirection: string | null | undefined;
   documentCrushDepthM: number | null | undefined;
-  inferredCrushDepthM: number;
+  /** Optional legacy inference input; callers may withhold it rather than fabricate zero. */
+  inferredCrushDepthM: number | null | undefined;
   visionCrushDepthM: number | null | undefined;
   totalDamageAreaM2: number | null | undefined;
   partsCostUsd: number | null | undefined;
@@ -845,7 +846,11 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
   // M1 crush depth priority: document > vision > inferred
   const m1HasDocument = !!(documentCrushDepthM && documentCrushDepthM >= 0.04);
   const m1HasVision   = !!(visionCrushDepthM && visionCrushDepthM >= 0.04);
-  const m1CrushDepth  = m1HasDocument ? documentCrushDepthM! : m1HasVision ? visionCrushDepthM! : inferredCrushDepthM;
+  const m1CrushDepth  = m1HasDocument
+    ? documentCrushDepthM!
+    : m1HasVision
+      ? visionCrushDepthM!
+      : inferredCrushDepthM ?? 0;
   const m1DepthSource: 'document' | 'vision' | 'inferred' =
     m1HasDocument ? 'document' : m1HasVision ? 'vision' : 'inferred';
 

@@ -113,7 +113,7 @@ function buildDamageSection(damageAnalysis: Stage6Output | null, claimRecord: Cl
   };
 }
 
-function buildPhysicsSection(physicsAnalysis: Stage7Output | null, ctx?: PipelineContext): ReportSection {
+export function buildPhysicsSection(physicsAnalysis: Stage7Output | null, ctx?: PipelineContext): ReportSection {
   if (!physicsAnalysis) {
     return {
       title: "Physics Reconstruction",
@@ -122,9 +122,21 @@ function buildPhysicsSection(physicsAnalysis: Stage7Output | null, ctx?: Pipelin
   }
 
   if (!physicsAnalysis.physicsExecuted) {
+    const unavailablePhysics = physicsAnalysis.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY' || physicsAnalysis.physicsStatus === 'SKIPPED_ENGINE_FAILURE';
+    const geometryUnavailable = physicsAnalysis.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY';
+    const note = geometryUnavailable
+      ? 'Collision physics requires review because no qualifying VGE/VGR calibrated geometry was available. Raw visual estimates were retained as descriptive evidence only and were not used for force, energy, or speed calculations.'
+      : physicsAnalysis.physicsStatus === 'SKIPPED_ENGINE_FAILURE'
+        ? 'Collision physics requires review because the engine did not complete. No numerical fallback was produced; rerun the analysis using the qualified calibrated geometry.'
+        : 'Physics analysis was not applicable for this incident type.';
     return {
       title: "Physics Reconstruction",
-      content: { available: true, executed: false, note: "Physics analysis was not applicable for this incident type." },
+      content: {
+        available: !unavailablePhysics,
+        executed: false,
+        reviewRequired: unavailablePhysics,
+        note,
+      },
     };
   }
 
@@ -540,7 +552,13 @@ export async function runReportGenerationStage(
     // Track which sections are degraded
     const unavailableSections: string[] = [];
     if (!damageAnalysis) unavailableSections.push("Damage Analysis");
-    if (!physicsAnalysis) unavailableSections.push("Physics Reconstruction");
+    if (
+      !physicsAnalysis ||
+      physicsAnalysis.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY' ||
+      physicsAnalysis.physicsStatus === 'SKIPPED_ENGINE_FAILURE'
+    ) {
+      unavailableSections.push("Physics Reconstruction");
+    }
     if (!fraudAnalysis) unavailableSections.push("Fraud Risk Indicators");
     if (!costAnalysis) unavailableSections.push("Cost Optimisation");
     if (!turnaroundAnalysis) unavailableSections.push("Turnaround Time");
@@ -585,6 +603,16 @@ export async function runReportGenerationStage(
           ? "Physics Reconstruction is unavailable because vehicle speed was not extracted from the claim form. " +
             "If the form contains a handwritten speed value, the OCR may have missed it."
           : "Physics Reconstruction did not complete successfully."
+      );
+    } else if (physicsAnalysis.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY') {
+      degradationReasons.push(
+        "Physics Reconstruction requires review because no qualifying calibrated vehicle geometry was available. " +
+          "Request suitable vehicle images showing at least two independent, undamaged stored-dimension references."
+      );
+    } else if (physicsAnalysis.physicsStatus === 'SKIPPED_ENGINE_FAILURE') {
+      degradationReasons.push(
+        "Physics Reconstruction requires review because the physics engine did not complete. " +
+          "No numerical fallback was produced; rerun the analysis using the qualified calibrated geometry."
       );
     }
     if (!fraudAnalysis) {

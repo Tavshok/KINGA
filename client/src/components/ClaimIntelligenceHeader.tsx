@@ -31,7 +31,7 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type OverallClassification = "CRITICAL" | "CONCERN" | "ATTENTION" | "NORMAL" | null;
-type CGIVerdict = "COHERENT" | "ANOMALOUS" | "INCOHERENT" | null;
+type CGIVerdict = "COHERENT" | "ANOMALOUS" | "INCOHERENT" | "UNAVAILABLE" | null;
 
 interface InterpretedClaim {
   overallClassification?: OverallClassification;
@@ -117,6 +117,8 @@ function cgiVerdictStyle(v: CGIVerdict) {
       return { bg: "#FDF6EC", border: "#F5DFA0", text: "#8A5C00", label: "Geometry Anomalous" };
     case "COHERENT":
       return { bg: "#F0F7F2", border: "#C8E0CE", text: "#3C7844", label: "Geometry Coherent" };
+    case "UNAVAILABLE":
+      return { bg: "#F9FAFB", border: "#E5E7EB", text: "#6B7280", label: "Geometry Unavailable" };
     default:
       return null;
   }

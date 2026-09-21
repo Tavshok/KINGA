@@ -88,6 +88,23 @@ export interface VGRConsensusResult {
   failureReason?: string;
 }
 
+/**
+ * Returns true only for a cross-image VGR consensus that may enter governing
+ * collision physics. A single image remains a VGE result, not a VGR consensus.
+ */
+export function isQualifiedVgrCalibratedGeometry(
+  result: VGRConsensusResult | null | undefined
+): result is VGRConsensusResult & { consensusCrushDepthM: number } {
+  return Boolean(
+    result?.reconciliationAvailable &&
+      Number.isFinite(result.consensusCrushDepthM) &&
+      result.consensusCrushDepthM! > 0 &&
+      (result.confidenceLevel === "HIGH" || result.confidenceLevel === "MEDIUM") &&
+      result.agreementAssessment.contributingImages >= 2 &&
+      result.imageEntries.filter((entry) => entry.contributesToConsensus).length >= 2
+  );
+}
+
 // ── View angle weights ────────────────────────────────────────────────────────
 
 const VIEW_ANGLE_WEIGHTS: Record<ViewAngle, number> = {
@@ -280,7 +297,7 @@ export function runVGRReconciliation(
     }
 
     const contributing = entries.filter(e => e.contributesToConsensus);
-    if (contributing.length === 0) {
+    if (contributing.length < 2) {
       return {
         reconciliationAvailable: false,
         consensusCrushDepthM: null,
@@ -294,14 +311,16 @@ export function runVGRReconciliation(
         unknownAngleImages: unknownCount,
         imageEntries: entries,
         agreementAssessment: {
-          contributingImages: 0,
+          contributingImages: contributing.length,
           spreadMm: 0,
           spreadPct: 0,
           withinUncertaintyBounds: true,
           convergenceAdjustment: 0,
           agreementLevel: "STRONG",
         },
-        failureReason: "All calibrated images had insufficient effective weight for consensus",
+        failureReason: contributing.length === 0
+          ? "All calibrated images had insufficient effective weight for consensus"
+          : "At least two qualified VGE images are required before cross-image reconciliation can produce a consensus",
       };
     }
 
