@@ -1,0 +1,55 @@
+{
+  "decision": "CB-2 independent authenticated read-only conformance re-check",
+  "timestampUtc": "2026-09-21T13:30:53.793Z",
+  "boundary": {
+    "target": "KINGA-staging",
+    "database": "kinga_staging",
+    "verifierRole": "kinga_verify",
+    "queryPolicy": "hard-coded SELECT and SHOW statements against server and information_schema metadata only; no application-table reads, DDL, DML, seed, migration, credential, or grant action",
+    "excludedMechanisms": [
+      "scripts/db-push.mjs",
+      "unreviewed direct DATABASE_URL runners"
+    ]
+  },
+  "identity": {
+    "database": "kinga_staging",
+    "version": "8.0.11-TiDB-v8.5.3-serverless",
+    "currentUser": "kinga_verify@<redacted>",
+    "sessionUser": "kinga_verify@<redacted>"
+  },
+  "transport": {
+    "clientTlsEncrypted": true,
+    "tlsProtocol": "TLSv1.3",
+    "tlsCipher": "TLS_AES_128_GCM_SHA256",
+    "serverSslStatus": {
+      "Ssl_cipher": "TLS_AES_128_GCM_SHA256",
+      "Ssl_version": "TLSv1.3"
+    }
+  },
+  "grants": [
+    "GRANT USAGE ON *.* TO kinga_verify@<redacted>",
+    "GRANT SELECT ON `kinga_staging`.* TO kinga_verify@<redacted>"
+  ],
+  "inventory": {
+    "targetTableCount": 188,
+    "targetInventorySha256": "36b26b9ee7dcbc0f1883f31db0a06840f5fd247cf8958f8e23f3d608c4bb52b5",
+    "gateDTableCount": 188,
+    "gateDInventorySha256": "36b26b9ee7dcbc0f1883f31db0a06840f5fd247cf8958f8e23f3d608c4bb52b5",
+    "exactGateDMatch": true,
+    "missingFromTarget": [],
+    "unexpectedOnTarget": []
+  },
+  "anchorSchema": {
+    "anchorMetadataSha256": "e9f120a0c10fd1e8a6b2adc1d9467613c3889babd982c0ca32afc9333c3736e9",
+    "previousPreflightAnchorMetadataSha256": "e9f120a0c10fd1e8a6b2adc1d9467613c3889babd982c0ca32afc9333c3736e9",
+    "matchesPreviousPreflight": true,
+    "requiredPresent": true,
+    "deferredGeometryAbsent": true,
+    "drizzleLedgerAbsent": true
+  },
+  "controls": {
+    "tlsConfirmed": true,
+    "onlyReadGrantSurface": true,
+    "conformancePassed": true
+  }
+}
