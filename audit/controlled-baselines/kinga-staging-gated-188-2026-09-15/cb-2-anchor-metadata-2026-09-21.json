@@ -1,0 +1,3549 @@
+{
+  "tables": [
+    {
+      "TABLE_NAME": "ai_assessments",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "TABLE_TYPE": "BASE TABLE",
+      "ENGINE": "InnoDB",
+      "TABLE_COLLATION": "utf8mb4_bin"
+    }
+  ],
+  "columns": [
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "completeness_score",
+      "ORDINAL_POSITION": 10,
+      "COLUMN_TYPE": "decimal(4,3)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0.000",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "COLUMN_NAME": "base_reliability",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "decimal(4,3)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0.750",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "confidence",
+      "ORDINAL_POSITION": 13,
+      "COLUMN_TYPE": "decimal(4,3)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0.900",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "COLUMN_NAME": "confidence",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "decimal(4,3)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0.900",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "ai_analysis_approved",
+      "ORDINAL_POSITION": 22,
+      "COLUMN_TYPE": "tinyint",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "assumption_count",
+      "ORDINAL_POSITION": 16,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "completed_inspections",
+      "ORDINAL_POSITION": 12,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "component_count",
+      "ORDINAL_POSITION": 13,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "cost_is_agreed",
+      "ORDINAL_POSITION": 17,
+      "COLUMN_TYPE": "tinyint",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "human_override",
+      "ORDINAL_POSITION": 83,
+      "COLUMN_TYPE": "tinyint",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "image_analysis_failed_count",
+      "ORDINAL_POSITION": 71,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "image_analysis_success_count",
+      "ORDINAL_POSITION": 70,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "image_analysis_total_count",
+      "ORDINAL_POSITION": 69,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "is_degraded",
+      "ORDINAL_POSITION": 9,
+      "COLUMN_TYPE": "tinyint",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "is_reanalysis",
+      "ORDINAL_POSITION": 25,
+      "COLUMN_TYPE": "tinyint",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "is_rerun",
+      "ORDINAL_POSITION": 8,
+      "COLUMN_TYPE": "tinyint",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "is_timeout",
+      "ORDINAL_POSITION": 10,
+      "COLUMN_TYPE": "tinyint",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "ocr_fallback_used",
+      "ORDINAL_POSITION": 87,
+      "COLUMN_TYPE": "tinyint",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "physics_reconciled",
+      "ORDINAL_POSITION": 23,
+      "COLUMN_TYPE": "tinyint",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "quote_coverage_ratio_pct",
+      "ORDINAL_POSITION": 18,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "recovery_action_count",
+      "ORDINAL_POSITION": 17,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "stage_index",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "stages_completed",
+      "ORDINAL_POSITION": 9,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "stages_degraded",
+      "ORDINAL_POSITION": 11,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "stages_failed",
+      "ORDINAL_POSITION": 10,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "structural_component_count",
+      "ORDINAL_POSITION": 14,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "total_inspections",
+      "ORDINAL_POSITION": 11,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "total_loss_indicated",
+      "ORDINAL_POSITION": 16,
+      "COLUMN_TYPE": "tinyint",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "version_number",
+      "ORDINAL_POSITION": 30,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "1",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "COLUMN_NAME": "tier",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "2",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "evidence_quality",
+      "ORDINAL_POSITION": 10,
+      "COLUMN_TYPE": "enum('verified','accepted_quote','assessor_validated','review_required')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "accepted_quote",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "project_status",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "enum('active','completed','on_hold','cancelled')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "active",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "captured_at",
+      "ORDINAL_POSITION": 15,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "created_at",
+      "ORDINAL_POSITION": 14,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "created_at",
+      "ORDINAL_POSITION": 15,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "created_at",
+      "ORDINAL_POSITION": 20,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "created_at",
+      "ORDINAL_POSITION": 24,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "created_at",
+      "ORDINAL_POSITION": 25,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "created_at",
+      "ORDINAL_POSITION": 29,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "COLUMN_NAME": "created_at",
+      "ORDINAL_POSITION": 10,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "created_at",
+      "ORDINAL_POSITION": 12,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "created_at",
+      "ORDINAL_POSITION": 23,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "recorded_at",
+      "ORDINAL_POSITION": 23,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "started_at",
+      "ORDINAL_POSITION": 14,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "started_at",
+      "ORDINAL_POSITION": 18,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "updated_at",
+      "ORDINAL_POSITION": 15,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "updated_at",
+      "ORDINAL_POSITION": 16,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "updated_at",
+      "ORDINAL_POSITION": 21,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "updated_at",
+      "ORDINAL_POSITION": 26,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "updated_at",
+      "ORDINAL_POSITION": 30,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "updated_at",
+      "ORDINAL_POSITION": 13,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "updated_at",
+      "ORDINAL_POSITION": 24,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "market_region",
+      "ORDINAL_POSITION": 11,
+      "COLUMN_TYPE": "varchar(10)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "DEFAULT",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "source",
+      "ORDINAL_POSITION": 16,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "ENGINEER_MEASUREMENT",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "component_detail_json",
+      "ORDINAL_POSITION": 21,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "json_array()",
+      "EXTRA": "DEFAULT_GENERATED"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "high_cost_drivers_json",
+      "ORDINAL_POSITION": 19,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "json_array()",
+      "EXTRA": "DEFAULT_GENERATED"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "quality_flags_json",
+      "ORDINAL_POSITION": 22,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "json_array()",
+      "EXTRA": "DEFAULT_GENERATED"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "component_weighting_json",
+      "ORDINAL_POSITION": 20,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "json_object()",
+      "EXTRA": "DEFAULT_GENERATED"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "confidence",
+      "ORDINAL_POSITION": 18,
+      "COLUMN_TYPE": "enum('HIGH','MEDIUM','LOW')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "LOW",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "measurement_method",
+      "ORDINAL_POSITION": 11,
+      "COLUMN_TYPE": "enum('manual','laser','ai_assisted','imported','photogrammetric','ultrasonic','thermal','load_cell','other')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "manual",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "COLUMN_NAME": "unit",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "varchar(20)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "mm",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "COLUMN_NAME": "unit",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "varchar(20)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "mm",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "structural_damage_severity",
+      "ORDINAL_POSITION": 17,
+      "COLUMN_TYPE": "enum('none','minor','moderate','severe','catastrophic')",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "none",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "validation_status",
+      "ORDINAL_POSITION": 21,
+      "COLUMN_TYPE": "varchar(30)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "pending",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "status",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "enum('running','completed','failed','partial')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "running",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "status",
+      "ORDINAL_POSITION": 8,
+      "COLUMN_TYPE": "enum('running','completed','failed','skipped','degraded')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "running",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "status",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "enum('scheduled','assigned','in_progress','evidence_capture','measurements_complete','observations_complete','ai_analysis','engineer_review','physics_reconciliation','report_generation','complete','cancelled')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "scheduled",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "currency_code",
+      "ORDINAL_POSITION": 35,
+      "COLUMN_TYPE": "varchar(10)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "USD",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "currency",
+      "ORDINAL_POSITION": 15,
+      "COLUMN_TYPE": "varchar(10)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "USD",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "model_version",
+      "ORDINAL_POSITION": 19,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "v1.0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "actual_damage_zone",
+      "ORDINAL_POSITION": 14,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "actual_repair_cost_local",
+      "ORDINAL_POSITION": 13,
+      "COLUMN_TYPE": "decimal(12,2)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "actual_settlement_amount",
+      "ORDINAL_POSITION": 15,
+      "COLUMN_TYPE": "decimal(12,2)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "actual_speed_kmh",
+      "ORDINAL_POSITION": 12,
+      "COLUMN_TYPE": "decimal(6,2)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "adjuster_override_reason",
+      "ORDINAL_POSITION": 16,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "ai_analysis_at",
+      "ORDINAL_POSITION": 21,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "ai_analysis_json",
+      "ORDINAL_POSITION": 20,
+      "COLUMN_TYPE": "json",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "assessment_id",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "asset_ref",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "asset_registry_id",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "asset_type",
+      "ORDINAL_POSITION": 8,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "assigned_at",
+      "ORDINAL_POSITION": 13,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "assigned_engineer_id",
+      "ORDINAL_POSITION": 12,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "assumption_registry_json",
+      "ORDINAL_POSITION": 75,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "benchmark_bundle_json",
+      "ORDINAL_POSITION": 52,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "body_type",
+      "ORDINAL_POSITION": 8,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "body_type",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "varchar(60)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "calibration_feedback_json",
+      "ORDINAL_POSITION": 20,
+      "COLUMN_TYPE": "json",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "calibration_reference",
+      "ORDINAL_POSITION": 12,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "captured_by",
+      "ORDINAL_POSITION": 14,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "case_signature_json",
+      "ORDINAL_POSITION": 57,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "case_signature",
+      "ORDINAL_POSITION": 12,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "category",
+      "ORDINAL_POSITION": 11,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "causal_chain_json",
+      "ORDINAL_POSITION": 49,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "causal_verdict_json",
+      "ORDINAL_POSITION": 54,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "cgi_result_json",
+      "ORDINAL_POSITION": 101,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "claim_id",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "claim_id",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "claim_id",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "claim_id",
+      "ORDINAL_POSITION": 10,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "claim_id",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "claim_id",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "claim_quality_json",
+      "ORDINAL_POSITION": 80,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "claim_record_json",
+      "ORDINAL_POSITION": 65,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "claim_truth_json",
+      "ORDINAL_POSITION": 90,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "claim_truth_object_json",
+      "ORDINAL_POSITION": 91,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "client_name",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "COLUMN_NAME": "code",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "varchar(80)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "coherence_result_json",
+      "ORDINAL_POSITION": 47,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "collision_direction",
+      "ORDINAL_POSITION": 10,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "completed_at",
+      "ORDINAL_POSITION": 10,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "completed_at",
+      "ORDINAL_POSITION": 15,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "completed_at",
+      "ORDINAL_POSITION": 18,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "completed_at",
+      "ORDINAL_POSITION": 19,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "component_id",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "confidence_score_breakdown_json",
+      "ORDINAL_POSITION": 41,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "confidence_score",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "consensus_result_json",
+      "ORDINAL_POSITION": 53,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "consistency_check_json",
+      "ORDINAL_POSITION": 46,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "constraint_overrides_json",
+      "ORDINAL_POSITION": 55,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "contradiction_gate_json",
+      "ORDINAL_POSITION": 59,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "cost_deviation_pct",
+      "ORDINAL_POSITION": 18,
+      "COLUMN_TYPE": "decimal(7,3)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "cost_intelligence_json",
+      "ORDINAL_POSITION": 39,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "cost_realism_json",
+      "ORDINAL_POSITION": 48,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "created_by",
+      "ORDINAL_POSITION": 14,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "created_by",
+      "ORDINAL_POSITION": 28,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "cross_validation_json",
+      "ORDINAL_POSITION": 68,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "currency_code",
+      "ORDINAL_POSITION": 9,
+      "COLUMN_TYPE": "varchar(10)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "damage_description",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "damage_photos_json",
+      "ORDINAL_POSITION": 40,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "damaged_components_json",
+      "ORDINAL_POSITION": 21,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "decision_authority_json",
+      "ORDINAL_POSITION": 58,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "decision_readiness_json",
+      "ORDINAL_POSITION": 97,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "decision_trace_json",
+      "ORDINAL_POSITION": 63,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "degradation_reasons_json",
+      "ORDINAL_POSITION": 98,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "description",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "COLUMN_NAME": "description",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "detected_damage_types",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "direction_contradiction_flag_json",
+      "ORDINAL_POSITION": 67,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "COLUMN_NAME": "display_name",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "varchar(120)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "doe_result_json",
+      "ORDINAL_POSITION": 78,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "duration_minutes",
+      "ORDINAL_POSITION": 19,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "duration_ms",
+      "ORDINAL_POSITION": 12,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "economic_context_json",
+      "ORDINAL_POSITION": 76,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "enriched_photos_json",
+      "ORDINAL_POSITION": 43,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "error_message",
+      "ORDINAL_POSITION": 11,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "escalation_route_json",
+      "ORDINAL_POSITION": 62,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "estimated_cost",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "estimated_labor_cost",
+      "ORDINAL_POSITION": 34,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "estimated_parts_cost",
+      "ORDINAL_POSITION": 33,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "estimated_vehicle_value",
+      "ORDINAL_POSITION": 18,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "evidence_bundle_json",
+      "ORDINAL_POSITION": 50,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "evidence_document_ids",
+      "ORDINAL_POSITION": 17,
+      "COLUMN_TYPE": "json",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "evidence_registry_json",
+      "ORDINAL_POSITION": 94,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "explanation_json",
+      "ORDINAL_POSITION": 61,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "fcdi_score",
+      "ORDINAL_POSITION": 73,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "fel_version_snapshot_json",
+      "ORDINAL_POSITION": 79,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "field_validation_json",
+      "ORDINAL_POSITION": 99,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "final_cost_usd_cents",
+      "ORDINAL_POSITION": 16,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "forensic_analysis",
+      "ORDINAL_POSITION": 32,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "forensic_audit_validation_json",
+      "ORDINAL_POSITION": 81,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "forensic_execution_ledger_json",
+      "ORDINAL_POSITION": 74,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "fraud_indicators",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "fraud_risk_level",
+      "ORDINAL_POSITION": 8,
+      "COLUMN_TYPE": "enum('low','medium','moderate','high','critical','elevated')",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "fraud_score_breakdown_json",
+      "ORDINAL_POSITION": 11,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "fraud_score",
+      "ORDINAL_POSITION": 9,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "gate_decision_json",
+      "ORDINAL_POSITION": 100,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "generation",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "graph_urls",
+      "ORDINAL_POSITION": 23,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "human_override_at",
+      "ORDINAL_POSITION": 86,
+      "COLUMN_TYPE": "bigint",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "human_override_reason",
+      "ORDINAL_POSITION": 85,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "human_override_user_id",
+      "ORDINAL_POSITION": 84,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "id",
+      "ORDINAL_POSITION": 1,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "ife_result_json",
+      "ORDINAL_POSITION": 77,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "image_analysis_success_rate",
+      "ORDINAL_POSITION": 72,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "inferred_hidden_damages_json",
+      "ORDINAL_POSITION": 36,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "inspection_id",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "inspection_ref",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "inspection_type",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "enum('vehicle','engineering','risk_survey','fleet','property','equipment','industrial')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "instrument",
+      "ORDINAL_POSITION": 10,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "integrity_score",
+      "ORDINAL_POSITION": 11,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "interpretation_result_json",
+      "ORDINAL_POSITION": 102,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "intervention_summary_json",
+      "ORDINAL_POSITION": 96,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "lead_engineer_id",
+      "ORDINAL_POSITION": 13,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "llm_model",
+      "ORDINAL_POSITION": 15,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "llm_tokens_input",
+      "ORDINAL_POSITION": 13,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "llm_tokens_output",
+      "ORDINAL_POSITION": 14,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "location_address",
+      "ORDINAL_POSITION": 15,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "location_image_url",
+      "ORDINAL_POSITION": 19,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "location_lat",
+      "ORDINAL_POSITION": 16,
+      "COLUMN_TYPE": "decimal(10,7)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "location_lng",
+      "ORDINAL_POSITION": 17,
+      "COLUMN_TYPE": "decimal(10,7)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "location_reference",
+      "ORDINAL_POSITION": 18,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "manufacturer",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "market_region",
+      "ORDINAL_POSITION": 9,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "market_region",
+      "ORDINAL_POSITION": 8,
+      "COLUMN_TYPE": "varchar(20)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "max_cost",
+      "ORDINAL_POSITION": 17,
+      "COLUMN_TYPE": "double",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "measurement_category",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "enum('vehicle_crush','structural','mechanical','electrical','fire_protection','industrial')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "measurement_type",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "COLUMN_NAME": "measurement_type",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "varchar(80)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "median",
+      "ORDINAL_POSITION": 14,
+      "COLUMN_TYPE": "double",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "min_cost",
+      "ORDINAL_POSITION": 16,
+      "COLUMN_TYPE": "double",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "model_version",
+      "ORDINAL_POSITION": 12,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "model",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "n",
+      "ORDINAL_POSITION": 12,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "narrative_analysis_json",
+      "ORDINAL_POSITION": 66,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "notes",
+      "ORDINAL_POSITION": 24,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "p25",
+      "ORDINAL_POSITION": 13,
+      "COLUMN_TYPE": "double",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "p75",
+      "ORDINAL_POSITION": 15,
+      "COLUMN_TYPE": "double",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "parts_reconciliation_json",
+      "ORDINAL_POSITION": 38,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "photo_classification_json",
+      "ORDINAL_POSITION": 89,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "photo_inconsistencies_json",
+      "ORDINAL_POSITION": 45,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "physics_analysis",
+      "ORDINAL_POSITION": 22,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "physics_deviation_score",
+      "ORDINAL_POSITION": 31,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "physics_reconciled_at",
+      "ORDINAL_POSITION": 24,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "physics_truth_json",
+      "ORDINAL_POSITION": 92,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "pipeline_degraded_stages_json",
+      "ORDINAL_POSITION": 88,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "pipeline_run_summary",
+      "ORDINAL_POSITION": 42,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "predicted_crush_depth_mm",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "decimal(7,2)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "predicted_delta_v_kmh",
+      "ORDINAL_POSITION": 9,
+      "COLUMN_TYPE": "decimal(6,2)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "predicted_repair_cost_local",
+      "ORDINAL_POSITION": 8,
+      "COLUMN_TYPE": "decimal(12,2)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "predicted_speed_high_kmh",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "decimal(6,2)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "predicted_speed_kmh",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "decimal(6,2)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "predicted_speed_low_kmh",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "decimal(6,2)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "previous_assessment_id",
+      "ORDINAL_POSITION": 28,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "processing_time",
+      "ORDINAL_POSITION": 13,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "profile_cache_json",
+      "ORDINAL_POSITION": 11,
+      "COLUMN_TYPE": "json",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "project_id",
+      "ORDINAL_POSITION": 11,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "project_name",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "project_ref",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "realism_bundle_json",
+      "ORDINAL_POSITION": 51,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "reanalysis_reason",
+      "ORDINAL_POSITION": 29,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "recommendation",
+      "ORDINAL_POSITION": 10,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "reconciliation_notes",
+      "ORDINAL_POSITION": 25,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "repair_intelligence_json",
+      "ORDINAL_POSITION": 37,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "repair_to_value_ratio",
+      "ORDINAL_POSITION": 19,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "report_id",
+      "ORDINAL_POSITION": 27,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "report_key",
+      "ORDINAL_POSITION": 26,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "report_readiness_json",
+      "ORDINAL_POSITION": 60,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "report_signals_json",
+      "ORDINAL_POSITION": 93,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "result_json",
+      "ORDINAL_POSITION": 20,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "run_id",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "varchar(64)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "run_id",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "varchar(64)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "scheduled_date",
+      "ORDINAL_POSITION": 14,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "shared_with_roles_json",
+      "ORDINAL_POSITION": 82,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "COLUMN_NAME": "source_reference",
+      "ORDINAL_POSITION": 8,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "COLUMN_NAME": "source_type",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "varchar(80)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "speed_deviation_pct",
+      "ORDINAL_POSITION": 17,
+      "COLUMN_TYPE": "decimal(7,3)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "speed_within_ci",
+      "ORDINAL_POSITION": 19,
+      "COLUMN_TYPE": "tinyint",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "stage_id",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "stage_label",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "stage2_raw_ocr_text",
+      "ORDINAL_POSITION": 64,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "standards_body",
+      "ORDINAL_POSITION": 20,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "standards_clause",
+      "ORDINAL_POSITION": 22,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "standards_code",
+      "ORDINAL_POSITION": 21,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "standards_description",
+      "ORDINAL_POSITION": 23,
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "start_date",
+      "ORDINAL_POSITION": 8,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "system_intervention_count",
+      "ORDINAL_POSITION": 95,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "target_end_date",
+      "ORDINAL_POSITION": 9,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "tenant_id",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "tenant_id",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "COLUMN_NAME": "tenant_id",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "tenant_id",
+      "ORDINAL_POSITION": 24,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "tenant_id",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "tenant_id",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "COLUMN_NAME": "tenant_id",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "total_duration_ms",
+      "ORDINAL_POSITION": 12,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "total_llm_tokens",
+      "ORDINAL_POSITION": 13,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "total_loss_reasoning",
+      "ORDINAL_POSITION": 20,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "trigger_reason",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "triggered_by",
+      "ORDINAL_POSITION": 26,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "COLUMN_NAME": "triggered_by",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "triggered_role",
+      "ORDINAL_POSITION": 27,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "uncertainty_grade",
+      "ORDINAL_POSITION": 10,
+      "COLUMN_TYPE": "varchar(1)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "unit",
+      "ORDINAL_POSITION": 9,
+      "COLUMN_TYPE": "varchar(30)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "unresolved_parts_json",
+      "ORDINAL_POSITION": 44,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "COLUMN_NAME": "validated_at",
+      "ORDINAL_POSITION": 22,
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "COLUMN_NAME": "validated_outcome_json",
+      "ORDINAL_POSITION": 56,
+      "COLUMN_TYPE": "longtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "value_max",
+      "ORDINAL_POSITION": 8,
+      "COLUMN_TYPE": "decimal(15,4)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "value_min",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "decimal(15,4)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "COLUMN_NAME": "value_mm",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "decimal(10,2)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "COLUMN_NAME": "value",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "decimal(15,4)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "variant",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "vehicle_body_type",
+      "ORDINAL_POSITION": 9,
+      "COLUMN_TYPE": "varchar(60)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "vehicle_descriptor",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "varchar(255)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "vehicle_make",
+      "ORDINAL_POSITION": 3,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "vehicle_make",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "COLUMN_NAME": "vehicle_model_id",
+      "ORDINAL_POSITION": 2,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "vehicle_model",
+      "ORDINAL_POSITION": 4,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "vehicle_model",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "COLUMN_NAME": "vehicle_registration",
+      "ORDINAL_POSITION": 9,
+      "COLUMN_TYPE": "varchar(50)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "vehicle_variant",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "vehicle_variant",
+      "ORDINAL_POSITION": 8,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "COLUMN_NAME": "vehicle_year",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "COLUMN_NAME": "verified_by",
+      "ORDINAL_POSITION": 9,
+      "COLUMN_TYPE": "varchar(100)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "COLUMN_NAME": "year_band",
+      "ORDINAL_POSITION": 5,
+      "COLUMN_TYPE": "varchar(20)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "year_from",
+      "ORDINAL_POSITION": 6,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "COLUMN_NAME": "year_to",
+      "ORDINAL_POSITION": 7,
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": null,
+      "EXTRA": ""
+    }
+  ],
+  "indexes": [
+    {
+      "TABLE_NAME": "inspections",
+      "INDEX_NAME": "idx_inspections_asset",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "asset_registry_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "INDEX_NAME": "idx_inspections_engineer",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "assigned_engineer_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "INDEX_NAME": "idx_pm_captured_at",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "captured_at",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "INDEX_NAME": "idx_pm_captured_by",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "captured_by",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "idx_clr_case_signature",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "case_signature",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "INDEX_NAME": "ai_assessments_claim_id_claims_id_fk",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "claim_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "cost_learning_records_claim_id_claims_id_fk",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "claim_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "INDEX_NAME": "idx_ai_assessments_claim_id",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "claim_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "INDEX_NAME": "idx_ai_claim_confidence",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "claim_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "idx_clr_claim_id",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "claim_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "INDEX_NAME": "idx_inspections_claim",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "claim_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "INDEX_NAME": "idx_pj_claim_id",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "claim_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "INDEX_NAME": "idx_pr_claim_id",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "claim_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "INDEX_NAME": "measurement_types_code_unique",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "code",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "idx_clr_collision_direction",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "collision_direction",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "INDEX_NAME": "idx_cb_component_id",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "component_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "INDEX_NAME": "idx_cb_component_make",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "component_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "INDEX_NAME": "idx_cb_vehicle_precision",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "component_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "INDEX_NAME": "idx_ai_claim_confidence",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 2,
+      "COLUMN_NAME": "confidence_score",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "INDEX_NAME": "idx_cb_market_currency",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 2,
+      "COLUMN_NAME": "currency_code",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "idx_clr_market_currency",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 2,
+      "COLUMN_NAME": "currency",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "INDEX_NAME": "idx_cb_market_currency",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 3,
+      "COLUMN_NAME": "evidence_quality",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "INDEX_NAME": "idx_ai_tenant_fraud",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 2,
+      "COLUMN_NAME": "fraud_risk_level",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "INDEX_NAME": "PRIMARY",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "INDEX_NAME": "idx_pm_inspection",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "inspection_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "INDEX_NAME": "idx_inspections_ref",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "inspection_ref",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "INDEX_NAME": "idx_cb_market_currency",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "market_region",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "idx_clr_market_currency",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "market_region",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "INDEX_NAME": "idx_pm_category",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "measurement_category",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "INDEX_NAME": "idx_inspections_project",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "project_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "idx_clr_recorded_at",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "recorded_at",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "INDEX_NAME": "idx_pj_run_id",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "run_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "INDEX_NAME": "idx_pj_run_stage",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "run_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "INDEX_NAME": "idx_pr_run_id",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "run_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "INDEX_NAME": "idx_pj_run_stage",
+      "NON_UNIQUE": "0",
+      "SEQ_IN_INDEX": 2,
+      "COLUMN_NAME": "stage_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "INDEX_NAME": "idx_pj_stage_id",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "stage_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "INDEX_NAME": "idx_pr_started_at",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "started_at",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "INDEX_NAME": "idx_inspections_status",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "status",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "INDEX_NAME": "idx_pj_status",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "status",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "INDEX_NAME": "idx_pr_status",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "status",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "INDEX_NAME": "idx_ai_tenant_fraud",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "tenant_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "idx_clr_tenant_id",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "tenant_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "INDEX_NAME": "idx_inspections_tenant",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "tenant_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "INDEX_NAME": "idx_pm_tenant",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "tenant_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "idx_clr_vehicle_descriptor",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "vehicle_descriptor",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "INDEX_NAME": "idx_cb_component_make",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 2,
+      "COLUMN_NAME": "vehicle_make",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "INDEX_NAME": "idx_cb_vehicle_precision",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 2,
+      "COLUMN_NAME": "vehicle_make",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "idx_clr_vehicle_precision",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "vehicle_make",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "INDEX_NAME": "fk_vgm_vehicle_model",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "vehicle_model_id",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "INDEX_NAME": "idx_cb_vehicle_precision",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 3,
+      "COLUMN_NAME": "vehicle_model",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "idx_clr_vehicle_precision",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 2,
+      "COLUMN_NAME": "vehicle_model",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "INDEX_NAME": "idx_inspections_vehicle",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 1,
+      "COLUMN_NAME": "vehicle_registration",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "INDEX_NAME": "idx_clr_vehicle_precision",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 3,
+      "COLUMN_NAME": "vehicle_year",
+      "INDEX_TYPE": "BTREE"
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "INDEX_NAME": "idx_cb_vehicle_precision",
+      "NON_UNIQUE": "1",
+      "SEQ_IN_INDEX": 4,
+      "COLUMN_NAME": "year_band",
+      "INDEX_TYPE": "BTREE"
+    }
+  ],
+  "constraints": [
+    {
+      "TABLE_NAME": "ai_assessments",
+      "CONSTRAINT_NAME": "ai_assessments_claim_id_claims_id_fk",
+      "CONSTRAINT_TYPE": "FOREIGN KEY",
+      "COLUMN_NAME": "claim_id",
+      "REFERENCED_TABLE_NAME": "claims",
+      "REFERENCED_COLUMN_NAME": "id"
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "CONSTRAINT_NAME": "cost_learning_records_claim_id_claims_id_fk",
+      "CONSTRAINT_TYPE": "FOREIGN KEY",
+      "COLUMN_NAME": "claim_id",
+      "REFERENCED_TABLE_NAME": "claims",
+      "REFERENCED_COLUMN_NAME": "id"
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "CONSTRAINT_NAME": "measurement_types_code_unique",
+      "CONSTRAINT_TYPE": "UNIQUE",
+      "COLUMN_NAME": "code",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "ai_assessments",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "component_benchmarks",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "cost_learning_records",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "inspection_projects",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "measurement_types",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "physical_measurements",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "physics_validation_records",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "pipeline_runs",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "vehicle_models",
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY",
+      "COLUMN_NAME": "id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "inspections",
+      "CONSTRAINT_NAME": "idx_inspections_ref",
+      "CONSTRAINT_TYPE": "UNIQUE",
+      "COLUMN_NAME": "inspection_ref",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "CONSTRAINT_NAME": "idx_pj_run_stage",
+      "CONSTRAINT_TYPE": "UNIQUE",
+      "COLUMN_NAME": "run_id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "pipeline_jobs",
+      "CONSTRAINT_NAME": "idx_pj_run_stage",
+      "CONSTRAINT_TYPE": "UNIQUE",
+      "COLUMN_NAME": "stage_id",
+      "REFERENCED_TABLE_NAME": null,
+      "REFERENCED_COLUMN_NAME": null
+    },
+    {
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "CONSTRAINT_NAME": "fk_vgm_vehicle_model",
+      "CONSTRAINT_TYPE": "FOREIGN KEY",
+      "COLUMN_NAME": "vehicle_model_id",
+      "REFERENCED_TABLE_NAME": "vehicle_models",
+      "REFERENCED_COLUMN_NAME": "id"
+    }
+  ],
+  "foreignKeys": [
+    {
+      "CONSTRAINT_NAME": "ai_assessments_claim_id_claims_id_fk",
+      "TABLE_NAME": "ai_assessments",
+      "REFERENCED_TABLE_NAME": "claims",
+      "UPDATE_RULE": "CASCADE",
+      "DELETE_RULE": "CASCADE"
+    },
+    {
+      "CONSTRAINT_NAME": "cost_learning_records_claim_id_claims_id_fk",
+      "TABLE_NAME": "cost_learning_records",
+      "REFERENCED_TABLE_NAME": "claims",
+      "UPDATE_RULE": "CASCADE",
+      "DELETE_RULE": "SET NULL"
+    },
+    {
+      "CONSTRAINT_NAME": "fk_vgm_vehicle_model",
+      "TABLE_NAME": "vehicle_geometry_measurements",
+      "REFERENCED_TABLE_NAME": "vehicle_models",
+      "UPDATE_RULE": "NO ACTION",
+      "DELETE_RULE": "NO ACTION"
+    }
+  ]
+}
