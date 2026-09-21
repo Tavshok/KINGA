@@ -1,7 +1,7 @@
 # VGE Known-Dimension Integrity Correction
 
-**Status:** Source implementation prepared for independent review  
-**Date:** 21 September 2026  
+**Status:** Source implementation prepared for independent review
+**Date:** 21 September 2026
 **Scope:** Stage 6.5A VGE, Stage 6.5B VGR, the Stage 7 calibrated-geometry admission boundary, Physics Truth provenance, CGI hand-off, and the immediately affected report/API status presentation.
 
 ## Purpose and approved boundary
