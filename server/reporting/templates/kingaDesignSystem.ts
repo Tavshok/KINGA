@@ -134,6 +134,7 @@ export const KINGA_REPORT_CSS = `
   .section-tab .flag-right.high{background:#fff; color:var(--red);}
   .section-tab .flag-right.mid{background:rgba(255,255,255,0.9); color:var(--amber);}
   .section-tab .flag-right.ok{background:rgba(255,255,255,0.9); color:var(--green-dark);}
+  .section-tab .flag-right.muted{background:rgba(255,255,255,0.9); color:#475569;}
 
   /* ---- Generic layout helpers ---- */
   .cols-2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}

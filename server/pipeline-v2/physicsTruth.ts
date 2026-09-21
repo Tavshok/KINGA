@@ -42,6 +42,9 @@
  * than acknowledged uncertainty.
  */
 
+import { isQualifiedVgeCalibratedGeometry } from './stage-6-5a-vge';
+import { isQualifiedVgrCalibratedGeometry } from './stage-6-5b-vgr';
+
 // ── Shared measurement wrapper ────────────────────────────────────────────────
 
 export type MeasurementSource =
@@ -424,20 +427,20 @@ export function buildPhysicsTruth(input: {
   const now = new Date().toISOString();
 
   // ── Crush depth: resolve canonical from provenance hierarchy ──────────────
-  const vgrDepthM = input.vgrResult?.consensusCrushDepthM ?? null;
-  const vgrMinM   = input.vgrResult?.consensusCrushDepthMinM ?? null;
-  const vgrMaxM   = input.vgrResult?.consensusCrushDepthMaxM ?? null;
-  const vgrConf   = input.vgrResult?.overallConfidence ?? 0;
+  const qualifiedVgr = isQualifiedVgrCalibratedGeometry(input.vgrResult);
+  const qualifiedVge = isQualifiedVgeCalibratedGeometry(input.vgeResult);
+  const vgrDepthM = qualifiedVgr ? input.vgrResult!.consensusCrushDepthM : null;
+  const vgrMinM   = qualifiedVgr ? input.vgrResult!.consensusCrushDepthMinM : null;
+  const vgrMaxM   = qualifiedVgr ? input.vgrResult!.consensusCrushDepthMaxM : null;
+  const vgrConf   = qualifiedVgr ? input.vgrResult!.overallConfidence : 0;
 
-  const vgeDepthM = input.vgeResult?.calibratedCrushDepthM ?? null;
-  const vgeMinM   = input.vgeResult?.calibratedCrushDepthMinM ?? null;
-  const vgeMaxM   = input.vgeResult?.calibratedCrushDepthMaxM ?? null;
-  const vgeConf   = input.vgeResult?.overallCalibrationConfidence ?? 0;
-
-  const llmDepthM = input.stage6LlmCrushDepthM;
+  const vgeDepthM = qualifiedVge ? input.vgeResult!.calibratedCrushDepthM : null;
+  const vgeMinM   = qualifiedVge ? input.vgeResult!.calibratedCrushDepthMinM : null;
+  const vgeMaxM   = qualifiedVge ? input.vgeResult!.calibratedCrushDepthMaxM : null;
+  const vgeConf   = qualifiedVge ? input.vgeResult!.overallCalibrationConfidence : 0;
 
   let canonicalCrushDepth: OptionalMeasurement = null;
-  let canonicalSourceReason = 'No crush depth measurement available';
+  let canonicalSourceReason = 'No governing crush-depth measurement is available. Supply at least two independent, undamaged stored-dimension references in a qualified vehicle image to produce calibrated geometry.';
 
   if (vgrDepthM != null && vgrMinM != null && vgrMaxM != null && vgrConf > 0) {
     canonicalCrushDepth = {
@@ -459,17 +462,6 @@ export function buildPhysicsTruth(input: {
       provenanceNote: `Single-image photogrammetric calibration. Reference objects: ${(input.vgeResult!.geometryEvidenceBlock.referenceObjectsSummary ?? []).join(', ') || 'none recorded'}.`,
     };
     canonicalSourceReason = 'VGE single-image calibration selected (VGR not available — only one suitable image)';
-  } else if (llmDepthM != null && llmDepthM > 0) {
-    const uncertainty = llmDepthM * 0.35; // ±35% for uncalibrated LLM estimate
-    canonicalCrushDepth = {
-      value: llmDepthM,
-      min: Math.max(0, llmDepthM - uncertainty),
-      max: llmDepthM + uncertainty,
-      confidence: 0.45,
-      source: 'STAGE6_LLM_VISION',
-      provenanceNote: 'Uncalibrated LLM visual estimate from Stage 6 damage analysis. No photogrammetric scale reference available. Uncertainty ±35%.',
-    };
-    canonicalSourceReason = 'LLM visual estimate used (no photogrammetric calibration available — no SUITABLE direct photos or no reference objects detected)';
   }
 
   // ── VGR view angle breakdown ──────────────────────────────────────────────
@@ -532,12 +524,17 @@ export function buildPhysicsTruth(input: {
   }
 
   // ── Evidence completeness ─────────────────────────────────────────────────
-  const calibratedPhotoCount = (input.vgeResult?.perImageResults ?? [])
-    .filter(r => r.scaleAvailable).length;
+  const hasVGECalibration = qualifiedVge;
+  const hasVGRConsensus = qualifiedVgr;
+  // A scaleAvailable image is descriptive until the enclosing VGE/VGR result
+  // satisfies the same governing MEDIUM/HIGH admission predicate. Otherwise a
+  // LOW-confidence scale could inflate the evidence-quality score.
+  const calibratedPhotoCount = hasVGRConsensus
+    ? input.vgrResult!.imageEntries.filter((entry) => entry.contributesToConsensus).length
+    : hasVGECalibration
+      ? (input.vgeResult!.perImageResults ?? []).filter((result) => result.scaleAvailable).length
+      : 0;
   const damagePhotoCount = (input.vgeResult?.perImageResults ?? []).length;
-  const hasVGECalibration = (input.vgeResult?.calibrationAvailable ?? false);
-  const hasVGRConsensus = (input.vgrResult?.reconciliationAvailable ?? false) &&
-    (input.vgrResult?.imageEntries.filter(e => e.contributesToConsensus).length ?? 0) >= 2;
   const hasDeploymentEvidence = input.airbagDeployment || input.seatbeltPretensioner;
   const hasDirectPhotos = damagePhotoCount > 0;
   const hasDocumentStatedDepth = false; // future: detect from claim documents
@@ -546,7 +543,6 @@ export function buildPhysicsTruth(input: {
   let dqs = 0;
   if (hasVGRConsensus)       dqs += 35;
   else if (hasVGECalibration) dqs += 20;
-  else if (llmDepthM != null) dqs += 10;
   if (hasDeploymentEvidence)  dqs += 20;
   if ((ensemble?.methodsRan ?? 0) >= 3) dqs += 25;
   else if ((ensemble?.methodsRan ?? 0) >= 2) dqs += 15;
@@ -558,7 +554,7 @@ export function buildPhysicsTruth(input: {
     ? 'High-quality evidence set — photogrammetric calibration and multiple independent speed methods available.'
     : dqs >= 50
     ? 'Moderate evidence quality — at least one calibrated measurement available. Additional photos would improve precision.'
-    : 'Limited evidence quality — speed estimate relies primarily on severity-anchored inference. Recommend requesting additional damage photographs.';
+    : 'Limited evidence quality — no qualifying calibrated geometry is available. Recommend requesting additional damage photographs.';
 
   // ── Physics integrity checks ──────────────────────────────────────────────
   const integrityFlags: PhysicsIntegrityCheck['flags'] = [];
@@ -674,14 +670,7 @@ export function buildPhysicsTruth(input: {
           source: 'VGE_CALIBRATED',
           provenanceNote: 'VGE single-image calibration.',
         } : null,
-        llmVisionEstimate: llmDepthM != null ? {
-          value: llmDepthM,
-          min: Math.max(0, llmDepthM * 0.65),
-          max: llmDepthM * 1.35,
-          confidence: 0.45,
-          source: 'STAGE6_LLM_VISION',
-          provenanceNote: 'Uncalibrated LLM visual estimate. Uncertainty ±35%.',
-        } : null,
+        llmVisionEstimate: null,
         canonicalSourceReason,
         vgrContributingImages: vgrEntries.filter(e => e.contributesToConsensus).length,
         vgrViewAngles,

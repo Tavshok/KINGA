@@ -74,7 +74,7 @@
 
 import type { Stage6Output, Stage7Output, Stage8Output, Stage9Output, ClaimRecord } from './types';
 import type { VGECalibrationResult } from './stage-6-5a-vge';
-import type { VGRConsensusResult } from './stage-6-5b-vgr';
+import { isQualifiedVgrCalibratedGeometry, type VGRConsensusResult } from './stage-6-5b-vgr';
 import { getPanelAreaM2, inferBodyType } from './vehiclePanelDimensions';
 import type { VehicleBodyType } from './vehiclePanelDimensions';
 
@@ -84,7 +84,8 @@ export type CGIVerdict =
   | 'COHERENT'      // All indicators consistent — geometry supports the claim
   | 'MINOR_ANOMALY' // 1–2 low-severity indicators — note in report, no fraud signal
   | 'ANOMALOUS'     // 3+ indicators or 1 high-severity — concern, soft fraud signal
-  | 'INCOHERENT';   // Critical geometric impossibility — hard fraud signal
+  | 'INCOHERENT'    // Critical geometric impossibility — hard fraud signal
+  | 'UNAVAILABLE';  // Qualified calibrated geometry was not available
 
 export type CGIIndicatorStatus =
   | 'PASS'          // Within expected range
@@ -134,7 +135,7 @@ export interface CGIIndicator {
 }
 
 export interface CGIForensicConclusion {
-  /** Overall geometry coherence verdict */
+  /** Overall geometry coherence verdict, or UNAVAILABLE when evidence is insufficient. */
   verdict: CGIVerdict;
   /** Confidence in the verdict (0–1) — lower when many inputs are UNAVAILABLE */
   confidence: number;
@@ -511,8 +512,8 @@ function computeL1_04_CrushDepthConsistency(
 
   const TIER: CGIIndicatorTier = 'ADVANCED';
 
-  if (!vgrResult?.reconciliationAvailable || vgrResult.consensusCrushDepthM === null) {
-    return unavailable(id, name, 1, 'VGR consensus crush depth not available', sources, TIER);
+  if (!isQualifiedVgrCalibratedGeometry(vgrResult)) {
+    return unavailable(id, name, 1, 'Qualified MEDIUM/HIGH VGR consensus crush depth not available', sources, TIER);
   }
 
   // Stage 7 physics-derived crush depth
@@ -629,8 +630,8 @@ function computeL1_06_MultiImageCrushDepthConvergence(
 
   const TIER: CGIIndicatorTier = 'ADVANCED';
 
-  if (!vgrResult?.reconciliationAvailable) {
-    return unavailable(id, name, 1, 'VGR not available — multi-image convergence cannot be assessed', sources, TIER);
+  if (!isQualifiedVgrCalibratedGeometry(vgrResult)) {
+    return unavailable(id, name, 1, 'Qualified MEDIUM/HIGH VGR consensus not available — multi-image convergence cannot be assessed', sources, TIER);
   }
 
   const entries = vgrResult.imageEntries?.filter(e => e.contributesToConsensus) ?? [];
@@ -732,7 +733,7 @@ function computeL2_01_ForceDensityIndex(
 
   const TIER: CGIIndicatorTier = 'CONDITIONAL';
 
-  if (stage7Data.physicsStatus === 'SKIPPED_NON_PHYSICAL' || stage7Data.physicsStatus === 'SKIPPED_NO_SPEED') {
+  if (stage7Data.physicsStatus === 'SKIPPED_NON_PHYSICAL' || stage7Data.physicsStatus === 'SKIPPED_NO_SPEED' || stage7Data.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY') {
     return unavailable(id, name, 2, 'Physics was skipped — FDI cannot be computed', sources, TIER);
   }
 
@@ -741,9 +742,11 @@ function computeL2_01_ForceDensityIndex(
     return unavailable(id, name, 2, 'Stage 7 kinetic energy not available', sources, TIER);
   }
 
-  const crushDepthM = vgrResult?.consensusCrushDepthM ?? null;
+  const crushDepthM = isQualifiedVgrCalibratedGeometry(vgrResult)
+    ? vgrResult.consensusCrushDepthM
+    : null;
   if (!crushDepthM || crushDepthM <= 0) {
-    return unavailable(id, name, 2, 'VGR crush depth not available for FDI calculation', sources, TIER);
+    return unavailable(id, name, 2, 'Qualified MEDIUM/HIGH VGR crush depth not available for FDI calculation', sources, TIER);
   }
 
   const direction = (claimRecord.accidentDetails?.collisionDirection ?? 'unknown').toLowerCase();
@@ -802,7 +805,7 @@ function computeL2_02_EnergyAbsorptionEfficiency(
 
   const TIER: CGIIndicatorTier = 'CORE';
 
-  if (stage7Data.physicsStatus === 'SKIPPED_NON_PHYSICAL' || stage7Data.physicsStatus === 'SKIPPED_NO_SPEED') {
+  if (stage7Data.physicsStatus === 'SKIPPED_NON_PHYSICAL' || stage7Data.physicsStatus === 'SKIPPED_NO_SPEED' || stage7Data.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY') {
     return unavailable(id, name, 2, 'Physics was skipped — energy absorption cannot be assessed', sources, TIER);
   }
 
@@ -849,12 +852,14 @@ function computeL2_03_StiffnessAdjustedSeverityConsistency(
 
   const TIER: CGIIndicatorTier = 'CONDITIONAL';
 
-  if (stage7Data.physicsStatus === 'SKIPPED_NON_PHYSICAL') {
+  if (stage7Data.physicsStatus === 'SKIPPED_NON_PHYSICAL' || stage7Data.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY') {
     return unavailable(id, name, 2, 'Non-physical incident — stiffness-adjusted severity not applicable', sources, TIER);
   }
 
   const severity = stage7Data.accidentSeverity;
-  const crushDepthM = vgrResult?.consensusCrushDepthM ?? null;
+  const crushDepthM = isQualifiedVgrCalibratedGeometry(vgrResult)
+    ? vgrResult.consensusCrushDepthM
+    : null;
   const speedKmh = stage7Data.speedInferenceEnsemble?.consensusSpeedKmh ?? stage7Data.estimatedSpeedKmh ?? null;
 
   if (!severity || !crushDepthM || !speedKmh) {
@@ -905,11 +910,13 @@ function computeL2_04_LatentDamageProbabilityUplift(
 
   const TIER: CGIIndicatorTier = 'CORE';
 
-  const crushDepthM = vgrResult?.consensusCrushDepthM ?? null;
+  const crushDepthM = isQualifiedVgrCalibratedGeometry(vgrResult)
+    ? vgrResult.consensusCrushDepthM
+    : null;
   const latentProb = stage7Data.latentDamageProbability;
 
-  if (!latentProb) {
-    return unavailable(id, name, 2, 'Stage 7 latentDamageProbability not available', sources, TIER);
+  if (!latentProb || crushDepthM === null) {
+    return unavailable(id, name, 2, 'Qualified calibrated geometry and Stage 7 latent-damage evidence are required', sources, TIER);
   }
 
   // Triggers for uplift
@@ -1034,7 +1041,9 @@ function computeLayer3Conclusions(
   let hiddenDamageProbabilityOverride: number | null = null;
 
   if (confidence >= 0.6) {
-    const crushDepthM = vgrResult?.consensusCrushDepthM ?? null;
+    const crushDepthM = isQualifiedVgrCalibratedGeometry(vgrResult)
+      ? vgrResult.consensusCrushDepthM
+      : null;
     const baseProb = stage7Data.latentDamageProbability?.frame ?? 0.2;
     if (l2_04?.status === 'ADVISORY' || l2_01?.status === 'ADVISORY') {
       hiddenDamageProbabilityOverride = Math.min(0.90, baseProb * 1.4);
@@ -1073,6 +1082,7 @@ function computeLayer3Conclusions(
     MINOR_ANOMALY: 'Minor geometric inconsistencies noted. These do not individually indicate fraud but should be reviewed by the adjuster.',
     ANOMALOUS: 'Significant geometric anomalies detected. The damage pattern is not fully consistent with the stated collision scenario. Adjuster review required.',
     INCOHERENT: 'Critical geometric incoherence detected. The observed damage pattern is inconsistent with the stated collision scenario in multiple independent dimensions. Escalation recommended.',
+    UNAVAILABLE: 'Contact geometry could not be assessed because qualified calibrated geometry was not available.',
   };
   narrative += verdictDescriptions[verdict];
 
@@ -1096,6 +1106,41 @@ export function runContactGeometryIntelligence(input: CGIInput): Stage9_5Output 
 
   try {
     const { claimRecord, stage6Data, stage7Data, stage8Data, stage9Data, vgeResult, vgrResult } = input;
+
+    const physicsUnavailable = stage7Data.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY' || stage7Data.physicsStatus === 'SKIPPED_ENGINE_FAILURE';
+    if (physicsUnavailable) {
+      const reason = stage7Data.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY'
+        ? 'CGI requires qualified calibrated VGE/VGR geometry. Provide at least two independent, undamaged stored-dimension references in suitable vehicle images before contact-geometry conclusions can be assessed.'
+        : 'CGI requires completed collision physics. The physics engine did not complete, so no contact-geometry conclusion was produced; rerun the analysis using the qualified calibrated geometry.';
+      const emptyAvailability: CGIAvailabilitySummary = {
+        core: { available: 0, total: 0 },
+        conditional: { available: 0, total: 0 },
+        advanced: { available: 0, total: 0 },
+      };
+      return {
+        available: false,
+        unavailableReason: reason,
+        layer1Indicators: [],
+        layer2Indicators: [],
+        conclusion: {
+          verdict: 'UNAVAILABLE',
+          confidence: 0,
+          hiddenDamageProbabilityOverride: null,
+          injectFraudIndicator: false,
+          fraudIndicatorScore: 0,
+          narrative: reason,
+          summary: stage7Data.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY'
+            ? 'CGI: UNAVAILABLE (insufficient calibrated geometry)'
+            : 'CGI: UNAVAILABLE (physics engine failure)',
+        },
+        allIndicators: [],
+        availabilitySummary: emptyAvailability,
+        contactGeometryFlag: false,
+        forensicVerdict: null,
+        engineVersion: CGI_ENGINE_VERSION,
+        runtimeMs: Date.now() - startMs,
+      };
+    }
 
     // Layer 1 — Geometry Indicators
     const l1_01 = computeL1_01_ContactPatchRatio(stage6Data, claimRecord);
@@ -1149,7 +1194,7 @@ export function runContactGeometryIntelligence(input: CGIInput): Stage9_5Output 
       layer1Indicators: [],
       layer2Indicators: [],
       conclusion: {
-        verdict: 'COHERENT',
+        verdict: 'UNAVAILABLE',
         confidence: 0,
         hiddenDamageProbabilityOverride: null,
         injectFraudIndicator: false,

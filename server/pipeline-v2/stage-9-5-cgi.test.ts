@@ -367,7 +367,7 @@ describe('runContactGeometryIntelligence — integration', () => {
     expect(result.layer1Indicators).toHaveLength(0);
     expect(result.layer2Indicators).toHaveLength(0);
     expect(result.allIndicators).toHaveLength(0);
-    expect(result.conclusion.verdict).toBe('COHERENT');
+    expect(result.conclusion.verdict).toBe('UNAVAILABLE');
     expect(result.conclusion.injectFraudIndicator).toBe(false);
   });
 
@@ -963,6 +963,34 @@ describe('L2-02 Energy Absorption Efficiency', () => {
     const result = runContactGeometryIntelligence(input);
     const l2_02 = result.layer2Indicators.find(i => i.id === 'L2-02')!;
     expect(l2_02.status).toBe('UNAVAILABLE');
+  });
+
+  it('returns no geometry conclusion when calibrated geometry was insufficient for physics', () => {
+    const input = makeInput({
+      stage7Data: makeStage7({ physicsStatus: 'SKIPPED_INSUFFICIENT_GEOMETRY' }),
+    });
+    const result = runContactGeometryIntelligence(input);
+    expect(result.available).toBe(false);
+    expect(result.unavailableReason).toMatch(/qualified calibrated VGE\/VGR geometry/i);
+    expect(result.layer1Indicators).toEqual([]);
+    expect(result.layer2Indicators).toEqual([]);
+    expect(result.conclusion.verdict).toBe('UNAVAILABLE');
+    expect(result.conclusion.hiddenDamageProbabilityOverride).toBeNull();
+    expect(result.contactGeometryFlag).toBe(false);
+    expect(result.forensicVerdict).toBeNull();
+  });
+
+  it('returns no geometry conclusion when qualified physics failed without a numeric fallback', () => {
+    const input = makeInput({
+      stage7Data: makeStage7({ physicsExecuted: false, physicsStatus: 'SKIPPED_ENGINE_FAILURE' }),
+    });
+    const result = runContactGeometryIntelligence(input);
+    expect(result.available).toBe(false);
+    expect(result.unavailableReason).toMatch(/physics engine did not complete/i);
+    expect(result.conclusion.verdict).toBe('UNAVAILABLE');
+    expect(result.layer1Indicators).toEqual([]);
+    expect(result.layer2Indicators).toEqual([]);
+    expect(result.forensicVerdict).toBeNull();
   });
 
   it('UNAVAILABLE when kinetic energy is null', () => {

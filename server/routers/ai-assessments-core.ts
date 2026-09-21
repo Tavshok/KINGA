@@ -868,7 +868,7 @@ export const aiAssessmentsRouter = router({
             reconstructionSummary: physicsJson?.reconstructionSummary ?? null,
             damageConsistencyScore: physicsJson?.damageConsistencyScore ?? null,
             accidentSeverity: physicsJson?.accidentSeverity ?? null,
-            // Physics execution status — EXECUTED / SKIPPED_NON_PHYSICAL / SKIPPED_NO_SPEED / ESTIMATED_FALLBACK
+            // Physics execution status — EXECUTED / SKIPPED_NON_PHYSICAL / SKIPPED_NO_SPEED / SKIPPED_INSUFFICIENT_GEOMETRY / SKIPPED_ENGINE_FAILURE / ESTIMATED_FALLBACK
             physicsStatus: physicsJson?.physicsStatus ?? null,
             // Animal strike physics engine output (Section 2.1 animal strike block)
             animalStrikePhysics: physicsJson?.animalStrikePhysics ?? null,

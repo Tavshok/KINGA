@@ -26,6 +26,11 @@
  */
 
 import { invokeLLM } from "../_core/llm";
+import {
+  calibrateDeformationMeasurement,
+  type DeformationCalibrationResult,
+  type ReferenceDimensionMeasurement,
+} from "./deformationCalibration";
 import type { PipelineContext } from "./types";
 import mysql from "mysql2/promise";
 
@@ -38,6 +43,10 @@ export interface ReferenceObjectDetection {
   type: string;                    // e.g. "wheel", "licence_plate", "headlamp_spacing"
   tier: 1 | 2 | 3;
   pixelMeasurementPx: number;
+  /** The exact vehicle-geometry measurement used as physical scale authority. */
+  vehicleMeasurementType: string;
+  /** Only manufacturer/engineer stored profile values may set physical scale. */
+  physicalMeasurementSource: "VEHICLE_PROFILE";
   physicalMeasurementMm: number;
   scaleMmPerPixel: number;
   baseReliability: number;         // 0–1 from measurement_types table
@@ -68,6 +77,9 @@ export interface PerImageCalibrationResult {
    * view-angle-weighted crush depth consensus.
    */
   imageViewAngle?: string;
+  /** Deterministic per-image calibration decision. Never silently averages disagreement. */
+  calibrationDecision?: DeformationCalibrationResult["status"];
+  calibrationReasons?: string[];
   failureReason?: string;
 }
 
@@ -94,6 +106,22 @@ export interface VGECalibrationResult {
   totalReferenceObjectsDetected: number;
   /** Geometry Evidence Block — human-readable provenance chain for the report */
   geometryEvidenceBlock: GeometryEvidenceBlock;
+}
+
+/**
+ * Returns true only for a single-image VGE measurement that may enter the
+ * Stage 7 calibrated-geometry boundary. This is deliberately stricter than
+ * display availability: LOW/NONE confidence results remain descriptive only.
+ */
+export function isQualifiedVgeCalibratedGeometry(
+  result: VGECalibrationResult | null | undefined
+): result is VGECalibrationResult & { calibratedCrushDepthM: number } {
+  return Boolean(
+    result?.calibrationAvailable &&
+      Number.isFinite(result.calibratedCrushDepthM) &&
+      result.calibratedCrushDepthM! > 0 &&
+      (result.confidenceLevel === "HIGH" || result.confidenceLevel === "MEDIUM")
+  );
 }
 
 export interface GeometryEvidenceBlock {
@@ -154,6 +182,153 @@ const REFERENCE_RELIABILITY: Record<string, { tier: 1 | 2 | 3; baseReliability: 
   badge:             { tier: 3, baseReliability: 0.40 },
   door_handle:       { tier: 3, baseReliability: 0.35 },
 };
+
+/**
+ * The LLM may nominate only a visible reference *type*. It never supplies the
+ * physical size used for scale. This allow-list binds that nomination to one
+ * manufacturer/engineer value stored on the resolved vehicle profile.
+ */
+const PROFILE_REFERENCE_BINDINGS: Record<string, {
+  measurementTypes: string[];
+  independenceGroup: string;
+}> = {
+  wheel: { measurementTypes: ["wheel_diameter_mm", "wheel_diameter_alt_mm"], independenceGroup: "wheel" },
+  // The LLM contract defines this span as plate width; height is not an
+  // interchangeable scale reference and is intentionally not a fallback.
+  licence_plate: { measurementTypes: ["licence_plate_width_mm"], independenceGroup: "licence_plate" },
+  headlamp_spacing: { measurementTypes: ["headlamp_spacing_mm"], independenceGroup: "headlamp_spacing" },
+  grille_width: { measurementTypes: ["grille_width_mm"], independenceGroup: "grille_width" },
+  bonnet_width: { measurementTypes: ["bonnet_width_mm"], independenceGroup: "bonnet_width" },
+  rear_track_width: { measurementTypes: ["rear_track_mm"], independenceGroup: "rear_track_width" },
+  overall_width: { measurementTypes: ["overall_width_mm"], independenceGroup: "overall_width" },
+  overall_height: { measurementTypes: ["overall_height_mm"], independenceGroup: "overall_height" },
+  windscreen_width: { measurementTypes: ["windscreen_width_mm"], independenceGroup: "windscreen_width" },
+};
+
+/** Explicitly minimal LLM output accepted for reference candidates. */
+export interface LlmReferenceCandidate {
+  type: string;
+  pixelMeasurementPx: number;
+  isUndamaged: boolean;
+  wheelEllipseAspectRatio?: number;
+  perspectiveCorrectionApplicable?: boolean;
+  notes?: string;
+}
+
+export interface BoundReferenceCalibration {
+  detections: ReferenceObjectDetection[];
+  calibration: DeformationCalibrationResult;
+  overallCalibrationConfidence: number;
+  perspectiveCorrected: boolean;
+  perspectiveCorrectionMethod: PerspectiveCorrectionMethod;
+}
+
+function resolveStoredProfileMeasurement(
+  referenceType: string,
+  measurements: Record<string, number>,
+): { measurementType: string; physicalMeasurementMm: number; independenceGroup: string } | null {
+  const binding = PROFILE_REFERENCE_BINDINGS[referenceType];
+  if (!binding) return null;
+
+  // `collapseStoredProfileMeasurements` represents duplicate raw database rows
+  // as NaN. An alternate measurement must never mask that ambiguity: the whole
+  // nominated reference type is unavailable until its stored fitment data is
+  // reconciled.
+  const hasAmbiguousBoundMeasurement = binding.measurementTypes.some(
+    (measurementType) =>
+      Object.hasOwn(measurements, measurementType) &&
+      !Number.isFinite(measurements[measurementType])
+  );
+  if (hasAmbiguousBoundMeasurement) return null;
+
+  const eligibleMeasurements = binding.measurementTypes
+    .map((measurementType) => ({ measurementType, value: measurements[measurementType] }))
+    .filter((measurement): measurement is { measurementType: string; value: number } =>
+      Number.isFinite(measurement.value) && measurement.value > 0
+    );
+
+  // The selected profile must resolve to exactly one stored physical value.
+  // A duplicate/alternate fitment is a profile ambiguity, not a reason to
+  // choose the first value or silently average it.
+  if (eligibleMeasurements.length !== 1) return null;
+  const measurement = eligibleMeasurements[0];
+  return {
+    measurementType: measurement.measurementType,
+    physicalMeasurementMm: measurement.value,
+    independenceGroup: binding.independenceGroup,
+  };
+}
+
+/** Bind LLM pixel spans to stored vehicle dimensions; LLM physical sizes are never accepted. */
+export function bindKnownVehicleReferenceCalibration(input: {
+  rawCrushDepthPx: number;
+  candidates: LlmReferenceCandidate[];
+  profileMeasurements: Record<string, number>;
+  agreementToleranceFraction: number;
+}): BoundReferenceCalibration {
+  const detections: ReferenceObjectDetection[] = [];
+  const references: ReferenceDimensionMeasurement[] = [];
+
+  for (const [index, candidate] of input.candidates.entries()) {
+    const type = typeof candidate.type === "string" ? candidate.type.trim().toLowerCase() : "";
+    const metadata = REFERENCE_RELIABILITY[type];
+    const boundMeasurement = resolveStoredProfileMeasurement(type, input.profileMeasurements);
+    const pixelMeasurementPx = Number(candidate.pixelMeasurementPx);
+    if (!metadata || !boundMeasurement || !Number.isFinite(pixelMeasurementPx) || pixelMeasurementPx <= 0) continue;
+
+    const aspectRatio = Number(candidate.wheelEllipseAspectRatio);
+    let perspectiveCorrectionMethod: PerspectiveCorrectionMethod = "none";
+    let confidenceAdjustment = 1;
+    if (type === "wheel" && Number.isFinite(aspectRatio)) {
+      if (aspectRatio < 0.4) confidenceAdjustment = 0.5;
+      else if (aspectRatio < 0.95 && candidate.perspectiveCorrectionApplicable === true) {
+        perspectiveCorrectionMethod = "ellipse_analysis";
+        confidenceAdjustment = 0.85 + (aspectRatio - 0.4) * 0.25;
+      }
+    }
+    const confidence = Math.min(0.99, metadata.baseReliability * confidenceAdjustment);
+    const referenceId = `${boundMeasurement.measurementType}:${index}`;
+    detections.push({
+      type,
+      tier: metadata.tier,
+      pixelMeasurementPx,
+      vehicleMeasurementType: boundMeasurement.measurementType,
+      physicalMeasurementSource: "VEHICLE_PROFILE",
+      physicalMeasurementMm: boundMeasurement.physicalMeasurementMm,
+      scaleMmPerPixel: boundMeasurement.physicalMeasurementMm / pixelMeasurementPx,
+      baseReliability: metadata.baseReliability,
+      perspectiveCorrectionMethod,
+      wheelEllipseAspectRatio: Number.isFinite(aspectRatio) ? aspectRatio : undefined,
+      confidence,
+      notes: candidate.notes,
+    });
+    references.push({
+      referenceId,
+      label: type.replace(/_/g, " "),
+      independenceGroup: boundMeasurement.independenceGroup,
+      isUndamaged: candidate.isUndamaged === true,
+      trueValue: boundMeasurement.physicalMeasurementMm,
+      measuredValue: pixelMeasurementPx,
+      unit: "mm",
+    });
+  }
+
+  const calibration = calibrateDeformationMeasurement({
+    rawMeasuredValue: input.rawCrushDepthPx,
+    rawUnit: "px",
+    referenceDimensions: references,
+    agreementToleranceFraction: input.agreementToleranceFraction,
+  });
+  const overallCalibrationConfidence = detections.length === 0 ? 0 : detections.reduce((sum, detection) => sum + detection.confidence, 0) / detections.length;
+  const perspectiveCorrected = detections.some((detection) => detection.perspectiveCorrectionMethod !== "none");
+  return {
+    detections,
+    calibration,
+    overallCalibrationConfidence,
+    perspectiveCorrected,
+    perspectiveCorrectionMethod: perspectiveCorrected ? "ellipse_analysis" : "none",
+  };
+}
 
 // ── Source Quality Gate ──────────────────────────────────────────────────────
 
@@ -237,6 +412,38 @@ function normaliseVehicleString(s: string): string {
   return s.toLowerCase().replace(/[\s\-_]/g, '');
 }
 
+/**
+ * Preserve duplicate database rows as an explicit unusable value. A record map
+ * cannot otherwise distinguish a legitimate stored dimension from a later row
+ * that silently overwrote it. The binding layer rejects non-finite values.
+ */
+export function collapseStoredProfileMeasurements(
+  rows: Array<{ measurement_type: string; value_mm: unknown }>
+): Record<string, number> {
+  const grouped = new Map<string, number[]>();
+  for (const row of rows) {
+    const measurementType = typeof row.measurement_type === "string" ? row.measurement_type : "";
+    if (!measurementType) continue;
+    const values = grouped.get(measurementType) ?? [];
+    values.push(Number(row.value_mm));
+    grouped.set(measurementType, values);
+  }
+
+  const measurements: Record<string, number> = {};
+  for (const [measurementType, values] of grouped) {
+    // A selected scale type must map to exactly one physical row. This rejects
+    // duplicated measurements even when their numeric values happen to agree:
+    // row identity and fitment provenance remain ambiguous.
+    measurements[measurementType] = values.length === 1 ? values[0] : Number.NaN;
+  }
+  return measurements;
+}
+
+/** A make/model/year query must identify one profile; ties are unavailable. */
+export function selectUnambiguousVehicleProfile<T>(rows: T[]): T | null {
+  return rows.length === 1 ? rows[0] : null;
+}
+
 async function fetchMeasurements(
   conn: mysql.Connection,
   vehicleModelId: number
@@ -245,11 +452,7 @@ async function fetchMeasurements(
     `SELECT measurement_type, value_mm FROM vehicle_geometry_measurements WHERE vehicle_model_id = ?`,
     [vehicleModelId]
   );
-  const measurements: Record<string, number> = {};
-  for (const row of measRows as any[]) {
-    measurements[row.measurement_type] = parseFloat(row.value_mm);
-  }
-  return measurements;
+  return collapseStoredProfileMeasurements(measRows as Array<{ measurement_type: string; value_mm: unknown }>);
 }
 
 async function getVehicleProfile(
@@ -265,23 +468,29 @@ async function getVehicleProfile(
     conn = await mysql.createConnection(dbUrl);
     const yearFilter = year ?? new Date().getFullYear();
 
-    // ── Pass 1: standard LIKE match (fast path) ──────────────────────────────
+    // ── Pass 1: standard LIKE match ─────────────────────────────────────────
+    // Do not let completeness rank resolve a vehicle variant ambiguity. The
+    // claimant-provided make/model/year must identify exactly one profile.
     const [rows] = await conn.execute<any[]>(
       `SELECT id, manufacturer, model, variant, year_from, year_to
        FROM vehicle_models
        WHERE LOWER(manufacturer) LIKE LOWER(?) AND LOWER(model) LIKE LOWER(?)
          AND year_from <= ? AND (year_to IS NULL OR year_to >= ?)
-       ORDER BY completeness_score DESC
-       LIMIT 1`,
+       ORDER BY completeness_score DESC, id ASC`,
       [`%${make}%`, `%${model}%`, yearFilter, yearFilter]
     );
 
-    if ((rows as any[]).length > 0) {
-      const vm = (rows as any[])[0];
-      const label = `${vm.manufacturer} ${vm.model}${vm.variant ? ' ' + vm.variant : ''} ${vm.year_from}\u2013${vm.year_to ?? 'present'}`;
+    const exactProfile = selectUnambiguousVehicleProfile(rows as any[]);
+    if (exactProfile) {
+      const vm = exactProfile;
+      const label = `${vm.manufacturer} ${vm.model}${vm.variant ? ' ' + vm.variant : ''} ${vm.year_from}–${vm.year_to ?? 'present'}`;
       const measurements = await fetchMeasurements(conn, vm.id);
       return { id: vm.id, label, measurements };
     }
+
+    // More than one profile is an unresolved trim/fitment ambiguity. Do not
+    // broaden to fuzzy matching or choose the highest completeness score.
+    if ((rows as any[]).length > 1) return null;
 
     // ── Pass 2: normalised fuzzy match (handles MUX↔MU-X, NP200↔NP 200, etc.) ─
     const normMake  = normaliseVehicleString(make);
@@ -293,18 +502,17 @@ async function getVehicleProfile(
        ORDER BY completeness_score DESC`,
       [yearFilter, yearFilter]
     );
-    const fuzzyMatch = (allRows as any[]).find(r =>
+    const fuzzyMatches = (allRows as any[]).filter(r =>
       normaliseVehicleString(r.manufacturer).includes(normMake) &&
       (
         normaliseVehicleString(r.model).includes(normModel) ||
         normModel.includes(normaliseVehicleString(r.model))
       )
-    ) ?? null;
+    );
 
-    if (!fuzzyMatch) return null;
-
-    const vm = fuzzyMatch;
-    const label = `${vm.manufacturer} ${vm.model}${vm.variant ? ' ' + vm.variant : ''} ${vm.year_from}\u2013${vm.year_to ?? 'present'}`;
+    const vm = selectUnambiguousVehicleProfile(fuzzyMatches);
+    if (!vm) return null;
+    const label = `${vm.manufacturer} ${vm.model}${vm.variant ? ' ' + vm.variant : ''} ${vm.year_from}–${vm.year_to ?? 'present'}`;
     const measurements = await fetchMeasurements(conn, vm.id);
     return { id: vm.id, label, measurements };
 
@@ -322,8 +530,8 @@ async function getVehicleProfile(
  *
  * Reference objects are zone-indexed:
  *   FRONT view: wheel, licence_plate, headlamp_spacing, grille_width, bonnet_width
- *   REAR view:  wheel, licence_plate, rear_track_width, overall_width, bumper_width
- *   SIDE view:  wheel, licence_plate, overall_height, wheelbase (if both axles visible)
+ *   REAR view:  wheel, licence_plate, rear_track_width, overall_width
+ *   SIDE view:  wheel, licence_plate, overall_height, windscreen_width
  *   UNKNOWN:    all of the above — LLM picks what is visible
  *
  * Crush depth language is direction-neutral:
@@ -331,20 +539,21 @@ async function getVehicleProfile(
  *    point of crush, measured perpendicular to the original panel surface"
  */
 function buildCalibrationPrompt(profile: { label: string; measurements: Record<string, number> } | null): string {
-  // All available profile dimensions, grouped by which view they are useful for
-  const FRONT_KEYS  = ['wheel_diameter_mm', 'wheel_diameter_alt_mm', 'licence_plate_width_mm', 'licence_plate_height_mm', 'headlamp_spacing_mm', 'grille_width_mm', 'bonnet_width_mm', 'bumper_width_mm', 'front_track_mm', 'overall_width_mm'];
-  const REAR_KEYS   = ['wheel_diameter_mm', 'wheel_diameter_alt_mm', 'licence_plate_width_mm', 'licence_plate_height_mm', 'rear_track_mm', 'overall_width_mm', 'bumper_width_mm', 'overall_height_mm'];
-  const SIDE_KEYS   = ['wheel_diameter_mm', 'wheel_diameter_alt_mm', 'licence_plate_width_mm', 'licence_plate_height_mm', 'overall_height_mm', 'wheelbase_mm', 'front_bumper_height_mm'];
+  // Available profile types guide visual nomination only. Physical values remain
+  // server-side and are bound by PROFILE_REFERENCE_BINDINGS after parsing.
+  const FRONT_KEYS  = ['wheel_diameter_mm', 'wheel_diameter_alt_mm', 'licence_plate_width_mm', 'headlamp_spacing_mm', 'grille_width_mm', 'bonnet_width_mm', 'overall_width_mm'];
+  const REAR_KEYS   = ['wheel_diameter_mm', 'wheel_diameter_alt_mm', 'licence_plate_width_mm', 'rear_track_mm', 'overall_width_mm'];
+  const SIDE_KEYS   = ['wheel_diameter_mm', 'wheel_diameter_alt_mm', 'licence_plate_width_mm', 'overall_height_mm', 'windscreen_width_mm'];
   const ALL_KEYS    = Array.from(new Set([...FRONT_KEYS, ...REAR_KEYS, ...SIDE_KEYS]));
 
   const profileSection = profile
     ? `Vehicle reference profile: ${profile.label}
-Known dimensions (use these as ground-truth physical measurements):
+Known reference types available for server-side binding:
 ${Object.entries(profile.measurements)
   .filter(([k]) => ALL_KEYS.includes(k))
-  .map(([k, v]) => `  - ${k}: ${v} mm`)
+  .map(([k]) => `  - ${k}`)
   .join('\n')}`
-    : `No vehicle profile available. Use standard Zimbabwe licence plate (520 × 110 mm wide, 110 mm tall) if visible.`;
+    : `No vehicle reference profile is available. Do not nominate a scale reference.`;
 
   return `You are a vehicle accident reconstruction specialist performing photogrammetric scale calibration.
 
@@ -368,11 +577,13 @@ For each reference object detected, return:
    - "windscreen_width"   (Tier 2 — FRONT or SIDE view; use windscreen_width_mm)
    DO NOT use headlamp_spacing, grille_width, or bonnet_width for REAR or SIDE photos — these features are not visible.
    DO NOT use rear_track_width for FRONT photos.
-2. pixelMeasurementPx: the measured dimension in pixels (diameter for wheel, width/height for others)
-3. physicalMeasurementMm: the known physical dimension in mm (use profile values above, or standard plate 520mm)
+2. pixelMeasurementPx: the measured dimension in pixels (diameter for wheel; width for licence plate, lamps, grille, bonnet, windscreen, and body references; height only for overall_height)
+3. isUndamaged: true ONLY if the complete nominated reference is visibly outside the damaged area; otherwise false
 4. wheelEllipseAspectRatio: ONLY for wheels — ratio of minor to major axis (1.0 = perfect circle, <0.4 = extreme perspective)
 5. perspectiveCorrectionApplicable: true if wheel aspect ratio is 0.4–0.95 (moderate perspective, correctable)
 6. notes: any relevant observation (occlusion, damage to reference object, etc.)
+
+Do NOT return, infer, or estimate any physical millimetre dimension. The server binds an accepted type to the stored vehicle profile and rejects unbound nominations.
 
 STEP 3 — Estimate crush depth:
 7. rawCrushDepthPx: the maximum visible deformation depth in pixels — measured from the undamaged panel face (or its projected continuation) to the deepest point of crush, perpendicular to the original panel surface. This applies equally to frontal, rear, and side impacts. Return null if the deformation is not measurable from this view angle.
@@ -385,7 +596,7 @@ Return ONLY valid JSON in this exact format:
     {
       "type": "wheel",
       "pixelMeasurementPx": 220,
-      "physicalMeasurementMm": 776,
+      "isUndamaged": true,
       "wheelEllipseAspectRatio": 0.85,
       "perspectiveCorrectionApplicable": true,
       "notes": "Front left wheel, partially occluded by bumper"
@@ -446,76 +657,27 @@ async function calibrateImage(
       return { ...base, failureReason: "No reference objects detected in image" };
     }
 
-    // Process each detected reference object
-    const detections: ReferenceObjectDetection[] = [];
-    for (const ref of refObjects) {
-      const meta = REFERENCE_RELIABILITY[ref.type] ?? { tier: 3 as const, baseReliability: 0.40 };
-      const pixelMm = ref.pixelMeasurementPx > 0 ? ref.physicalMeasurementMm / ref.pixelMeasurementPx : 0;
-      if (pixelMm <= 0) continue;
-
-      // Perspective correction assessment for wheels
-      let perspMethod: PerspectiveCorrectionMethod = "none";
-      let confidenceAdjustment = 1.0;
-      const aspectRatio = ref.wheelEllipseAspectRatio;
-
-      if (ref.type === "wheel" && aspectRatio != null) {
-        if (aspectRatio < 0.4) {
-          // Extreme perspective — correction unreliable, penalise confidence
-          confidenceAdjustment = 0.5;
-          perspMethod = "none";
-        } else if (aspectRatio >= 0.4 && aspectRatio < 0.95 && ref.perspectiveCorrectionApplicable) {
-          // Moderate perspective — apply ellipse-based correction
-          perspMethod = "ellipse_analysis";
-          // Correct the scale: actual diameter = observed_major_axis (the wheel appears as an ellipse;
-          // the major axis approximates the true diameter when aspect ratio is moderate)
-          confidenceAdjustment = 0.85 + (aspectRatio - 0.4) * 0.25; // 0.85 at 0.4, ~0.99 at 1.0
-        } else {
-          // Near-circular — no correction needed
-          perspMethod = "none";
-          confidenceAdjustment = 1.0;
-        }
-      }
-
-      const finalConfidence = Math.min(0.99, meta.baseReliability * confidenceAdjustment);
-
-      detections.push({
-        type: ref.type,
-        tier: meta.tier,
-        pixelMeasurementPx: ref.pixelMeasurementPx,
-        physicalMeasurementMm: ref.physicalMeasurementMm,
-        scaleMmPerPixel: pixelMm,
-        baseReliability: meta.baseReliability,
-        perspectiveCorrectionMethod: perspMethod,
-        wheelEllipseAspectRatio: aspectRatio,
-        confidence: finalConfidence,
-        notes: ref.notes,
-      });
+    const rawCrushDepthPx = Number(parsed.rawCrushDepthPx);
+    if (!profile) {
+      return { ...base, failureReason: "No resolved vehicle profile with stored reference measurements; calibrated crush depth is unavailable" };
     }
-
-    if (detections.length === 0) {
-      return { ...base, failureReason: "All detected reference objects had invalid pixel measurements" };
+    if (!Number.isFinite(rawCrushDepthPx) || rawCrushDepthPx <= 0) {
+      return { ...base, failureReason: "Visible crush depth was not measurable in pixels; calibrated crush depth is unavailable" };
     }
-
-    // Weighted mean scale (higher confidence detections weighted more)
-    const totalWeight = detections.reduce((s, d) => s + d.confidence, 0);
-    const weightedScale = detections.reduce((s, d) => s + d.scaleMmPerPixel * d.confidence, 0) / totalWeight;
-    const overallConf = totalWeight / detections.length; // mean confidence
-
-    // Calibrated crush depth
-    let calibratedCrushDepthMm: number | null = null;
-    let calibratedCrushDepthMinMm: number | null = null;
-    let calibratedCrushDepthMaxMm: number | null = null;
-
-    if (parsed.rawCrushDepthPx != null && parsed.rawCrushDepthPx > 0) {
-      calibratedCrushDepthMm = parsed.rawCrushDepthPx * weightedScale;
-      // Uncertainty bounds: ±(1 - overallConf) × 100% of the estimate, min ±20mm
-      const uncertaintyFactor = Math.max(0.15, 1 - overallConf);
-      calibratedCrushDepthMinMm = Math.max(0, calibratedCrushDepthMm * (1 - uncertaintyFactor));
-      calibratedCrushDepthMaxMm = calibratedCrushDepthMm * (1 + uncertaintyFactor);
+    const bound = bindKnownVehicleReferenceCalibration({
+      rawCrushDepthPx,
+      candidates: refObjects as LlmReferenceCandidate[],
+      profileMeasurements: profile.measurements,
+      agreementToleranceFraction: 0.15,
+    });
+    if (bound.detections.length === 0) {
+      return {
+        ...base,
+        calibrationDecision: bound.calibration.status,
+        calibrationReasons: bound.calibration.reasons,
+        failureReason: "No LLM-nominated reference could be bound to a stored vehicle-profile measurement",
+      };
     }
-
-    const perspectiveCorrected = detections.some(d => d.perspectiveCorrectionMethod !== "none");
-    const bestPerspMethod = perspectiveCorrected ? "ellipse_analysis" : "none";
 
     // Normalise the LLM-reported view angle to the VGR canonical set
     const rawAngle = (parsed.imageViewAngle ?? 'unknown').toLowerCase();
@@ -527,19 +689,27 @@ async function calibrateImage(
       rawAngle.includes('side')  || rawAngle.includes('lateral') ? 'side' :
       'unknown';
 
+    const isCalibrated = bound.calibration.status === "CALIBRATED";
+    const correctedCrushDepthMm = isCalibrated ? bound.calibration.correctedValue : null;
+    const uncertaintyFactor = Math.max(0.15, 1 - bound.overallCalibrationConfidence);
+    const calibrationFailureReason = isCalibrated ? undefined : bound.calibration.reasons.join(" ");
+
     return {
       imageUrl,
       imageIndex,
-      scaleAvailable: true,
-      referenceObjects: detections,
-      overallCalibrationConfidence: overallConf,
-      perspectiveCorrected,
-      perspectiveCorrectionMethod: bestPerspMethod,
-      rawCrushDepthMm: parsed.rawCrushDepthPx != null ? parsed.rawCrushDepthPx * weightedScale : null,
-      calibratedCrushDepthMm,
-      calibratedCrushDepthMinMm,
-      calibratedCrushDepthMaxMm,
+      scaleAvailable: isCalibrated,
+      referenceObjects: bound.detections,
+      overallCalibrationConfidence: isCalibrated ? bound.overallCalibrationConfidence : 0,
+      perspectiveCorrected: bound.perspectiveCorrected,
+      perspectiveCorrectionMethod: bound.perspectiveCorrectionMethod,
+      rawCrushDepthMm: null,
+      calibratedCrushDepthMm: correctedCrushDepthMm,
+      calibratedCrushDepthMinMm: correctedCrushDepthMm == null ? null : Math.max(0, correctedCrushDepthMm * (1 - uncertaintyFactor)),
+      calibratedCrushDepthMaxMm: correctedCrushDepthMm == null ? null : correctedCrushDepthMm * (1 + uncertaintyFactor),
       imageViewAngle: normalisedAngle,
+      calibrationDecision: bound.calibration.status,
+      calibrationReasons: bound.calibration.reasons,
+      failureReason: calibrationFailureReason,
     };
   } catch (err: any) {
     return { ...base, failureReason: `VGE calibration error: ${err?.message ?? String(err)}` };

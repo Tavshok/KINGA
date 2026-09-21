@@ -37,6 +37,10 @@ import { runAssemblyStage } from "./stage-5-assembly";
 import { applyAutomotiveDomainCorrections } from "./automotiveDomainCorrector";
 import { runDamageAnalysisStage } from "./stage-6-damage-analysis";
 import { runUnifiedStage7 } from "./stage-7-unified";
+import {
+  buildUnavailablePhysicsOutput,
+  resolveCalibratedCrushDepth,
+} from "./stage-7-physics";
 import { scoreClaimComplexity, type ComplexityScore } from "./claimComplexityScorer";
 import { runFraudAnalysisStage, recomputeFraudScore } from "./stage-8-fraud";
 import { aggregateConfidence, buildConfidenceAggregationInput } from "./confidenceAggregationEngine";
@@ -121,11 +125,9 @@ import {
 } from "./pipelineContractRegistry";
 import {
   buildDamageFallback,
-  buildPhysicsFallback,
   buildFraudFallback,
   buildCostFallback,
   ensureDamageContract,
-  ensurePhysicsContract,
   ensureFraudContract,
   ensureCostContract,
 } from "./engineFallback";
@@ -186,6 +188,34 @@ const PHYSICS_CONSISTENCY_PLAUSIBLE_SCORE = 50;
 const PHYSICS_CONSISTENCY_CRITICAL_SCORE = 30;
 const COST_DECISION_WITHIN_RANGE_CONFIDENCE = 60;
 const COST_DECISION_ANOMALY_CONFIDENCE = 50;
+
+/**
+ * The unified Stage 7 wrapper must preserve the geometry admission boundary if
+ * causal/narrative work throws or times out after physics begins. Ineligible
+ * geometry may never be converted into an estimated numeric fallback here.
+ */
+export function buildUnifiedStage7FailurePhysics(
+  ctx: PipelineContext,
+  claimRecord: ClaimRecord,
+  reason: string
+): Stage7Output {
+  return buildUnavailablePhysicsOutput(
+    ctx,
+    claimRecord.accidentDetails.collisionDirection,
+    resolveCalibratedCrushDepth(ctx) == null
+      ? "insufficient_geometry"
+      : "engine_failure"
+  );
+}
+
+/**
+ * `7_unified` cache payloads lack an admission-policy version and cannot prove
+ * their physics ran after the calibrated-geometry boundary. They are therefore
+ * intentionally never eligible for resume until a versioned cache format exists.
+ */
+export function readReusableUnifiedStage7Cache<T>(_cached: T | undefined): undefined {
+  return undefined;
+}
 
 /**
  * Parse a mileage string like "85 000 km", "85000", "85,000 km" → number (km).
@@ -1571,16 +1601,25 @@ export async function runPipelineV2(
       ctx.log("Stage7Guard", `Major gaps: ${s7Guard.gaps.filter(g => g.severity === "major").map(g => g.field).join(", ")}`);
     }
   } catch { /* guard must never break the pipeline */ }
-  // Partial resume: if this stage completed in a prior run, restore its output and skip re-running.
-  const _s7Cached = _resumeCache["7_unified"] as import("./stage-7-unified").UnifiedStage7Output | undefined;
+  // Stage 7 cache entries pre-date the calibrated-geometry admission policy and
+  // do not carry a policy/version or sufficient evidence snapshot. Never reuse
+  // them as governing physics; re-run Stage 7 under the current gate.
+  const cachedStage7 = _resumeCache["7_unified"] as import("./stage-7-unified").UnifiedStage7Output | undefined;
+  const reusableStage7 = readReusableUnifiedStage7Cache(cachedStage7);
+  if (cachedStage7) {
+    ctx.log("PartialResume", "Stage 7 cache discarded; re-running calibrated-geometry admission");
+  }
   // Single function call replacing the sequential cluster of:
   //   Stage 7 (physics), Stage 7b Pass 1 (causal), Stage 7c (severity), Stage 7e (narrative)
   // Stage 7b Pass 2 (re-run with fraud+cost scores) remains separate below.
-  const s7Unified = _s7Cached
-    ? (() => {
-        ctx.log("PartialResume", "Stage 7 — restoring from cache, skipping re-run");
-        return { status: "success" as const, data: _s7Cached, durationMs: 0, savedToDb: true, degraded: false };
-      })()
+  const s7Unified = reusableStage7
+    ? {
+        status: "success" as const,
+        data: reusableStage7,
+        durationMs: 0,
+        savedToDb: true,
+        degraded: false,
+      }
     : await runWithTimeout("7_unified", () => runUnifiedStage7(
     ctx,
     claimRecord!,
@@ -1594,12 +1633,12 @@ export async function runPipelineV2(
       ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
       : `engine_failure: ${String(err)}`;
     ctx.log("Stage 7", `${isTimeout ? "TIMEOUT" : "ERROR"}: ${err.message} — invoking physics/causal engine fallbacks`);
-    // Call the same fallback functions the stage's own catch blocks use — no hardcoded values.
-    // ensurePhysicsContract({}) produces a physics output with all fields marked as estimated.
+    const noQualifiedGeometry = resolveCalibratedCrushDepth(ctx) == null;
+    const physicsAnalysis = buildUnifiedStage7FailurePhysics(ctx, claimRecord!, reason);
     return {
       status: "degraded" as const,
       data: {
-        physicsAnalysis: ensurePhysicsContract({}, reason),
+        physicsAnalysis,
         causalVerdict: null,
         narrativeAnalysis: null,
         directionContradictionFlag: null,
@@ -1610,17 +1649,21 @@ export async function runPipelineV2(
       _timedOut: isTimeout,
       assumptions: [{
         field: "physicsAnalysis",
-        assumedValue: "physics_fallback",
-        reason: `Stage 7 ${isTimeout ? "timed out" : "failed"}: ${reason}. Physics/causal analysis unavailable — fallback applied.`,
-        strategy: "default_value" as const,
+        assumedValue: noQualifiedGeometry ? "insufficient_calibrated_geometry" : "physics_engine_unavailable",
+        reason: noQualifiedGeometry
+          ? `Stage 7 ${isTimeout ? "timed out" : "failed"}: ${reason}. No qualified calibrated geometry was available, so physics remains unavailable and requires review.`
+          : `Stage 7 ${isTimeout ? "timed out" : "failed"}: ${reason}. Qualified geometry was available, but the physics engine did not complete; no numerical fallback was produced and review or rerun is required.`,
+        strategy: "skip" as const,
         confidence: 5,
         stage: "Stage 7",
       }],
       recoveryActions: [{
         target: "physics_recovery",
-        strategy: "default_value" as const,
+        strategy: "skip" as const,
         success: true,
-        description: `Stage 7 ${isTimeout ? "timeout" : "error"} caught. ensurePhysicsContract fallback applied. All physics fields marked as estimated.`,
+        description: noQualifiedGeometry
+          ? `Stage 7 ${isTimeout ? "timeout" : "error"} caught. No qualifying VGE/VGR geometry was available; null-valued physics review result retained.`
+          : `Stage 7 ${isTimeout ? "timeout" : "error"} caught. Qualified VGE/VGR geometry existed, but no numerical fallback was produced; review or rerun is required.`,
       }],
       degraded: true,
     };
@@ -1631,7 +1674,7 @@ export async function runPipelineV2(
   const directionContradictionFlag = s7Unified.data?.directionContradictionFlag ?? null;
   // Partial resume: persist result for potential retry (fire-and-forget).
   // QUALITY GATE: only cache clean successful runs — never cache degraded/fallback output.
-  if (ctx.runId && s7Unified.status === "success" && !s7Unified.degraded && !_s7Cached) {
+  if (ctx.runId && s7Unified.status === "success" && !s7Unified.degraded) {
     saveStageResult(ctx.runId, "7_unified", s7Unified.data).catch(() => {});
   }
 
@@ -2016,7 +2059,7 @@ export async function runPipelineV2(
       stage8Data: stage8Data!,
       stage9Data: stage9Data!,
       vgeResult: (ctx as any).vgeCalibrationResult ?? null,
-      vgrResult: (ctx as any).vgrConsensusResult ?? null,
+      vgrResult: (ctx as any).vgeReconciliationResult ?? null,
     };
     stage9_5Data = runContactGeometryIntelligence(cgiInput);
     saveStageResult(ctx.runId, "9_5_cgi", stage9_5Data).catch(() => {});
@@ -3223,7 +3266,17 @@ function buildResult(
     interventionSummary.push('physics skipped (speed not in document)');
   }
 
-  // 4. Physics fallback (engine failed, simplified estimate used)
+  const physicsGeometryUnavailable = physicsAnalysis?.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY';
+  if (physicsGeometryUnavailable) {
+    interventionSummary.push('physics skipped (no qualifying VGE/VGR calibrated geometry)');
+  }
+
+  const physicsEngineUnavailable = physicsAnalysis?.physicsStatus === 'SKIPPED_ENGINE_FAILURE';
+  if (physicsEngineUnavailable) {
+    interventionSummary.push('physics unavailable (engine failure; no numerical fallback produced)');
+  }
+
+  // 4. Legacy physics fallback (engine failed, simplified estimate used)
   const physicsFallback = physicsAnalysis?.physicsStatus === 'ESTIMATED_FALLBACK';
   if (physicsFallback) {
     interventionSummary.push('physics estimated fallback (engine unavailable)');

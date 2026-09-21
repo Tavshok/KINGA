@@ -252,6 +252,37 @@ describe("runInterpretationEngine — graceful degradation", () => {
     expect(result).toBeDefined();
   });
 
+  it("does not present unavailable calibrated geometry as coherent or complete", async () => {
+    const result = await runInterpretationEngine(makeInput({
+      stage9_5Data: makeStage9_5({
+        available: false,
+        unavailableReason: "Qualified calibrated VGE/VGR geometry was unavailable.",
+        conclusion: {
+          verdict: "UNAVAILABLE",
+          confidence: 0,
+          fraudIndicatorScore: 0,
+          hiddenDamageProbabilityOverride: null,
+          narrative: "Geometry unavailable.",
+        },
+        allIndicators: [],
+        availabilitySummary: {
+          core: { available: 0, total: 0 },
+          conditional: { available: 0, total: 0 },
+          advanced: { available: 0, total: 0 },
+        },
+      }),
+    }));
+    const cgiSection = getSection(result, "CGI")!;
+    const verdict = getFinding(cgiSection, "Geometry Coherence Verdict")!;
+
+    expect(cgiSection.findings).toHaveLength(1);
+    expect(verdict.classification).toBe("UNAVAILABLE");
+    expect(verdict.value).toBe("UNAVAILABLE");
+    expect(verdict.interpretation).toMatch(/not assessed/i);
+    expect(verdict.interpretation).not.toMatch(/coherent|consistent|complete/i);
+    expect(verdict.businessImpact).toMatch(/no geometry coherence conclusion/i);
+  });
+
   it("omits CGI findings or returns empty findings when stage9_5Data is null", async () => {
     const result = await runInterpretationEngine(makeInput({ stage9_5Data: null }));
     const cgiSection = getSection(result, "CGI");

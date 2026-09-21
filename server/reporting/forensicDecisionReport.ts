@@ -637,7 +637,7 @@ export async function generateForensicDecisionReport(
     }
 
     // Section tab helper
-    function sectionTab(num: string, title: string, flagLabel = "", flagCls: "high" | "mid" | "ok" | "" = ""): string {
+    function sectionTab(num: string, title: string, flagLabel = "", flagCls: "high" | "mid" | "ok" | "muted" | "" = ""): string {
       const flag = flagLabel ? `<span class="flag-right ${flagCls}">${esc(flagLabel)}</span>` : "";
       return `<div class="section-tab"><span class="num">${num}</span> ${esc(title)}${flag}</div>`;
     }
@@ -1566,8 +1566,8 @@ export async function generateForensicDecisionReport(
   <!-- §09b CONTACT GEOMETRY INTELLIGENCE (CGI) -->
   ${cgiData ? (() => {
     const cgiVerdict: string = cgiData.conclusion?.verdict ?? 'UNKNOWN';
-    const cgiTabStatus = cgiVerdict === 'INCOHERENT' ? 'high' : cgiVerdict === 'ANOMALOUS' ? 'mid' : 'ok';
-    const cgiTabLabel = cgiVerdict === 'INCOHERENT' ? 'Geometry incoherent' : cgiVerdict === 'ANOMALOUS' ? 'Geometry anomalous' : 'Geometry consistent';
+    const cgiTabStatus = cgiVerdict === 'INCOHERENT' ? 'high' : cgiVerdict === 'ANOMALOUS' ? 'mid' : cgiVerdict === 'UNAVAILABLE' ? 'muted' : 'ok';
+    const cgiTabLabel = cgiVerdict === 'INCOHERENT' ? 'Geometry incoherent' : cgiVerdict === 'ANOMALOUS' ? 'Geometry anomalous' : cgiVerdict === 'UNAVAILABLE' ? 'Geometry unavailable' : 'Geometry consistent';
     const cgiSummary: CGIAvailabilitySummary | undefined = cgiData.availabilitySummary;
     const indStatusBadge = (status: string): string => {
       const colours: Record<string, string> = { PASS: '#22c55e', ADVISORY: '#f59e0b', CONCERN: '#f97316', FLAG: '#ef4444', UNAVAILABLE: '#94a3b8' };

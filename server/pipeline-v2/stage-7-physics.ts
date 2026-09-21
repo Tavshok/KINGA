@@ -10,12 +10,9 @@
  */
 
 import { ensurePhysicsContract } from "./engineFallback";
-import { isPhysicsEligibleVisionComponent } from "./imageEvidenceEligibility";
 import { WRITE_OFF_RECOMMENDATION_THRESHOLD } from "./pipelineCostConstants";
-import {
-  applyPhysicsNumericalContract,
-  mergeNumericalContract,
-} from "./physicsNumericalContract";
+import { isQualifiedVgeCalibratedGeometry } from "./stage-6-5a-vge";
+import { isQualifiedVgrCalibratedGeometry } from "./stage-6-5b-vgr";
 import {
   validateDamagePattern,
   type DamagePatternOutput,
@@ -33,7 +30,83 @@ import type {
   RecoveryAction,
 } from "./types";
 
-function buildPhysicsInput(claimRecord: ClaimRecord, damageAnalysis: Stage6Output) {
+/**
+ * Resolve governing crush geometry exclusively from calibrated VGE/VGR evidence.
+ * Stage 6 visual output may describe damage, but it cannot become a numerical
+ * physics input without stored-dimension photogrammetric calibration.
+ */
+export function resolveCalibratedCrushDepth(ctx: PipelineContext): number | null {
+  const vgr = ctx.vgeReconciliationResult;
+  if (isQualifiedVgrCalibratedGeometry(vgr)) {
+    return vgr.consensusCrushDepthM;
+  }
+
+  const vge = ctx.vgeCalibrationResult;
+  if (isQualifiedVgeCalibratedGeometry(vge)) {
+    return vge.calibratedCrushDepthM;
+  }
+
+  return null;
+}
+
+export type PhysicsUnavailableReason = "insufficient_geometry" | "engine_failure";
+
+/**
+ * A review-required collision result when governing physics cannot be safely
+ * produced. It intentionally carries no numerical physics placeholders.
+ */
+export function buildUnavailablePhysicsOutput(
+  ctx: Pick<PipelineContext, "vgeCalibrationResult" | "vgeReconciliationResult">,
+  collisionDirection: ClaimRecord["accidentDetails"]["collisionDirection"],
+  reason: PhysicsUnavailableReason
+): Stage7Output {
+  const insufficientGeometry = reason === "insufficient_geometry";
+  return {
+    impactForceKn: null,
+    impactVector: { direction: collisionDirection, magnitude: null, angle: 0 },
+    energyDistribution: {
+      kineticEnergyJ: null,
+      energyDissipatedJ: null,
+      energyDissipatedKj: null,
+    },
+    estimatedSpeedKmh: null,
+    deltaVKmh: null,
+    decelerationG: null,
+    accidentSeverity: "none",
+    accidentReconstructionSummary: insufficientGeometry
+      ? "Quantitative collision physics was not run because no MEDIUM/HIGH-confidence VGE/VGR calibrated crush measurement is available. Provide at least two independent, undamaged stored-dimension references in a suitable vehicle image; raw visual estimates remain advisory only."
+      : "Quantitative collision physics did not complete after a pipeline failure. No numerical fallback was produced; the claim requires review or a rerun using the qualified calibrated geometry.",
+    damageConsistencyScore: 0,
+    latentDamageProbability: {
+      engine: 0,
+      transmission: 0,
+      suspension: 0,
+      frame: 0,
+      electrical: 0,
+    },
+    physicsExecuted: false,
+    physicsStatus: insufficientGeometry
+      ? "SKIPPED_INSUFFICIENT_GEOMETRY"
+      : "SKIPPED_ENGINE_FAILURE",
+    geometryEvidenceBlock: ctx.vgeCalibrationResult ?? null,
+    vgrReconciliation: ctx.vgeReconciliationResult ?? null,
+    isPhysicallyPlausible: false,
+  };
+}
+
+/** A review-required collision result when no calibrated VGE/VGR crush is admissible. */
+export function buildInsufficientGeometryPhysicsOutput(
+  ctx: Pick<PipelineContext, "vgeCalibrationResult" | "vgeReconciliationResult">,
+  collisionDirection: ClaimRecord["accidentDetails"]["collisionDirection"]
+): Stage7Output {
+  return buildUnavailablePhysicsOutput(ctx, collisionDirection, "insufficient_geometry");
+}
+
+function buildPhysicsInput(
+  claimRecord: ClaimRecord,
+  damageAnalysis: Stage6Output,
+  calibratedCrushDepthM: number
+) {
   const vehicleData = {
     mass: claimRecord.vehicle.massKg,
     make: claimRecord.vehicle.make,
@@ -65,161 +138,21 @@ function buildPhysicsInput(claimRecord: ClaimRecord, damageAnalysis: Stage6Outpu
       distanceFromImpact: p.distanceFromImpact,
     })),
     totalDamageArea: damageAnalysis.totalDamageArea,
-    maxCrushDepth: inferCrushDepth(damageAnalysis, claimRecord),
-    structuralDamage: damageAnalysis.structuralDamageDetected,
-    airbagDeployment: claimRecord.accidentDetails.airbagDeployment,
+    maxCrushDepth: calibratedCrushDepthM,
+    // These values remain descriptive evidence. They cannot modify the
+    // calibrated numerical collision result in this integrity boundary.
+    structuralDamage: false,
+    airbagDeployment: false,
   };
 
   return { vehicleData, accidentData, damageAssessment };
 }
 
 /**
- * Infer crush depth from available damage evidence using a multi-factor model.
- *
- * Priority:
- *   1. Explicit crush depth from claim document (most accurate — use as-is)
- *   2. Multi-factor estimate from damage evidence when no document value exists:
- *
- *      Severity baseline (driven by most severe component):
- *        cosmetic / minor  → 0.05 m
- *        moderate          → 0.12 m
- *        severe            → 0.22 m
- *        catastrophic      → 0.38 m
- *
- *      Additive modifiers (applied to baseline):
- *        Component count   : each component beyond 3 adds 0.01 m (cap +0.08 m)
- *        Structural damage : +0.06 m  (chassis/frame deformation = high energy)
- *        Damage area       : each 0.1 m² beyond 0.2 m² adds 0.008 m (cap +0.04 m)
- *        Airbag deployment : floor raised to 0.15 m (airbags deploy at ~20-30 km/h)
- *
- *      Result clamped to [0.04 m, 0.55 m] — physically plausible range for
- *      passenger vehicles in insurance-relevant accidents.
- *
- * Correlation basis: NHTSA crash test data and Campbell (1974) stiffness model.
+ * Raw Stage 6 crush, energy, severity, and document values remain descriptive
+ * evidence only in this package. They are intentionally not converted into a
+ * physics input: resolveCalibratedCrushDepth is the sole governing admission.
  */
-function inferCrushDepth(damageAnalysis: Stage6Output, claimRecord: ClaimRecord): number {
-  // 1. Use explicit document value if present and plausible
-  if (claimRecord.accidentDetails.maxCrushDepthM && claimRecord.accidentDetails.maxCrushDepthM >= 0.05) {
-    return claimRecord.accidentDetails.maxCrushDepthM;
-  }
-
-  const parts = damageAnalysis.damagedParts;
-
-  // 2. Primary path: use maximum crushDepthM from Stage 6 LLM measurements.
-  //    These are direct numeric measurements extracted from damage photos —
-  //    no qualitative string lookup tables.
-  const visionDepths = parts
-    .map(p => p.crushDepthM)
-    .filter((d): d is number => typeof d === 'number' && d > 0);
-  if (visionDepths.length > 0) {
-    const maxVision = Math.max(...visionDepths);
-    // Structural displacement adds directly to crush depth
-    const maxStructuralDisp = Math.max(
-      0,
-      ...parts.map(p => p.structuralDisplacementM ?? 0)
-    );
-        // Use === true to distinguish null (not mentioned) from false (not deployed)
-    const airbagFloor = claimRecord.accidentDetails.airbagDeployment === true ? 0.15 : 0;
-    const combined = maxVision + maxStructuralDisp;
-    return Math.min(0.55, Math.max(0.04, Math.max(combined, airbagFloor)));
-  }
-  // 3. Fallback path: energy-derived crush depth from deformationEnergyJ.
-  //    E = 0.5 × k × C²  →  C = √(2E/k)  where k = 1,000,000 N/m (body panel stiffness)
-  const totalEnergyJ = parts
-    .map(p => p.deformationEnergyJ ?? 0)
-    .reduce((sum, e) => sum + e, 0);
-  if (totalEnergyJ > 0) {
-    const k = 1_000_000; // N/m — typical body panel stiffness
-    const energyDerived = Math.sqrt((2 * totalEnergyJ) / k);
-    // Use === true to distinguish null (not mentioned) from false (not deployed)
-    const airbagFloor = claimRecord.accidentDetails.airbagDeployment === true ? 0.15 : 0;
-    return Math.min(0.55, Math.max(0.04, Math.max(energyDerived, airbagFloor)));
-  }
-
-  // 4. Last-resort fallback: severity-based baseline with direction adjustment.
-  //    Total damage area is NOT used here — it represents the total vehicle
-  //    damage footprint, not the primary impact crush depth. Using area as a
-  //    crush proxy produces wildly inflated speed estimates for multi-zone
-  //    damage (rollover, pothole + rollover, multi-impact) and cannot be
-  //    defended in court.
-  //
-  //    Severity baseline (from damage classification, not area) — FRONTAL reference:
-  //      cosmetic / minor  → 0.05 m  (~5 km/h)
-  //      moderate          → 0.12 m  (~20 km/h)
-  //      severe            → 0.19 m  (~30 km/h)
-  //      catastrophic      → 0.28 m  (~45 km/h)
-  //
-  //    Direction adjustment factors (applied to frontal baseline):
-  //      frontal:         1.00 (reference)
-  //      rear:            0.85 — rear structures are typically stiffer (tow-hitch, spare wheel)
-  //                              and produce less visible crush for the same severity score
-  //      side_driver /
-  //      side_passenger:  0.70 — door panels are thin sheet metal; the structural
-  //                              energy is absorbed by the B-pillar and sill, not the
-  //                              outer skin. Visible crush depth understates energy.
-  //      rollover:        0.60 — roof crush is constrained by pillar geometry
-  //      multi_impact:    0.90 — conservative; primary impact direction unknown
-  //      unknown:         0.90 — conservative default
-  //
-  //    Structural damage adds 0.04 m (chassis/frame deformation = higher energy).
-  //    Airbag floor: 0.15 m minimum (airbags deploy at ≥ 20 km/h equivalent).
-  //    Result is flagged as LOW confidence — excluded from consensus by M1.
-  //
-  // CALIBRATION: Frontal baseline bands (0.28/0.19/0.12/0.05) and severity score
-  // thresholds (85/65/35) are derived from NHTSA barrier test data for typical
-  // passenger vehicles. Direction factors are engineering-judgment from SAE 2002-01-0547
-  // (Varat & Husher, 2002) stiffness ratios. Neither set is calibrated for the
-  // Southern African fleet. Do not change without benchmarking against a labelled dataset.
-  /** Severity score threshold for catastrophic deformation band */
-  const SEV_CATASTROPHIC_THRESHOLD = 85;
-  /** Severity score threshold for severe deformation band */
-  const SEV_SEVERE_THRESHOLD = 65;
-  /** Severity score threshold for moderate deformation band */
-  const SEV_MODERATE_THRESHOLD = 35;
-  /** Frontal deformation baseline for catastrophic severity (metres) */
-  const DEFORM_CATASTROPHIC_M = 0.28;
-  /** Frontal deformation baseline for severe severity (metres) */
-  const DEFORM_SEVERE_M = 0.19;
-  /** Frontal deformation baseline for moderate severity (metres) */
-  const DEFORM_MODERATE_M = 0.12;
-  /** Frontal deformation baseline for minor/cosmetic severity (metres) */
-  const DEFORM_MINOR_M = 0.05;
-  /** Structural damage bonus added to deformation estimate (metres) */
-  const DEFORM_STRUCTURAL_BONUS_M = 0.04;
-  /** Airbag deployment floor for deformation estimate (metres) — airbags deploy at ≥20 km/h equivalent */
-  const DEFORM_AIRBAG_FLOOR_M = 0.15;
-  /**
-   * Direction-specific crush depth adjustment factors.
-   * Applied to the frontal severity baseline to account for structural differences.
-   * Source: SAE 2002-01-0547 (Varat & Husher, 2002) stiffness ratios.
-   * CALIBRATION: These are engineering-judgment values. Do not change without
-   * benchmarking against a labelled crash dataset.
-   */
-  const DIRECTION_CRUSH_FACTOR: Record<string, number> = {
-    frontal:          1.00,
-    rear:             0.85,
-    side_driver:      0.70,
-    side_passenger:   0.70,
-    rollover:         0.60,
-    multi_impact:     0.90,
-    unknown:          0.90,
-  };
-  const direction = claimRecord.accidentDetails.collisionDirection ?? 'unknown';
-  const directionFactor = DIRECTION_CRUSH_FACTOR[direction] ?? 0.90;
-
-  const severityScore = damageAnalysis.overallSeverityScore ?? 50;
-  const frontalBaseline =
-    severityScore >= SEV_CATASTROPHIC_THRESHOLD ? DEFORM_CATASTROPHIC_M :
-    severityScore >= SEV_SEVERE_THRESHOLD       ? DEFORM_SEVERE_M :
-    severityScore >= SEV_MODERATE_THRESHOLD     ? DEFORM_MODERATE_M :
-    DEFORM_MINOR_M;
-  const severityBaseline = frontalBaseline * directionFactor;
-  const structuralBonus = damageAnalysis.structuralDamageDetected ? DEFORM_STRUCTURAL_BONUS_M : 0;
-  const airbagFloor = claimRecord.accidentDetails.airbagDeployment === true ? DEFORM_AIRBAG_FLOOR_M : 0;
-  const estimated = severityBaseline + structuralBonus;
-  return Math.min(0.55, Math.max(0.04, Math.max(estimated, airbagFloor)));
-}
-
 function mapSeverity(raw: string): AccidentSeverity {
   const s = (raw || "").toLowerCase();
   if (s === "catastrophic") return "catastrophic";
@@ -228,106 +161,6 @@ function mapSeverity(raw: string): AccidentSeverity {
   if (s === "minor" || s === "light") return "minor";
   if (s === "cosmetic") return "cosmetic";
   return "moderate";
-}
-
-/**
- * Estimate physics from damage data when the physics engine fails.
- * Uses simplified Newtonian mechanics.
- */
-function estimatePhysicsFromDamage(
-  claimRecord: ClaimRecord,
-  damageAnalysis: Stage6Output,
-  assumptions: Assumption[]
-): Stage7Output {
-  const mass = claimRecord.vehicle.massKg;
-  // Speed: use extracted value only. Never fabricate a speed — a guessed speed
-  // cascades errors through force, energy, cost, and fraud scoring.
-  const extractedSpeed = claimRecord.accidentDetails.estimatedSpeedKmh;
-  const speedKmh = extractedSpeed && extractedSpeed > 0 ? extractedSpeed : null;
-
-  // CALIBRATION: Severity classification thresholds (70/40) for the physics fallback
-  // are engineering-judgment. These differ from the main SEV_* thresholds above.
-  /** Severity score above which fallback classifies as 'severe' */
-  const FALLBACK_SEV_SEVERE_THRESHOLD   = 70;
-  /** Severity score above which fallback classifies as 'moderate' */
-  const FALLBACK_SEV_MODERATE_THRESHOLD = 40;
-  const severity = damageAnalysis.overallSeverityScore > FALLBACK_SEV_SEVERE_THRESHOLD ? "severe" :
-    damageAnalysis.overallSeverityScore > FALLBACK_SEV_MODERATE_THRESHOLD ? "moderate" : "minor";
-
-  if (!speedKmh) {
-    // Speed not available — skip force/energy calculations entirely.
-    // Report physics as unavailable; downstream stages must handle null force/energy.
-    return {
-      impactForceKn: null,
-      impactVector: {
-        direction: claimRecord.accidentDetails.collisionDirection,
-        magnitude: null,
-        angle: 0,
-      },
-      energyDistribution: {
-        kineticEnergyJ: null,
-        energyDissipatedJ: null,
-        energyDissipatedKj: null,
-      },
-      estimatedSpeedKmh: null,
-      deltaVKmh: null,
-      decelerationG: null,
-      accidentSeverity: severity as AccidentSeverity,
-      accidentReconstructionSummary: `Physics analysis not executed due to missing speed input. Damage severity assessed as ${severity} from visual inspection only. Speed was not recorded in the claim documents.`,
-      damageConsistencyScore: 50,
-      latentDamageProbability: { engine: 0.1, transmission: 0.1, suspension: 0.2, frame: 0.15, electrical: 0.05 },
-      physicsExecuted: false,
-      physicsStatus: 'SKIPPED_NO_SPEED' as const,
-    };
-  }
-
-  const speedMs = speedKmh / 3.6;
-
-  // KE = 0.5 * m * v^2
-  const kineticEnergyJ = 0.5 * mass * speedMs * speedMs;
-  // Assume 60% of energy is dissipated in deformation
-  const energyDissipatedJ = kineticEnergyJ * 0.6;
-
-  // F = m * a, assume deceleration over crush depth
-  const crushDepth = inferCrushDepth(damageAnalysis, claimRecord);
-  const decelDistance = Math.max(crushDepth, 0.1);
-  // v^2 = 2*a*d => a = v^2 / (2*d)
-  const decelMs2 = (speedMs * speedMs) / (2 * decelDistance);
-  const forceN = mass * decelMs2;
-  const forceKn = forceN / 1000;
-  const decelerationG = decelMs2 / 9.81;
-
-  assumptions.push({
-    field: "physicsAnalysis",
-    assumedValue: `force=${forceKn.toFixed(1)}kN, speed=${speedKmh}km/h`,
-    reason: `Physics engine failed or unavailable. Estimated using simplified Newtonian mechanics: KE=½mv², F=ma with assumed crush depth of ${crushDepth.toFixed(2)}m.`,
-    strategy: "industry_average",
-    confidence: 35,
-    stage: "Stage 7",
-  });
-
-  return {
-    impactForceKn: forceKn,
-    impactVector: {
-      direction: claimRecord.accidentDetails.collisionDirection,
-      magnitude: forceN,
-      angle: 0,
-    },
-    energyDistribution: {
-      kineticEnergyJ,
-      energyDissipatedJ,
-      energyDissipatedKj: energyDissipatedJ / 1000,
-    },
-    estimatedSpeedKmh: speedKmh,
-    deltaVKmh: speedKmh * 0.6, // Approximate delta-V
-    decelerationG,
-    accidentSeverity: severity as AccidentSeverity,
-    accidentReconstructionSummary: `Estimated physics: ${claimRecord.vehicle.make} ${claimRecord.vehicle.model} (${mass}kg) at ~${speedKmh}km/h. Force: ~${forceKn.toFixed(0)}kN. Energy dissipated: ~${(energyDissipatedJ/1000).toFixed(0)}kJ. (Simplified calculation — physics engine was unavailable.)`,
-    damageConsistencyScore: 50,
-    latentDamageProbability: { engine: 0.1, transmission: 0.1, suspension: 0.2, frame: 0.15, electrical: 0.05 },
-    physicsExecuted: false,
-    physicsStatus: 'ESTIMATED_FALLBACK' as const,
-  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -424,8 +257,8 @@ function runDamagePatternValidation(
  *
  * ── ROUTING LOGIC ────────────────────────────────────────────────────────────────
  *
- *   Collision / unknown: Full physics reconstruction via `estimatePhysicsFromDamage`
- *     and `speedInferenceEnsemble`. Includes scenario-aware routing for animal
+ *   Collision / unknown: Full physics reconstruction via calibrated geometry,
+ *     `analyzeAccidentPhysics`, and `speedInferenceEnsemble`. Includes scenario-aware routing for animal
  *     strikes, parking lot impacts, and rear-end collisions.
  *
  *   Non-physical (theft, fire, flood, vandalism): Physics stage is skipped.
@@ -433,14 +266,13 @@ function runDamagePatternValidation(
  *
  * ── KEY SUB-FUNCTIONS ────────────────────────────────────────────────────────────────
  *
- *   `inferCrushDepth`          — derive crush depth from damage analysis
+ *   `resolveCalibratedCrushDepth` — admits only qualified VGE/VGR crush geometry
  *   `buildPhysicsInput`        — assemble all physics inputs from claim record
- *   `estimatePhysicsFromDamage`— Campbell stiffness model + energy calculations
  *   `runDamagePatternValidation`— cross-validate damage zones vs collision direction
  *   `speedInferenceEnsemble`   — multi-method speed consensus (M1–M5)
  *
- * Calibration basis: NHTSA crash test data and Campbell (1974) stiffness model.
- * See `inferCrushDepth` JSDoc for the full correlation basis.
+ * Calibration basis: stored vehicle geometry, calibrated pixel spans, and the
+ * quantitative models that consume only qualifying VGE/VGR geometry.
  *
  * The R-C-01/R-C-02 physics fixes (Batch 3) restructured the scenario-aware
  * routing. If touching this function, re-verify against the R-C-01/R-C-02
@@ -606,18 +438,62 @@ export async function runPhysicsStage(
   const isStruckParty = claimRecord.accidentDetails.isStruckParty;
   const isHitAndRun = claimRecord.accidentDetails.isHitAndRun;
   const isParkingLot = claimRecord.accidentDetails.isParkingLotDamage;
+  const calibratedCrushDepthM = resolveCalibratedCrushDepth(ctx);
 
   ctx.log("Stage 7", `Scenario routing: ${collisionScenario} | struckParty=${isStruckParty} | hitAndRun=${isHitAndRun} | parkingLot=${isParkingLot}`);
+
+  if (calibratedCrushDepthM == null) {
+    const unavailableOutput = buildInsufficientGeometryPhysicsOutput(
+      ctx,
+      claimRecord.accidentDetails.collisionDirection
+    );
+    unavailableOutput.damagePatternValidation = runDamagePatternValidation(
+      ctx,
+      claimRecord,
+      damageAnalysis
+    );
+    ctx.log(
+      "Stage 7",
+      "Quantitative physics skipped: VGE/VGR calibrated geometry is unavailable or below MEDIUM confidence; raw Stage 6 crush values were not admitted."
+    );
+    return {
+      status: "skipped",
+      data: unavailableOutput,
+      durationMs: Date.now() - start,
+      savedToDb: false,
+      assumptions,
+      recoveryActions,
+      degraded: false,
+    };
+  }
 
   // ── Parking lot: cap speed and flag ───────────────────────────────────────────────
   if (isParkingLot) {
     ctx.log("Stage 7", "Parking lot scenario — capping speed at 15 km/h; skipping causal reasoning");
-    // Override extracted speed with parking lot cap
-    const parkingSpeedKmh = Math.min(extractedSpeed || 15, 15);
+    if (!extractedSpeed || extractedSpeed <= 0) {
+      const unavailableOutput: Stage7Output = {
+        impactForceKn: null,
+        impactVector: { direction: claimRecord.accidentDetails.collisionDirection, magnitude: null, angle: 0 },
+        energyDistribution: { kineticEnergyJ: null, energyDissipatedJ: null, energyDissipatedKj: null },
+        estimatedSpeedKmh: null,
+        deltaVKmh: null,
+        decelerationG: null,
+        accidentSeverity: "none",
+        accidentReconstructionSummary: "Parking-lot collision physics was not run because no recorded speed was available.",
+        damageConsistencyScore: 0,
+        latentDamageProbability: { engine: 0, transmission: 0, suspension: 0, frame: 0, electrical: 0 },
+        physicsExecuted: false,
+        physicsStatus: "SKIPPED_NO_SPEED",
+      };
+      unavailableOutput.damagePatternValidation = runDamagePatternValidation(ctx, claimRecord, damageAnalysis);
+      return { status: "skipped", data: unavailableOutput, durationMs: Date.now() - start, savedToDb: false, assumptions, recoveryActions, degraded: false };
+    }
+    // Cap a recorded parking-lot speed; never invent a default speed.
+    const parkingSpeedKmh = Math.min(extractedSpeed, 15);
     const parkingMass = claimRecord.vehicle.massKg;
     const parkingSpeedMs = parkingSpeedKmh / 3.6;
     const parkingKE = 0.5 * parkingMass * parkingSpeedMs * parkingSpeedMs;
-    const parkingCrush = inferCrushDepth(damageAnalysis, claimRecord);
+    const parkingCrush = calibratedCrushDepthM;
     const parkingDecel = (parkingSpeedMs * parkingSpeedMs) / (2 * Math.max(parkingCrush, 0.05));
     const parkingForceKn = (parkingMass * parkingDecel) / 1000;
     const parkingOutput: Stage7Output = {
@@ -658,43 +534,31 @@ export async function runPhysicsStage(
 
   try {
     const { analyzeAccidentPhysics } = await import("../accidentPhysics");
-    const { vehicleData, accidentData, damageAssessment } = buildPhysicsInput(claimRecord, damageAnalysis);
+    const { vehicleData, accidentData, damageAssessment } = buildPhysicsInput(
+      claimRecord,
+      damageAnalysis,
+      calibratedCrushDepthM
+    );
 
     const physicsResult: any = await analyzeAccidentPhysics(vehicleData as any, accidentData as any, damageAssessment as any);
 
-    const impactForceN = physicsResult.impactForce?.magnitude || 0;
+    const impactForceN = physicsResult.impactForce?.magnitude ?? 0;
     const impactForceKn = impactForceN / 1000;
-    const kineticEnergyJ = physicsResult.kineticEnergy || 0;
-    const energyDissipatedJ = physicsResult.energyDissipated || 0;
-    const estimatedSpeedKmh = physicsResult.speedEstimate?.estimatedSpeedKmh || physicsResult.estimatedSpeed?.value || 0;
-    const deltaVKmh = physicsResult.deltaV || 0;
-    const decelerationG = physicsResult.decelerationG || 0;
+    const kineticEnergyJ = physicsResult.kineticEnergy ?? 0;
+    const energyDissipatedJ = physicsResult.energyDissipated ?? 0;
+    const estimatedSpeedKmh = physicsResult.speedEstimate?.estimatedSpeedKmh ?? physicsResult.estimatedSpeed?.value ?? 0;
+    const deltaVKmh = physicsResult.deltaV ?? 0;
+    const decelerationG = physicsResult.decelerationG ?? 0;
+    if (!(impactForceKn > 0 && kineticEnergyJ > 0 && energyDissipatedJ > 0 && estimatedSpeedKmh > 0 && deltaVKmh > 0)) {
+      throw new Error("Calibrated collision physics did not produce complete governing values; numerical defaults are not admitted");
+    }
 
-    // Stage 34: Apply numerical contract — fill any zero/missing values with
-    // vehicle-class-based estimates so output is always fully numerical.
-    const numericalContract = applyPhysicsNumericalContract({
-      deltaVKmh,
-      speedKmh: estimatedSpeedKmh,
-      massKg: claimRecord.vehicle.massKg,
-      bodyType: claimRecord.vehicle.bodyType,
-      crushDepthM: inferCrushDepth(damageAnalysis, claimRecord),
-    });
-    const merged = mergeNumericalContract(
-      {
-        deltaVKmh,
-        estimatedSpeedKmh,
-        impactForceKn,
-        energyDistribution: { kineticEnergyJ, energyDissipatedJ, energyDissipatedKj: energyDissipatedJ / 1000 },
-      },
-      numericalContract
-    );
-
-    // Compute decelerationG from merged values if physicsResult did not return it.
+    // Compute decelerationG from the calibrated crush depth if the engine did not return it.
     // analyzeAccidentPhysics does not return decelerationG, so this is always needed.
     // Formula: a = v^2 / (2 * crushDepth), capped between 0.1 G and 50 G.
-    const crushDepthForDecel = inferCrushDepth(damageAnalysis, claimRecord);
-    const speedMsForDecel = merged.estimatedSpeedKmh / 3.6;
-    const decelMs2Computed = (speedMsForDecel * speedMsForDecel) / (2 * Math.max(crushDepthForDecel, 0.05));
+    const crushDepthForDecel = calibratedCrushDepthM;
+    const speedMsForDecel = estimatedSpeedKmh / 3.6;
+    const decelMs2Computed = (speedMsForDecel * speedMsForDecel) / (2 * crushDepthForDecel);
     const decelerationGComputed = Math.min(50, Math.max(0.1, decelMs2Computed / 9.81));
     const finalDecelerationG = decelerationG > 0 ? decelerationG : decelerationGComputed;
 
@@ -705,12 +569,9 @@ export async function runPhysicsStage(
     //   moderate → 0.40  (door/panel deformation, some structural loading)
     //   severe  → 0.60  (deep panel intrusion, possible structural damage)
     // Speed is unchanged (it is the vehicle's travel speed, not the impact speed).
-    // This correction is applied AFTER the numerical contract merge so the contract floor values
-    // are not artificially inflated.
-    const baseSeverityForCoeff = mapSeverity(physicsResult.accidentSeverity || 'moderate');
-    const sideswipeCoefficient = (collisionScenario === 'sideswipe')
-      ? (baseSeverityForCoeff === 'minor' ? 0.25 : baseSeverityForCoeff === 'severe' ? 0.60 : 0.40)
-      : 1.0;
+    // This coefficient is fixed by collision type; raw Stage 6 severity cannot
+    // alter governing force or energy in the calibrated-only path.
+    const sideswipeCoefficient = collisionScenario === 'sideswipe' ? 0.40 : 1.0;
 
     // ── Scenario-damage cross-check ────────────────────────────────────────────────────────────
     // Verify that the primary damage zone is consistent with the claimed scenario.
@@ -739,10 +600,10 @@ export async function runPhysicsStage(
     if (claimRecord.accidentDetails) {
       (claimRecord.accidentDetails as any).scenarioDamageMismatch = scenarioDamageMismatch;
     }
-    const finalForceKn = merged.impactForceKn * sideswipeCoefficient;
-    const finalEnergyKj = (merged.energyDistribution.energyDissipatedKj ?? merged.energyDistribution.energyDissipatedJ / 1000) * sideswipeCoefficient;
-    const finalEnergyJ = merged.energyDistribution.energyDissipatedJ * sideswipeCoefficient;
-    const finalKineticJ = merged.energyDistribution.kineticEnergyJ * sideswipeCoefficient;
+    const finalForceKn = impactForceKn * sideswipeCoefficient;
+    const finalEnergyKj = (energyDissipatedJ / 1000) * sideswipeCoefficient;
+    const finalEnergyJ = energyDissipatedJ * sideswipeCoefficient;
+    const finalKineticJ = kineticEnergyJ * sideswipeCoefficient;
 
     const output: Stage7Output = {
       impactForceKn: finalForceKn,
@@ -756,8 +617,8 @@ export async function runPhysicsStage(
         energyDissipatedJ: finalEnergyJ,
         energyDissipatedKj: finalEnergyKj,
       },
-      estimatedSpeedKmh: merged.estimatedSpeedKmh,
-      deltaVKmh: merged.deltaVKmh,
+      estimatedSpeedKmh,
+      deltaVKmh,
       decelerationG: finalDecelerationG,
       accidentSeverity: (() => {
         // Base severity from physics engine
@@ -850,156 +711,14 @@ export async function runPhysicsStage(
       const airbagDeployed = claimRecord.accidentDetails.airbagDeployment === true;
       const seatbeltFired = claimRecord.accidentDetails.seatbeltPretensioner === true;
 
-      // ── FIX A: Zone-conditioned vision crush depth selection ─────────────────
-      // P6: When visionSourceReliability is LOW or NONE, exclude vision crush depths entirely.
-      // When trusted, select crush depths from components whose location matches the
-      // collisionDirection — not the global maximum across all zones.
-      //
-      // Zone matching rules:
-      //   frontal/front  → location contains 'front'
-      //   rear           → location contains 'rear'
-      //   side/lateral   → location contains 'side', 'left', 'right', 'door', 'pillar'
-      //   rollover/roof  → location contains 'roof', 'roll'
-      //   unknown/null   → no zone filter (use all confirmed_damage_photo components)
-      //
-      // Fallback: if no zone-matched components have a crush depth, fall back to all
-      // confirmed_damage_photo components and log the fallback explicitly.
-      //
-      // Multi-event / rollover: if damagedZoneCount > 1 AND collisionDirection is 'rollover'
-      // or 'unknown', Campbell and M5 are disabled downstream via damagedZoneCount guard.
-      const visionSourceReliability = damageAnalysis.visionSourceReliability ?? 'NONE';
-      const visionInputTrusted = visionSourceReliability === 'HIGH' || visionSourceReliability === 'MEDIUM';
-
-      // Build the zone-match predicate from collisionDirection
-      const collDir = (claimRecord.accidentDetails.collisionDirection ?? '').toLowerCase();
-      const zoneMatchFn = (location: string | undefined): boolean => {
-        if (!collDir || collDir === 'unknown' || collDir === 'other') return true; // no filter
-        const loc = (location ?? '').toLowerCase();
-        if (collDir.includes('front')) return loc.includes('front') || loc.includes('bonnet') || loc.includes('hood') || loc.includes('bumper') || loc.includes('grille') || loc.includes('radiator') || loc.includes('chassis rail');
-        if (collDir.includes('rear')) return loc.includes('rear') || loc.includes('boot') || loc.includes('trunk') || loc.includes('tail');
-        if (collDir.includes('side') || collDir.includes('lateral') || collDir.includes('t-bone') || collDir.includes('door')) return loc.includes('side') || loc.includes('door') || loc.includes('pillar') || loc.includes('sill') || loc.includes('left') || loc.includes('right');
-        if (collDir.includes('roll')) return loc.includes('roof') || loc.includes('roll') || loc.includes('pillar');
-        return true; // unknown direction — no filter
-      };
-
-      let visionDepthsFromParts: number[] = [];
-      let zoneFilterApplied = false;
-      if (visionInputTrusted) {
-        // R2: numeric physics must have explicit Stage 6 confirmation from a
-        // crush-depth-eligible image. Legacy/null provenance remains usable damage
-        // evidence, but cannot silently enter a speed or energy calculation.
-        const confirmedParts = damageAnalysis.damagedParts
-          .filter(isPhysicsEligibleVisionComponent);
-
-        // First pass: zone-matched components only
-        const zoneMatchedDepths = confirmedParts
-          .filter(p => zoneMatchFn(p.location))
-          .map(p => p.crushDepthM)
-          .filter((d): d is number => typeof d === 'number' && d > 0);
-
-        if (zoneMatchedDepths.length > 0) {
-          visionDepthsFromParts = zoneMatchedDepths;
-          zoneFilterApplied = true;
-          ctx.log('Stage 7',
-            `[FIX-A] Zone-conditioned crush depth: collisionDirection='${collDir}', ` +
-            `${zoneMatchedDepths.length} zone-matched component(s), max=${Math.max(...zoneMatchedDepths).toFixed(3)}m`
-          );
-        } else {
-          // Fallback: no zone-matched components — use all confirmed_damage_photo parts
-          const allDepths = confirmedParts
-            .map(p => p.crushDepthM)
-            .filter((d): d is number => typeof d === 'number' && d > 0);
-          visionDepthsFromParts = allDepths;
-          if (allDepths.length > 0) {
-            ctx.log('Stage 7',
-              `[FIX-A] Zone fallback: no components matched collisionDirection='${collDir}', ` +
-              `using all ${allDepths.length} confirmed_damage_photo component(s), max=${Math.max(...allDepths).toFixed(3)}m. ` +
-              `Crush depth zone provenance is UNVERIFIED — plausibility check will evaluate.`
-            );
-          }
-        }
-      }
-
-      // Stage 6.5A VGE: use calibrated crush depth if available and confidence is MEDIUM or HIGH.
-      // Otherwise fall back to the per-component max from Stage 6 vision, then to the forensic analysis field.
-      const vgeResult = ctx.vgeCalibrationResult;
-      const vgrResult = ctx.vgeReconciliationResult;
-      let visionCrushDepthM: number | null;
-
-      // Priority 1: VGR consensus (Stage 6.5B) — multi-image view-angle-weighted
-      if (vgrResult?.reconciliationAvailable && vgrResult.consensusCrushDepthM != null &&
-          (vgrResult.confidenceLevel === 'HIGH' || vgrResult.confidenceLevel === 'MEDIUM')) {
-        visionCrushDepthM = vgrResult.consensusCrushDepthM;
-        ctx.log('Stage 7',
-          `[VGR] Using VGR consensus crush depth: ${(visionCrushDepthM * 1000).toFixed(0)} mm ` +
-          `[${((vgrResult.consensusCrushDepthMinM ?? 0) * 1000).toFixed(0)}\u2013${((vgrResult.consensusCrushDepthMaxM ?? 0) * 1000).toFixed(0)} mm] ` +
-          `(${vgrResult.confidenceLevel} confidence, ${vgrResult.agreementAssessment.contributingImages} image(s), ` +
-          `agreement: ${vgrResult.agreementAssessment.agreementLevel})`
-        );
-      // Priority 2: VGE single-best (Stage 6.5A) — fallback when VGR not available
-      } else if (vgeResult?.calibrationAvailable && vgeResult.calibratedCrushDepthM != null &&
-          (vgeResult.confidenceLevel === 'HIGH' || vgeResult.confidenceLevel === 'MEDIUM')) {
-        visionCrushDepthM = vgeResult.calibratedCrushDepthM;
-        ctx.log('Stage 7',
-          `[VGE] Using VGE calibrated crush depth (Stage 6.5A single-best): ${(visionCrushDepthM * 1000).toFixed(0)} mm ` +
-          `[${((vgeResult.calibratedCrushDepthMinM ?? 0) * 1000).toFixed(0)}\u2013${((vgeResult.calibratedCrushDepthMaxM ?? 0) * 1000).toFixed(0)} mm] ` +
-          `(${vgeResult.confidenceLevel} confidence, ${vgeResult.totalReferenceObjectsDetected} reference objects, ` +
-          `vehicle: ${vgeResult.vehicleProfileUsed ?? 'no profile'})`
-        );
-      } else {
-        // Fall back to raw LLM per-component crush depths.
-        // NOTE: LLM sometimes reports component depth (e.g. radiator depth ~450 mm) instead of
-        // panel deformation crush depth. Apply a direction-adjusted plausibility cap to prevent
-        // component-depth confusion from propagating into the physics ensemble.
-        // Caps by direction (physically plausible max panel deformation for insurance-relevant impacts):
-        //   frontal / front / rear: 0.30 m (300 mm) — bonnet/boot crush, not full-width barrier
-        //   side / side_passenger / side_driver: 0.20 m (200 mm) — door panel deformation
-        //   rollover / unknown: 0.35 m (350 mm) — conservative upper bound
-        const _rawLlmMax = visionDepthsFromParts.length > 0
-          ? Math.max(...visionDepthsFromParts)
-          : (visionInputTrusted ? (claimRecord._forensicAnalysis?.visionCrushDepthM ?? null) : null);
-        const _capDir = claimRecord.accidentDetails.collisionDirection ?? 'unknown';
-        const _plausibilityCap = (['frontal', 'front', 'rear'].includes(_capDir)) ? 0.30
-          : (['side', 'side_passenger', 'side_driver'].includes(_capDir)) ? 0.20
-          : 0.35;
-        if (_rawLlmMax != null && _rawLlmMax > _plausibilityCap) {
-          visionCrushDepthM = _plausibilityCap;
-          ctx.log('Stage 7',
-            `[VGE-CAP] Raw LLM crush depth ${(_rawLlmMax * 1000).toFixed(0)} mm exceeds plausibility cap ` +
-            `for direction '${_capDir}' (${(_plausibilityCap * 1000).toFixed(0)} mm). ` +
-            `Capped to prevent component-depth confusion. VGE confidence: ${vgeResult?.confidenceLevel ?? 'NONE'}.`
-          );
-        } else {
-          visionCrushDepthM = _rawLlmMax;
-        }
-        if (vgeResult != null) {
-          ctx.log('Stage 7',
-            `[VGE] Falling back to raw LLM crush depth (VGE confidence: ${vgeResult.confidenceLevel ?? 'NONE'}) — ` +
-            `raw value: ${_rawLlmMax != null ? (_rawLlmMax * 1000).toFixed(0) + ' mm' : 'null'}, ` +
-            `used value: ${visionCrushDepthM != null ? (visionCrushDepthM * 1000).toFixed(0) + ' mm' : 'null'}`
-          );
-        }
-      }
-
-      if (!visionInputTrusted) {
-        ctx.log('Stage 7',
-          `[P6] visionSourceReliability=${visionSourceReliability} — vision crush depths excluded from ensemble. ` +
-          `Image source was not confirmed as a vehicle damage photo. Physics will use document/inferred inputs only.`
-        );
-      }
-
-      // Aggregate per-component numeric physics measurements from Stage 6
-      const totalDeformationEnergyJ = damageAnalysis.damagedParts
-        .map(p => p.deformationEnergyJ ?? 0)
-        .reduce((sum, e) => sum + e, 0) || null;
-
-      // Average visionConfidenceScore across components that reported it
-      const confidenceScores = damageAnalysis.damagedParts
-        .map(p => p.visionConfidenceScore)
-        .filter((s): s is number => typeof s === 'number' && s > 0);
-      const avgVisionConfidenceScore = confidenceScores.length > 0
-        ? confidenceScores.reduce((sum, s) => sum + s, 0) / confidenceScores.length
-        : null;
+      // Governing crush geometry was admitted at the stage boundary above.
+      // The ensemble receives the same VGE/VGR-calibrated measurement; Stage 6
+      // pixel interpretations, energy, severity, and document values remain advisory.
+      const visionCrushDepthM = calibratedCrushDepthM;
+      ctx.log(
+        "Stage 7",
+        `[VGE/VGR] Using qualified calibrated crush depth: ${(visionCrushDepthM * 1000).toFixed(0)} mm. Raw Stage 6 crush values were not considered for physics.`
+      );
 
       // Count distinct damage zones — used to determine if M5 Path B is valid
       // (Path B is disabled for multi-zone damage: rollover, multi-impact, etc.)
@@ -1016,19 +735,20 @@ export async function runPhysicsStage(
         model: claimRecord.vehicle.model,
         bodyType: claimRecord.vehicle.bodyType,
         collisionDirection: claimRecord.accidentDetails.collisionDirection,
-        documentCrushDepthM: claimRecord.accidentDetails.maxCrushDepthM,
-        inferredCrushDepthM: inferCrushDepth(damageAnalysis, claimRecord),
+        // Collision physics in this package admits only qualified VGE/VGR geometry.
+        documentCrushDepthM: null,
+        inferredCrushDepthM: null,
         visionCrushDepthM,
         totalDamageAreaM2: resolvedDamageAreaM2,
         partsCostUsd: null, // M2 disabled — cost is not a reliable physics input
-        structuralDamage: claimRecord.accidentDetails.structuralDamage ?? damageAnalysis.structuralDamageDetected,
-        airbagDeployment: airbagDeployed,
-        seatbeltPretensioner: seatbeltFired,
-        totalDeformationEnergyJ,
-        visionConfidenceScore: avgVisionConfidenceScore,
+        structuralDamage: false,
+        airbagDeployment: false,
+        seatbeltPretensioner: false,
+        totalDeformationEnergyJ: null,
+        visionConfidenceScore: null,
         damagedZoneCount,
         // Damage severity context for crush-depth plausibility check
-        damageSeverity: output.accidentSeverity ?? null,
+        damageSeverity: null,
         totalLossIndicated: !!(claimRecord.valuation?.repairToValueRatio && claimRecord.valuation.repairToValueRatio >= WRITE_OFF_RECOMMENDATION_THRESHOLD),
         // M7: Claimant-stated speed from claim documents.
         // MUST read from ctx.claimantStatedSpeedKmh — the IMMUTABLE field set once
@@ -1038,7 +758,7 @@ export async function runPhysicsStage(
         // receive the previous run's consensus instead of the claimant's stated speed.
         claimedSpeedKmh: ctx.claimantStatedSpeedKmh ?? null,
       });
-      ctx.log('Stage 7', `Ensemble inputs: mass=${claimRecord.vehicle.massKg}kg, area=${resolvedDamageAreaM2?.toFixed(3)}m², airbag=${airbagDeployed}, seatbelt=${seatbeltFired}, visionDepth=${visionCrushDepthM}, deformEnergy=${totalDeformationEnergyJ?.toFixed(0)}J, visionConf=${avgVisionConfidenceScore?.toFixed(1)}, claimedSpeed=${ctx.claimantStatedSpeedKmh ?? 'null'} [immutable]`);
+      ctx.log('Stage 7', `Ensemble inputs: mass=${claimRecord.vehicle.massKg}kg, area=${resolvedDamageAreaM2?.toFixed(3)}m², calibratedCrush=${visionCrushDepthM}, claimedSpeed=${ctx.claimantStatedSpeedKmh ?? 'null'} [immutable]; raw Stage 6 energy, severity, and deployment methods disabled.`);
       output.speedInferenceEnsemble = ensembleResult;
       ctx.log('Stage 7', `Speed ensemble: consensus=${ensembleResult.consensusSpeedKmh} km/h, methods=${ensembleResult.methodsRan}, confidence=${ensembleResult.overallConfidence}${ensembleResult.highDivergence ? ' [HIGH_DIVERGENCE]' : ''}`);
 
@@ -1060,8 +780,11 @@ export async function runPhysicsStage(
         // ensemble has produced a consensus, recompute all four so the output
         // is internally consistent with the reported estimatedSpeedKmh.
         const ensembleSpeedMs = ensembleResult.consensusSpeedKmh / 3.6;
-        const massKgForRecompute = claimRecord.vehicle.massKg ?? 1500;
-        const crushDepthForRecompute = inferCrushDepth(damageAnalysis, claimRecord);
+        const massKgForRecompute = claimRecord.vehicle.massKg;
+        if (!Number.isFinite(massKgForRecompute) || massKgForRecompute <= 0) {
+          throw new Error("Vehicle mass is required for calibrated physics recomputation");
+        }
+        const crushDepthForRecompute = calibratedCrushDepthM;
         // KE = ½mv²
         const recomputedKEJ = 0.5 * massKgForRecompute * ensembleSpeedMs * ensembleSpeedMs;
         // F = mv²/(2d), in kN — use same 0.1 m floor as the pre-ensemble path (line ~258)
@@ -1132,9 +855,7 @@ export async function runPhysicsStage(
           ...(damageAnalysis.damageZones ?? []).map((z: { zone: string }) => z.zone),
         ].filter(Boolean);
         const finalSpeedForClassification = ensembleResult.consensusSpeedKmh ?? output.estimatedSpeedKmh ?? 0;
-        const crushDepthForClassification = claimRecord.accidentDetails.maxCrushDepthM
-          ?? visionCrushDepthM
-          ?? null;
+        const crushDepthForClassification = calibratedCrushDepthM;
         output.damageClassification = classifyDamage({
           consensusSpeedKmh: finalSpeedForClassification,
           collisionDirection: claimRecord.accidentDetails.collisionDirection,
@@ -1178,50 +899,29 @@ export async function runPhysicsStage(
       degraded: false,
     };
   } catch (err) {
-    ctx.log("Stage 7", `Physics engine failed: ${String(err)} — estimating from damage data`);
+    ctx.log("Stage 7", `Physics engine failed: ${String(err)} — retaining null-valued review output`);
 
-    // Self-healing: estimate physics from damage data
-    const estimated = estimatePhysicsFromDamage(claimRecord, damageAnalysis, assumptions);
-    // Stage 34: Apply numerical contract to the fallback estimate too
-    const fallbackNumerical = applyPhysicsNumericalContract({
-      deltaVKmh: estimated.deltaVKmh,
-      speedKmh: estimated.estimatedSpeedKmh,
-      massKg: claimRecord.vehicle.massKg,
-      bodyType: claimRecord.vehicle.bodyType,
-      crushDepthM: inferCrushDepth(damageAnalysis, claimRecord),
-    });
-    const fallbackMerged = mergeNumericalContract(
-      {
-        deltaVKmh: estimated.deltaVKmh,
-        estimatedSpeedKmh: estimated.estimatedSpeedKmh,
-        impactForceKn: estimated.impactForceKn,
-        energyDistribution: estimated.energyDistribution,
-      },
-      fallbackNumerical
+    // Governing physics must never be reconstructed with a generic or raw Stage
+    // 6 fallback after the calibrated path has failed. Preserve descriptive
+    // damage-pattern evidence only; force, energy, speed, delta-V, and
+    // deceleration remain unavailable.
+    const unavailablePhysics = buildUnavailablePhysicsOutput(
+      ctx,
+      claimRecord.accidentDetails.collisionDirection,
+      calibratedCrushDepthM == null ? "insufficient_geometry" : "engine_failure"
     );
-    const patchedEstimate = {
-      ...estimated,
-      deltaVKmh: fallbackMerged.deltaVKmh,
-      estimatedSpeedKmh: fallbackMerged.estimatedSpeedKmh,
-      impactForceKn: fallbackMerged.impactForceKn,
-      energyDistribution: fallbackMerged.energyDistribution,
-    };
-    // Stage 26: apply defensive contract — mark all estimated fields
-    const contractedEstimate = ensurePhysicsContract(patchedEstimate, `engine_failure: ${String(err)}`);
-    // Run damage pattern validation even in fallback mode
     const fallbackPatternValidation = runDamagePatternValidation(ctx, claimRecord, damageAnalysis);
-    contractedEstimate.damagePatternValidation = fallbackPatternValidation;
+    unavailablePhysics.damagePatternValidation = fallbackPatternValidation;
     recoveryActions.push({
       target: "physicsAnalysis",
-      strategy: "industry_average",
+      strategy: "skip",
       success: true,
-      description: `Physics engine failed: ${String(err)}. Estimated using simplified Newtonian mechanics.`,
-      recoveredValue: `force=${estimated.impactForceKn != null ? estimated.impactForceKn.toFixed(1) : 'n/a'}kN`,
+      description: `Physics engine failed: ${String(err)}. No numerical fallback was produced; review or rerun is required.`,
     });
 
     return {
       status: "degraded",
-      data: contractedEstimate,
+      data: unavailablePhysics,
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,

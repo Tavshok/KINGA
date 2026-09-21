@@ -283,7 +283,13 @@ export interface CTOPhysics {
   impactForceKn: number | null;
   kineticEnergyJ: number | null;
   decelerationG: number | null;
-  physicsStatus: "EXECUTED" | "SKIPPED_NO_SPEED" | "SKIPPED_NON_PHYSICAL" | "ESTIMATED_FALLBACK";
+  physicsStatus:
+    | "EXECUTED"
+    | "SKIPPED_NO_SPEED"
+    | "SKIPPED_NON_PHYSICAL"
+    | "SKIPPED_INSUFFICIENT_GEOMETRY"
+    | "SKIPPED_ENGINE_FAILURE"
+    | "ESTIMATED_FALLBACK";
   damageConsistencyScore: number;
   physicsConfidence: number | null;
   speedInferenceEnsemble: SpeedInferenceResult | null;
