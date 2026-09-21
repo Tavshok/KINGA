@@ -131,6 +131,28 @@ function makeMinimalInput(overrides: Partial<TREInput> = {}): TREInput {
   };
 }
 
+/**
+ * The idempotency contract compares deterministic reconciliation values, not
+ * execution timestamps. Provenance timestamps occur in nested CTO sections as
+ * well as in the top-level certificate and truth graph.
+ */
+function stripVolatileTimestamps(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(stripVolatileTimestamps);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([key]) => key !== "generatedAt" && key !== "computedAt")
+        .map(([key, nestedValue]) => [
+          key,
+          stripVolatileTimestamps(nestedValue),
+        ])
+    );
+  }
+  return value;
+}
+
 // ─── Test suite ──────────────────────────────────────────────────────────────
 
 describe("TRE — runTruthReconciliationEngine", () => {
@@ -284,7 +306,8 @@ describe("TRE — runTruthReconciliationEngine", () => {
     const cto1 = runTruthReconciliationEngine(input);
     const cto2 = runTruthReconciliationEngine(input);
 
-    // Strip timestamps and hash before comparison
+    // Strip timestamps and hash before comparison. Provenance timestamps can
+    // differ by one millisecond across two otherwise identical executions.
     const strip = (cto: ClaimTruthObject) => {
       const { generatedAt, certification, ...rest } = cto;
       const { certificate, truthGraph, ...certRest } = certification;
@@ -294,25 +317,21 @@ describe("TRE — runTruthReconciliationEngine", () => {
         ctoHash,
         ...certFields
       } = certificate;
-      const {
-        generatedAt: _truthGraphGeneratedAt,
-        nodes,
-        ...graphFields
-      } = truthGraph;
+      const { nodes, ...graphFields } = truthGraph;
       const normalizedNodes = Object.fromEntries(
         Object.entries(nodes).map(([fieldPath, node]) => {
           const { computedAt: _computedAt, ...nodeFields } = node;
           return [fieldPath, nodeFields];
         })
       );
-      return {
+      return stripVolatileTimestamps({
         ...rest,
         certification: {
           ...certRest,
           certificate: certFields,
           truthGraph: { ...graphFields, nodes: normalizedNodes },
         },
-      };
+      });
     };
 
     expect(strip(cto1)).toEqual(strip(cto2));
