@@ -1,0 +1,72 @@
+{
+  "decisionId": "KINGA-STAGING-GATED-188-2026-09-15-CB4-BASELINE-ADOPTION-CHECKPOINT-2026-09-21",
+  "status": "CB-4 complete; planning and lineage artifact only",
+  "createdAtUtc": "2026-09-21T13:47:53.724Z",
+  "authority": {
+    "baselineAuthority": "Project owner under the recorded temporary sole-operator exception",
+    "futureChangeAuthority": "Project owner under the recorded temporary sole-operator exception",
+    "scope": "CB-4 only; does not authorize R1 or any later proof gate, target write, migration authoring, DDL, DML, seed, application-data access, credential, grant, deployment, or production action"
+  },
+  "target": {
+    "name": "KINGA-staging",
+    "database": "kinga_staging",
+    "tiDbVersion": "8.0.11-TiDB-v8.5.3-serverless",
+    "transport": {
+      "tlsProtocol": "TLSv1.3",
+      "tlsCipher": "TLS_AES_128_GCM_SHA256"
+    },
+    "verifier": "kinga_verify read-only metadata verifier"
+  },
+  "controlledBaseline": {
+    "identifier": "KINGA-STAGING-GATED-188-2026-09-15",
+    "manifestPath": "audit/controlled-baselines/kinga-staging-gated-188-2026-09-15/controlled-baseline-manifest-2026-09-21.json",
+    "manifestSha256": "efc683b034190c6269724bc04d34e18d7b64d4a5638c32c830eb8fd3faf33182",
+    "manifestSourceCommit": "631962efb0e42b51580602ded2dde524c1e59797",
+    "classification": "controlled evidence-backed noncanonical staging schema baseline; not a Drizzle baseline and not a replay root"
+  },
+  "frozenSource": {
+    "commit": "519615d892c92b7939af55b2901ece95bcb7629c",
+    "currentSourceTableInventorySha256": "3756277e6a5ccff267de467fd53d55202fefd087d3a1048fa46ecdb94d1df267",
+    "currentSourceTableCount": 224
+  },
+  "approvedReferenceFingerprint": {
+    "gateDTableInventorySha256": "36b26b9ee7dcbc0f1883f31db0a06840f5fd247cf8958f8e23f3d608c4bb52b5",
+    "gateDTableCount": 188,
+    "currentTargetTableInventorySha256": "36b26b9ee7dcbc0f1883f31db0a06840f5fd247cf8958f8e23f3d608c4bb52b5",
+    "currentTargetTableCount": 188,
+    "inspectedAnchorSchemaSha256": "e9f120a0c10fd1e8a6b2adc1d9467613c3889babd982c0ca32afc9333c3736e9",
+    "conformanceEvidenceSha256": "14044d29c64accfd6e5c020fe688868fbe85edef13409bb7600da346dbeadcac",
+    "referenceAcceptance": "Approved for future comparison only. R3 must perform an independent clean-baseline preflight before any R4 schema-only packet is considered."
+  },
+  "historicalPreservation": {
+    "manifestArtifactCount": 1498,
+    "retainedHistoricalSourceCommit": "631962efb0e42b51580602ded2dde524c1e59797",
+    "historicalFileAndGateDEvidenceHashes": "Frozen by the controlled baseline manifest; R0 below independently reverified every manifest entry without changing any artifact.",
+    "prohibited": [
+      "retrospective journal entries for 0056-0059",
+      "historical SQL edits or renumbering",
+      "snapshot relabeling as historical canonical state",
+      "fabricated legacy __drizzle_migrations rows"
+    ],
+    "knownExceptions": [
+      "0045 partial-failure residue",
+      "0058 first-statement userId versus user_id failure",
+      "0056-0059 journal discontinuity",
+      "post-0055 snapshot discontinuity"
+    ]
+  },
+  "reconciliationRegister": {
+    "path": "audit/p0-baseline-adoption/kinga-staging-gated-188-2026-09-21/reconciliation-register-2026-09-21.json",
+    "sha256": "3cd9becd55847cccd11e282a8dab49f6c1e1e209c14a71263687a5b7fe60be30",
+    "counts": {
+      "baselineInventoryObjects": 188,
+      "currentSourceObjects": 224,
+      "presentCompatible": 188,
+      "divergent": 0,
+      "absent": 0,
+      "intentionallyDeferred": 40
+    }
+  },
+  "dataAndSeedBoundary": "Application-data and reference-data/seed state are outside this register. No row contents, seed action, data reliance, or retention decision is asserted or authorized.",
+  "nextGate": "R0 evidence freeze complete in the companion R0 record. R1 isolated-environment design is not authorized and is a hard stop."
+}

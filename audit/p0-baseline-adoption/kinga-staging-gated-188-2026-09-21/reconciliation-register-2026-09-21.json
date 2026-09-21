@@ -1,0 +1,1402 @@
+{
+  "decisionId": "KINGA-STAGING-GATED-188-2026-09-15-CB4-RECONCILIATION-REGISTER-2026-09-21",
+  "createdAtUtc": "2026-09-21T13:47:53.724Z",
+  "sourceCommit": "519615d892c92b7939af55b2901ece95bcb7629c",
+  "scope": "Table-inventory and historical-provenance register only. This is not a target schema diff, a migration plan, a seed plan, or application-data authority.",
+  "classificationDefinitions": {
+    "present-compatible": "Present in the approved Gate D baseline and current source. Compatibility relies on Gate D closure evidence; the 12 named anchors additionally have current CB-2 metadata confirmation.",
+    "divergent": "A baseline object or source object with a demonstrated incompatibility. None were identified for this checkpoint.",
+    "absent": "A required in-scope object absent from the controlled baseline without an approved deferral. None were identified for this checkpoint.",
+    "intentionally-deferred": "Outside the controlled baseline or historical forward lineage by explicit owner/Gate C decision; no creation, seed, target use, or deployment is implied."
+  },
+  "summary": {
+    "baselineInventoryObjects": 188,
+    "currentSourceObjects": 224,
+    "presentCompatible": 188,
+    "divergent": 0,
+    "absent": 0,
+    "intentionallyDeferred": 40
+  },
+  "presentCompatible": [
+    {
+      "objectType": "table",
+      "object": "access_denial_log",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "adjuster_sign_offs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "agency_assisted_claimant_identities",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "agency_clients",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "agency_documents",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "agency_insurance_service_request_insurers",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "agency_insurance_service_requests",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "agency_insurance_valuation_deviations",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "agency_product_commission_configs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "ai_assessments",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "ai_prediction_logs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "anonymization_audit_log",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "appointments",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "approval_workflow",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "assessor_deviation_metrics",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "assessor_evaluations",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "assessor_insurer_relationships",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "assessor_report_attachments",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "assessor_report_reviews",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "assessor_reports",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "assessor_subscriptions",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "assessors",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "asset_registry",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "audit_trail",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "automation_audit_log",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "automation_policies",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "bias_detection_flags",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "calibration_overrides",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_approvals",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_assignments",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_comment_reads",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_comments",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_confidence_scores",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_decision_lifecycle",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_documents",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_events",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_intake_requests",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_intelligence_dataset",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_involvement_tracking",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_review_queue",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claim_routing_decisions",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "claims",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "client_insurance_service_requests",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "client_vehicle_valuation_requests",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "commission_records",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "component_benchmarks",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "component_repair_outcomes",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "cost_components",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "cost_learning_records",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "country_repair_index",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "cross_claim_signals",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "currency_exchange_rates",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "customer_consent",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "customer_documents",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "dataset_access_grants",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "decision_snapshots",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "document_naming_templates",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "driver_claims",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "drivers",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "engineer_observations",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "engineer_profiles",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "extracted_document_data",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "extracted_repair_items",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fast_track_config",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fast_track_routing_log",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "federated_learning_metadata",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "final_approval_records",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fleet_accounts",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fleet_audit_logs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fleet_documents",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fleet_drivers",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fleet_incident_reports",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fleet_intelligence_snapshots",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fleet_manager_requests",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fleet_rfq_client_instructions",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fleet_risk_scores",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fleet_vehicles",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fleets",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fraud_alerts",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fraud_indicators",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fraud_rules",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "fuel_records",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "generated_reports",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "global_anonymized_dataset",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "global_search_analytics",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "global_search_history",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "governance_audit_log",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "governance_notifications",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "governance_violation_log",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "historical_claims",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "historical_replay_results",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "human_review_queue",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "ingestion_batches",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "ingestion_documents",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "inspection_projects",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "inspections",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "insurance_audit_logs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "insurance_carriers",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "insurance_policies",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "insurance_products",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "insurance_quotes",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "insurer_marketplace_links",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "insurer_marketplace_relationships",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "insurer_quote_requests",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "insurer_tenants",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "iso_audit_logs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "licensing_records",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "maintenance_alerts",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "maintenance_records",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "maintenance_schedules",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "marketplace_profiles",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "measurement_types",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "mismatch_annotations",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "model_training_queue",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "multi_reference_truth",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "narrative_versions",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "notification_events",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "notification_preferences",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "notifications",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "panel_beater_quotes",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "panel_beaters",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "parts_pricing_baseline",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "pdf_reports",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "personal_vehicles",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "physical_measurements",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "physics_validation_records",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "pipeline_jobs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "pipeline_runs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "platform_governance_limits",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "police_reports",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "policy_claim_links",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "policy_documents",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "policy_endorsements",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "pre_accident_damage",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "predictive_risk_scores",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "quotation_request_documents",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "quotation_requests",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "quote_line_items",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "quote_optimisation_results",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "rate_limit_tracking",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "recovery_cases",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "recovery_correspondence_log",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "repair_cost_intelligence",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "repair_history",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "replay_logs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "report_access_audit",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "report_links",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "report_snapshots",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "risk_register",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "role_assignment_audit",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "routing_history",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "routing_threshold_config",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "service_providers",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "service_quotes",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "service_requests",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "shadow_override_monitor",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "similar_claims_clusters",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "super_audit_sessions",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "supplier_performance_metrics",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "supplier_quote_line_items",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "supplier_quotes",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "system_errors",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "tenant_invitations",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "tenant_isolation_violations",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "tenant_role_configs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "tenant_workflow_configs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "tenants",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "third_party_vehicles",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "training_data_scores",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "training_dataset",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "usage_events",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "users",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "valuation_comparable_evidence",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "variance_datasets",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "vehicle_condition_assessment",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "vehicle_condition_snapshots",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "vehicle_damage_history",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "vehicle_geometry_measurements",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "vehicle_market_valuations",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "vehicle_mileage_logs",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "vehicle_models",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 current metadata comparison"
+    },
+    {
+      "objectType": "table",
+      "object": "vehicle_passport_snapshots",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "vehicle_registry",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "weight_adjustment_log",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "whatsapp_sessions",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "workflow_audit_trail",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "workflow_configuration",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    },
+    {
+      "objectType": "table",
+      "object": "workflow_templates",
+      "classification": "present-compatible",
+      "evidence": "Gate D closure plus CB-2 exact controlled-inventory match; full current-shape recheck remains an R3 requirement"
+    }
+  ],
+  "divergent": [],
+  "absent": [],
+  "intentionallyDeferred": [
+    {
+      "objectType": "source-only table",
+      "object": "assessor_marketplace_reviews",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "audit_logs",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "benchmark_deviations",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "claim_evidence_findings",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "claimant_history",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "document_versions",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "email_verification_tokens",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "entity_relationships",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "geometry_sources",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "marketplace_transactions",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "model_training_audit_log",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "model_version_registry",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "organizations",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "part_stratification",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "parts_pricing_audit_log",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "parts_pricing_overrides",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "photo_reextraction_jobs",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "quality_metrics",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "quote_evidence_gaps",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "quote_evidence_ledger",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "reference_dataset",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "regional_benchmarks",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "regional_pricing_multipliers",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "registration_requests",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "report_provenance_snapshots",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "scheduled_job_effects",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "scheduled_job_executions",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "service_credential_audit",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "service_credentials",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "training_records",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "user_invitations",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "vehicle_history",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "vehicle_landmarks",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "vision_calibration_results",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "workflow_states",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "source-only table",
+      "object": "workos_auth_transactions",
+      "classification": "intentionally-deferred",
+      "disposition": "Owner decision for CB-1-CB-3 carried into CB-4. Excluded from the controlled 188-table baseline; no creation, seed, query, or deployment authority."
+    },
+    {
+      "objectType": "historical provenance exception",
+      "object": "0045 partial-failure residue",
+      "classification": "intentionally-deferred",
+      "disposition": "Preserved historical exception; excluded from CB-4 forward-lineage replay and from any claim of canonical historical execution."
+    },
+    {
+      "objectType": "historical provenance exception",
+      "object": "0056-0059 journal discontinuity",
+      "classification": "intentionally-deferred",
+      "disposition": "Preserved historical exception; no retrospective journal entries, renumbering, or fabricated legacy tool ledger are permitted."
+    },
+    {
+      "objectType": "historical provenance exception",
+      "object": "0058 first-statement userId versus user_id failure",
+      "classification": "intentionally-deferred",
+      "disposition": "Preserved historical exception; excluded from CB-4 replay claims and requires an independent future disposition before any related packet."
+    },
+    {
+      "objectType": "historical provenance exception",
+      "object": "post-0055 snapshot discontinuity",
+      "classification": "intentionally-deferred",
+      "disposition": "Preserved historical exception; no later snapshot may be relabeled as canonical historical state."
+    }
+  ],
+  "requiredFollowUp": [
+    {
+      "item": "measurement_types consumer discrepancy",
+      "status": "deferred follow-up alongside VGE",
+      "disposition": "Not a CB-4 blocker and does not alter the controlled baseline."
+    }
+  ],
+  "dataAndSeedBoundary": "Application-data and reference-data/seed state are outside this register. No row contents, seed action, data reliance, or retention decision is asserted or authorized."
+}
