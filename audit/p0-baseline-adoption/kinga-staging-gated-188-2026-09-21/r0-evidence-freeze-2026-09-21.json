@@ -1,0 +1,31 @@
+{
+  "decisionId": "KINGA-STAGING-GATED-188-2026-09-15-R0-EVIDENCE-FREEZE-2026-09-21",
+  "status": "R0 complete; evidence freeze only",
+  "createdAtUtc": "2026-09-21T13:47:53.742Z",
+  "authorityBoundary": "R0 consolidates approved evidence only. It does not authorize R1 isolated infrastructure provisioning, target write, migration authoring, DDL, DML, seed, application-data access, credential, grant, deployment, recovery, or production action.",
+  "controlledBaseline": {
+    "identifier": "KINGA-STAGING-GATED-188-2026-09-15",
+    "manifestPath": "audit/controlled-baselines/kinga-staging-gated-188-2026-09-15/controlled-baseline-manifest-2026-09-21.json",
+    "manifestSha256": "efc683b034190c6269724bc04d34e18d7b64d4a5638c32c830eb8fd3faf33182",
+    "sourceCommit": "631962efb0e42b51580602ded2dde524c1e59797"
+  },
+  "cb4Checkpoint": {
+    "path": "audit/p0-baseline-adoption/kinga-staging-gated-188-2026-09-21/cb-4-baseline-adoption-checkpoint-2026-09-21.json",
+    "sha256": "aceff73c08ff7209a2490d3ca818a0dc6c2fc41ec1c685591189e031c0eb550b",
+    "sourceCommit": "519615d892c92b7939af55b2901ece95bcb7629c"
+  },
+  "verification": {
+    "manifestArtifactsChecked": 1498,
+    "manifestArtifactsMatched": 1498,
+    "mismatches": [],
+    "result": "pass",
+    "verificationMethod": "Read and SHA-256 compare every manifest-listed tracked artifact against its frozen path, byte count, and digest on the merged CB-1-CB-3 source lineage."
+  },
+  "retainedCB2Evidence": {
+    "conformancePath": "audit/controlled-baselines/kinga-staging-gated-188-2026-09-15/cb-2-staging-conformance-2026-09-21.json",
+    "conformanceSha256": "14044d29c64accfd6e5c020fe688868fbe85edef13409bb7600da346dbeadcac",
+    "targetInventorySha256": "36b26b9ee7dcbc0f1883f31db0a06840f5fd247cf8958f8e23f3d608c4bb52b5",
+    "inspectedAnchorSchemaSha256": "e9f120a0c10fd1e8a6b2adc1d9467613c3889babd982c0ca32afc9333c3736e9"
+  },
+  "r1HardStop": "R1 is not authorized. No disposable target, network resource, credential, grant, application route, runner, environment, or infrastructure design action may begin without a distinct owner authorization."
+}
