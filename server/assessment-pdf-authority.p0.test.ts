@@ -20,38 +20,120 @@ describe("Assessment PDF server authority", () => {
     let assessmentId: number | undefined;
     try {
       await db.insert(claims).values({
-        claimNumber: `ASSESS-PDF-${stamp}`, tenantId, status: "submitted",
-        vehicleMake: "Kinga", vehicleModel: "Authority", vehicleYear: 2025,
-        vehicleRegistration: `APDF-${stamp.slice(-6)}`, currencyCode: "USD",
-        incidentDescription: `CANONICAL-INCIDENT-${stamp}`, incidentDate: "2025-02-01 08:00:00",
+        claimNumber: `ASSESS-PDF-${stamp}`,
+        tenantId,
+        status: "submitted",
+        vehicleMake: "Kinga",
+        vehicleModel: "Authority",
+        vehicleYear: 2025,
+        vehicleRegistration: `APDF-${stamp.slice(-6)}`,
+        currencyCode: "USD",
+        incidentDescription: `CANONICAL-INCIDENT-${stamp}`,
+        incidentDate: "2025-02-01 08:00:00",
       });
-      const row = await db.select({ id: claims.id }).from(claims).where(and(
-        eq(claims.claimNumber, `ASSESS-PDF-${stamp}`), eq(claims.tenantId, tenantId),
-      )).limit(1);
+      const row = await db
+        .select({ id: claims.id })
+        .from(claims)
+        .where(
+          and(
+            eq(claims.claimNumber, `ASSESS-PDF-${stamp}`),
+            eq(claims.tenantId, tenantId)
+          )
+        )
+        .limit(1);
       claimId = row[0]?.id;
-      if (!claimId) throw new Error("Owned assessment-PDF test claim was not created");
+      if (!claimId)
+        throw new Error("Owned assessment-PDF test claim was not created");
       await db.insert(aiAssessments).values({
-        claimId, tenantId, createdAt: "2025-02-02 08:00:00", estimatedCost: 2222,
-        fraudRiskLevel: "critical", damageDescription: `CANONICAL-DAMAGE-${stamp}`,
+        claimId,
+        tenantId,
+        createdAt: "2025-02-02 08:00:00",
+        estimatedCost: 2222,
+        fraudRiskLevel: "critical",
+        damageDescription: `CANONICAL-DAMAGE-${stamp}`,
       });
-      const assessment = await db.select({ id: aiAssessments.id }).from(aiAssessments).where(and(
-        eq(aiAssessments.claimId, claimId), eq(aiAssessments.damageDescription, `CANONICAL-DAMAGE-${stamp}`),
-      )).limit(1);
+      const assessment = await db
+        .select({ id: aiAssessments.id })
+        .from(aiAssessments)
+        .where(
+          and(
+            eq(aiAssessments.claimId, claimId),
+            eq(aiAssessments.damageDescription, `CANONICAL-DAMAGE-${stamp}`)
+          )
+        )
+        .limit(1);
       assessmentId = assessment[0]?.id;
 
       // Runtime parser admits only a claim identifier; injected presentation fields are stripped.
-      expect(assessmentPdfExportInputSchema.parse({ claimId, estimatedCost: 1, damageDescription: "TAMPERED" }))
-        .toEqual({ claimId });
-      const canonical = await resolveReportRecord({ claimId, tenantId, audience: "claim_assessment" });
-      const html = generateAssessmentReportHTML(toAssessmentPdfCanonicalInput(canonical));
+      expect(
+        assessmentPdfExportInputSchema.parse({
+          claimId,
+          estimatedCost: 1,
+          damageDescription: "TAMPERED",
+        })
+      ).toEqual({ claimId });
+      const canonical = await resolveReportRecord({
+        claimId,
+        tenantId,
+        audience: "claim_assessment",
+      });
+      const html = generateAssessmentReportHTML(
+        toAssessmentPdfCanonicalInput(canonical)
+      );
       expect(html).toContain("2,222");
-      expect(html).toContain(`CANONICAL-DAMAGE-${stamp}`);
+      expect(html).toContain(
+        "Collision Physics Withheld — Manual Review Required"
+      );
+      expect(html).not.toContain(`CANONICAL-DAMAGE-${stamp}`);
       expect(html).not.toContain("TAMPERED");
-      await expect(resolveReportRecord({ claimId, tenantId: foreignTenantId, audience: "claim_assessment" }))
-        .rejects.toThrow(/not found|tenant/i);
+      await expect(
+        resolveReportRecord({
+          claimId,
+          tenantId: foreignTenantId,
+          audience: "claim_assessment",
+        })
+      ).rejects.toThrow(/not found|tenant/i);
     } finally {
-      if (assessmentId) await db.delete(aiAssessments).where(eq(aiAssessments.id, assessmentId));
+      if (assessmentId)
+        await db
+          .delete(aiAssessments)
+          .where(eq(aiAssessments.id, assessmentId));
       if (claimId) await db.delete(claims).where(eq(claims.id, claimId));
     }
+  });
+
+  it("fails closed for direct legacy payloads carrying collision content in retained-looking fields", () => {
+    const html = generateAssessmentReportHTML({
+      vehicleMake: "P0A2_PDF_VEHICLE_DO_NOT_PUBLISH",
+      damageDescription: "P0A2_PDF_DAMAGE_SPEED_91_KMH_DO_NOT_PUBLISH",
+      damagedComponents: ["P0A2_PDF_COMPONENT_CRUSH_DEPTH_DO_NOT_PUBLISH"],
+      normalizedComponents: [
+        {
+          raw: "P0A2_PDF_NORMALIZED_CAUSATION_DO_NOT_PUBLISH",
+          normalized: "P0A2_PDF_NORMALIZED_LOAD_PATH_DO_NOT_PUBLISH",
+          zone: "P0A2_PDF_NORMALIZED_ZONE_DO_NOT_PUBLISH",
+        },
+      ],
+      componentRecommendations: [
+        {
+          component: "P0A2_PDF_REC_COMPONENT_DO_NOT_PUBLISH",
+          reasoning: "P0A2_PDF_REC_HIDDEN_DAMAGE_DO_NOT_PUBLISH",
+          severity: "P0A2_PDF_REC_SEVERITY_DO_NOT_PUBLISH",
+        },
+      ],
+      crossValidation: {
+        summary: {
+          overallRiskLevel: "P0A2_PDF_CROSS_VALIDATION_DO_NOT_PUBLISH",
+        },
+      },
+      arbitraryNestedBranch: {
+        conclusion: "P0A2_PDF_ARBITRARY_COLLISION_COHERENCE_DO_NOT_PUBLISH",
+      },
+    });
+
+    expect(html).toContain(
+      "Collision Physics Withheld — Manual Review Required"
+    );
+    expect(html).not.toContain("P0A2_PDF_");
   });
 });

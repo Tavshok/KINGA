@@ -11,17 +11,17 @@ import { tmpdir } from "os";
 import { randomBytes } from "crypto";
 import { storagePut } from "./storage";
 import { insurerDomainProcedure } from "./_core/trpc";
-import { resolveReportRecord, type ResolvedReportRecord } from "./reporting/resolvedReportRecord";
+import {
+  resolveReportRecord,
+  type ResolvedReportRecord,
+} from "./reporting/resolvedReportRecord";
+import {
+  buildP0A2CollisionPhysicsAbstentionText,
+  redactP0A2PhysicsReportPayload,
+} from "./reporting/p0PhysicsPresentation";
 import puppeteer from "puppeteer-core";
 
-function asDisplayList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((item) => typeof item === "string"
-    ? item
-    : typeof item === "object" && item != null
-      ? String((item as Record<string, unknown>).name ?? (item as Record<string, unknown>).component ?? "")
-      : "").filter(Boolean);
-}
+const canonicalAssessmentPdfInput = Symbol("canonicalAssessmentPdfInput");
 
 /**
  * Maps only the authoritative canonical report record into the legacy template.
@@ -29,25 +29,74 @@ function asDisplayList(value: unknown): string[] {
  * the exported assessment PDF.
  */
 export function toAssessmentPdfCanonicalInput(record: ResolvedReportRecord) {
+  const safeEvidence = redactP0A2PhysicsReportPayload(record.evidence);
   return {
+    [canonicalAssessmentPdfInput]: true,
     vehicleMake: record.vehicle.make,
     vehicleModel: record.vehicle.model,
     vehicleYear: record.vehicle.year,
     vehicleRegistration: record.vehicle.registration,
-    damageDescription: record.assessment.damageDescription,
+    // A legacy assessment description may contain an ungoverned collision
+    // conclusion. Descriptive source media remains available in the governed
+    // record, but its free text is not a PDF publication authority.
+    damageDescription: null,
     estimatedCost: record.assessment.estimatedCost,
-    physicsAnalysis: record.evidence.physicsAnalysis,
+    // P0-A-2: never pass legacy collision physics or cross-validation payloads
+    // into the PDF template. The redacted payload carries an actionable hold.
+    physicsAnalysis: safeEvidence.physicsAnalysis,
     fraudAnalysis: {
       risk_level: record.assessment.fraudRiskLevel,
       fraud_probability: record.decision.normalised.fraud.score / 100,
     },
-    damagedComponents: asDisplayList(record.evidence.aiDetectedDamageComponents),
-    crossValidation: record.evidence.crossValidation,
+    damagedComponents: [],
+    crossValidation: null,
+    collisionPhysics: safeEvidence.collisionPhysics,
     accidentType: record.incident.type,
     accidentDate: record.incident.date,
-    accidentDescription: record.incident.description,
+    accidentDescription: null,
     claimantName: record.claim.lodgerName,
     claimNumber: record.scope.claimNumber,
+  };
+}
+
+/**
+ * The legacy HTML renderer historically accepted arbitrary objects. That route
+ * cannot establish evidence provenance, so it now fails closed to a minimal
+ * non-physics projection. Only the canonical adapter above carries the private
+ * marker that permits persisted identifiers and cost fields into the template.
+ */
+function projectP0A2AssessmentPdfInput(data: unknown): Record<string, any> {
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    (data as Record<PropertyKey, unknown>)[canonicalAssessmentPdfInput] === true
+  ) {
+    return data as Record<string, any>;
+  }
+
+  return {
+    vehicleMake: null,
+    vehicleModel: null,
+    vehicleYear: null,
+    vehicleRegistration: null,
+    damageDescription: null,
+    estimatedCost: null,
+    physicsAnalysis: null,
+    fraudAnalysis: null,
+    damagePhotos: [],
+    damagedComponents: [],
+    crossValidation: null,
+    normalizedComponents: [],
+    componentRecommendations: [],
+    itemizedCosts: [],
+    accidentType: null,
+    accidentDate: null,
+    accidentDescription: null,
+    assessorName: null,
+    repairerName: null,
+    claimantName: null,
+    claimNumber: null,
+    collisionPhysics: null,
   };
 }
 
@@ -55,6 +104,7 @@ export function toAssessmentPdfCanonicalInput(record: ResolvedReportRecord) {
  * Generate HTML content for the PDF report
  */
 export function generateAssessmentReportHTML(data: any): string {
+  const safeData = projectP0A2AssessmentPdfInput(data);
   const {
     vehicleMake,
     vehicleModel,
@@ -80,23 +130,22 @@ export function generateAssessmentReportHTML(data: any): string {
     repairerName,
     claimantName,
     claimNumber,
-  } = data;
+  } = safeData;
 
-  // Extract physics values from the physics_analysis nested object
-  const physicsAnalysisData = physicsAnalysis?.physics_analysis || {};
-  const physicsData = {
-    impactSpeed: physicsAnalysisData.impact_speed_ms ? Math.round(physicsAnalysisData.impact_speed_ms * 3.6) : 0, // Convert m/s to km/h
-    impactForce: physicsAnalysisData.kinetic_energy_joules ? Math.round(physicsAnalysisData.kinetic_energy_joules / 1000) : 0, // Convert J to kJ for display
-    energyDissipated: 75, // Placeholder - calculate from crumple zone data if available
-    deceleration: physicsAnalysisData.g_force ? Math.round(physicsAnalysisData.g_force * 10) / 10 : 0,
-    damageConsistency: physicsAnalysis?.damageConsistency || 'unknown',
-    physicsScore: physicsAnalysis?.confidence ? Math.round(physicsAnalysis.confidence * 100) : 0,
-  };
+  // P0-A-2: legacy raw collision fields are deliberately not read, interpreted,
+  // or rendered by this exporter. Keep the value textual so it cannot become an
+  // apparent numeric zero or confidence score in the output.
+  const collisionPhysicsHold = buildP0A2CollisionPhysicsAbstentionText(
+    redactP0A2PhysicsReportPayload(safeData.collisionPhysics)
+  );
 
   // Extract fraud values - handle both risk_level and overallRisk formats
   const fraudData = {
-    riskScore: fraudAnalysis?.fraud_probability ? Math.round(fraudAnalysis.fraud_probability * 100) : 0,
-    overallRisk: fraudAnalysis?.risk_level || fraudAnalysis?.overallRisk || 'unknown',
+    riskScore: fraudAnalysis?.fraud_probability
+      ? Math.round(fraudAnalysis.fraud_probability * 100)
+      : 0,
+    overallRisk:
+      fraudAnalysis?.risk_level || fraudAnalysis?.overallRisk || "unknown",
     indicators: fraudAnalysis?.indicators || {},
     topRiskFactors: fraudAnalysis?.top_risk_factors || [],
   };
@@ -107,7 +156,7 @@ export function generateAssessmentReportHTML(data: any): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KINGA Assessment Report - ${vehicleRegistration || 'N/A'}</title>
+  <title>KINGA Assessment Report - ${vehicleRegistration || "N/A"}</title>
   <style>
     @page {
       size: A4;
@@ -324,7 +373,7 @@ export function generateAssessmentReportHTML(data: any): string {
   <div class="header">
     <h1>KINGA AI</h1>
     <p>Vehicle Damage Assessment Report</p>
-    <p style="margin-top: 10px; font-size: 9pt;">Generated: ${new Date().toLocaleString('en-US', { timeZone: 'Africa/Harare' })}</p>
+    <p style="margin-top: 10px; font-size: 9pt;">Generated: ${new Date().toLocaleString("en-US", { timeZone: "Africa/Harare" })}</p>
   </div>
 
   <!-- Vehicle Information -->
@@ -333,19 +382,19 @@ export function generateAssessmentReportHTML(data: any): string {
     <div class="info-grid">
       <div class="info-item">
         <div class="info-label">Make & Model</div>
-        <div class="info-value">${vehicleMake || 'N/A'} ${vehicleModel || ''}</div>
+        <div class="info-value">${vehicleMake || "N/A"} ${vehicleModel || ""}</div>
       </div>
       <div class="info-item">
         <div class="info-label">Year</div>
-        <div class="info-value">${vehicleYear || 'N/A'}</div>
+        <div class="info-value">${vehicleYear || "N/A"}</div>
       </div>
       <div class="info-item">
         <div class="info-label">Registration</div>
-        <div class="info-value">${vehicleRegistration || 'N/A'}</div>
+        <div class="info-value">${vehicleRegistration || "N/A"}</div>
       </div>
       <div class="info-item">
         <div class="info-label">Assessment Date</div>
-        <div class="info-value">${new Date().toLocaleDateString('en-US')}</div>
+        <div class="info-value">${new Date().toLocaleDateString("en-US")}</div>
       </div>
     </div>
   </div>
@@ -353,114 +402,57 @@ export function generateAssessmentReportHTML(data: any): string {
   <!-- Cost Estimate -->
   <div class="cost-highlight">
     <div class="label">Estimated Repair Cost</div>
-    <div class="amount">$ ${estimatedCost?.toLocaleString() || '0'}</div>
+    <div class="amount">$ ${estimatedCost?.toLocaleString() || "0"}</div>
   </div>
 
   <!-- Damage Description -->
   <div class="section">
     <h2 class="section-title">Damage Assessment</h2>
     <div class="commentary-box">
-      ${damageDescription || 'No damage description provided.'}
+      ${damageDescription || "No damage description provided."}
     </div>
     
-    ${damagedComponents && damagedComponents.length > 0 ? `
+    ${
+      damagedComponents && damagedComponents.length > 0
+        ? `
     <h3 style="font-size: 12pt; margin-top: 20px; margin-bottom: 10px;">Damaged Components</h3>
     <ul class="findings-list">
-      ${damagedComponents.map((comp: string) => `<li>${comp}</li>`).join('')}
+      ${damagedComponents.map((comp: string) => `<li>${comp}</li>`).join("")}
     </ul>
-    ` : ''}
+    `
+        : ""
+    }
     
-    ${damagePhotos && damagePhotos.length > 0 ? `
+    ${
+      damagePhotos && damagePhotos.length > 0
+        ? `
     <h3 style="font-size: 12pt; margin-top: 20px; margin-bottom: 10px;">Damage Photos</h3>
     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;">
-      ${damagePhotos.slice(0, 4).map((photo: string) => `
+      ${damagePhotos
+        .slice(0, 4)
+        .map(
+          (photo: string) => `
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
           <img src="${photo}" style="width: 100%; height: auto; display: block;" />
         </div>
-      `).join('')}
+      `
+        )
+        .join("")}
     </div>
-    ${damagePhotos.length > 4 ? `<p style="margin-top: 10px; font-size: 9pt; color: #64748b; text-align: center;">Showing 4 of ${damagePhotos.length} photos</p>` : ''}
-    ` : ''}
+    ${damagePhotos.length > 4 ? `<p style="margin-top: 10px; font-size: 9pt; color: #64748b; text-align: center;">Showing 4 of ${damagePhotos.length} photos</p>` : ""}
+    `
+        : ""
+    }
   </div>
 
   <div class="page-break"></div>
 
-  <!-- Physics Validation Analysis -->
+  <!-- Collision Physics -->
   <div class="section">
-    <h2 class="section-title">Physics Validation Analysis</h2>
-    
-    <div style="margin-bottom: 15px;">
-      <strong>Damage Consistency: </strong>
-      <span class="badge ${physicsData.damageConsistency === 'consistent' ? 'badge-success' : physicsData.damageConsistency === 'questionable' ? 'badge-warning' : 'badge-danger'}">
-        ${physicsData.damageConsistency === 'consistent' ? '✓ Consistent' : physicsData.damageConsistency === 'questionable' ? '⚠ Questionable' : '✗ Inconsistent'}
-      </span>
+    <h2 class="section-title">Collision Physics Withheld — Manual Review Required</h2>
+    <div class="commentary-box" data-p0-collision-physics="withheld">
+      ${collisionPhysicsHold}
     </div>
-
-    <div class="commentary-box">
-      <strong>Analysis:</strong><br><br>
-      ${physicsData.damageConsistency === 'consistent'
-        ? `The damage pattern matches what we'd expect from the reported accident. At an estimated impact speed of ${physicsData.impactSpeed} km/h, the vehicle would experience forces equivalent to ${physicsData.impactForce}kN - roughly ${Math.round(physicsData.impactForce / 10)} times the weight of a small car pushing on the bumper. The damaged areas and severity level are consistent with this type of collision. The crash forces were absorbed properly by the vehicle's crumple zones, which is what we see in the damage photos. This appears to be a straightforward, legitimate accident claim.`
-        : physicsData.damageConsistency === 'questionable'
-        ? `The damage pattern raises some questions about how the accident actually occurred. While it's not impossible, certain aspects don't quite add up with the reported story. For example, the impact forces we calculated suggest the collision may have happened differently than described - perhaps at a different speed or angle. This doesn't necessarily mean fraud, but it does mean we should ask follow-up questions to clarify exactly what happened before approving the claim.`
-        : `The damage doesn't match the accident story. Based on physics analysis, what the claimant described shouldn't produce the damage we're seeing. This is a red flag that requires investigation - either the accident details were misreported, or there may be pre-existing damage being claimed, or this could be a staged accident. Do not approve without thorough investigation.`
-      }
-    </div>
-
-    <h3 style="font-size: 12pt; margin-top: 20px; margin-bottom: 10px;">Key Physics Findings</h3>
-    <table>
-      <tr>
-        <th>Metric</th>
-        <th>Value</th>
-        <th>Assessment</th>
-      </tr>
-      <tr>
-        <td>Impact Speed</td>
-        <td>${physicsData.impactSpeed} km/h</td>
-        <td>${physicsData.impactSpeed < 30 ? 'Low-speed collision' : physicsData.impactSpeed < 60 ? 'Moderate speed' : 'High-speed collision'}</td>
-      </tr>
-      <tr>
-        <td>Impact Force</td>
-        <td>${physicsData.impactForce} kN</td>
-        <td>Equivalent to ~${Math.round(physicsData.impactForce / 10)} small cars</td>
-      </tr>
-      <tr>
-        <td>Energy Absorption</td>
-        <td>${physicsData.energyDissipated}%</td>
-        <td>${physicsData.energyDissipated > 70 ? 'Good protection' : physicsData.energyDissipated > 50 ? 'Moderate' : 'Concerning'}</td>
-      </tr>
-      <tr>
-        <td>G-Forces</td>
-        <td>${physicsData.deceleration}g</td>
-        <td>${physicsData.deceleration < 5 ? 'Mild impact' : physicsData.deceleration < 10 ? 'Moderate impact' : physicsData.deceleration < 20 ? 'Severe impact' : 'Extreme impact'}</td>
-      </tr>
-      <tr>
-        <td>Physics Score</td>
-        <td>${physicsData.physicsScore}/100</td>
-        <td>${physicsData.physicsScore > 80 ? 'High confidence' : physicsData.physicsScore > 60 ? 'Moderate confidence' : 'Low confidence'}</td>
-      </tr>
-    </table>
-
-    ${physicsData.damageConsistency !== 'consistent' ? `
-    <div class="recommendations">
-      <h4>Recommended Actions</h4>
-      <ul>
-        <li>Do not approve claim yet - schedule follow-up investigation</li>
-        <li>Call the claimant to walk through exactly how the accident happened</li>
-        <li>Request the police report to verify accident details</li>
-        <li>If discrepancies remain, assign to fraud investigation team</li>
-        <li>Consider requiring independent damage assessment</li>
-      </ul>
-    </div>
-    ` : `
-    <div class="recommendations" style="background: #f0fdf4; border-color: #22c55e;">
-      <h4 style="color: #166534;">Recommended Actions</h4>
-      <ul>
-        <li style="color: #166534;">Physics check passed - the accident story matches the damage</li>
-        <li style="color: #166534;">Safe to proceed with normal claim approval process</li>
-        <li style="color: #166534;">Save this analysis report to the claim file for future reference</li>
-      </ul>
-    </div>
-    `}
   </div>
 
   <div class="page-break"></div>
@@ -471,8 +463,8 @@ export function generateAssessmentReportHTML(data: any): string {
     
     <div style="margin-bottom: 15px;">
       <strong>Overall Risk Level: </strong>
-      <span class="badge ${fraudData.overallRisk === 'low' ? 'badge-success' : fraudData.overallRisk === 'medium' ? 'badge-warning' : 'badge-danger'}">
-        ${fraudData.overallRisk === 'low' ? 'LOW RISK' : fraudData.overallRisk === 'medium' ? 'MEDIUM RISK' : 'HIGH RISK'}
+      <span class="badge ${fraudData.overallRisk === "low" ? "badge-success" : fraudData.overallRisk === "medium" ? "badge-warning" : "badge-danger"}">
+        ${fraudData.overallRisk === "low" ? "LOW RISK" : fraudData.overallRisk === "medium" ? "MEDIUM RISK" : "HIGH RISK"}
       </span>
       <span style="margin-left: 15px; font-size: 14pt; font-weight: bold; color: #1e40af;">
         ${fraudData.riskScore}% Fraud Probability
@@ -481,15 +473,18 @@ export function generateAssessmentReportHTML(data: any): string {
 
     <div class="commentary-box">
       <strong>Analysis:</strong><br><br>
-      ${fraudData.overallRisk === 'low'
+      ${
+        fraudData.overallRisk === "low"
         ? `This claim presents a low fraud risk profile with a calculated fraud probability of ${fraudData.riskScore}%. The multi-dimensional analysis across claim history, damage consistency, document authenticity, behavioral patterns, ownership verification, and geographic risk factors shows no significant red flags. The claim characteristics align with typical legitimate claims in this category.`
-        : fraudData.overallRisk === 'medium'
+          : fraudData.overallRisk === "medium"
         ? `This claim exhibits moderate fraud risk indicators with a ${fraudData.riskScore}% fraud probability. While not definitively fraudulent, several factors warrant additional scrutiny before approval. The risk assessment identified patterns that deviate from typical legitimate claims, suggesting enhanced due diligence is advisable.`
         : `High fraud risk detected with ${fraudData.riskScore}% probability. Multiple red flags have been identified across several risk dimensions. This claim requires thorough investigation before any approval or payment. The combination of risk factors suggests potential fraudulent activity that warrants immediate attention from the fraud investigation unit.`
       }
     </div>
 
-    ${fraudData.overallRisk !== 'low' ? `
+    ${
+      fraudData.overallRisk !== "low"
+        ? `
     <div class="recommendations">
       <h4>Recommended Actions</h4>
       <ul>
@@ -500,28 +495,32 @@ export function generateAssessmentReportHTML(data: any): string {
         <li>Do not approve or make any payments until investigation concludes</li>
       </ul>
     </div>
-    ` : ''}
+    `
+        : ""
+    }
   </div>
 
   <div class="page-break"></div>
 
   <!-- Cross-Validation Analysis -->
-  ${crossValidation ? `
+  ${
+    crossValidation
+      ? `
   <div class="section">
     <h2 class="section-title">Quote vs Photo Cross-Validation</h2>
     
     <div style="margin-bottom: 15px;">
       <strong>Validation Risk: </strong>
-      <span class="badge ${crossValidation.summary?.overallRiskLevel === 'low' ? 'badge-success' : crossValidation.summary?.overallRiskLevel === 'medium' ? 'badge-warning' : 'badge-danger'}">
+      <span class="badge ${crossValidation.summary?.overallRiskLevel === "low" ? "badge-success" : crossValidation.summary?.overallRiskLevel === "medium" ? "badge-warning" : "badge-danger"}">
         ${crossValidation.summary?.overallRiskScore || 0}/100
       </span>
     </div>
 
     <div class="commentary-box">
       <strong>Summary:</strong> ${crossValidation.summary?.confirmedCount || 0} quoted parts confirmed visible in photos.
-      ${crossValidation.summary?.suspiciousCount > 0 ? `<strong style="color:#dc2626;">${crossValidation.summary.suspiciousCount} externally-visible part(s) were quoted but not detected in photos.</strong>` : 'All externally-visible quoted parts were verified.'}
-      ${crossValidation.summary?.visibleNotQuotedCount > 0 ? ` ${crossValidation.summary.visibleNotQuotedCount} area(s) of visible damage were not included in the repair quote.` : ''}
-      ${crossValidation.summary?.legitimateHiddenCount > 0 ? ` ${crossValidation.summary.legitimateHiddenCount} internal/hidden component(s) quoted but cannot be verified from photos alone.` : ''}
+      ${crossValidation.summary?.suspiciousCount > 0 ? `<strong style="color:#dc2626;">${crossValidation.summary.suspiciousCount} externally-visible part(s) were quoted but not detected in photos.</strong>` : "All externally-visible quoted parts were verified."}
+      ${crossValidation.summary?.visibleNotQuotedCount > 0 ? ` ${crossValidation.summary.visibleNotQuotedCount} area(s) of visible damage were not included in the repair quote.` : ""}
+      ${crossValidation.summary?.legitimateHiddenCount > 0 ? ` ${crossValidation.summary.legitimateHiddenCount} internal/hidden component(s) quoted but cannot be verified from photos alone.` : ""}
     </div>
 
     <table>
@@ -552,7 +551,9 @@ export function generateAssessmentReportHTML(data: any): string {
       </tr>
     </table>
 
-    ${crossValidation.items && crossValidation.items.length > 0 ? `
+    ${
+      crossValidation.items && crossValidation.items.length > 0
+        ? `
     <h3 style="font-size: 12pt; margin-top: 20px; margin-bottom: 10px;">Detailed Part Validation</h3>
     <table>
       <tr>
@@ -562,42 +563,62 @@ export function generateAssessmentReportHTML(data: any): string {
         <th>Cost</th>
         <th>Confidence</th>
       </tr>
-      ${crossValidation.items.map((item: any) => `
+      ${crossValidation.items
+        .map(
+          (item: any) => `
       <tr>
         <td>${item.partName || item.rawName}</td>
-        <td>${item.zone || '—'}</td>
-        <td><span class="badge ${item.category === 'confirmed' ? 'badge-success' : item.category === 'quoted_not_visible' ? (item.isExternallyVisible ? 'badge-danger' : 'badge-warning') : 'badge-warning'}">
-          ${item.category === 'confirmed' ? 'Confirmed' : item.category === 'quoted_not_visible' ? (item.isExternallyVisible ? 'Suspicious' : 'Hidden') : 'Unquoted'}
+        <td>${item.zone || "—"}</td>
+        <td><span class="badge ${item.category === "confirmed" ? "badge-success" : item.category === "quoted_not_visible" ? (item.isExternallyVisible ? "badge-danger" : "badge-warning") : "badge-warning"}">
+          ${item.category === "confirmed" ? "Confirmed" : item.category === "quoted_not_visible" ? (item.isExternallyVisible ? "Suspicious" : "Hidden") : "Unquoted"}
         </span></td>
-        <td>${item.quotedCost ? 'R' + item.quotedCost.toLocaleString() : '—'}</td>
-        <td>${item.confidence ? Math.round(item.confidence * 100) + '%' : '—'}</td>
+        <td>${item.quotedCost ? "R" + item.quotedCost.toLocaleString() : "—"}</td>
+        <td>${item.confidence ? Math.round(item.confidence * 100) + "%" : "—"}</td>
       </tr>
-      `).join('')}
+      `
+        )
+        .join("")}
     </table>
-    ` : ''}
+    `
+        : ""
+    }
 
-    ${crossValidation.fraudIndicators && crossValidation.fraudIndicators.length > 0 ? `
+    ${
+      crossValidation.fraudIndicators &&
+      crossValidation.fraudIndicators.length > 0
+        ? `
     <div class="recommendations">
       <h4>Cross-Validation Fraud Indicators</h4>
       <ul>
-        ${crossValidation.fraudIndicators.map((ind: string) => `<li>${ind}</li>`).join('')}
+        ${crossValidation.fraudIndicators.map((ind: string) => `<li>${ind}</li>`).join("")}
       </ul>
     </div>
-    ` : ''}
+    `
+        : ""
+    }
 
-    ${crossValidation.recommendations && crossValidation.recommendations.length > 0 ? `
+    ${
+      crossValidation.recommendations &&
+      crossValidation.recommendations.length > 0
+        ? `
     <div class="recommendations" style="background: #f0fdf4; border-color: #22c55e;">
       <h4 style="color: #166534;">Recommendations</h4>
       <ul>
-        ${crossValidation.recommendations.map((rec: string) => `<li style="color: #166534;">${rec}</li>`).join('')}
+        ${crossValidation.recommendations.map((rec: string) => `<li style="color: #166534;">${rec}</li>`).join("")}
       </ul>
     </div>
-    ` : ''}
+    `
+        : ""
+    }
   </div>
-  ` : ''}
+  `
+      : ""
+  }
 
   <!-- Component Recommendations -->
-  ${componentRecommendations && componentRecommendations.length > 0 ? `
+  ${
+    componentRecommendations && componentRecommendations.length > 0
+      ? `
   <div class="page-break"></div>
   <div class="section">
     <h2 class="section-title">AI Component Recommendations</h2>
@@ -609,15 +630,19 @@ export function generateAssessmentReportHTML(data: any): string {
         <th>Est. Cost</th>
         <th>Labour (hrs)</th>
       </tr>
-      ${componentRecommendations.map((rec: any) => `
+      ${componentRecommendations
+        .map(
+          (rec: any) => `
       <tr>
         <td>${rec.component}</td>
-        <td><span class="badge ${rec.action === 'replace' ? 'badge-danger' : 'badge-warning'}">${rec.action.toUpperCase()}</span></td>
-        <td><span class="badge ${rec.severity === 'severe' ? 'badge-danger' : rec.severity === 'moderate' ? 'badge-warning' : 'badge-success'}">${rec.severity}</span></td>
-        <td>$${rec.estimatedCost?.toLocaleString() || '0'}</td>
-        <td>${rec.laborHours || '—'}</td>
+        <td><span class="badge ${rec.action === "replace" ? "badge-danger" : "badge-warning"}">${rec.action.toUpperCase()}</span></td>
+        <td><span class="badge ${rec.severity === "severe" ? "badge-danger" : rec.severity === "moderate" ? "badge-warning" : "badge-success"}">${rec.severity}</span></td>
+        <td>$${rec.estimatedCost?.toLocaleString() || "0"}</td>
+        <td>${rec.laborHours || "—"}</td>
       </tr>
-      `).join('')}
+      `
+        )
+        .join("")}
       <tr style="font-weight: bold; border-top: 2px solid #2563eb;">
         <td colspan="3">Total</td>
         <td>$${componentRecommendations.reduce((s: number, r: any) => s + (r.estimatedCost || 0), 0).toLocaleString()}</td>
@@ -625,19 +650,32 @@ export function generateAssessmentReportHTML(data: any): string {
       </tr>
     </table>
 
-    ${componentRecommendations.some((r: any) => r.reasoning) ? `
+    ${
+      componentRecommendations.some((r: any) => r.reasoning)
+        ? `
     <h3 style="font-size: 12pt; margin-top: 20px; margin-bottom: 10px;">Reasoning</h3>
-    ${componentRecommendations.filter((r: any) => r.reasoning).map((rec: any) => `
+    ${componentRecommendations
+      .filter((r: any) => r.reasoning)
+      .map(
+        (rec: any) => `
     <div style="margin-bottom: 8px; padding: 8px; background: #f8fafc; border-left: 3px solid #2563eb;">
       <strong>${rec.component}:</strong> ${rec.reasoning}
     </div>
-    `).join('')}
-    ` : ''}
+    `
+      )
+      .join("")}
+    `
+        : ""
+    }
   </div>
-  ` : ''}
+  `
+      : ""
+  }
 
   <!-- Itemized Costs -->
-  ${itemizedCosts && itemizedCosts.length > 0 ? `
+  ${
+    itemizedCosts && itemizedCosts.length > 0
+      ? `
   <div class="section">
     <h2 class="section-title">Itemized Cost Breakdown</h2>
     <table>
@@ -646,23 +684,31 @@ export function generateAssessmentReportHTML(data: any): string {
         <th>Category</th>
         <th style="text-align: right;">Amount</th>
       </tr>
-      ${itemizedCosts.map((item: any) => `
+      ${itemizedCosts
+        .map(
+          (item: any) => `
       <tr>
         <td>${item.description}</td>
-        <td>${item.category || 'other'}</td>
-        <td style="text-align: right;">$${item.amount?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}</td>
+        <td>${item.category || "other"}</td>
+        <td style="text-align: right;">$${item.amount?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</td>
       </tr>
-      `).join('')}
+      `
+        )
+        .join("")}
       <tr style="font-weight: bold; border-top: 2px solid #2563eb;">
         <td colspan="2">Total</td>
         <td style="text-align: right;">$${itemizedCosts.reduce((s: number, i: any) => s + (i.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
       </tr>
     </table>
   </div>
-  ` : ''}
+  `
+      : ""
+  }
 
   <!-- Normalized Component Mapping -->
-  ${normalizedComponents && normalizedComponents.length > 0 ? `
+  ${
+    normalizedComponents && normalizedComponents.length > 0
+      ? `
   <div class="section">
     <h2 class="section-title">Component Name Resolution</h2>
     <p style="font-size: 10pt; color: #64748b; margin-bottom: 10px;">Raw component names from the assessment mapped to standardized vehicle part taxonomy</p>
@@ -672,23 +718,29 @@ export function generateAssessmentReportHTML(data: any): string {
         <th>Normalized Name</th>
         <th>Vehicle Zone</th>
       </tr>
-      ${normalizedComponents.map((nc: any) => `
+      ${normalizedComponents
+        .map(
+          (nc: any) => `
       <tr>
         <td>${nc.raw}</td>
         <td>${nc.normalized}</td>
-        <td>${nc.zone ? nc.zone.replace(/_/g, ' ') : '—'}</td>
+        <td>${nc.zone ? nc.zone.replace(/_/g, " ") : "—"}</td>
       </tr>
-      `).join('')}
+      `
+        )
+        .join("")}
     </table>
   </div>
-  ` : ''}
+  `
+      : ""
+  }
 
   <!-- Footer -->
   <div class="footer">
     <p><strong>KINGA AI</strong> - Automated Vehicle Damage Assessment System</p>
     <p>This report was generated using advanced KINGA analysis, physics validation, and cross-validation</p>
-    ${claimNumber ? `<p style="margin-top: 5px;">Claim Reference: ${claimNumber}</p>` : ''}
-    ${assessorName ? `<p>Assessor: ${assessorName}</p>` : ''}
+    ${claimNumber ? `<p style="margin-top: 5px;">Claim Reference: ${claimNumber}</p>` : ""}
+    ${assessorName ? `<p>Assessor: ${assessorName}</p>` : ""}
     <p style="margin-top: 10px; font-size: 8pt;">Confidential - For Insurance Use Only</p>
   </div>
 </body>
@@ -705,15 +757,24 @@ export const assessmentPdfExportInputSchema = z.object({
 
 export const exportAssessmentPDF = insurerDomainProcedure
   .input(assessmentPdfExportInputSchema)
-  .mutation(async ({ ctx, input }: { ctx: any; input: { claimId: number } }) => {
+  .mutation(
+    async ({ ctx, input }: { ctx: any; input: { claimId: number } }) => {
     try {
       const tenantId = ctx.insurerTenantId;
-      if (!tenantId) throw new Error("A tenant-scoped insurer session is required");
+        if (!tenantId)
+          throw new Error("A tenant-scoped insurer session is required");
       let record: ResolvedReportRecord;
       try {
-        record = await resolveReportRecord({ claimId: input.claimId, tenantId, audience: "claim_assessment" });
+          record = await resolveReportRecord({
+            claimId: input.claimId,
+            tenantId,
+            audience: "claim_assessment",
+          });
       } catch (error) {
-        if (error instanceof Error && /not found in the current tenant scope/i.test(error.message)) {
+          if (
+            error instanceof Error &&
+            /not found in the current tenant scope/i.test(error.message)
+          ) {
           throw new Error("Claim not found or access denied");
         }
         throw error;
@@ -723,29 +784,44 @@ export const exportAssessmentPDF = insurerDomainProcedure
       const htmlContent = generateAssessmentReportHTML(data);
 
       // Create temporary files
-      const tempId = randomBytes(16).toString('hex');
+        const tempId = randomBytes(16).toString("hex");
       const htmlPath = join(tmpdir(), `kinga-report-${tempId}.html`);
       const pdfPath = join(tmpdir(), `kinga-report-${tempId}.pdf`);
 
       // Write HTML to file
-      await writeFile(htmlPath, htmlContent, 'utf-8');
+        await writeFile(htmlPath, htmlContent, "utf-8");
 
       // Convert HTML to PDF using puppeteer-core + Chromium
       let pdfBuffer: Buffer;
       let browser;
       try {
         browser = await puppeteer.launch({
-          executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',
+            executablePath: process.env.CHROMIUM_PATH ?? "/usr/bin/chromium",
           headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+            args: [
+              "--no-sandbox",
+              "--disable-setuid-sandbox",
+              "--disable-dev-shm-usage",
+              "--disable-gpu",
+            ],
         });
         const page = await browser.newPage();
-        await page.goto(`file://${htmlPath}`, { waitUntil: 'networkidle0', timeout: 30000 });
-        pdfBuffer = Buffer.from(await page.pdf({
-          format: 'A4',
+          await page.goto(`file://${htmlPath}`, {
+            waitUntil: "networkidle0",
+            timeout: 30000,
+          });
+          pdfBuffer = Buffer.from(
+            await page.pdf({
+              format: "A4",
           printBackground: true,
-          margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' },
-        }));
+              margin: {
+                top: "10mm",
+                bottom: "10mm",
+                left: "10mm",
+                right: "10mm",
+              },
+            })
+          );
       } finally {
         if (browser) await browser.close();
       }
@@ -755,7 +831,7 @@ export const exportAssessmentPDF = insurerDomainProcedure
       const { url } = await storagePut(
         `reports/${fileName}`,
         pdfBuffer,
-        'application/pdf'
+          "application/pdf"
       );
 
       // Clean up temporary files
@@ -770,7 +846,8 @@ export const exportAssessmentPDF = insurerDomainProcedure
         fileName,
       };
     } catch (error: any) {
-      console.error('PDF export error:', error);
+        console.error("PDF export error:", error);
       throw new Error(`Failed to generate PDF: ${error.message}`);
     }
-  });
+    }
+  );
