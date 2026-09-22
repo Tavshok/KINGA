@@ -46,13 +46,17 @@ import { resolveReportCostIntegrity, resolveReportQuoteEvidencePresentation } fr
 import { renderSharedQuoteEvidencePresentation } from "./sharedQuoteEvidencePresentation";
 import { renderCostEvidenceStateHtml } from "./costEvidenceStatePresentation";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
-import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { classifyRepairToValueRatio } from "../../shared/writeOffPolicy";
 import type { KingaWriteOffRecommendation, KingaWriteOffRecommendationKind } from "../../shared/writeOffRecommendation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { loadEvidenceGovernanceReportData, renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
 import { resolveCanonicalClaimReportPresentation } from "./canonicalClaimReportPresentation";
+import {
+  projectP0A2DescriptivePhotoEvidence,
+  renderP0A2CollisionPhysicsAbstentionMarker,
+} from "./p0PhysicsPresentation";
 import { resolveReportRecord, toReportDefinitionRow } from "./resolvedReportRecord";
 import { renderVehiclePassportEvidencePanel } from "./vehiclePassportEvidencePresentation";
 import {
@@ -278,33 +282,15 @@ async function generateClaimAssessmentReport(
     const canonicalPresentation = resolveCanonicalClaimReportPresentation(claim);
     const canonicalReport = canonicalPresentation.report;
 
-    const physics = safeJson(claim.physics_analysis);
-    // ARCH-02: Parse physics_truth_json (PTL) as primary source; fall back to legacy physics_analysis
-    const physicsTruthCL = safeJson(claim.physics_truth_json) as any;
-    const ptCL = physicsTruthCL ?? null;
-    const canonicalSpeedCL = ptCL?.speed?.canonical;
-    const canonicalSpeedValueCL = canonicalSpeedCL && typeof canonicalSpeedCL === "object"
-      ? canonicalSpeedCL.value ?? null
-      : canonicalSpeedCL;
-    const ptlSpeedCL   = canonicalSpeedValueCL ?? ptCL?.speed?.deltaVKmh ?? (physics as any)?.deltaVKmh ?? (physics as any)?.velocityKmh ?? null;
-    const ptlDeltaVCL  = ptCL?.speed?.deltaVKmh ?? (physics as any)?.deltaVKmh ?? null;
+    const collisionPhysicsHold = renderP0A2CollisionPhysicsAbstentionMarker();
     const fraud = safeJson(claim.fraud_score_breakdown_json);
     const costIntel = safeJson(claim.cost_intelligence_json);
-    const decisionAuth = safeJson(claim.decision_authority_json);
-    const crossValCA   = safeJson(claim.cross_validation_json) as any;
-    // ARCH-01: Canonical CTL call-site for CL tier
-    const claimTruthCL  = safeJson(claim.claim_truth_json) as any;
-    const cvThreeWayCA = crossValCA?.threeWaySpeedComparison ?? crossValCA?.speedComparison ?? null;
     // CL Photo section — parse enriched_photos_json (same source as CI and FR)
     const photoEvidenceCL = normaliseCanonicalPhotoEvidence(safeJson(claim.enriched_photos_json));
     const enrichedPhotosCL = photoEvidenceCL.photos;
     const totalPhotosCL = photoEvidenceCL.totalPhotos;
     const usablePhotosCL = photoEvidenceCL.usablePhotos;
     const photoYieldCL = totalPhotosCL > 0 ? Math.round(usablePhotosCL / totalPhotosCL * 100) : 0;
-    const claimedSpdCA  = cvThreeWayCA?.claimedSpeedKmh ?? (physics as any)?.velocityKmh ?? null;
-    const consensusSpdCA = cvThreeWayCA?.consensusSpeedKmh ?? (physics as any)?.deltaVKmh ?? null;
-    const severitySpdCA  = cvThreeWayCA?.severityImpliedSpeedLabel ?? null;
-    const speedVerdictCA = cvThreeWayCA?.verdict ?? (claimedSpdCA && consensusSpdCA && Math.abs(Number(claimedSpdCA) - Number(consensusSpdCA)) > 5 ? 'DIVERGE' : 'CONSISTENT');
 
     // Source-disambiguated evidence arrives only through resolveReportRecord():
     // submitted commercial quote items and AI-detected damage must never be conflated.
@@ -400,7 +386,6 @@ async function generateClaimAssessmentReport(
         totalLossIndicated: Boolean(claim.total_loss_indicated),
         repairToValueRatio: claim.repair_to_value_ratio == null ? null : Number(claim.repair_to_value_ratio),
         kingaRecommendation: parseKingaWriteOffRecommendation(costIntel?.repairabilityDecision),
-        ...extractExplicitStructuralReviewEvidence(claim.repair_intelligence_json),
       },
     });
     const activeQuoteIds = new Set(
@@ -439,10 +424,9 @@ async function generateClaimAssessmentReport(
       ? Number(claim.excess_amount_cents) / 100
       : Number(claim.policy_excess ?? claim.deductible ?? 0);
 
-    // Physics anomaly signal for the light indicator
-    const physicsConsistency = Number(physics?.damageConsistencyScore ?? 100);
-    const hasCriticalInconsistency = Boolean(physics?.hasCriticalInconsistency);
-    const physicsAnomalyScore = hasCriticalInconsistency ? 80 : (physicsConsistency < 70 ? 40 : 0);
+    // P0-A-2: an omitted collision-physics source must not turn into a visual
+    // green/pass indicator or a zero-valued anomaly score.
+    const physicsAnomalyScore = null;
 
     // Fraud risk colour
     const riskLevel = String(claim.fraud_risk_level ?? "low").toLowerCase();
@@ -452,15 +436,14 @@ async function generateClaimAssessmentReport(
     const compTotal = comps.reduce((s, c) => s + c.estimated_cost, 0);
     const labourTotal = comps.reduce((s, c) => s + c.labour_hours, 0);
 
-    // Decision authority text
-    const daText = typeof decisionAuth === "object" && decisionAuth !== null
-      ? String((decisionAuth as Record<string,unknown>).summary ?? JSON.stringify(decisionAuth))
-      : String(decisionAuth ?? "Refer to Claims Manager for final approval.");
+    // Legacy decision-authority JSON is not a P0 publication authority: it can
+    // contain collision-derived conclusions. Keep this panel deterministic and
+    // limited to the canonical workflow/cost decision context.
+    const daText = `A qualified human adjuster must review the ${reportDecision.status.replaceAll("_", " ")} claim status together with the evidence-qualified cost and documentary record. Collision-physics conclusions remain withheld pending a P1-qualified governing measurement or documented human engineering review.`;
 
-    // Fraud indicators (top 5)
-    const fraudIndicators = Array.isArray((fraud as Record<string,unknown> | null)?.indicators)
-      ? ((fraud as Record<string,unknown>).indicators as Record<string,unknown>[]).slice(0, 5)
-      : [];
+    // Stored indicator text is not a source-bound publication contract. It can
+    // contain collision-derived prose, so this tier exposes no raw indicators.
+    const fraudIndicators: Record<string, unknown>[] = [];
 
     const claimRef2 = esc(String(claim.claim_reference ?? claim.id));
     const genDate2 = new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
@@ -602,9 +585,6 @@ ${(() => {
   const isAssessed = assessedMs != null || wsNow.includes('assessment') || wsNow.includes('review');
   const daysToSubmit = (submittedMs && incidentMs) ? Math.round((submittedMs - incidentMs) / 86400000) : null;
   const lateFlag = daysToSubmit !== null && daysToSubmit > 30;
-  const causationType = claimTruthCL?.causation?.type ?? claimTruthCL?.causationType ?? null;
-  const causationLabel = causationType ? String(causationType).replace(/_/g, ' ').replace(/\b\w/g, (ch: string) => ch.toUpperCase()) : null;
-  const causationConf = claimTruthCL?.causation?.confidence ? ` (confidence: ${Math.round(Number(claimTruthCL.causation.confidence) * 100)}%)` : '';
   const steps = [
     { label: 'Incident', date: fmtTs(incidentMs), done: true },
     { label: 'Submitted', date: fmtTs(submittedMs), done: true },
@@ -617,7 +597,6 @@ ${(() => {
     ${steps.map((s, i) => `<div style="flex:1;text-align:center;position:relative;">${i < steps.length - 1 ? `<div style="position:absolute;top:10px;left:50%;right:-50%;height:2px;background:${steps[i+1].done ? '#3C7844' : '#e0e0e0'};z-index:0;"></div>` : ''}<div style="width:20px;height:20px;border-radius:50%;background:${s.done ? '#3C7844' : '#e0e0e0'};color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;position:relative;z-index:1;">${s.done ? '✓' : ''}</div><div style="font-size:8px;font-weight:600;margin-top:3px;color:${s.done ? '#171717' : '#aaa'}">${s.label}</div><div style="font-size:7px;color:#888;margin-top:1px;">${s.date}</div></div>`).join('')}
   </div>
   ${lateFlag ? `<div style="margin-top:8px;padding:5px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:9px;color:#4a4a4a;"><b>⚠ Late Submission:</b> Claim submitted ${daysToSubmit} days after the incident date. Claims submitted more than 30 days after the incident require additional scrutiny. Verify that the delay is documented and justified.</div>` : ''}
-  ${causationLabel ? `<div style="margin-top:6px;padding:5px 10px;background:#f0f7f0;border-left:3px solid #3C7844;font-size:9px;color:#1a3a1a;"><b>Causation:</b> ${causationLabel}${causationConf}</div>` : ''}
 </div>`;
 })()}
 <!-- ── §2 ASSESSMENT SUMMARY ── -->
@@ -724,12 +703,13 @@ ${totalPhotosCL > 0 ? `
     ${photoYieldCL < 40 ? `<span style="background:#fbf1de;color:#b8720b;font-size:9px;font-weight:700;padding:2px 7px;border-radius:2px;">LOW YIELD — Additional photos required</span>` : `<span style="background:#e9f3ea;color:#3C7844;font-size:9px;font-weight:700;padding:2px 7px;border-radius:2px;">ADEQUATE</span>`}
   </div>
   ${photoZonePanel(
-    enrichedPhotosCL.slice(0, 8).map(p => ({
+    enrichedPhotosCL.slice(0, 8).map(p => projectP0A2DescriptivePhotoEvidence({
       url: p.url ?? '',
       zone: p.impactZone ?? undefined,
       caption: p.caption ?? undefined,
       usable: Number(p.confidenceScore ?? 0) >= 70,
-      directionContradiction: p.directionContradiction === true,
+      // Stored visual-physics and direction conclusions are stripped at this P0 boundary.
+      directionContradiction: (p as any).directionContradiction === true,
       semanticType: (p as any).semanticType ?? (p as any).imageClassification ?? undefined,
       detectedComponents: (p as any).detectedComponents ?? undefined,
       classificationConfidence: (p as any).classificationConfidence ?? (p as any).semanticConfidence ?? undefined,
@@ -743,7 +723,7 @@ ${totalPhotosCL > 0 ? `
     4
   )}
   ${photoYieldCL < 40 ? `<div style="background:#fbf1de;border-left:3px solid #b8720b;padding:6px 10px;margin-top:8px;font-size:10px;color:#b8720b;"><strong>Photo Evidence Below Assessment Threshold.</strong> Only ${usablePhotosCL} of ${totalPhotosCL} submitted images were confirmed as usable vehicle-damage photographs. Request focused damage photographs — underbody, engine bay, and interior zones required.</div>` : ""}
-  <p style="font-size:9px;color:#8a8a8a;margin-top:4px;">Zone labels = pipeline-detected impact zone · Red border = confidence &lt;70% · ⚠ = zone contradicts narrative direction (display-only)</p>
+  <p style="font-size:9px;color:#8a8a8a;margin-top:4px;">Zone labels are descriptive image classifications only. Red border = confidence &lt;70%. Collision direction and physics conclusions are withheld pending qualified evidence.</p>
 </div>` : ""}
 <!-- ── §4 REPAIR vs REPLACE ── -->
 <div class="section">
@@ -769,8 +749,7 @@ ${totalPhotosCL > 0 ? `
 <!-- ── §5 PHYSICS / FRAUD ── -->
 <div class="section">
   <div class="section-tab sans"><span class="num">05</span> Fraud &amp; Physics</div>
-  ${physicsIndicator(physicsAnomalyScore, String(claim.claim_reference ?? claim.id))}
-  ${ptlSpeedCL != null ? `<div style="font-size:10px;color:#4a4a4a;margin-top:6px;padding:6px 10px;background:#f5f5f5;border-left:3px solid #d9d9d9;border-radius:2px;">Impact speed estimate: <strong>${Math.round(Number(ptlSpeedCL) * 10) / 10} km/h</strong> — full physics reconstruction, causation classification, and evidence-chain analysis available at Protect / Prove tier.</div>` : ""}
+  ${collisionPhysicsHold}
   ${(() => {
     const qs = (fraud as any)?.quoteSimilarity;
     if (!qs) return '';
@@ -789,7 +768,7 @@ ${totalPhotosCL > 0 ? `
     }
     return '';
   })()}
-  <div style="font-size:10px;color:#8a8a8a;margin-top:8px">Full physics methodology, impact force analysis, and ΔV calculations are available in the Forensic Report (Prove Tier).</div>
+  <div style="font-size:10px;color:#8a8a8a;margin-top:8px">Collision-physics conclusions are not available in this report while the evidence contract requires manual review.</div>
 </div>
 
 <!-- TIER-03: Explicit tier-boundary badge -->
@@ -826,19 +805,14 @@ async function generateForensicReport(
       try { return typeof val === "string" ? JSON.parse(val) : val; } catch { return null; }
     };
 
-    const physics = parseJson(claim.physics_analysis);
-    const fraud = parseJson(claim.fraud_score_breakdown_json);
     // ARCH-01: Canonical CTL call-site for CL tier (function 2)
     const claimTruthCL2 = parseJson(claim.claim_truth_json) as any;
-    const forensic = parseJson(claim.forensic_audit_validation_json);
-    const narrative = parseJson(claim.narrative_analysis_json);
     const ife = parseJson(claim.ife_result_json);
-    const crossValF   = parseJson(claim.cross_validation_json) as any;
-    const cvThreeWayF = crossValF?.threeWaySpeedComparison ?? crossValF?.speedComparison ?? null;
-    const claimedSpdCA  = cvThreeWayF?.claimedSpeedKmh ?? (physics as any)?.velocityKmh ?? null;
-    const consensusSpdCA = cvThreeWayF?.consensusSpeedKmh ?? (physics as any)?.deltaVKmh ?? null;
-    const severitySpdCA  = cvThreeWayF?.severityImpliedSpeedLabel ?? null;
-    const speedVerdictCA = cvThreeWayF?.verdict ?? (claimedSpdCA && consensusSpdCA && Math.abs(Number(claimedSpdCA) - Number(consensusSpdCA)) > 5 ? 'DIVERGE' : 'CONSISTENT');
+    // P0-A-2: legacy physics, cross-validation, forensic-audit, and
+    // interpretation payloads have no governing collision-physics authority.
+    // Do not parse them: an output sanitizer alone cannot prevent an LLM or
+    // template fallback from restating their collision conclusions.
+    const collisionPhysicsHold = renderP0A2CollisionPhysicsAbstentionMarker();
 
     const meta: ReportMeta = {
       title: "Forensic Analysis Report",
@@ -875,82 +849,13 @@ async function generateForensicReport(
           <div class="kv-item"><div class="kv-label">Confidence Score</div><div class="kv-value">${scoreBar(Number(claim.confidence_score ?? 0))}</div></div>
           <div class="kv-item"><div class="kv-label">Recommendation</div><div class="kv-value bold">${escHtml(String(claim.recommendation ?? "—")).toUpperCase()}</div></div>
         </div>
-        ${fraud?.indicators?.length ? `
-        <div class="subsection-title">Triggered Fraud Indicators</div>
-        <table>
-          <thead><tr><th>Indicator</th><th>Category</th><th class="text-right">Points</th><th>Detail</th></tr></thead>
-          <tbody>
-            ${fraud.indicators.map((ind: Record<string, unknown>) => `
-              <tr>
-                <td>${escHtml(String(ind.name ?? ind.indicator ?? ""))}</td>
-                <td>${escHtml(String(ind.category ?? ""))}</td>
-                <td class="text-right bold">${ind.points ?? ind.score ?? 0}</td>
-                <td class="small">${escHtml(String(ind.detail ?? ind.description ?? ""))}</td>
-              </tr>`).join("")}
-          </tbody>
-        </table>` : `<div class="finding-box info">No fraud indicators triggered.</div>`}
+        <div class="finding-box info">Detailed legacy fraud-indicator text is not published in this report. Use separately governed documentary and cost evidence for manual review.</div>
       </div>
 
-      <!-- Physics Analysis -->
-      ${physics ? `
       <div class="section">
-        <div class="section-title">3. Physics &amp; Biomechanical Analysis</div>
-        <div class="kv-grid cols-3">
-          ${physics.deltaV != null ? `<div class="kv-item"><div class="kv-label">Delta-V (km/h)</div><div class="kv-value">${Number(physics.deltaV).toFixed(1)}</div></div>` : ""}
-          ${physics.impactForceN != null ? `<div class="kv-item"><div class="kv-label">Impact Force (N)</div><div class="kv-value">${Number(physics.impactForceN).toLocaleString()}</div></div>` : ""}
-          ${physics.airbagDeploymentExpected != null ? `<div class="kv-item"><div class="kv-label">Airbag Deployment</div><div class="kv-value">${physics.airbagDeploymentExpected ? "Expected" : "Not Expected"}</div></div>` : ""}
-          ${physics.impactAngle != null ? `<div class="kv-item"><div class="kv-label">Impact Angle</div><div class="kv-value">${physics.impactAngle}°</div></div>` : ""}
-          ${physics.vehicleSpeedEstimate != null ? `<div class="kv-item"><div class="kv-label">Speed Estimate</div><div class="kv-value">${Number(physics.vehicleSpeedEstimate).toFixed(1)} km/h</div></div>` : ""}
-          ${physics.physicsConsistency != null ? `<div class="kv-item"><div class="kv-label">Physics Consistency</div><div class="kv-value">${riskBadge(physics.physicsConsistency)}</div></div>` : ""}
+        <div class="section-title">3. Collision Physics, Causation &amp; Structural Analysis</div>
+        ${collisionPhysicsHold}
         </div>
-        ${physics.summary ? `<div class="finding-box"><strong>Summary:</strong> ${escHtml(physics.summary)}</div>` : ""}
-        ${physics.anomalies?.length ? `
-          <div class="subsection-title">Physics Anomalies</div>
-          <ul>${physics.anomalies.map((a: string) => `<li>${escHtml(a)}</li>`).join("")}</ul>` : ""}
-        ${(claimedSpdCA != null || consensusSpdCA != null) ? `
-        <div class="subsection-title">Speed Comparison</div>
-        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;">
-          <thead><tr style="background:#f5f5f5;"><th style="padding:4px 8px;text-align:left;">Source</th><th style="padding:4px 8px;text-align:right;">Speed</th><th style="padding:4px 8px;text-align:left;">Basis</th></tr></thead>
-          <tbody>
-            ${claimedSpdCA != null ? `<tr><td style="padding:3px 8px;">Claimant-stated</td><td style="padding:3px 8px;text-align:right;">${Number(claimedSpdCA).toFixed(1)} km/h</td><td style="padding:3px 8px;color:#666;">Claimant declaration</td></tr>` : ''}
-            ${consensusSpdCA != null ? `<tr><td style="padding:3px 8px;">Physics consensus</td><td style="padding:3px 8px;text-align:right;font-weight:700;">${Number(consensusSpdCA).toFixed(1)} km/h</td><td style="padding:3px 8px;color:#666;">Multi-method ensemble</td></tr>` : ''}
-            ${severitySpdCA ? `<tr><td style="padding:3px 8px;">Severity-implied</td><td style="padding:3px 8px;text-align:right;">${severitySpdCA}</td><td style="padding:3px 8px;color:#666;">Damage pattern analysis</td></tr>` : ''}
-          </tbody>
-        </table>
-        ${speedVerdictCA !== 'CONSISTENT' ? `<div class="finding-box warning" style="margin-top:6px;"><strong>Speed Discrepancy:</strong> Claimed speed diverges from physics consensus. Forensic Report recommended.</div>` : `<div class="finding-box" style="margin-top:6px;">Speed sources are consistent.</div>`}` : ''}
-      </div>` : ""}
-
-      <!-- Narrative Analysis -->
-      ${narrative ? `
-      <div class="section">
-        <div class="section-title">4. Narrative Consistency Analysis</div>
-        <div class="kv-grid cols-3">
-          ${narrative.consistencyScore != null ? `<div class="kv-item"><div class="kv-label">Consistency Score</div><div class="kv-value">${scoreBar(narrative.consistencyScore)}</div></div>` : ""}
-          ${narrative.directionConsistency != null ? `<div class="kv-item"><div class="kv-label">Direction Consistency</div><div class="kv-value">${riskBadge(narrative.directionConsistency)}</div></div>` : ""}
-          ${narrative.timelineConsistency != null ? `<div class="kv-item"><div class="kv-label">Timeline Consistency</div><div class="kv-value">${riskBadge(narrative.timelineConsistency)}</div></div>` : ""}
-        </div>
-        ${narrative.inconsistencies?.length ? `
-          <div class="subsection-title">Identified Inconsistencies</div>
-          <ul>${narrative.inconsistencies.map((i: string) => `<li class="small">${escHtml(i)}</li>`).join("")}</ul>` : ""}
-      </div>` : ""}
-
-      <!-- Forensic Audit Validation -->
-      ${forensic ? `
-      <div class="section">
-        <div class="section-title">5. Forensic Audit Validation</div>
-        ${forensic.validationPoints?.length ? `
-        <table>
-          <thead><tr><th>Validation Point</th><th>Status</th><th>Finding</th></tr></thead>
-          <tbody>
-            ${forensic.validationPoints.map((v: Record<string, unknown>) => `
-              <tr>
-                <td>${escHtml(String(v.point ?? v.name ?? ""))}</td>
-                <td>${riskBadge(String(v.status ?? "pass"))}</td>
-                <td class="small">${escHtml(String(v.finding ?? v.detail ?? ""))}</td>
-              </tr>`).join("")}
-          </tbody>
-        </table>` : `<div class="finding-box info">${escHtml(String(forensic.summary ?? "No forensic validation data available."))}</div>`}
-      </div>` : ""}
 
       <!-- Input Fidelity -->
       ${ife ? `

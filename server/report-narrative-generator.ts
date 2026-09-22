@@ -1,20 +1,21 @@
 // @ts-nocheck
 /**
  * KINGA Report Narrative Generation Service
- * 
- * Generates professional insurance-grade narrative reports using LLM
- * with role-specific templates for insurers, assessors, and regulatory review.
+ *
+ * P0-A-2 keeps report narration deterministic while collision-physics evidence
+ * is advisory or unavailable. No LLM prompt is constructed or invoked on this
+ * publication path, so model-generated collision conclusions cannot reach a
+ * report, PDF, or downstream export.
  */
 
-import { invokeLLM } from "./_core/llm";
 import type { ClaimIntelligence } from "./report-intelligence-aggregator";
 import {
-  extractDamageAssessmentData,
-  extractCostComparisonData,
-  extractFraudRiskData,
-  extractPhysicsValidationData,
   buildWorkflowAuditTrail,
+  extractCostComparisonData,
+  extractDamageAssessmentData,
+  extractFraudRiskData,
 } from "./report-intelligence-aggregator";
+import { buildP0A2CollisionPhysicsAbstentionText } from "./reporting/p0PhysicsPresentation";
 
 export type ReportRole = "insurer" | "assessor" | "regulatory";
 
@@ -30,7 +31,8 @@ export interface ReportNarrative {
 }
 
 /**
- * Generates a comprehensive narrative report for a claim
+ * Generates the report narrative from independently supported claim, cost, and
+ * workflow facts. The P0 physics boundary prevents free-form LLM narration.
  */
 export async function generateReportNarrative(
   intelligence: ClaimIntelligence,
@@ -39,541 +41,100 @@ export async function generateReportNarrative(
   const damageData = extractDamageAssessmentData(intelligence);
   const costData = extractCostComparisonData(intelligence);
   const fraudData = extractFraudRiskData(intelligence);
-  const physicsData = extractPhysicsValidationData(intelligence);
+  const collisionPhysicsHold = buildP0A2CollisionPhysicsAbstentionText();
   const auditData = buildWorkflowAuditTrail(intelligence);
 
-  const template = getRoleTemplate(role);
-  
-  // Generate executive summary
-  const executiveSummary = await generateExecutiveSummary(
+  return buildP0A2DeterministicNarrative({
     intelligence,
     damageData,
     costData,
     fraudData,
-    template
-  );
-
-  // Generate damage assessment analysis
-  const damageAssessmentAnalysis = await generateDamageAssessmentAnalysis(
-    intelligence,
-    damageData,
-    template
-  );
-
-  // Generate AI intelligence explanation
-  const aiIntelligenceExplanation = await generateAIIntelligenceExplanation(
-    intelligence,
-    damageData,
-    physicsData,
-    fraudData,
-    template
-  );
-
-  // Generate cost comparison analytics
-  const costComparisonAnalytics = await generateCostComparisonAnalytics(
-    intelligence,
-    costData,
-    template
-  );
-
-  // Generate fraud risk evaluation
-  const fraudRiskEvaluation = await generateFraudRiskEvaluation(
-    intelligence,
-    fraudData,
-    template
-  );
-
-  // Generate physics validation summary
-  const physicsValidationSummary = await generatePhysicsValidationSummary(
-    intelligence,
-    physicsData,
-    template
-  );
-
-  // Generate workflow audit trail
-  const workflowAuditTrail = await generateWorkflowAuditTrail(
-    intelligence,
     auditData,
-    template
-  );
+    collisionPhysicsHold,
+    role,
+  });
+}
 
-  // Generate recommendations
-  const recommendations = await generateRecommendations(
-    intelligence,
-    damageData,
-    costData,
-    fraudData,
-    template
+type P0A2NarrativeProjectionInput = Readonly<{
+  intelligence: ClaimIntelligence;
+  damageData: ReturnType<typeof extractDamageAssessmentData>;
+  costData: ReturnType<typeof extractCostComparisonData>;
+  fraudData: ReturnType<typeof extractFraudRiskData>;
+  auditData: ReturnType<typeof buildWorkflowAuditTrail>;
+  collisionPhysicsHold: string;
+  role: ReportRole;
+}>;
+
+/**
+ * Builds a non-LLM narrative projection from independent claim, cost, and
+ * workflow facts. Collision text is always the shared actionable abstention.
+ */
+export function buildP0A2DeterministicNarrative(
+  input: P0A2NarrativeProjectionInput
+): ReportNarrative {
+  const claimNumber = String(
+    input.intelligence.claim?.claimNumber ?? "the claim"
   );
+  const vehicle = [
+    input.intelligence.claim?.vehicleMake,
+    input.intelligence.claim?.vehicleModel,
+    input.intelligence.claim?.vehicleYear,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const componentCount = Array.isArray(input.damageData.damagedComponents)
+    ? input.damageData.damagedComponents.length
+    : 0;
+  const quoteCount = Array.isArray(input.costData.quotes)
+    ? input.costData.quotes.length
+    : 0;
+  const workflowEvents = Array.isArray(input.auditData.timeline)
+    ? input.auditData.timeline.length
+    : 0;
 
   return {
-    executiveSummary,
-    damageAssessmentAnalysis,
-    aiIntelligenceExplanation,
-    costComparisonAnalytics,
-    fraudRiskEvaluation,
-    physicsValidationSummary,
-    workflowAuditTrail,
-    recommendations,
+    executiveSummary: [
+      "Executive Summary",
+      `Claim ${claimNumber}${vehicle ? ` concerns a ${vehicle}` : ""}.`,
+      "The report retains independently sourced claim, vehicle, quotation, cost, and workflow evidence for manual review.",
+      input.collisionPhysicsHold,
+    ].join("\n\n"),
+    damageAssessmentAnalysis: [
+      "Damage Assessment Analysis",
+      componentCount > 0
+        ? `${componentCount} descriptive damage-component record${componentCount === 1 ? " is" : "s are"} available in the governed evidence record.`
+        : "No descriptive damage-component record is available in the governed evidence record.",
+      "Review the source photographs and documented component evidence directly; this narrative does not infer collision mechanics.",
+      input.collisionPhysicsHold,
+    ].join("\n\n"),
+    aiIntelligenceExplanation: [
+      "AI Intelligence Explanation",
+      "KINGA may organize descriptive and documentary evidence for manual review, but it does not publish a collision-physics conclusion from advisory visual evidence.",
+      input.collisionPhysicsHold,
+    ].join("\n\n"),
+    costComparisonAnalytics: [
+      "Cost Comparison Analytics",
+      quoteCount > 0
+        ? `${quoteCount} submitted quotation${quoteCount === 1 ? " is" : "s are"} available for evidence-qualified cost reconciliation.`
+        : "No submitted quotation is available for cost reconciliation.",
+      "Cost evidence remains subject to its separate evidence and approval controls.",
+    ].join("\n\n"),
+    fraudRiskEvaluation: [
+      "Fraud Risk Evaluation",
+      `The ${input.role} report retains the applicable fraud-review process without converting advisory collision evidence into a fraud conclusion.`,
+      input.collisionPhysicsHold,
+    ].join("\n\n"),
+    physicsValidationSummary: input.collisionPhysicsHold,
+    workflowAuditTrail: [
+      "Workflow Audit Trail",
+      workflowEvents > 0
+        ? `${workflowEvents} recorded workflow event${workflowEvents === 1 ? " is" : "s are"} available in the audit trail.`
+        : "No recorded workflow event is available in the audit trail.",
+    ].join("\n\n"),
+    recommendations: [
+      "Recommendations",
+      "Complete the applicable cost, documentary, fraud, and approval reviews using their governed evidence sources.",
+      input.collisionPhysicsHold,
+    ].join("\n\n"),
   };
-}
-
-/**
- * Get role-specific template configuration
- */
-function getRoleTemplate(role: ReportRole) {
-  const templates = {
-    insurer: {
-      tone: "professional and decision-focused",
-      focus: "cost optimization, fraud detection, and claim approval recommendations",
-      audience: "insurance claims managers and executives",
-      detailLevel: "comprehensive with actionable insights",
-    },
-    assessor: {
-      tone: "technical and analytical",
-      focus: "damage assessment accuracy, repair cost validation, and technical findings",
-      audience: "professional vehicle assessors and technical reviewers",
-      detailLevel: "highly detailed with technical specifications",
-    },
-    regulatory: {
-      tone: "formal and compliance-oriented",
-      focus: "audit trail completeness, regulatory compliance, and process adherence",
-      audience: "regulatory auditors and compliance officers",
-      detailLevel: "exhaustive with full documentation and evidence trail",
-    },
-  };
-
-  return templates[role];
-}
-
-/**
- * Generate executive summary
- */
-async function generateExecutiveSummary(
-  intelligence: ClaimIntelligence,
-  damageData: any,
-  costData: any,
-  fraudData: any,
-  template: any
-): Promise<string> {
-  const prompt = `You are generating an Executive Summary for an insurance claim report.
-
-**Report Context:**
-- Claim Number: ${intelligence.claim.claimNumber}
-- Vehicle: ${intelligence.claim.vehicleMake} ${intelligence.claim.vehicleModel} (${intelligence.claim.vehicleYear})
-- Incident Date: ${new Date(intelligence.claim.incidentDate).toLocaleDateString()}
-- Claim Status: ${intelligence.claim.status}
-
-**Damage Assessment:**
-- AI Estimated Cost: $${Number(costData.aiTotalCost ?? 0).toFixed(2)}
-${costData.assessorTotalCost ? `- Assessor Estimated Cost: $${Number(costData.assessorTotalCost ?? 0).toFixed(2)}` : ''}
-${costData.quotes.length > 0 ? `- Panel Beater Quotes: ${costData.quotes.length} received (range: $${Math.min(...costData.quotes.map((q: any) => Number(q.totalCost ?? 0))).toFixed(2)} - $${Math.max(...costData.quotes.map((q: any) => Number(q.totalCost ?? 0))).toFixed(2)})` : ''}
-
-**Fraud Risk Assessment:**
-- Overall Risk Level: ${fraudData.overallRiskLevel.toUpperCase()}
-- AI Risk Score: ${fraudData.aiRiskScore}/100
-- Assessor Risk Level: ${fraudData.assessorRiskLevel}
-${fraudData.indicators.length > 0 ? `- Fraud Indicators: ${fraudData.indicators.join(', ')}` : ''}
-
-**Audience:** ${template.audience}
-**Tone:** ${template.tone}
-**Focus:** ${template.focus}
-
-Generate a concise executive summary (200-300 words) that:
-1. Frames the claim assessment in a constructive and professional manner
-2. Highlights key findings from KINGA analysis, assessor evaluation, and panel beater quotes
-3. Summarizes the fraud risk assessment
-4. Provides a clear recommendation for claim approval or further investigation
-5. Uses only the heading "Executive Summary" with no subheadings
-6. Maintains a measured, objective tone avoiding overly critical language
-
-Write the executive summary now:`;
-
-  const response = await invokeLLM({
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert insurance report writer specializing in creating professional, comprehensive claim assessment reports.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
-
-  return (response.choices[0].message.content as string) || "";
-}
-
-/**
- * Generate damage assessment analysis
- */
-async function generateDamageAssessmentAnalysis(
-  intelligence: ClaimIntelligence,
-  damageData: any,
-  template: any
-): Promise<string> {
-  const prompt = `You are generating a Damage Assessment Analysis section for an insurance claim report.
-
-**Incident Description:**
-${intelligence.claim.incidentDescription}
-
-**Incident Location:**
-${intelligence.claim.incidentLocation}
-
-**AI Damage Analysis:**
-${damageData.damageAnalysis}
-
-**Damaged Components:**
-${JSON.stringify(damageData.damagedComponents, null, 2)}
-
-**Cost Estimates:**
-- AI Estimate: $${(damageData.aiEstimate ?? 0).toFixed(2)}
-${damageData.assessorEstimate != null ? `- Assessor Estimate: $${Number(damageData.assessorEstimate).toFixed(2)}` : ''}
-${damageData.quoteEstimates.length > 0 ? `- Quote Estimates: ${damageData.quoteEstimates.map((q: any) => `$${Number(q ?? 0).toFixed(2)}`).join(', ')}` : ''}
-
-**Audience:** ${template.audience}
-**Detail Level:** ${template.detailLevel}
-
-Generate a comprehensive damage assessment analysis (300-500 words) that:
-1. Describes the nature and extent of the damage based on KINGA analysis
-2. Lists all damaged components with severity assessments
-3. Compares AI estimates with assessor evaluations and panel beater quotes
-4. Highlights any discrepancies or areas requiring further investigation
-5. Presents technical information clearly and accurately
-6. Uses tables where appropriate for component specifications
-
-Write the damage assessment analysis now:`;
-
-  const response = await invokeLLM({
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert insurance report writer specializing in technical damage assessments.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
-
-  return (response.choices[0].message.content as string) || "";
-}
-
-/**
- * Generate AI intelligence explanation
- */
-async function generateAIIntelligenceExplanation(
-  intelligence: ClaimIntelligence,
-  damageData: any,
-  physicsData: any,
-  fraudData: any,
-  template: any
-): Promise<string> {
-  const prompt = `You are generating an AI Intelligence Explanation section for an insurance claim report.
-
-**KINGA Assessment Confidence:**
-- Overall Confidence Score: ${intelligence.aiAssessment?.confidenceScore || 0}%
-- Physics Validation Confidence: ${physicsData.validationConfidence}%
-
-**AI Analysis Methods:**
-1. Computer Vision Damage Detection
-2. Impact Physics Analysis
-3. Damage Pattern Consistency Validation
-4. Fraud Risk Scoring
-
-**Physics Validation Results:**
-${JSON.stringify(physicsData.impactAnalysis, null, 2)}
-
-**Damage Consistency Analysis:**
-${JSON.stringify(physicsData.damageConsistency, null, 2)}
-
-**Audience:** ${template.audience}
-**Focus:** ${template.focus}
-
-Generate a clear AI intelligence explanation (250-400 words) that:
-1. Explains how the AI system analyzed the claim (computer vision, physics validation, pattern recognition)
-2. Describes the confidence levels and what they mean
-3. Details the physics validation process and findings
-4. Explains how damage patterns were validated for consistency
-5. Avoids technical jargon while maintaining accuracy
-6. Provides transparency into the AI decision-making process
-
-Write the AI intelligence explanation now:`;
-
-  const response = await invokeLLM({
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert at explaining AI systems in insurance contexts to non-technical audiences.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
-
-  return (response.choices[0].message.content as string) || "";
-}
-
-/**
- * Generate cost comparison analytics
- */
-async function generateCostComparisonAnalytics(
-  intelligence: ClaimIntelligence,
-  costData: any,
-  template: any
-): Promise<string> {
-  const prompt = `You are generating a Cost Comparison Analytics section for an insurance claim report.
-
-**AI Cost Breakdown:**
-- Parts Cost: $${Number(costData.aiPartsCost ?? 0).toFixed(2)}
-- Labor Cost: $${Number(costData.aiLaborCost ?? 0).toFixed(2)}
-- Total Cost: $${Number(costData.aiTotalCost ?? 0).toFixed(2)}
-
-${costData.assessorTotalCost ? `**Assessor Cost Breakdown:**
-- Parts Cost: $${costData.assessorPartsCost?.toFixed(2) || '0.00'}
-- Labor Cost: $${costData.assessorLaborCost?.toFixed(2) || '0.00'}
-- Total Cost: $${Number(costData.assessorTotalCost ?? 0).toFixed(2)}` : ''}
-
-${costData.quotes.length > 0 ? `**Panel Beater Quotes:**
-${costData.quotes.map((q: any, i: number) => `
-Quote ${i + 1} - ${q.panelBeaterName}:
-- Parts Cost: $${Number(q.partsCost ?? 0).toFixed(2)}
-- Labor Cost: $${Number(q.laborCost ?? 0).toFixed(2)}
-- Total Cost: $${Number(q.totalCost ?? 0).toFixed(2)}
-`).join('\n')}` : ''}
-
-**Audience:** ${template.audience}
-**Focus:** ${template.focus}
-
-Generate a detailed cost comparison analytics section (300-450 words) that:
-1. Compares costs across all sources (AI, assessor, panel beater quotes)
-2. Identifies cost optimization opportunities
-3. Highlights significant discrepancies and their potential causes
-4. Presents cost data in clear tabular format where appropriate
-5. Provides actionable insights for cost management
-6. Recommends the most cost-effective repair option
-
-Write the cost comparison analytics now:`;
-
-  const response = await invokeLLM({
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert insurance cost analyst specializing in claim cost optimization.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
-
-  return (response.choices[0].message.content as string) || "";
-}
-
-/**
- * Generate fraud risk evaluation
- */
-async function generateFraudRiskEvaluation(
-  intelligence: ClaimIntelligence,
-  fraudData: any,
-  template: any
-): Promise<string> {
-  const prompt = `You are generating a Fraud Risk Evaluation section for an insurance claim report.
-
-**Overall Fraud Risk Assessment:**
-- Risk Level: ${fraudData.overallRiskLevel.toUpperCase()}
-- AI Risk Score: ${fraudData.aiRiskScore}/100
-- Assessor Risk Level: ${fraudData.assessorRiskLevel}
-
-**Fraud Indicators Detected:**
-${fraudData.indicators.length > 0 ? fraudData.indicators.map((ind: string, i: number) => `${i + 1}. ${ind}`).join('\n') : 'No fraud indicators detected'}
-
-**Enhanced Fraud Analysis:**
-${JSON.stringify(fraudData.enhancedAnalysis, null, 2)}
-
-**Audience:** ${template.audience}
-**Tone:** ${template.tone}
-
-Generate a comprehensive fraud risk evaluation (250-400 words) that:
-1. Assesses the overall fraud risk level and what it means
-2. Explains each fraud indicator detected and its significance
-3. Describes the enhanced fraud analysis (driver demographics, ownership verification, staged accident detection)
-4. Provides a balanced, evidence-based assessment
-5. Recommends appropriate next steps (approve, investigate further, request additional information)
-6. Maintains a measured, objective tone avoiding harsh or accusatory language
-
-Write the fraud risk evaluation now:`;
-
-  const response = await invokeLLM({
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert insurance fraud investigator specializing in objective risk assessment.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
-
-  return (response.choices[0].message.content as string) || "";
-}
-
-/**
- * Generate physics validation summary
- */
-async function generatePhysicsValidationSummary(
-  intelligence: ClaimIntelligence,
-  physicsData: any,
-  template: any
-): Promise<string> {
-  const prompt = `You are generating a Physics Validation Summary section for an insurance claim report.
-
-**Validation Confidence:**
-${physicsData.validationConfidence}%
-
-**Impact Physics Analysis:**
-${JSON.stringify(physicsData.impactAnalysis, null, 2)}
-
-**Damage Pattern Consistency:**
-${JSON.stringify(physicsData.damageConsistency, null, 2)}
-
-**Audience:** ${template.audience}
-**Detail Level:** ${template.detailLevel}
-
-Generate a clear physics validation summary (200-350 words) that:
-1. Explains how physics principles were used to validate the claim
-2. Describes the impact analysis and what it reveals about the incident
-3. Assesses damage pattern consistency with the reported incident
-4. Highlights any inconsistencies or areas of concern
-5. Provides a confidence assessment for the physics validation
-6. Uses clear language accessible to non-technical readers
-
-Write the physics validation summary now:`;
-
-  const response = await invokeLLM({
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert in vehicle accident physics and damage pattern analysis.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
-
-  return (response.choices[0].message.content as string) || "";
-}
-
-/**
- * Generate workflow audit trail
- */
-async function generateWorkflowAuditTrail(
-  intelligence: ClaimIntelligence,
-  auditData: any,
-  template: any
-): Promise<string> {
-  const prompt = `You are generating a Workflow Audit Trail section for an insurance claim report.
-
-**Claim Processing Timeline:**
-${auditData.timeline.map((event: any, i: number) => `
-${i + 1}. ${event.status.toUpperCase()} - ${new Date(event.timestamp).toLocaleString()}
-   Actor: ${event.actor}
-   ${event.notes ? `Notes: ${event.notes}` : ''}
-`).join('\n')}
-
-**Processing Time Metrics:**
-- Submission to KINGA Assessment: ${auditData.processingTime.submissionToAIAssessment ? `${(auditData.processingTime.submissionToAIAssessment / 1000 / 60).toFixed(2)} minutes` : 'N/A'}
-- KINGA Assessment to Assessor Evaluation: ${auditData.processingTime.aiAssessmentToAssessorEvaluation ? `${(auditData.processingTime.aiAssessmentToAssessorEvaluation / 1000 / 60 / 60).toFixed(2)} hours` : 'N/A'}
-- Assessor Evaluation to Quotes: ${auditData.processingTime.assessorEvaluationToQuotes ? `${(auditData.processingTime.assessorEvaluationToQuotes / 1000 / 60 / 60).toFixed(2)} hours` : 'N/A'}
-- Total Processing Time: ${(auditData.processingTime.totalProcessingTime / 1000 / 60 / 60).toFixed(2)} hours
-
-**Total Events:** ${auditData.totalEvents}
-
-**Audience:** ${template.audience}
-**Focus:** ${template.focus}
-
-Generate a comprehensive workflow audit trail section (200-300 words) that:
-1. Documents the complete claim processing timeline
-2. Lists all status changes with timestamps and actors
-3. Highlights processing time metrics and efficiency
-4. Ensures full transparency and audit trail completeness
-5. Presents timeline information in clear tabular format
-6. Demonstrates regulatory compliance and process adherence
-
-Write the workflow audit trail now:`;
-
-  const response = await invokeLLM({
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert in insurance claim process documentation and audit trail management.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
-
-  return (response.choices[0].message.content as string) || "";
-}
-
-/**
- * Generate recommendations
- */
-async function generateRecommendations(
-  intelligence: ClaimIntelligence,
-  damageData: any,
-  costData: any,
-  fraudData: any,
-  template: any
-): Promise<string> {
-  const prompt = `You are generating a Recommendations section for an insurance claim report.
-
-**Claim Summary:**
-- Claim Number: ${intelligence.claim.claimNumber}
-- Status: ${intelligence.claim.status}
-- AI Estimate: $${Number(costData.aiTotalCost ?? 0).toFixed(2)}
-${costData.assessorTotalCost ? `- Assessor Estimate: $${Number(costData.assessorTotalCost ?? 0).toFixed(2)}` : ''}
-- Fraud Risk: ${fraudData.overallRiskLevel.toUpperCase()}
-
-**Available Quotes:**
-${costData.quotes.length > 0 ? costData.quotes.map((q: any) => `- ${q.panelBeaterName}: $${Number(q.totalCost ?? 0).toFixed(2)}`).join('\n') : 'No quotes received yet'}
-
-**Audience:** ${template.audience}
-**Focus:** ${template.focus}
-
-Generate actionable recommendations (200-300 words) that:
-1. Provide a clear claim approval recommendation (approve, reject, request more information)
-2. Recommend the most cost-effective repair option if applicable
-3. Suggest next steps for fraud investigation if risk is medium or high
-4. Highlight any additional information needed for final decision
-5. Provide specific, actionable guidance for claims managers
-6. Maintain a professional, decision-focused tone
-
-Write the recommendations now:`;
-
-  const response = await invokeLLM({
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert insurance claims manager providing strategic recommendations.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
-
-  return (response.choices[0].message.content as string) || "";
 }

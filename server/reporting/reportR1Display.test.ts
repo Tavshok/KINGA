@@ -13,7 +13,9 @@ describe("R1 report cost provenance disclosures", () => {
   it("labels documented assessor cost as calibration-only in CL, CI, and FR", () => {
     for (const path of reportSources) {
       const source = readFileSync(path, "utf8");
-      expect(source).toContain("Assessor documented cost — calibration reference only");
+      expect(source).toContain(
+        "Assessor documented cost — calibration reference only"
+      );
       expect(source).toContain("not a submitted quote, L2 value");
     }
   });
@@ -24,13 +26,26 @@ describe("R1 report cost provenance disclosures", () => {
       expect(source).toContain("resolveReportCostIntegrity");
     }
     const forensicSource = readFileSync(reportSources[2], "utf8");
-    const forensicModel = readFileSync(resolve(root, "forensicReportModel.ts"), "utf8");
-    const sharedQuoteEvidence = readFileSync(resolve(root, "sharedQuoteEvidencePresentation.ts"), "utf8");
-    const costEvidenceState = readFileSync(resolve(root, "costEvidenceStatePresentation.ts"), "utf8");
+    const forensicModel = readFileSync(
+      resolve(root, "forensicReportModel.ts"),
+      "utf8"
+    );
+    const sharedQuoteEvidence = readFileSync(
+      resolve(root, "sharedQuoteEvidencePresentation.ts"),
+      "utf8"
+    );
+    const costEvidenceState = readFileSync(
+      resolve(root, "costEvidenceStatePresentation.ts"),
+      "utf8"
+    );
     expect(forensicSource).toContain("resolveForensicReportModel");
     expect(forensicSource).toContain("forensicModel.executive.costIntegrity");
-    expect(forensicModel).toContain("resolveReportCostIntegrity(costIntel, quoteRows)");
-    expect(sharedQuoteEvidence).toContain("L1 — lowest eligible submitted quote");
+    expect(forensicModel).toContain(
+      "resolveReportCostIntegrity(costIntel, quoteRows)"
+    );
+    expect(sharedQuoteEvidence).toContain(
+      "L1 — lowest eligible submitted quote"
+    );
     expect(sharedQuoteEvidence).toContain("L2 — KINGA Optimised");
     expect(costEvidenceState).toContain("Submitted quotation records");
   });
@@ -41,10 +56,13 @@ describe("R1 report cost provenance disclosures", () => {
     expect(source).not.toContain("Settlement Agreed");
   });
 
-  it("quarantines legacy Forensic interpretation cost findings while L2 scope is incomplete", () => {
+  it("withholds a forensic cost recommendation while L2 scope is incomplete", () => {
     const source = readFileSync(reportSources[2], "utf8");
-    expect(source).toContain("const isCostSection");
-    expect(source).toContain("isCostSection && kingaOptimised === null");
-    expect(source).toContain("L2 repair scope incomplete — cost optimisation unavailable.");
+    expect(source).toContain(
+      "const recommendedSettlement = kingaOptimised === null"
+    );
+    expect(source).toContain(
+      "No savings or settlement recommendation is available until the scope is reconciled."
+    );
   });
 });

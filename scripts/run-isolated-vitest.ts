@@ -25,4 +25,16 @@ const result = spawnSync(
 );
 
 if (result.error) throw result.error;
-process.exit(result.status ?? 1);
+if (result.signal) {
+  console.error(
+    `[isolated-vitest] Vitest terminated by signal ${result.signal}; no complete test summary was produced.`
+  );
+  process.exit(1);
+}
+if (result.status === null) {
+  console.error(
+    "[isolated-vitest] Vitest ended without an exit status or signal; no complete test summary was produced."
+  );
+  process.exit(1);
+}
+process.exit(result.status);

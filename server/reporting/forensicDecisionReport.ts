@@ -14,7 +14,7 @@
 import {
   buildKingaFdrHtml, esc, fmtUSD, fmtCurrency, fmtD, safeJson, photoZonePanel,
 } from "./templates/kingaDesignSystem";
-import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { resolveReportQuoteEvidencePresentation } from "./costIntegrity";
 import { renderEvidenceGovernancePanel, type EvidenceGovernanceReportData } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
@@ -25,6 +25,10 @@ import { resolveForensicReportModel, type ForensicApprovalStage, type ForensicRe
 import { toReportDefinitionRow } from "./resolvedReportRecord";
 import { renderSharedQuoteEvidencePresentation } from "./sharedQuoteEvidencePresentation";
 import { renderVehiclePassportEvidencePanel } from "./vehiclePassportEvidencePresentation";
+import {
+  projectP0A2DescriptivePhotoEvidence,
+  renderP0A2CollisionPhysicsAbstentionMarker,
+} from "./p0PhysicsPresentation";
 
 type LegacyRendererInputs = Readonly<{
   c: Record<string, unknown>;
@@ -94,6 +98,8 @@ export async function generateForensicDecisionReport(
     requiredStages: resolvedRequiredStages,
   } = toForensicLegacyRendererInputs(forensicModel);
 
+  const collisionPhysicsHoldHtml = renderP0A2CollisionPhysicsAbstentionMarker();
+
     // ── 4. Parse JSON fields ─────────────────────────────────────────────────
     const costIntel    = safeJson(c.cost_intelligence_json);
     const repairIntel  = safeJson(c.repair_intelligence_json);
@@ -158,7 +164,6 @@ export async function generateForensicDecisionReport(
     const slpeConfidence: number = ptlSLPE?.confidence ?? 0;
     const slpeWarnings: string[] = ptlSLPE?.warnings ?? [];
     const narrative    = safeJson(c.narrative_analysis_json);
-    const forensicAudit = safeJson(c.forensic_audit_validation_json);
     // Cross-validation JSON — three-way speed comparison, XV risk, impact direction
     const xv = safeJson(c.cross_validation_json) as any;
     const cgiData     = safeJson(c.cgi_result_json) as any;
@@ -174,8 +179,8 @@ export async function generateForensicDecisionReport(
     const xvRiskFactors: string[] = xvRisk?.factors ?? [];
     const xvImpactDir: string | null = xv?.impactDirection ?? pt?.geometry?.impactDirection ?? null;
     const claimQuality  = safeJson(c.claim_quality_json);
-    // ARCH-01: Canonical resolver call-site — read CTL decision from claim_truth_json.
-    // This is the single authoritative source for reviewTriggers, costVerdict, and recommendation.
+    // Claim Truth may provide a canonical cost verdict. Its free-text review
+    // triggers are deliberately not a P0 publication authority.
     const claimTruth    = safeJson(c.claim_truth_json) as any;
     // Bug #1/#12: enriched_photos_json is the canonical photo source (14 photos for VOLTRON)
     // claim_documents may be empty for pipeline-only claims; enriched_photos_json is always populated
@@ -228,7 +233,6 @@ export async function generateForensicDecisionReport(
         kingaRecommendation: isKingaWriteOffRecommendation(costIntel?.repairabilityDecision)
           ? costIntel.repairabilityDecision
           : null,
-        ...extractExplicitStructuralReviewEvidence(repairIntel),
       },
     });
     const submittedQuoteLedgerDetail = quoteArr.length > 0
@@ -321,7 +325,7 @@ export async function generateForensicDecisionReport(
     const dataQualityScore = ptlDQS ?? null;
     // PTL integrity flags
     const integrityFlags: any[] = ptlIntegrity?.flags ?? [];
-    // Bug #3: physicsScore must come from physics.damageConsistencyScore, NOT forensicAudit.overallScore
+    // Legacy physics score remains non-governing and is never rendered under P0-A-2.
     const physicsScore = physics?.damageConsistencyScore ? Number(physics.damageConsistencyScore)
       : (physics?.physicsScore ? Number(physics.physicsScore) : (physics?.anomalyScore ? Number(physics.anomalyScore) : 50));
     const ebsSeverity  = String(physics?.accidentSeverity ?? physics?.ebsSeverity ?? "Moderate");
@@ -412,12 +416,6 @@ export async function generateForensicDecisionReport(
     } | null | undefined;
     const hasGeb = !!(geb?.calibrationStatusCode);
 
-    // Damage zones
-    const rawDamageZones: Array<{zone: string; severity: string}> =
-      Array.isArray(physics?.damageZones) && (physics.damageZones as unknown[]).length > 0
-        ? (physics.damageZones as Array<{zone: string; severity: string}>)
-        : [{ zone: impactDirection, severity: "severe" }];
-
     // Damage component counts
     // CONSIST-06 fix: removed hardcoded fallback of 62 — use actual pipeline values only.
     // If the pipeline did not produce component counts, show 0 rather than a fabricated number.
@@ -432,15 +430,6 @@ export async function generateForensicDecisionReport(
     const modPct   = totalComponents > 0 ? Math.round(moderateCount / totalComponents * 100) : 0;
     const minPct   = Math.max(0, 100 - sevPct - modPct);
 
-    // Structural gaps
-    const structuralGaps: Array<{component: string; severity: string}> =
-      (repairIntel?.structuralGaps as Array<{component: string; severity: string}>) ??
-      (costIntel?.missingComponents as Array<{component: string; severity: string}>) ?? [];
-    const criticalStructural = structuralGaps.filter(g =>
-      String(g.severity ?? "").toLowerCase().includes("critical") ||
-      String(g.severity ?? "").toLowerCase().includes("structural")
-    );
-
     // Quote reconciliation
     const matchedComponents = Number(costIntel?.matchedComponents ?? repairIntel?.matchedComponents ?? 0);
     const missingFromQuote  = Number(costIntel?.missingFromQuote ?? repairIntel?.missingFromQuote ?? 0);
@@ -454,36 +443,28 @@ export async function generateForensicDecisionReport(
       highestPairSimilarity: Math.round((quoteSimilarityRaw.pairs?.[0]?.structural_similarity ?? 0) * 100),
     } : null;
 
-    // Linked claims / impossibility flag
-    const linkedClaims: string[] = (forensicAudit?.linkedClaims as string[]) ??
-      (physics?.linkedClaims as string[]) ?? [];
-    const hasImpossibilityFlag = linkedClaims.length > 0 || (forensicAudit?.duplicateFlag as boolean);
-    const fraudScoreAdjusted = hasImpossibilityFlag ? Math.min(100, fraudScore + 30) : fraudScore;
+    // Tenant-scoped same-registration history is documentary claim evidence.
+    // It never inherits a flag or score adjustment from forensic-audit JSON.
+    const linkedClaims = forensicModel.reportRecord.history.vehicleClaimHistory;
+    const hasDuplicateRegistrationFlag = linkedClaims.length > 0;
+    const fraudScoreAdjusted = fraudScore;
 
     // ARCH-01 fix: read the actual pipeline category breakdown (fraudCategoryBreakdown)
     // instead of the legacy per-field names (damageInconsistency, costDeviation, etc.)
     // which are no longer populated by the weighted fraud engine.
     const catBreak = (fraudBreak as any)?.fraudCategoryBreakdown ?? null;
-    const hasFraudCategoryBreakdown = Boolean(catBreak && Object.values(catBreak).some((value: any) => value?.normScore != null));
-    const fbPhysical      = catBreak ? Math.round(Number(catBreak.physical_consistency?.normScore ?? 0)) : Number((fraudBreak as any)?.damageInconsistency ?? 0);
-    const fbScenario      = catBreak ? Math.round(Number(catBreak.scenario_intelligence?.normScore ?? 0)) : Number((fraudBreak as any)?.directionMismatch ?? 0);
+    const hasPublishableFraudCategoryBreakdown = Boolean(catBreak && [
+      catBreak.financial_anomaly,
+      catBreak.documentation_integrity,
+      catBreak.entity_intelligence,
+    ].some((value: any) => value?.normScore != null));
     const fbFinancial     = catBreak ? Math.round(Number(catBreak.financial_anomaly?.normScore ?? 0)) : Number((fraudBreak as any)?.costDeviation ?? (fraudBreak as any)?.costAnomalyScore ?? 0);
     const fbDocumentation = catBreak ? Math.round(Number(catBreak.documentation_integrity?.normScore ?? 0)) : Number((fraudBreak as any)?.missingData ?? 0);
     const fbEntity        = catBreak ? Math.round(Number(catBreak.entity_intelligence?.normScore ?? 0)) : Number((fraudBreak as any)?.repeatClaim ?? 0);
-    const fbPhoto         = catBreak ? Math.round(Number(catBreak.photo_forensics?.normScore ?? 0)) : Number((fraudBreak as any)?.severityVsPhysics ?? 0);
     // Budget caps for display (matches CATEGORY_BUDGET in stage-8-fraud.ts)
-    const budgetPhysical = catBreak?.physical_consistency?.budget ?? 28;
-    const budgetScenario = catBreak?.scenario_intelligence?.budget ?? 22;
     const budgetFinancial = catBreak?.financial_anomaly?.budget ?? 20;
     const budgetDocumentation = catBreak?.documentation_integrity?.budget ?? 15;
     const budgetEntity = catBreak?.entity_intelligence?.budget ?? 10;
-    const budgetPhoto = catBreak?.photo_forensics?.budget ?? 5;
-
-    // Forensic audit validation
-    const validationIssues = (forensicAudit?.validationIssues as Array<{severity: string; title: string; description: string}>) ?? [];
-    const highIssues = validationIssues.filter(v => v.severity === "high");
-    const auditScore = Number(forensicAudit?.overallScore ?? forensicAudit?.auditScore ?? 61);
-    const auditGrade = auditScore >= 80 ? "High" : auditScore >= 60 ? "Medium" : "Low";
 
     // Approval stage mapping belongs to the canonical model, where audit events
     // are tenant-scoped and pipeline-provided approval workflow takes precedence.
@@ -551,9 +532,6 @@ export async function generateForensicDecisionReport(
       }
       return "Not assessed";
     })();
-    // DIRECTION-FIX: Default crossEngineAgreement to null (not 100) so missing data is visible
-    const crossEngineAgreementRaw = narrative?.crossEngineAgreement;
-    const crossEngineAgreement = crossEngineAgreementRaw != null ? Number(crossEngineAgreementRaw) : null;
     // policeAlignment: NarrativeAnalysis has no policeAlignment field — derive from stakeholder_analysis
     const _saStakeholder = (narrative as any)?.stakeholder_analysis;
     const policeAlignment = _saStakeholder
@@ -674,35 +652,18 @@ export async function generateForensicDecisionReport(
     const speedDiscrepancy = preImpactSpeed > 0 && consensusSpeed > 0 && preImpactSpeed > consensusSpeed
       ? Math.round(((preImpactSpeed - consensusSpeedRounded) / consensusSpeedRounded) * 100) : 0;
 
-    // ── SVG: Impact direction map ────────────────────────────────────────────
-    const impactFromFront = impactDirection.includes("front") || impactDirection.includes("head");
-    const impactFromRear  = impactDirection.includes("rear") || impactDirection.includes("back");
-    const impactFromLeft  = impactDirection.includes("left") || impactDirection.includes("driver");
-    const impactFromRight = impactDirection.includes("right") || impactDirection.includes("passenger");
-    // Arrow position
-    const arrowX = impactFromLeft ? 80 : impactFromRight ? 240 : 160;
-    const arrowY = impactFromRear ? 170 : 8;
-    const arrowDir = impactFromLeft ? "→" : impactFromRight ? "←" : impactFromRear ? "↑" : "↓";
-    const arrowPoints = impactFromFront
-      ? `160,8 178,42 142,42`
-      : impactFromRear
-      ? `160,167 178,133 142,133`
-      : impactFromLeft
-      ? `80,112 114,94 114,130`
-      : `240,112 206,94 206,130`;
-    const arrowLineX1 = impactFromFront ? 160 : impactFromRear ? 160 : impactFromLeft ? 114 : 206;
-    const arrowLineY1 = impactFromFront ? 42 : impactFromRear ? 133 : 112;
-    const arrowLineX2 = impactFromFront ? 160 : impactFromRear ? 160 : impactFromLeft ? 127 : 193;
-    const arrowLineY2 = impactFromFront ? 55 : impactFromRear ? 120 : 112;
-    const impactLabelX = impactFromFront ? 160 : impactFromRear ? 160 : impactFromLeft ? 75 : 245;
-    const impactLabelY = impactFromFront ? 6 : impactFromRear ? 180 : 100;
-
-    // Zone fills
-    const frontFill  = rawDamageZones.some(z => z.zone.toLowerCase().includes("front")) ? "#a83232" : "#e9e9e9";
-    const rearFill   = rawDamageZones.some(z => z.zone.toLowerCase().includes("rear")) ? "#a83232" : "#e9e9e9";
-    const underbodyFill = rawDamageZones.some(z => z.zone.toLowerCase().includes("under")) ? "#b8720b" : "#e9e9e9";
-    const frontLabel = rawDamageZones.find(z => z.zone.toLowerCase().includes("front"))?.severity?.toUpperCase() ?? "FRONT";
-    const rearLabel  = rawDamageZones.find(z => z.zone.toLowerCase().includes("rear"))?.severity?.toUpperCase() ?? "REAR";
+    const forensicNextSteps = [
+      ...(missingFromQuote > 0
+        ? ["Request an itemised quote with unit pricing to enable parts-level cost reconciliation."]
+        : []),
+      ...(hasDuplicateRegistrationFlag
+        ? [`Cross-check the ${linkedClaims.length} prior tenant-scoped claim${linkedClaims.length !== 1 ? "s" : ""} recorded for this registration.`]
+        : []),
+      ...(zonesCovered < totalZones
+        ? ["Obtain additional photographs of the affected vehicle areas."]
+        : []),
+      "Obtain a qualified governing collision measurement or documented human engineering review before publishing collision physics.",
+    ];
 
     // ── PAGE 1 ───────────────────────────────────────────────────────────────
     const page1 = `
@@ -728,27 +689,27 @@ export async function generateForensicDecisionReport(
     <div class="score-cell ${scoreCellCls(fraudScoreAdjusted, false)}">
       <div class="label">Fraud Risk</div>
       <div class="value">${fraudScoreAdjusted}<span style="font-size:12px;">/100</span></div>
-      <div class="sub">${fraudScoreAdjusted >= 70 ? "High" : fraudScoreAdjusted >= 40 ? "Moderate" : "Low"}${hasImpossibilityFlag ? " — see p.4 flag" : ""}</div>
+      <div class="sub">${fraudScoreAdjusted >= 70 ? "High" : fraudScoreAdjusted >= 40 ? "Moderate" : "Low"}${hasDuplicateRegistrationFlag ? " — see p.4 flag" : ""}</div>
     </div>
-    <div class="score-cell ${scoreCellCls(physicsScore, true)}">
-      <div class="label">Physics Consistency</div>
-      <div class="value">${physicsScore}<span style="font-size:12px;">/100</span></div>
-      <div class="sub">${physicsScore >= 70 ? "Good" : physicsScore >= 40 ? "Below 70 threshold" : "Critical anomaly"}</div>
+    <div class="score-cell warn" data-p0-collision-physics="withheld">
+      <div class="label">Collision Physics</div>
+      <div class="value" style="font-size:17px;">Withheld</div>
+      <div class="sub">Manual review required</div>
     </div>
-    <div class="score-cell ${scoreCellCls(auditScore, true)}">
-      <div class="label">FCDI</div>
-      <div class="value">${auditScore}<span style="font-size:12px;">/100</span></div>
-      <div class="sub">${auditScore >= 60 ? "Above threshold" : "Below 60 threshold"}</div>
+    <div class="score-cell warn" data-p0-collision-physics="withheld">
+      <div class="label">Forensic Physics</div>
+      <div class="value" style="font-size:17px;">Withheld</div>
+      <div class="sub">Manual review required</div>
     </div>
     <div class="score-cell ${ifeCompletenessScore >= 90 ? 'good' : ifeCompletenessScore >= 70 ? 'warn' : 'bad'}">
       <div class="label">Data Completeness</div>
       <div class="value">${ifeCompletenessScore}<span style="font-size:12px;">%</span></div>
       <div class="sub">${ifeCompletenessScore >= 90 ? "Above threshold" : "Below 90% threshold"}</div>
     </div>
-    <div class="score-cell ${(() => { const qs = Number(claimQuality?.overallScore ?? auditScore); return qs >= 80 ? 'good' : qs >= 60 ? 'warn' : 'bad'; })()}">
+    <div class="score-cell ${(() => { const qs = Number(claimQuality?.overallScore); return qs >= 80 ? 'good' : qs >= 60 ? 'warn' : 'bad'; })()}">
       <div class="label">Quality Score</div>
-      <div class="value">${Number(claimQuality?.overallScore ?? auditScore)}<span style="font-size:12px;">/100</span></div>
-      <div class="sub">Grade ${String(claimQuality?.grade ?? (auditScore >= 80 ? 'A' : auditScore >= 70 ? 'B' : auditScore >= 60 ? 'C' : 'D'))}</div>
+      <div class="value">${claimQuality?.overallScore != null ? Number(claimQuality.overallScore) : "—"}${claimQuality?.overallScore != null ? `<span style="font-size:12px;">/100</span>` : ""}</div>
+      <div class="sub">${claimQuality?.grade ? `Grade ${String(claimQuality.grade)}` : "Not published"}</div>
     </div>
   </div>
 
@@ -767,7 +728,7 @@ export async function generateForensicDecisionReport(
     <div class="verdict-cell">
       <div class="label">Cost Verdict</div>
       <div class="value" style="font-size:14px; color:var(--${decisionChipCls === "approve" ? "green" : decisionChipCls === "reject" ? "red" : "amber"});">${decisionChipCls === "approve" ? "Approved" : decisionChipCls === "reject" ? "Rejected" : "Review"}</div>
-      <div class="sub">${auditGrade} confidence</div>
+      <div class="sub">Evidence-qualified cost review</div>
     </div>
   </div>
   ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout amber" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtCurrency(costIntegrity.assessorCalibrationCostUsd, claimCurrency)}. This prior assessor figure is retained for comparison with KINGA costing; it is not a submitted quote, L2 value, settlement agreement, or payment authority.</div>` : ""}
@@ -781,51 +742,30 @@ export async function generateForensicDecisionReport(
     <div class="cols-2">
       <div class="box">
         <h4>Decision Rationale</h4>
-        <p style="margin:0 0 6px 0;">${esc(String(forensicAudit?.executiveSummary ?? narrative?.executiveSummary ?? "Physics evidence and data completeness require clarification before a final cost decision. Forensic confidence sits below policy threshold."))}</p>
+        <p style="margin:0 0 6px 0;">Cost, quotation, vehicle, and documentary evidence remain available below. Collision-physics conclusions are withheld pending a qualified governing measurement or documented human engineering review.</p>
         ${(() => {
           const costVerdictDB = String(c.cost_verdict ?? (claimTruth as any)?.costBasis?.costVerdict ?? "").toUpperCase();
           const isReview = recommendation.includes("review");
           const costIsFair = costVerdictDB === "FAIR" || costVerdictDB === "UNDERPRICED";
           if (isReview && costIsFair) {
-            // ARCH-01: Use CTL decision.reviewTriggers as the canonical source when available.
-            // Fall back to reconstructed triggers from DB fields for backwards-compatibility.
-            const ctlTriggers: string[] = Array.isArray((claimTruth as any)?.decision?.reviewTriggers)
-              ? ((claimTruth as any).decision.reviewTriggers as string[])
-              : [];
             const fallbackTriggers: string[] = [];
-            if (ctlTriggers.length === 0) {
-              if (fraudScoreAdjusted >= 50) fallbackTriggers.push(`fraud score ${fraudScoreAdjusted}/100 (threshold: 50)`);
-              if (physicsScore < 70) fallbackTriggers.push(`physics consistency ${physicsScore}% (below 70% threshold)`);
-              if (Number(ife?.completenessScore ?? ife?.overallScore ?? 100) < 90) fallbackTriggers.push(`data completeness ${Number(ife?.completenessScore ?? ife?.overallScore ?? 0)}% (below 90% threshold)`);
-              if (auditScore < 60) fallbackTriggers.push(`forensic audit score ${auditScore}/100 (below 60 threshold)`);
-            }
-            const triggers = ctlTriggers.length > 0 ? ctlTriggers : fallbackTriggers;
+            if (fraudScoreAdjusted >= 50) fallbackTriggers.push(`fraud score ${fraudScoreAdjusted}/100 (threshold: 50)`);
+            if (Number(ife?.completenessScore ?? ife?.overallScore ?? 100) < 90) fallbackTriggers.push(`data completeness ${Number(ife?.completenessScore ?? ife?.overallScore ?? 0)}% (below 90% threshold)`);
+            const triggers = fallbackTriggers;
             const triggerText = triggers.length > 0 ? triggers.join("; ") : "one or more non-cost forensic indicators";
-            const sourceNote = ctlTriggers.length > 0 ? " (Claim Truth Layer)" : " (reconstructed)";
+            const sourceNote = " (published non-physics factors)";
             return `<div style="margin-bottom:8px;padding:6px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#4a4a4a;"><b>Review trigger note${sourceNote}:</b> The cost assessment is <b>${costVerdictDB}</b> — the submitted quote is within the acceptable benchmark range. The REVIEW recommendation was triggered by <b>${triggerText}</b>, not by the cost assessment. Adjuster review of the non-cost factors is required before settlement can proceed.</div>`;
           }
           return '';
         })()}
         <ul class="tight">
-          ${highIssues.length > 0
-            ? highIssues.map(i => `<li>${esc(i.title)}</li>`).join("")
-            : `<li>Data completeness ${ifeCompletenessScore}% — ${ifeCompletenessScore < 90 ? "below 90% required threshold" : "above threshold"}</li>
-               ${physicsScore < 70 ? `<li>Physics consistency anomaly (${physicsScore}%) — damage pattern vs. reported direction</li>` : ""}
-               ${auditScore < 60 ? `<li>Cost verdict requires manual review — quote deviates from AI benchmark</li>` : ""}`
-          }
+          <li>Collision-physics findings are withheld pending the required measurement or engineering review.</li>
+          <li>Cost and documentary review indicators are shown in their respective evidence-qualified sections.</li>
         </ul>
       </div>
-      <div class="box">
-        <h4>Physics Snapshot</h4>
-        <table class="kv">
-          ${w3CampbellSpeed ? kvRow("Campbell speed (calibrated)", `${w3CampbellSpeed.formatted}`) : kvRow("Physics consensus speed", `${consensusSpeedRounded} km/h`)}
-          ${w3KineticEnergy ? kvRow("Kinetic energy", w3KineticEnergy.formatted) : kineticEnergy > 0 ? kvRow("Kinetic energy", `${kineticEnergy.toFixed(1)} kJ`) : ""}
-          ${w3DeltaV ? kvRow("Delta-V", w3DeltaV.formatted) : impactForce > 0 ? kvRow("Impact force", `${impactForce.toLocaleString()} kN`) : ""}
-          ${w3DeformEff ? kvRow("Deformation efficiency", w3DeformEff.formatted) : deceleration > 0 ? kvRow("Deceleration", `${deceleration.toFixed(2)} g`) : ""}
-          ${w3Grade ? kvRow("Evidence quality", `<b>Grade ${w3Grade}</b> — ${w3Grade === 'A' ? 'tight' : w3Grade === 'B' ? 'moderate' : w3Grade === 'C' ? 'wide' : 'very wide'} uncertainty`) : ""}
-        </table>
-        ${w3VerdictPara ? `<p style="margin:8px 0 0 0;font-size:7.5pt;color:var(--ink-soft);line-height:1.5;">${esc(w3VerdictPara)}</p>` : speedDiscrepancy > 20 ? co(`Driver-stated speed is <b>${speedDiscrepancy}% higher</b> than the physics-derived estimate — verify before settlement.`, "amber") : ""}
-        ${w3CriticalCount > 0 ? co(`<b>${w3CriticalCount} critical physics contradiction${w3CriticalCount !== 1 ? 's' : ''} detected</b> — review integrity flags before settlement.`, "red") : w3TotalFlagCount > 0 ? co(`${w3TotalFlagCount} physics integrity flag${w3TotalFlagCount !== 1 ? 's' : ''} noted (${w3WarningCount} warning${w3WarningCount !== 1 ? 's' : ''}, ${w3InfoCount} info) — see §04 integrity flags.`, "amber") : w3IntegrityClean ? co("All physics integrity checks passed.", "green") : ""}
+      <div class="box" data-p0-collision-physics="withheld">
+        <h4>Collision Physics</h4>
+        ${collisionPhysicsHoldHtml}
       </div>
     </div>
   </div>
@@ -872,34 +812,10 @@ export async function generateForensicDecisionReport(
     ${renderVehiclePassportEvidencePanel({ snapshot: preLossCondition, formatDate: fmtD, escapeHtml: esc })}
   </div>
 
-  <!-- §03 INCIDENT NARRATIVE -->
-  <div class="section">
-    ${sectionTab("03", "Incident Narrative & Cross-Validation", physicsVsNarrative, physicsVsNarrative === "Consistent" ? "ok" : physicsVsNarrative === "Partial" ? "mid" : "high")}
-    <div class="cols-2">
-      <div class="box">
-        <h4>Reconstructed Sequence</h4>
-        <p style="margin:0;">${esc(narrativeText)}</p>
-        ${narrativeFlag ? co(`<b>Narrative flag —</b> ${esc(narrativeFlag)}`) : ""}
-      </div>
-      <div class="box">
-        <h4>Engine Cross-Validation</h4>
-        <table class="kv">
-          ${kvRow("Physics vs. narrative", p(physicsVsNarrative,
-            physicsVsNarrative.startsWith("Consistent") ? "green" :
-            physicsVsNarrative === "Not assessed" ? "amber" :
-            physicsVsNarrative.startsWith("Partial") ? "amber" : "red"
-          ))}
-          ${kvRow("Damage vs. narrative", p(damageVsNarrative,
-            damageVsNarrative.startsWith("Consistent") ? "green" :
-            damageVsNarrative === "Not assessed" ? "amber" :
-            damageVsNarrative.startsWith("Partial") ? "amber" : "red"
-          ))}
-          ${kvRow("Cross-engine agreement", crossEngineAgreement != null ? `${crossEngineAgreement}/100` : `<span style="color:var(--ink-soft);">Not assessed</span>`)}
-          ${kvRow("Police alignment", p(policeAlignment, (policeAlignment as string) === "Consistent" ? "green" : (policeAlignment as string) === "Partial" ? "amber" : (policeAlignment as string) === "Not assessed" ? "grey" : "red"))}
-        </table>
-        <p class="small" style="margin-top:8px;">${esc(String(narrative?.crossValidationNote ?? "Damage pattern and narrative are cross-validated against physics engine output."))}</p>
-      </div>
-    </div>
+  <!-- §03 INCIDENT NARRATIVE & CROSS-VALIDATION -->
+  <div class="section" data-p0-collision-physics="withheld">
+    ${sectionTab("03", "Incident Narrative & Cross-Validation")}
+    ${collisionPhysicsHoldHtml}
   </div>
 
   <div class="footer-strip sans">
@@ -911,425 +827,11 @@ export async function generateForensicDecisionReport(
     // ── PAGE 2 ───────────────────────────────────────────────────────────────
     const page2 = `
 <div class="page page-break">
-  <!-- §04 TECHNICAL FORENSICS -->
-  <div class="section">
-    ${sectionTab("04", "Technical Forensics — Physics & Speed", physicsScore < 70 ? "Minor anomaly" : "Consistent", physicsScore < 70 ? "mid" : "ok")}
-    <div class="cols-2">
-      <div class="box">
-        <h4>Impact Overview
-          ${dataQualityScore != null ? `<span class="small" style="float:right;font-weight:400;color:${dataQualityScore >= 70 ? 'var(--green)' : dataQualityScore >= 40 ? 'var(--amber)' : 'var(--red)'};">DQS ${dataQualityScore}/100</span>` : ""}
-        </h4>
-        <table class="kv">
-          ${kvRow("Delta-V",
-            deltaVMin != null && deltaVMax != null
-              ? `<b>${deltaV.toFixed(1)} km/h</b> <span class="small" style="color:var(--ink-soft);">range ${deltaVMin.toFixed(1)}–${deltaVMax.toFixed(1)} km/h</span>`
-              : `${deltaV.toFixed(1)} km/h`)}
-          ${kvRow("Kinetic energy", `${kineticEnergy.toFixed(1)} kJ`)}
-          ${impactForce > 0 ? kvRow("Impact force", `${impactForce.toLocaleString()} kN`) : ""}
-          ${vehicleMass > 0 ? kvRow("Vehicle mass (used)", `${vehicleMass.toLocaleString()} kg`) : ""}
-          ${crushDepthMm != null ? kvRow("Crush depth",
-            crushDepthMinMm != null && crushDepthMaxMm != null
-              ? `<b>${crushDepthMm.toFixed(0)} mm</b> <span class="small" style="color:var(--ink-soft);">range ${crushDepthMinMm.toFixed(0)}–${crushDepthMaxMm.toFixed(0)} mm · ${esc(String(crushDepthSource ?? ''))}</span>`
-              : `${crushDepthMm.toFixed(0)} mm`) : ""}
-          ${kvRow("Impact severity", ebsSeverity)}
-          ${kvRow("Damage consistency", `${physicsScore}/100 — ${physicsScore >= 70 ? "Good" : physicsScore >= 40 ? "Moderate" : "Low"}`)}
-          ${ptlBrakingDistanceM !== null ? kvRow(
-            "Braking distance",
-            `<b>${ptlBrakingDistanceM.toFixed(1)} m</b> <span class="small" style="color:var(--ink-soft);">at ${consensusSpeedRounded} km/h, μ=${ptlBrakingMu ?? 0.7} (${ptlBrakingMu === 0.4 ? 'wet road' : ptlBrakingMu === 0.3 ? 'gravel/dirt' : 'dry tarmac'})</span>`
-          ) : ""}
-        </table>
-        ${physicsConstraints.length > 0 && physicsConstraints.some(c => c.result.toLowerCase() !== "pass")
-          ? co(`<b>Physics constraint —</b> ${esc(physicsConstraints.find(c => c.result.toLowerCase() !== "pass")?.name ?? "")} flagged for adjuster review.`, "amber")
-          : ""}
+  <!-- §04–05 COLLISION PHYSICS & STRUCTURAL ANALYSIS -->
+  <div class="section" data-p0-collision-physics="withheld">
+    ${sectionTab("04", "Collision Physics, Causation & Structural Analysis")}
+    ${collisionPhysicsHoldHtml}
       </div>
-      <div class="box">
-        <h4>Speed Analysis <span class="small">(${speedEnsemble?.overallConfidence?.toLowerCase() ?? auditGrade.toLowerCase()} confidence)</span></h4>
-        <p style="margin:0 0 4px 0;"><span style="font-size:26px; font-weight:700; font-family:'Helvetica Neue',Arial,sans-serif; color:var(--teal);">${consensusSpeedRounded}</span> <span class="small">km/h consensus · ${rannedMethodCount} of ${totalMethodCount} method${totalMethodCount !== 1 ? 's' : ''} produced an estimate</span></p>
-        <svg width="100%" height="${chartHeight}" viewBox="0 0 ${chartWidth} ${chartHeight}" xmlns="http://www.w3.org/2000/svg">
-          <line x1="20" y1="${baselineY}" x2="${chartWidth - 10}" y2="${baselineY}" stroke="#bdbdbd" stroke-width="1"/>
-          ${speedBars}
-        </svg>
-        ${speedDiscrepancy > 20 ? co(`<b>Speed discrepancy —</b> driver-stated ${preImpactSpeed} km/h is ${speedDiscrepancy}% higher than the ${consensusSpeedRounded} km/h physics estimate. Verify before settlement.`, "red") : ""}
-      </div>
-    </div>
-
-    <div class="cols-2" style="margin-top:12px;">
-      <div class="box">
-        <h4>Impact Direction &amp; Force Map</h4>
-        <svg width="100%" height="175" viewBox="0 0 320 175" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="${arrowPoints}" fill="#a83232"/>
-          <line x1="${arrowLineX1}" y1="${arrowLineY1}" x2="${arrowLineX2}" y2="${arrowLineY2}" stroke="#a83232" stroke-width="3"/>
-          <text x="${impactLabelX}" y="${impactFromFront ? 6 : impactFromRear ? 174 : impactLabelY}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" font-weight="700" fill="#a83232">IMPACT</text>
-          <!-- vehicle outline, top-down -->
-          <rect x="110" y="55" width="100" height="105" rx="14" fill="#ffffff" stroke="#171717" stroke-width="1.5"/>
-          <!-- front zone -->
-          <rect x="114" y="59" width="92" height="24" fill="${frontFill}" opacity="0.85"/>
-          <text x="160" y="75" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" font-weight="700" fill="#ffffff">FRONT — ${frontLabel}</text>
-          <!-- cabin -->
-          <rect x="114" y="83" width="92" height="42" fill="#f2f2f2" stroke="#d9d9d9"/>
-          <text x="160" y="107" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="7.5" fill="#4a4a4a">CABIN / ROOF</text>
-          <!-- underbody -->
-          <rect x="114" y="125" width="92" height="10" fill="${underbodyFill}" opacity="0.85"/>
-          <text x="160" y="132.5" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="6.5" font-weight="700" fill="#ffffff">UNDERBODY</text>
-          <!-- rear zone -->
-          <rect x="114" y="135" width="92" height="21" fill="${rearFill}" stroke="#d9d9d9"/>
-          <text x="160" y="149" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="7.5" fill="${rearFill === "#a83232" ? "#ffffff" : "#4a4a4a"}">REAR — ${rearLabel}</text>
-          <!-- wheels -->
-          <rect x="100" y="68" width="10" height="20" rx="3" fill="#8a8a8a"/>
-          <rect x="210" y="68" width="10" height="20" rx="3" fill="#8a8a8a"/>
-          <rect x="100" y="128" width="10" height="20" rx="3" fill="#8a8a8a"/>
-          <rect x="210" y="128" width="10" height="20" rx="3" fill="#8a8a8a"/>
-          <text x="97" y="63" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="7" fill="#8a8a8a">N — FRONT</text>
-          <text x="97" y="171" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="7" fill="#8a8a8a">S — REAR</text>
-          <!-- force readout -->
-          ${deltaV > 0 ? `<text x="230" y="70" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" fill="#171717">ΔV <tspan font-weight="700">${deltaV.toFixed(1)} km/h</tspan></text>` : ""}
-          ${kineticEnergy > 0 ? `<text x="230" y="84" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" fill="#171717">KE <tspan font-weight="700">${kineticEnergy.toFixed(1)} kJ</tspan></text>` : ""}
-          ${impactForce > 0 ? `<text x="230" y="98" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" fill="#171717">F <tspan font-weight="700">${impactForce.toLocaleString()} kN</tspan></text>` : ""}
-          ${deceleration > 0 ? `<text x="230" y="112" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" fill="#171717">Decel. <tspan font-weight="700">${deceleration.toFixed(2)} g</tspan></text>` : ""}
-        </svg>
-        <p class="caption">Red = severe damage zone · amber = underbody · impact arrow shows reported direction of force.</p>
-      </div>
-      <div class="box">
-        <h4>Damage Severity — ${totalComponents} components</h4>
-        <svg width="100%" height="40" viewBox="0 0 320 40" xmlns="http://www.w3.org/2000/svg">
-          <rect x="0" y="6" width="${Math.round(sevPct * 3.2)}" height="20" fill="#a83232"/>
-          <rect x="${Math.round(sevPct * 3.2)}" y="6" width="${Math.round(modPct * 3.2)}" height="20" fill="#b8720b"/>
-          <rect x="${Math.round((sevPct + modPct) * 3.2)}" y="6" width="${Math.round(minPct * 3.2)}" height="20" fill="#3C7844"/>
-          ${severeCount > 0 ? `<text x="${Math.round(sevPct * 1.6)}" y="20" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" font-weight="700" fill="#ffffff">${severeCount} SEVERE</text>` : ""}
-          ${moderateCount > 0 ? `<text x="${Math.round(sevPct * 3.2) + Math.round(modPct * 1.6)}" y="20" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="7" font-weight="700" fill="#ffffff">${moderateCount}</text>` : ""}
-        </svg>
-        <p class="small" style="margin-top:6px;">${severeCount} severe · ${moderateCount} moderate · ${minorCount} minor. ${esc(String(repairIntel?.damageSummary ?? "Damage concentrated in impact zone per narrative."))}
-        </p>
-
-        <h4 style="margin-top:12px;">Methodology &amp; Assumptions</h4>
-        <ul class="tight small" style="margin-top:0;">
-          <li>Consensus speed is a physics-derived <b>lower bound</b>, not a certified reconstruction.</li>
-          <li>Vehicle mass estimated from make/model class where not stated; friction μ=0.7 (tarmac) used for braking coherence.</li>
-          <li>Pre-impact braking not modelled in the speed lower-bound estimate.</li>
-          <li>Independent forensic reconstruction recommended for claims above insurer materiality threshold.</li>
-        </ul>
-
-        ${physicsConstraints.length > 0 ? `
-        <h4 style="margin-top:12px;">Physics Constraints — ${physicsConstraints.filter(c => c.result.toLowerCase() === "pass").length} of ${physicsConstraints.length} passed</h4>
-        <table class="kv">
-          ${physicsConstraints.map(c => kvRow(esc(c.name), p(c.result, c.result.toLowerCase() === "pass" ? "green" : c.result.toLowerCase() === "advisory" ? "amber" : "red"))).join("")}
-        </table>` : ""}
-      </div>
-    </div>
-
-    ${ptlImpactCausation ? `
-    <!-- Impact Causation & Forensic Findings panel -->
-    <div class="cols-2" style="margin-top:12px;">
-      <div class="box">
-        ${sectionTab("04a", "Impact Causation Classification",
-          ptlCausationBreached ? "Speed Ceiling Breach" : ptlReversingContradiction ? "Narrative Contradiction" : "Consistent",
-          ptlCausationBreached ? "high" : ptlReversingContradiction ? "mid" : "ok"
-        )}
-        <table class="kv">
-          ${kvRow("Causation type",
-            (() => {
-              const labels: Record<string, string> = {
-                SELF_REVERSING: 'Self-reversing — claimant\'s vehicle was reversing at impact',
-                THIRD_PARTY_REAR_STRIKE: 'Third-party rear strike — third party struck stationary/moving claimant from behind',
-                THIRD_PARTY_REVERSED_INTO_STATIONARY_CLAIMANT: 'Third party reversed into stationary claimant',
-                THIRD_PARTY_REVERSED_INTO_MOVING_CLAIMANT: 'Third party reversed into moving claimant',
-                MUTUAL_REVERSING: 'Mutual reversing — both vehicles reversing at impact',
-                FORWARD_IMPACT: 'Forward impact — no reversing involved',
-                UNKNOWN: 'Not determined from available narrative',
-              };
-              return esc(labels[ptlImpactCausation!] ?? ptlImpactCausation!);
-            })()
-          )}
-          ${ptlCausationCeiling !== null ? kvRow("Speed ceiling",
-            ptlCausationBreached
-              ? `<span style="color:var(--red);font-weight:600;">&#9888; Breach — ${ptlCausationCeiling} km/h max, consensus ${consensusSpeedRounded} km/h exceeds physical limit</span>`
-              : `${ptlCausationCeiling} km/h max <span style="color:var(--green);">&#10003; Within ceiling</span>`
-          ) : ""}
-          ${ptlBrakingDistanceM !== null ? kvRow(
-            "Braking distance",
-            `${ptlBrakingDistanceM.toFixed(1)} m <span class="small" style="color:var(--ink-soft);">to stop from ${consensusSpeedRounded} km/h on ${ptlBrakingMu === 0.4 ? 'wet road' : ptlBrakingMu === 0.3 ? 'gravel/dirt' : 'dry tarmac'} (μ=${ptlBrakingMu ?? 0.7})</span>`
-          ) : ""}
-          ${kvRow("Contradiction flag",
-            ptlReversingContradiction
-              ? `<span style="color:var(--amber);font-weight:600;">&#9888; Active third party also described — causation may require reclassification</span>`
-              : `<span style="color:var(--green);">&#10003; Suppressed — no active third-party conflict</span>`
-          )}
-        </table>
-        ${ptlCausationBreached ? co(`<b>Physical impossibility —</b> A reversing vehicle cannot exceed ~20 km/h. The consensus speed of ${consensusSpeedRounded} km/h is physically impossible for the stated causation. Adjuster review required before settlement.`, "red") : ""}
-        ${ptlReversingContradiction ? co(`<b>Narrative contradiction —</b> The claimant states they were reversing, but an active third party is also described. Causation may need to be revised to THIRD_PARTY_REAR_STRIKE. Request clarification.`, "amber") : ""}
-        <p class="caption" style="margin-top:8px;">Causation is classified from the driver narrative and supporting documents. It determines who was in motion in reverse at the time of impact and imposes physical speed ceilings where applicable.</p>
-      </div>
-      <div class="box">
-        ${sectionTab("04b", "Forensic Findings Summary",
-          ptlCausationBreached ? "Attention Required" : ptlReversingContradiction ? "Review" : "Clean",
-          ptlCausationBreached ? "high" : ptlReversingContradiction ? "mid" : "ok"
-        )}
-        <table class="kv">
-          ${kvRow("Narrative vs. physics", p(physicsVsNarrative ?? "Consistent", (physicsVsNarrative ?? "Consistent") === "Consistent" ? "green" : (physicsVsNarrative ?? "") === "Partial" ? "amber" : "red"))}
-          ${kvRow("Causation integrity",
-            ptlCausationBreached
-              ? `<span style="color:var(--red);font-weight:600;">&#9888; CRITICAL — speed ceiling breach</span>`
-              : ptlReversingContradiction
-              ? `<span style="color:var(--amber);font-weight:600;">&#9888; WARNING — narrative contradiction</span>`
-              : `<span style="color:var(--green);">&#10003; Pass</span>`
-          )}
-          ${ptlBrakingDistanceM !== null ? kvRow("Braking plausibility",
-            ptlBrakingDistanceM > 100
-              ? `<span style="color:var(--red);">${ptlBrakingDistanceM.toFixed(0)} m — high-speed impact</span>`
-              : ptlBrakingDistanceM > 40
-              ? `<span style="color:var(--amber);">${ptlBrakingDistanceM.toFixed(0)} m — moderate speed</span>`
-              : `<span style="color:var(--green);">${ptlBrakingDistanceM.toFixed(0)} m — low-speed impact</span>`
-          ) : ""}
-        </table>
-        ${ptlCausationBreached
-          ? co(`<b>Physics inconsistency —</b> The physics evidence is inconsistent with the stated scenario. A vehicle in reverse gear cannot reach ${consensusSpeedRounded} km/h. This claim requires adjuster investigation before settlement.`, "red")
-          : ptlReversingContradiction
-          ? co(`<b>Narrative review required —</b> The narrative states the claimant was reversing, but a third party is also named. Clarify whether the third party was also in motion and whether the causation should be reclassified.`, "amber")
-          : co("The physics evidence is consistent with the stated scenario. No causation anomalies were detected by the automated forensic engine.", "green")
-        }
-      </div>
-    </div>` : ""}
-
-    ${xvThreeWay ? `
-    <!-- Three-Way Speed Comparison (Cross-Validation) -->
-    <div class="box" style="margin-top:12px;">
-      ${sectionTab("04c", "Three-Way Speed Comparison",
-        xvSpeedVerdict === "ALL_AGREE" ? "All Sources Agree" :
-        xvSpeedVerdict === "ALL_DIVERGE" ? "All Sources Diverge" :
-        xvSpeedVerdict === "CLAIMED_OUTLIER" ? "Claimed Speed Outlier" : "Speed Discrepancy",
-        xvSpeedVerdict === "ALL_AGREE" ? "ok" : xvSpeedVerdict === "ALL_DIVERGE" ? "high" : "mid"
-      )}
-      <table class="kv">
-        ${xvClaimedSpeed !== null ? kvRow("Claimant-stated speed", `${xvClaimedSpeed} km/h`) : ""}
-        ${xvConsensusSpeed !== null ? kvRow("Physics consensus speed", `<b>${xvConsensusSpeed} km/h</b>`) : ""}
-        ${xvSeverityImplied ? kvRow("Severity-implied speed range", esc(xvSeverityImplied)) : ""}
-        ${kvRow("Verdict", xvSpeedVerdict === "ALL_AGREE"
-          ? `<span style="color:var(--green);">&#10003; All three sources agree</span>`
-          : xvSpeedVerdict === "ALL_DIVERGE"
-          ? `<span style="color:var(--red);font-weight:600;">&#9888; All three sources diverge — adjuster review required</span>`
-          : xvSpeedVerdict === "CLAIMED_OUTLIER"
-          ? `<span style="color:var(--amber);font-weight:600;">&#9888; Claimant-stated speed is an outlier vs. physics and damage severity</span>`
-          : `<span style="color:var(--amber);">&#9888; ${esc(xvSpeedVerdict ?? "Discrepancy detected")}</span>`
-        )}
-        ${xvImpactDir ? kvRow("Impact direction", esc(xvImpactDir.charAt(0).toUpperCase() + xvImpactDir.slice(1))) : ""}
-      </table>
-      ${xvRiskScore > 0 ? `<div class="callout ${xvRiskLevel === 'HIGH' ? 'red' : xvRiskLevel === 'MEDIUM' ? 'amber' : 'green'}" style="margin-top:8px;">
-        <b>Cross-Validation Risk (${xvRiskScore}/100):</b> ${xvRiskFactors.map(f => esc(f)).join(' · ')}
-      </div>` : ""}
-      <p class="caption" style="margin-top:8px;">Three-way comparison cross-references the claimant-stated speed, physics consensus speed (from the Speed Inference Ensemble), and the damage-severity-implied speed range. Divergence across all three sources is a strong indicator of misrepresentation or measurement error.</p>
-    </div>` : ""}
-
-    ${physicsTruth && (integrityFlags.length > 0 || ptlEvidence) ? `
-    <!-- PTL Evidence Quality & Integrity panel -->
-    <div class="cols-2" style="margin-top:12px;">
-      <div class="box">
-        <h4>Evidence Quality <span class="small" style="font-weight:400;color:var(--ink-soft);">Physics Truth Layer</span></h4>
-        <table class="kv">
-          ${ptlEvidence?.dataQualityScore != null ? kvRow("Data Quality Score",
-            `<b style="color:${ptlEvidence.dataQualityScore >= 70 ? 'var(--green)' : ptlEvidence.dataQualityScore >= 40 ? 'var(--amber)' : 'var(--red)'}">${ptlEvidence.dataQualityScore}/100</b>`) : ""}
-          ${ptlEvidence?.hasGeometryCalibration != null ? kvRow("Geometry calibration", ptlEvidence.hasGeometryCalibration ? '<span style="color:var(--green);">&#10003; Present</span>' : '<span style="color:var(--ink-soft);">Not available</span>') : ""}
-          ${ptlEvidence?.hasMultiImageReconciliation != null ? kvRow("Multi-image reconciliation", ptlEvidence.hasMultiImageReconciliation ? '<span style="color:var(--green);">&#10003; Present</span>' : '<span style="color:var(--ink-soft);">Not available</span>') : ""}
-          ${ptlEvidence?.speedMethodsRan != null ? kvRow("Speed methods ran", `${ptlEvidence.speedMethodsRan} of ${ptlEvidence.speedMethodsTotal ?? '—'}`) : ""}
-          ${ptlEvidence?.crushDepthSource != null ? kvRow("Crush depth source", esc(String(ptlEvidence.crushDepthSource))) : ""}
-        </table>
-      </div>
-      <div class="box">
-        <h4>Physics Integrity Flags</h4>
-        ${integrityFlags.length > 0 ? `
-        <ul class="tight small" style="margin-top:0;">
-          ${integrityFlags.map((f: any) => `<li><span style="color:${f.severity === 'HIGH' ? 'var(--red)' : f.severity === 'MEDIUM' ? 'var(--amber)' : 'var(--ink-soft)'};"><b>[${esc(String(f.severity ?? 'INFO'))}]</b> ${esc(String(f.description ?? f.type ?? ''))}</span></li>`).join("")}
-        </ul>` : `<p class="small" style="color:var(--green);margin:0;">&#10003; No integrity flags — physics measurements are internally consistent.</p>`}
-        <p class="caption" style="margin-top:8px;">Integrity flags are raised when physics measurements contradict each other (e.g. claimed speed inconsistent with crush depth, or airbag deployment threshold not met at stated delta-V).</p>
-      </div>
-    </div>` : ""}
-
-    ${hasGeb ? `
-    <!-- Geometry Calibration sub-panel — VGE Stage 6.5A + VGR Stage 6.5B -->
-    <div class="cols-2" style="margin-top:12px;">
-      <div class="box">
-        <h4>Geometry Calibration <span class="small" style="font-weight:400;color:var(--ink-soft);">Vision Geometry Engine</span></h4>
-        <table class="kv">
-          ${kvRow("Vehicle profile", esc(String(geb!.vehicle ?? "—")))}
-          ${kvRow("Calibration status",
-            geb!.calibrationStatusCode === 'CALIBRATED'
-              ? `<span style="color:var(--green);font-weight:600;">&#10003; ${esc(String(geb!.calibrationStatus ?? "Calibrated"))}</span>`
-              : geb!.calibrationStatusCode === 'NOT_APPLICABLE'
-              ? `<span style="color:var(--amber);font-weight:600;">&#9888; ${esc(String(geb!.calibrationStatus ?? "Not applicable"))}</span>`
-              : `<span style="color:var(--red);font-weight:600;">&#10007; ${esc(String(geb!.calibrationStatus ?? "Failed"))}</span>`
-          )}
-          ${kvRow("Calibration confidence", `${geb!.overallCalibrationConfidencePct ?? 0}%`)}
-          ${geb!.estimatedDeformationRange ? kvRow("Deformation range", `<b>${esc(geb!.estimatedDeformationRange)}</b>`) : ""}
-          ${kvRow("Perspective correction", geb!.perspectiveCorrectionApplied ? `<span style="color:var(--green);">Applied</span>` : "Not required")}
-        </table>
-        ${(geb!.referenceObjectsSummary ?? []).length > 0 ? `
-        <h4 style="margin-top:10px;">Reference Objects Detected</h4>
-        <ul class="tight small" style="margin-top:0;">
-          ${(geb!.referenceObjectsSummary ?? []).map(r => `<li>${esc(r)}</li>`).join("")}
-        </ul>` : ""}
-        ${geb!.referenceDisagreementWarning ? `<div class="callout amber" style="margin-top:8px;"><b>Reference disagreement —</b> ${esc(geb!.referenceDisagreementWarning)}</div>` : ""}
-        ${(geb!.limitations ?? []).length > 0 ? `
-        <h4 style="margin-top:10px;">Measurement Limitations</h4>
-        <ul class="tight small" style="margin-top:0;color:var(--ink-soft);">
-          ${(geb!.limitations ?? []).map(l => `<li>${esc(l)}</li>`).join("")}
-        </ul>` : ""}
-        ${geb!.evidenceAcquisitionRecommendation ? `<div class="callout amber" style="margin-top:8px;"><b>Evidence recommendation —</b> ${esc(geb!.evidenceAcquisitionRecommendation)}</div>` : ""}
-      </div>
-      <div class="box">
-        <h4>Cross-Image Reconciliation <span class="small" style="font-weight:400;color:var(--ink-soft);">VGR Stage 6.5B</span></h4>
-        ${vgr?.reconciliationAvailable ? `
-        <table class="kv">
-          ${vgr.consensusCrushDepthM != null ? kvRow("Consensus crush depth",
-            `<b style="font-size:15px;color:var(--teal);">${Math.round(vgr.consensusCrushDepthM * 1000)} mm</b>
-             <span class="small" style="color:var(--ink-soft);"> &nbsp;range ${Math.round((vgr.consensusCrushDepthMinM ?? vgr.consensusCrushDepthM * 0.85) * 1000)}–${Math.round((vgr.consensusCrushDepthMaxM ?? vgr.consensusCrushDepthM * 1.15) * 1000)} mm</span>`) : ""}
-          ${kvRow("VGR confidence", `${Math.round((vgr.overallConfidence ?? 0) * 100)}% — ${esc(String(vgr.confidenceLevel ?? "—"))}`)}
-          ${kvRow("Image agreement",
-            vgr.agreementAssessment?.agreementLevel === 'STRONG' ? `<span style="color:var(--green);font-weight:600;">Strong</span>` :
-            vgr.agreementAssessment?.agreementLevel === 'MODERATE' ? `<span style="color:var(--teal);font-weight:600;">Moderate</span>` :
-            vgr.agreementAssessment?.agreementLevel === 'WEAK' ? `<span style="color:var(--amber);font-weight:600;">Weak</span>` :
-            `<span style="color:var(--red);font-weight:600;">Conflicting</span>`
-          )}
-          ${vgr.agreementAssessment?.spreadMm != null ? kvRow("Depth spread", `${vgr.agreementAssessment.spreadMm.toFixed(0)} mm (${(vgr.agreementAssessment.spreadPct ?? 0).toFixed(0)}%)`) : ""}
-          ${kvRow("Contributing images", String(vgr.agreementAssessment?.contributingImages ?? "—"))}
-          ${kvRow("View angles", [
-            (vgr.frontalImages ?? 0) > 0 ? `${vgr.frontalImages} frontal` : null,
-            (vgr.angle45Images ?? 0) > 0 ? `${vgr.angle45Images} 45°` : null,
-            (vgr.sideImages ?? 0) > 0 ? `${vgr.sideImages} side` : null,
-          ].filter(Boolean).join(" · ") || "—")}
-        </table>
-        ${vgr.agreementAssessment?.conflictDescription ? `<div class="callout red" style="margin-top:8px;"><b>Image conflict —</b> ${esc(vgr.agreementAssessment.conflictDescription)}</div>` : ""}
-        ` : `<p class="small" style="color:var(--ink-soft);margin:0;">${esc(String(vgr?.failureReason ?? "Cross-image reconciliation was not available for this claim — single image or no calibrated images."))}</p>`}
-        <p class="caption" style="margin-top:10px;">Crush depth is derived from photogrammetric scale calibration using detected reference objects (wheel diameter, licence plate, headlamp spacing). The consensus estimate is the view-angle-weighted mean across all contributing images. This measurement informs the speed ensemble and physics plausibility gate.</p>
-      </div>
-    </div>` : ""}
-  </div>
-
-  <!-- §05 VEHICLE STRUCTURAL INTELLIGENCE -->
-  <div class="section">
-    ${sectionTab("05", "Vehicle Structural Intelligence", slpeIntegrityRisk ? slpeIntegrityRisk.toUpperCase() : undefined, slpeIntegrityRisk === 'severe' || slpeIntegrityRisk === 'high' ? 'high' : slpeIntegrityRisk === 'moderate' ? 'mid' : 'ok')}
-
-    ${slpePenetrated.length > 0 ? `
-    <!-- SLPE Structural Cascade -->
-    <div style="margin-bottom:10pt;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6pt;">
-        <span class="small" style="font-weight:600;color:var(--ink);">Load Path Cascade — ${slpePenetrated.length} component${slpePenetrated.length !== 1 ? 's' : ''} penetrated</span>
-        <span class="small" style="color:var(--mid);">Calibration confidence: ${(slpeConfidence * 100).toFixed(0)}%</span>
-      </div>
-      <table style="width:100%;border-collapse:collapse;font-size:7.5pt;">
-        <thead>
-          <tr style="background:var(--green);color:#fff;">
-            <th style="padding:4pt 6pt;text-align:left;">Component</th>
-            <th style="padding:4pt 6pt;text-align:left;">Zone</th>
-            <th style="padding:4pt 6pt;text-align:right;">Penetration</th>
-            <th style="padding:4pt 6pt;text-align:right;">Energy Absorbed</th>
-            <th style="padding:4pt 6pt;text-align:left;">Failure Mode</th>
-            <th style="padding:4pt 6pt;text-align:center;">Inspect</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${slpePenetrated.map((c: any, i: number) => `
-          <tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fa'};border-bottom:1px solid #e5e7eb;">
-            <td style="padding:3pt 6pt;font-weight:600;">${esc(String(c.name ?? ''))}</td>
-            <td style="padding:3pt 6pt;color:var(--mid);">${esc(String(c.zone ?? ''))}</td>
-            <td style="padding:3pt 6pt;text-align:right;">${c.penetrationDepthM != null ? (c.penetrationDepthM * 1000).toFixed(0) + ' mm' : '—'}</td>
-            <td style="padding:3pt 6pt;text-align:right;">${c.energyAbsorbedJ != null ? (c.energyAbsorbedJ / 1000).toFixed(1) + ' kJ' : '—'}</td>
-            <td style="padding:3pt 6pt;font-size:7pt;color:var(--mid);">${esc(String(c.failureMode ?? ''))}</td>
-            <td style="padding:3pt 6pt;text-align:center;">${c.inspectionRequired ? '<span style="color:#dc2626;font-weight:700;">&#9679;</span>' : '<span style="color:#22c55e;">&#9675;</span>'}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Latent Damage Probability + Vehicle Profile -->
-    <div class="cols-2" style="margin-top:8pt;">
-      ${slpeLatent ? `
-      <div class="box">
-        <h4>Hidden Damage Probability</h4>
-        ${(['engine','transmission','suspension','frame','electrical'] as const).map((sys: string) => {
-          const pct: number = (slpeLatent as any)[sys] ?? 0;
-          const colour = pct >= 70 ? '#dc2626' : pct >= 40 ? '#d97706' : '#22c55e';
-          return `<div style="margin-bottom:5pt;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:2pt;">
-              <span class="small" style="text-transform:capitalize;font-weight:600;">${sys}</span>
-              <span class="small" style="color:${colour};font-weight:700;">${pct}%</span>
-            </div>
-            <div style="background:#e5e7eb;border-radius:3pt;height:6pt;"><div style="background:${colour};width:${Math.min(pct,100)}%;height:6pt;border-radius:3pt;"></div></div>
-          </div>`;
-        }).join('')}
-        ${slpeLatent.overallRiskLevel ? `<div style="margin-top:6pt;padding:4pt 6pt;background:${slpeLatent.overallRiskLevel === 'CRITICAL' ? '#fee2e2' : slpeLatent.overallRiskLevel === 'HIGH' ? '#fef3c7' : '#f0fdf4'};border-radius:3pt;"><span class="small" style="font-weight:700;color:${slpeLatent.overallRiskLevel === 'CRITICAL' ? '#dc2626' : slpeLatent.overallRiskLevel === 'HIGH' ? '#d97706' : '#16a34a'};">Overall risk: ${slpeLatent.overallRiskLevel}</span></div>` : ''}
-      </div>` : '<div class="box"><h4>Hidden Damage Probability</h4><p class="small" style="color:var(--mid);">Insufficient calibration data for SLPE analysis.</p></div>'}
-
-      <div class="box">
-        <h4>${vehicleDesc} — ${vehicleClass}</h4>
-        <table class="kv">
-          ${ancapRating !== "—" ? kvRow("ANCAP rating", ancapRating) : ""}
-          ${adultOccupant !== "—" ? kvRow("Adult / Child occupant", `${adultOccupant}% / ${childOccupant}%`) : ""}
-          ${crash3A !== "—" ? kvRow("CRASH3 stiffness A/B", `${crash3A} / ${crash3B} kN/m`) : ""}
-          ${massRange !== "—" ? kvRow("Typical mass range", `${massRange} kg`) : ""}
-          ${kvRow("Safety risk", p(safetyRisk, safetyRisk.toLowerCase() === "low" ? "green" : safetyRisk.toLowerCase() === "medium" ? "amber" : "red"))}
-          ${slpeWarnings.length > 0 ? kvRow("SLPE warnings", slpeWarnings.join('; ')) : ""}
-        </table>
-        ${vehicleNotes !== '—' ? `<p style="margin:6pt 0 0;" class="small">${esc(vehicleNotes)}</p>` : ''}
-      </div>
-    </div>` : `
-    <!-- No SLPE data — show legacy vehicle profile only -->
-    <div class="cols-2">
-      <div class="box">
-        <h4>${vehicleDesc}${vehicleClass !== "—" ? ` — ${vehicleClass}` : ""}</h4>
-        <table class="kv">
-          ${ancapRating !== "—" ? kvRow("ANCAP rating", ancapRating) : ""}
-          ${adultOccupant !== "—" ? kvRow("Adult / Child occupant", `${adultOccupant}% / ${childOccupant}%`) : ""}
-          ${crash3A !== "—" ? kvRow("CRASH3 stiffness A/B", `${crash3A} / ${crash3B} kN/m`) : ""}
-          ${massRange !== "—" ? kvRow("Typical mass range", `${massRange} kg`) : ""}
-          ${kvRow("Safety risk", p(safetyRisk, safetyRisk.toLowerCase() === "low" ? "green" : safetyRisk.toLowerCase() === "medium" ? "amber" : "red"))}
-        </table>
-        ${ancapRating === "—" && crash3A === "—" && massRange === "—" ? `<p class="small" style="color:var(--ink-soft);margin:6pt 0 0;">Vehicle geometry data is not available for this make/model/year. Structural load path analysis (SLPE) and ANCAP/CRASH3 benchmarks require vehicle geometry registration. This section will be populated in subsequent reports once the vehicle is registered in the KINGA geometry database.</p>` : ""}
-      </div>
-      <div class="box">
-        <h4>Notes</h4>
-        <p style="margin:0;" class="small">${vehicleNotes !== "No additional structural notes available." ? esc(vehicleNotes) : "No structural notes available. Physical inspection recommended for claims above insurer materiality threshold."}</p>
-      </div>
-    </div>`}
-  </div>
-
-  ${w3 ? `
-  <!-- §04d PHYSICS EVIDENCE CHAIN (integrated into §04 flow) -->
-  <div class="section">
-    ${sectionTab("04d", "Physics Evidence Chain & Methodology", w3Grade ? `Grade ${w3Grade}` : undefined, w3Grade === 'A' || w3Grade === 'B' ? 'ok' : w3Grade === 'C' ? 'mid' : 'high')}
-    <div class="cols-2">
-      <!-- Left: Key findings + uncertainty summary -->
-      <div>
-        <h4 style="margin:0 0 6pt 0;">Key Physics Findings</h4>
-        <ul class="tight">
-          ${w3KeyFindings.map((f: string) => `<li>${esc(f)}</li>`).join('')}
-        </ul>
-        ${w3UncertSummary ? `<div class="callout" style="margin-top:8pt;border-left:3px solid var(--teal);padding:6pt 8pt;"><b>Uncertainty grade ${w3Grade}:</b> ${esc(w3UncertSummary)}</div>` : ''}
-        ${w3Uncertainty?.keyDrivers?.length > 0 ? `<div style="margin-top:6pt;"><span class="small" style="font-weight:600;">Uncertainty drivers:</span><ul class="tight">${(w3Uncertainty.keyDrivers as string[]).map((d: string) => `<li class="small">${esc(d)}</li>`).join('')}</ul></div>` : ''}
-      </div>
-      <!-- Right: Integrity flags -->
-      <div>
-        <h4 style="margin:0 0 6pt 0;">Physics Integrity — Score ${w3IntegrityScore}/100</h4>
-        ${w3IntegrityClean
-          ? `<div class="callout" style="border-left:3px solid var(--green);padding:6pt 8pt;">All ${w3Integrity?.totalChecks ?? 0} integrity checks passed. No contradictions detected.</div>`
-          : w3IntegrityFlags.slice(0, 8).map((f: any) => `<div style="display:flex;gap:6pt;align-items:flex-start;margin-bottom:4pt;">
-              <span class="pill ${f.severity === 'critical' ? 'red' : f.severity === 'warning' ? 'amber' : 'green'}" style="flex-shrink:0;font-size:6.5pt;">${f.severity?.toUpperCase() ?? 'INFO'}</span>
-              <span class="small">[${esc(f.code ?? '')}] ${esc(f.description ?? '')}</span>
-            </div>`).join('')
-        }
-      </div>
-    </div>
-    ${w3Methods.length > 0 ? `
-    <div style="margin-top:10pt;">
-      <h4 style="margin:0 0 6pt 0;">Methodology Citations</h4>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6pt;">
-        ${w3Methods.slice(0, 4).map((m: any) => `<div class="box" style="padding:6pt 8pt;">
-          <div style="font-weight:600;font-size:7.5pt;color:var(--ink);">${esc(m.fullName ?? m.method ?? '')}</div>
-          <div class="small" style="color:var(--ink-soft);margin-top:3pt;">${esc(m.description ?? '')}</div>
-          <div class="caption" style="margin-top:4pt;color:var(--mid);">Ref: ${esc(m.reference ?? '')}</div>
-          <div class="caption" style="color:var(--amber-dark);">${esc(m.limitations ?? '')}</div>
-        </div>`).join('')}
-      </div>
-    </div>` : ''}
-  </div>` : ''}
 
   <div class="footer-strip sans">
     <div><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:14px;vertical-align:middle;margin-right:5px;display:inline-block">KINGA · Confidential Forensic Audit Report</div>
@@ -1364,9 +866,6 @@ export async function generateForensicDecisionReport(
           ${kvRow("Settlement Recommendation", recommendedSettlementDisplay)}
           ${hasSavings ? kvRow("Adjustment", `<span style="color:var(--red);">−${fmtUSD(savings)} (${savingsPct.toFixed(1)}%)</span>`) : ""}
         </table>
-        ${highIssues.some(i => i.title.toLowerCase().includes("cost") || i.title.toLowerCase().includes("quote"))
-          ? co(`<b>Cost verdict: Review</b> (${auditGrade.toLowerCase()} confidence). ${esc(highIssues.find(i => i.title.toLowerCase().includes("cost"))?.description ?? "Quote contains components inconsistent with the accident mechanism.")}`, "red")
-          : ""}
       </div>
     </div>
   </div>
@@ -1379,15 +878,14 @@ export async function generateForensicDecisionReport(
         <h4>Coverage Summary</h4>
         <table class="kv">
           ${matchedComponents > 0 ? kvRow("Components matched", `${matchedComponents} of ${totalComponents} (${Math.round(matchedComponents/totalComponents*100)}%)`) : ""}
-          ${missingFromQuote > 0 ? kvRow("Missing from quote", `<span style="color:var(--red);">${missingFromQuote}${criticalStructural.length > 0 ? ` (incl. ${criticalStructural.length} structural)` : ""}</span>`) : ""}
+          ${missingFromQuote > 0 ? kvRow("Missing from quote", `<span style="color:var(--red);">${missingFromQuote}</span>`) : ""}
           ${extraInQuote > 0 ? kvRow("Extra in quote, not in damage list", String(extraInQuote)) : ""}
         </table>
-        ${criticalStructural.length > 0 ? co(`<b>Structural gaps</b> — ${criticalStructural.map(g => esc(g.component)).join(", ")} ${criticalStructural.length === 1 ? "is" : "are"} damaged but appear in no quote. Independent structural assessment required before settlement.`, "red") : ""}
       </div>
       <div class="box">
         <h4>Integrity Flags</h4>
         ${copyQuotation?.detected ? co(`<b>Copy-quotation signal (${esc(copyQuotation.verdict?.toUpperCase() ?? "DETECTED")})</b> — structural fingerprint analysis indicates multiple submitted quotes were likely authored from the same source document. Highest pair structural similarity: ${copyQuotation.highestPairSimilarity}%. Manual adjuster review of all submitted quotations is required before settlement.`, copyQuotation.verdict === "confirmed" ? "red" : "amber") : ""}
-        <p class="small" style="margin-top:8px;">${esc(String(repairIntel?.reconciliationNote ?? costIntel?.reconciliationNote ?? "Scope discrepancies flagged for adjuster verification. Review all line items against confirmed damage scope."))}</p>
+        <p class="small" style="margin-top:8px;">Review submitted quote line items and their documentary scope before finalising any cost decision.</p>
       </div>
     </div>
   </div>
@@ -1427,15 +925,15 @@ export async function generateForensicDecisionReport(
 
     ${totalPhotos > 0 ? `
     <div class="box" style="margin-top:10px;">
-      <h4>${enrichedPhotos.length > 0 ? `Photo Evidence — ${enrichedPhotos.length} images · ${highConfPhotos} usable (≥70% confidence)` : `Front Zone — ${frontLabel}`}</h4>
+      <h4>${enrichedPhotos.length > 0 ? `Photo Evidence — ${enrichedPhotos.length} images · ${highConfPhotos} usable (≥70% confidence)` : "Photo Evidence"}</h4>
       ${enrichedPhotos.length > 0
         ? photoZonePanel(
-            enrichedPhotos.slice(0, 8).map((p: any) => ({
+            enrichedPhotos.slice(0, 8).map((p: any) => projectP0A2DescriptivePhotoEvidence({
               url: p.url ?? '',
               zone: p.impactZone ?? undefined,
               caption: p.caption ?? undefined,
               usable: Number(p.confidenceScore ?? 0) >= 70,
-              // Fix B: pass contradiction flag to render ⚠ badge (display-only, no scoring impact)
+              // Stored visual-physics and direction conclusions are stripped at this P0 boundary.
               directionContradiction: p.directionContradiction === true,
               semanticType: p.semanticType ?? p.imageClassification ?? undefined,
               detectedComponents: p.detectedComponents ?? undefined,
@@ -1465,43 +963,9 @@ export async function generateForensicDecisionReport(
       <p class="caption" style="margin-top:4px;">${enrichedPhotos.length > 0 ? `${enrichedPhotos.length} photos from pipeline analysis · showing up to 8 · zone labels = pipeline-detected impact zone · red border = confidence <70%` : 'Thumbnails illustrate layout only — replace with source images from the claim asset store at export time.'}</p>
     </div>` : ""}
 
-    ${rawDamageZones.length > 0 ? `
-    <div class="box" style="margin-top:8px;">
-      <h4 style="margin:0 0 6px">Classified Damage Zones vs Photographic Coverage</h4>
-      <table style="width:100%;border-collapse:collapse;font-size:10px">
-        <thead><tr style="border-bottom:2px solid #d9d9d9">
-          <th style="text-align:left;padding:3px 8px;font-size:9px;color:#4a4a4a">Classified Zone</th>
-          <th style="text-align:left;padding:3px 8px;font-size:9px;color:#4a4a4a">Severity</th>
-          <th style="text-align:left;padding:3px 8px;font-size:9px;color:#4a4a4a">Photo Coverage</th>
-          <th style="text-align:left;padding:3px 8px;font-size:9px;color:#4a4a4a">Note</th>
-        </tr></thead>
-        <tbody>
-          ${rawDamageZones.map((dz: {zone: string; severity: string}) => {
-            const zKey = String(dz.zone ?? '').toLowerCase();
-            const covered = enrichedPhotos.length > 0
-              ? enrichedPhotos.some(p => String(p.impactZone ?? '').toLowerCase().includes(zKey.split(' ')[0]))
-              : coveredZoneSet.has(zKey);
-            const sevColour = dz.severity === 'severe' ? '#a83232' : dz.severity === 'moderate' ? '#b45309' : '#4a4a4a';
-            return `<tr style="border-bottom:1px solid #e8e8e8">
-              <td style="padding:3px 8px;font-weight:600">${esc(String(dz.zone ?? ''))}</td>
-              <td style="padding:3px 8px;color:${sevColour};font-weight:600;text-transform:capitalize">${esc(String(dz.severity ?? ''))}</td>
-              <td style="padding:3px 8px">${covered ? '<span style="color:#3C7844;font-weight:600">✓ Photographed</span>' : '<span style="color:#a83232;font-weight:600">⚠ No photos</span>'}</td>
-              <td style="padding:3px 8px;color:#4a4a4a;font-size:9.5px">${covered ? '' : 'Damage claimed in this zone but not photographically corroborated. Independent inspection recommended.'}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-      ${rawDamageZones.some((dz: {zone: string; severity: string}) => !coveredZoneSet.has(String(dz.zone ?? '').toLowerCase())) ? `<div style="margin-top:6px;padding:5px 8px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#4a4a4a"><b>Coverage gap detected.</b> One or more classified damage zones have no photographic corroboration. Settlement for these zones must not be authorised until additional photos or an independent inspection report is provided.</div>` : ''}
-    </div>` : ''}
-    <div class="box" style="margin-top:8px;">
-      ${["Rear Zone", "Underbody Zone", "Interior Zone"].map(zone => {
-        const covered = rawDamageZones.some(z => z.zone.toLowerCase().includes(zone.toLowerCase().split(" ")[0]));
-        return `<div class="zone-row">
-          <span class="zone-name sans">${zone}</span>
-          ${covered ? `<span class="pill green">Covered</span>` : `<span class="pill grey">No photos submitted</span>`}
-          <span class="zone-note">${esc(String(ife?.[zone.toLowerCase().replace(" zone", "Note")] ?? (covered ? "" : `${zone.split(" ")[0]} damage claimed in narrative — not photographically corroborated.`)))}</span>
-        </div>`;
-      }).join("")}
+    <div class="box" style="margin-top:8px;" data-p0-collision-physics="withheld">
+      <h4 style="margin:0 0 6px">Collision Geometry and Zone Coherence</h4>
+      ${collisionPhysicsHoldHtml}
     </div>
   </div>
 
@@ -1516,31 +980,28 @@ export async function generateForensicDecisionReport(
 <div class="page page-break">
   <!-- §09 RISK & FRAUD ASSESSMENT -->
   <div class="section">
-    ${sectionTab("09", "Risk & Fraud Assessment", hasImpossibilityFlag ? "Duplicate reg. flag" : fraudScoreAdjusted >= 70 ? "High risk" : fraudScoreAdjusted >= 40 ? "Moderate risk" : "Low risk", hasImpossibilityFlag || fraudScoreAdjusted >= 70 ? "high" : fraudScoreAdjusted >= 40 ? "mid" : "ok")}
+    ${sectionTab("09", "Risk & Fraud Assessment", hasDuplicateRegistrationFlag ? "Registration history" : fraudScoreAdjusted >= 70 ? "High risk" : fraudScoreAdjusted >= 40 ? "Moderate risk" : "Low risk", hasDuplicateRegistrationFlag || fraudScoreAdjusted >= 70 ? "high" : fraudScoreAdjusted >= 40 ? "mid" : "ok")}
     <div class="cols-2">
       <div class="box">
         <h4>Fraud Score — ${fraudScoreAdjusted}/100 (${fraudScoreAdjusted >= 70 ? "High" : fraudScoreAdjusted >= 40 ? "Moderate" : "Low"})</h4>
-        ${!hasFraudCategoryBreakdown ? `
+        ${!hasPublishableFraudCategoryBreakdown ? `
         <p class="small" style="color:var(--ink-soft);margin:0 0 8px 0;">Component breakdown not available — the pipeline did not produce category-level fraud scores for this assessment. The headline score of ${fraudScoreAdjusted}/100 is derived from the overall fraud model output.</p>` : ""}
-        ${hasFraudCategoryBreakdown ? `<table class="kv">
-          ${kvRow("Physical consistency", `<span style="color:${fbPhysical >= Math.round(budgetPhysical * 0.5) ? "var(--amber)" : "inherit"}">${fbPhysical}/${budgetPhysical}</span>`)}
-          ${kvRow("Scenario intelligence", `<span style="color:${fbScenario >= Math.round(budgetScenario * 0.5) ? "var(--amber)" : "inherit"}">${fbScenario}/${budgetScenario}</span>`)}
+        ${hasPublishableFraudCategoryBreakdown ? `<table class="kv">
           ${kvRow("Financial anomaly", `<span style="color:${fbFinancial >= Math.round(budgetFinancial * 0.5) ? "var(--amber)" : "inherit"}">${fbFinancial}/${budgetFinancial}</span>`)}
           ${kvRow("Documentation integrity", `<span style="color:${fbDocumentation >= Math.round(budgetDocumentation * 0.5) ? "var(--amber)" : "inherit"}">${fbDocumentation}/${budgetDocumentation}</span>`)}
           ${kvRow("Entity intelligence", `<span style="color:${fbEntity >= Math.round(budgetEntity * 0.5) ? "var(--amber)" : "inherit"}">${fbEntity}/${budgetEntity}</span>`)}
-          ${kvRow("Photo forensics", `<span style="color:${fbPhoto >= Math.round(budgetPhoto * 0.5) ? "var(--amber)" : "inherit"}">${fbPhoto}/${budgetPhoto}</span>`)}
         </table>` : ""}
-        ${hasImpossibilityFlag ? `<p class="small" style="margin-top:8px;">Score reflects cost-deviation and missing-data indicators only. The impossibility flag at right is scored separately and is not yet reflected in the headline ${fraudScore}/100.</p>` : ""}
+        ${hasDuplicateRegistrationFlag ? `<p class="small" style="margin-top:8px;">The documentary duplicate-registration finding at right is not reflected in the headline score.</p>` : ""}
       </div>
-      <div class="box" style="${hasImpossibilityFlag ? "border-color:var(--red);" : ""}">
-        ${hasImpossibilityFlag ? `
-        <h4 style="color:var(--red);">⚠ High-Severity Impossibility Flag</h4>
-        <p style="margin:0 0 6px 0;"><b>Duplicate claim — same registration within 7 days.</b> Registration ${vehicleReg} appears across <b>${linkedClaims.length} other claim${linkedClaims.length !== 1 ? "s" : ""}</b> with incident dates within 7 days of this one.</p>
-        <p class="small" style="margin:0;">May indicate claim duplication, a staged-loss pattern, or an administrative/data-entry error. Contributes +30 points toward the fraud score (capped at 60) and requires adjuster verification before this claim proceeds.</p>
+      <div class="box" style="${hasDuplicateRegistrationFlag ? "border-color:var(--red);" : ""}">
+        ${hasDuplicateRegistrationFlag ? `
+        <h4 style="color:var(--red);">⚠ Registration History — Manual Review</h4>
+        <p style="margin:0 0 6px 0;">Registration ${vehicleReg} appears in <b>${linkedClaims.length} prior tenant-scoped claim${linkedClaims.length !== 1 ? "s" : ""}</b>.</p>
+        <p class="small" style="margin:0;">This is documentary history only, not a collision-physics or fraud conclusion. Verify the related source records before acting on it.</p>
         ${co(`Recommend cross-referencing all ${linkedClaims.length} related claim IDs against this vehicle's claim history before approval.`, "red")}
         ` : `
-        <h4>Risk Assessment Summary</h4>
-        <p style="margin:0;" class="small">${esc(String(forensicAudit?.riskSummary ?? "No high-severity impossibility flags detected. Standard review process applies."))}</p>
+        <h4>Collision-Physics Review Status</h4>
+        ${collisionPhysicsHoldHtml}
         `}
       </div>
     </div>
@@ -1553,142 +1014,33 @@ export async function generateForensicDecisionReport(
         </table>
       </div>
       <div class="box">
-        <h4>Accident Date &amp; Cross-Engine Consistency</h4>
+        <h4>Documentary Accident-Date Reconciliation</h4>
         <table class="kv">
-          ${kvRow("Claim form vs. police report", esc(String(forensicAudit?.dateDelta ?? "0 days — consistent")))}
-          ${kvRow("Cross-engine agreement (C1–C9)", crossEngineAgreement != null ? `${crossEngineAgreement}/100` : `<span style="color:var(--ink-soft);">Not assessed</span>`)}
+          ${kvRow("Claim form vs. police report", "Source documents require manual date reconciliation before a documentary consistency conclusion is published.")}
         </table>
       </div>
     </div>
   </div>
 
 
-  <!-- §09b CONTACT GEOMETRY INTELLIGENCE (CGI) -->
-  ${cgiData ? (() => {
-    const cgiVerdict: string = cgiData.conclusion?.verdict ?? 'UNKNOWN';
-    const cgiTabStatus = cgiVerdict === 'INCOHERENT' ? 'high' : cgiVerdict === 'ANOMALOUS' ? 'mid' : cgiVerdict === 'UNAVAILABLE' ? 'muted' : 'ok';
-    const cgiTabLabel = cgiVerdict === 'INCOHERENT' ? 'Geometry incoherent' : cgiVerdict === 'ANOMALOUS' ? 'Geometry anomalous' : cgiVerdict === 'UNAVAILABLE' ? 'Geometry unavailable' : 'Geometry consistent';
-    const cgiSummary: CGIAvailabilitySummary | undefined = cgiData.availabilitySummary;
-    const indStatusBadge = (status: string): string => {
-      const colours: Record<string, string> = { PASS: '#22c55e', ADVISORY: '#f59e0b', CONCERN: '#f97316', FLAG: '#ef4444', UNAVAILABLE: '#94a3b8' };
-      const colour = colours[status] ?? '#94a3b8';
-      return `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:600;background:${colour};color:#fff;">${esc(status)}</span>`;
-    };
-    const renderIndicatorRow = (ind: any): string => {
-      const badge = indStatusBadge(ind.status ?? 'UNAVAILABLE');
-      const tierLabel = ind.tier ? `<span style="font-size:10px;color:#64748b;margin-left:4px;">[${esc(ind.tier)}]</span>` : '';
-      const explanation = ind.status !== 'UNAVAILABLE' && ind.explanation ? `<br><span style="font-size:11px;color:#475569;">${esc(ind.explanation)}</span>` : '';
-      return `<tr><td>${esc(ind.name ?? ind.id)}${tierLabel}</td><td>${badge}${explanation}</td></tr>`;
-    };
-    return `
-  <div class="section">
-    ${sectionTab('09b', 'Contact Geometry Intelligence', cgiTabLabel, cgiTabStatus)}
-    ${cgiSummary ? `
-    <div style="display:flex;gap:12px;margin-bottom:12px;">
-      <div style="flex:1;padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;text-align:center;">
-        <div style="font-size:20px;font-weight:700;color:#16a34a;">${cgiSummary.core.available}/${cgiSummary.core.total}</div>
-        <div style="font-size:11px;color:#15803d;font-weight:600;">CORE indicators</div>
+  <!-- §09b–09c COLLISION GEOMETRY & INTERPRETATION -->
+  <div class="section" data-p0-collision-physics="withheld">
+    ${sectionTab("09b", "Collision Geometry & Interpretation")}
+    ${collisionPhysicsHoldHtml}
       </div>
-      <div style="flex:1;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;text-align:center;">
-        <div style="font-size:20px;font-weight:700;color:#d97706;">${cgiSummary.conditional.available}/${cgiSummary.conditional.total}</div>
-        <div style="font-size:11px;color:#b45309;font-weight:600;">CONDITIONAL indicators</div>
-      </div>
-      <div style="flex:1;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;text-align:center;">
-        <div style="font-size:20px;font-weight:700;color:#475569;">${cgiSummary.advanced.available}/${cgiSummary.advanced.total}</div>
-        <div style="font-size:11px;color:#64748b;font-weight:600;">ADVANCED indicators</div>
-      </div>
-    </div>` : ''}
-    <div class="cols-2">
-      <div class="box">
-        <h4>CGI Verdict — ${esc(cgiVerdict)}</h4>
-        <table class="kv">
-          ${kvRow('Hidden damage probability', cgiData.conclusion?.hiddenDamageProbabilityOverride != null ? `${Math.round(cgiData.conclusion.hiddenDamageProbabilityOverride * 100)}%` : 'N/A')}
-          ${kvRow('Fraud indicator injected', cgiData.conclusion?.injectFraudIndicator ? 'Yes' : 'No')}
-          ${kvRow('Fraud indicator score', cgiData.conclusion?.fraudIndicatorScore != null ? String(cgiData.conclusion.fraudIndicatorScore) : 'N/A')}
-          ${kvRow('Engine version', esc(cgiData.engineVersion ?? 'N/A'))}
-        </table>
-        ${cgiData.conclusion?.summary ? `<p class="small" style="margin-top:8px;">${esc(cgiData.conclusion.summary)}</p>` : ''}
-      </div>
-      <div class="box">
-        <h4>Layer 1 — Geometry Indicators</h4>
-        <table class="kv">
-          ${(cgiData.layer1Indicators ?? []).map(renderIndicatorRow).join('')}
-        </table>
-        ${(cgiData.layer2Indicators ?? []).length > 0 ? `
-        <h4 style="margin-top:12px;">Layer 2 — Structural Indicators</h4>
-        <table class="kv">
-          ${(cgiData.layer2Indicators ?? []).map(renderIndicatorRow).join('')}
-        </table>` : ''}
-      </div>
-    </div>
-    ${cgiData.conclusion?.narrative ? `<div class="box" style="margin-top:12px;"><h4>CGI Narrative</h4><pre style="white-space:pre-wrap;font-size:12px;">${esc(cgiData.conclusion.narrative)}</pre></div>` : ''}
-  </div>`;
-  })() : ''}
-  <!-- §09c INTERPRETATION ENGINE -->
-  ${interpData?.sections?.length ? (() => {
-    const overallClass: string = interpData.overallClassification ?? 'UNKNOWN';
-    const classColor = overallClass === 'CRITICAL' ? '#c0392b' : overallClass === 'CONCERN' ? '#e67e22' : overallClass === 'ATTENTION' ? '#f39c12' : '#27ae60';
-    const topActions: string[] = interpData.topThreeActions ?? [];
-    const sections: any[] = interpData.sections ?? [];
-    return `
-  <div class="section">
-    ${sectionTab('09c', 'Claim Interpretation', overallClass, overallClass === 'NORMAL' ? 'ok' : overallClass === 'CRITICAL' ? 'high' : 'mid')}
-    <div class="box" style="border-left:4px solid ${classColor};margin-bottom:16px;">
-      <h4 style="color:${classColor};">Overall Classification: ${esc(overallClass)}</h4>
-      ${interpData.overallNarrative ? `<p style="font-size:13px;line-height:1.6;">${esc(interpData.overallNarrative)}</p>` : ''}
-    </div>
-    ${topActions.length ? `<div class="box" style="margin-bottom:16px;"><h4>Recommended Actions</h4><ol style="margin:0;padding-left:20px;">${topActions.map((a: string) => `<li style="margin-bottom:6px;font-size:13px;">${esc(a)}</li>`).join('')}</ol></div>` : ''}
-    ${sections.map((sec: any) => {
-      const findings: any[] = sec.findings ?? [];
-      if (!findings.length) return '';
-      const isCostSection = String(sec.engine ?? '').toUpperCase() === 'COST'
-        || String(sec.engineLabel ?? '').toLowerCase().includes('cost optimisation');
-      if (isCostSection && kingaOptimised === null) {
-        const costHoldTitle = costIntegrity.l2Status === "reconciliation_required"
-          ? "All-in quote reconciliation required — cost optimisation unavailable."
-          : "L2 repair scope incomplete — cost optimisation unavailable.";
-        return `<div class="box" style="margin-bottom:12px;"><h4>${esc(sec.engineLabel ?? sec.engine ?? 'Cost Optimisation')}</h4>${co(`<b>${costHoldTitle}</b> ${esc(l2IntegrityNote)}`, 'amber')}</div>`;
-      }
-      return `<div class="box" style="margin-bottom:12px;"><h4>${esc(sec.engineLabel ?? sec.engine)}</h4><table class="data-table" style="width:100%;font-size:12px;"><thead><tr><th>Finding</th><th>Value</th><th>Status</th><th>Interpretation</th></tr></thead><tbody>${findings.map((f: any) => {
-        const cls = f.classification ?? 'NORMAL';
-        const rowBg = cls === 'CRITICAL' ? '#fdf0ef' : cls === 'CONCERN' ? '#fef9ec' : cls === 'ATTENTION' ? '#fffbf0' : '';
-        const badgeColor = cls === 'CRITICAL' ? '#c0392b' : cls === 'CONCERN' ? '#e67e22' : cls === 'ATTENTION' ? '#f39c12' : cls === 'UNAVAILABLE' ? '#95a5a6' : '#27ae60';
-        return `<tr style="background:${rowBg}"><td style="font-weight:500;">${esc(f.label)}</td><td>${esc(String(f.value ?? ''))}</td><td><span style="background:${badgeColor};color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">${esc(cls)}</span></td><td style="font-size:11px;color:#555;">${esc(f.interpretation ?? '')}${f.recommendedAction ? `<br><strong>Action:</strong> ${esc(f.recommendedAction)}` : ''}</td></tr>`;
-      }).join('')}</tbody></table></div>`;
-    }).join('')}
-    <p style="font-size:11px;color:#999;margin-top:8px;">Interpretation Engine v${esc(interpData.engineVersion ?? '1.0.0')} &middot; LLM-enriched: ${interpData.llmEnriched ? 'Yes' : 'No'} &middot; Generated: ${esc(interpData.generatedAt ?? '')}</p>
-  </div>`;
-  })() : ''}
 
   <!-- §10 VALIDATION, DECISION & NEXT STEPS -->
   <div class="section">
     ${sectionTab("10", "Validation, Decision & Next Steps")}
     <div class="cols-2">
-      <div class="box">
-        <h4>Forensic Audit Validation — ${auditScore}/100 (${auditGrade} confidence)</h4>
-        <table class="kv">
-          ${(forensicAudit?.validationChecks as Array<{name: string; status: string}> ?? [
-            { name: "Data extraction", status: ifeCompletenessScore >= 90 ? "Pass" : "Warning" },
-            { name: "Incident classification", status: "Pass" },
-            { name: "Image analysis", status: totalPhotos > 0 ? "Pass" : "Warning" },
-            { name: "Physics engine", status: physicsScore >= 70 ? "Pass" : "Warning" },
-            { name: "Cost model", status: kingaOptimised !== null ? "Pass" : "Review" },
-            { name: "Fraud analysis", status: fraudScoreAdjusted >= 70 ? "Warning" : "Pass" },
-          ]).map(v => kvRow(esc(v.name), p(v.status, v.status === "Pass" ? "green" : v.status === "Warning" ? "amber" : "red"))).join("")}
-        </table>
-        ${highIssues.length > 0 ? `<p class="small" style="margin-top:8px;"><b>High severity:</b> ${esc(highIssues[0].description)}</p>` : ""}
+      <div class="box" data-p0-collision-physics="withheld">
+        <h4>Forensic Physics Validation</h4>
+        ${collisionPhysicsHoldHtml}
       </div>
       <div class="box">
         <h4>Required Next Steps</h4>
         <ul class="tight">
-          ${(forensicAudit?.nextSteps as string[] ?? [
-            ...(speedDiscrepancy > 20 ? [`Verify stated impact speed (${preImpactSpeed} km/h) against the ${consensusSpeedRounded} km/h physics estimate before settlement.`] : []),
-            ...(physicsConstraints.some(c => c.result.toLowerCase() !== "pass") ? [`Investigate physics constraint failures — review airbag and seatbelt deployment thresholds.`] : []),
-            ...(missingFromQuote > 0 ? [`Request an itemised quote with unit pricing to enable parts-level cost reconciliation.`] : []),
-            ...(criticalStructural.length > 0 ? [`Obtain independent structural assessment for ${criticalStructural.length} flagged structural component${criticalStructural.length !== 1 ? "s" : ""}.`] : []),
-            ...(hasImpossibilityFlag ? [`Cross-check the ${linkedClaims.length} related claims flagged against registration ${vehicleReg}.`] : []),
-            ...(zonesCovered < totalZones ? [`Obtain photographic coverage of uncovered damage zones.`] : []),
-          ]).map(s => `<li>${esc(s)}</li>`).join("")}
+          ${forensicNextSteps.map(s => `<li>${esc(s)}</li>`).join("")}
         </ul>
       </div>
     </div>
@@ -1724,7 +1076,7 @@ export async function generateForensicDecisionReport(
   </div>
 
   <div class="caption" style="margin-top:6px; line-height:1.5;">
-    <b>Glossary —</b> FCDI: Forensic Confidence &amp; Data Integrity, a composite 0–100 reliability score; scores below 60 require mandatory adjuster review. Delta-V: change in velocity during impact (km/h). NFS: negotiation-feasibility score for cost benchmarking.
+    <b>Glossary —</b> FCDI: Forensic Confidence &amp; Data Integrity, a composite 0–100 reliability score; scores below 60 require mandatory adjuster review. NFS: negotiation-feasibility score for cost benchmarking.
   </div>
 
   <div class="footer-strip sans" style="position:static; margin-top:10px;">

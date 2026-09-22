@@ -27,7 +27,11 @@ import path from "path";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function canAccessReport(reportKey: string, userRole: string, insurerRole?: string | null): boolean {
+function canAccessReport(
+  reportKey: string,
+  userRole: string,
+  insurerRole?: string | null
+): boolean {
   const allowed = REPORT_ACCESS[reportKey];
   if (!allowed) return false;
   if (userRole === "admin") return allowed.includes("admin");
@@ -36,7 +40,9 @@ function canAccessReport(reportKey: string, userRole: string, insurerRole?: stri
 }
 
 function reportsFor(userRole: string, insurerRole?: string | null): string[] {
-  return Object.keys(REPORT_ACCESS).filter((k) => canAccessReport(k, userRole, insurerRole));
+  return Object.keys(REPORT_ACCESS).filter(k =>
+    canAccessReport(k, userRole, insurerRole)
+  );
 }
 
 // claim.forensic = canonical key, now routes to v7 generateForensicDecisionReport
@@ -174,12 +180,16 @@ describe("REPORT_CATALOGUE — reports registered in reporting.ts", () => {
   });
 
   it("claim.intelligence has requiresClaimId: true", () => {
-    const cirMatch = reportingSource.match(/claim\.intelligence[\s\S]{0,300}requiresClaimId:\s*(true|false)/);
+    const cirMatch = reportingSource.match(
+      /claim\.intelligence[\s\S]{0,300}requiresClaimId:\s*(true|false)/
+    );
     expect(cirMatch?.[1]).toBe("true");
   });
 
   it("claim.forensic has requiresClaimId: true", () => {
-    const fdrMatch = reportingSource.match(/claim\.forensic[^_][\s\S]{0,300}requiresClaimId:\s*(true|false)/);
+    const fdrMatch = reportingSource.match(
+      /claim\.forensic[^_][\s\S]{0,300}requiresClaimId:\s*(true|false)/
+    );
     expect(fdrMatch?.[1]).toBe("true");
   });
 });
@@ -197,7 +207,9 @@ describe("generateReportHtml dispatcher — report keys wired correctly", () => 
   });
 
   it("claim.forensic routes to generateForensicDecisionReport (v7 generator)", () => {
-    const forensicCase = reportDefsSource.match(/case "claim\.forensic":[^\n]+/);
+    const forensicCase = reportDefsSource.match(
+      /case "claim\.forensic":[^\n]+/
+    );
     expect(forensicCase?.[0]).toContain("generateForensicDecisionReport");
   });
 
@@ -247,10 +259,16 @@ describe("Column mapping — no banned column names in new generators", () => {
     src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 
   const cirSource = stripComments(
-    fs.readFileSync(path.resolve(__dirname, "reporting/claimsIntelligenceReport.ts"), "utf-8")
+    fs.readFileSync(
+      path.resolve(__dirname, "reporting/claimsIntelligenceReport.ts"),
+      "utf-8"
+    )
   );
   const fdrSource = stripComments(
-    fs.readFileSync(path.resolve(__dirname, "reporting/forensicDecisionReport.ts"), "utf-8")
+    fs.readFileSync(
+      path.resolve(__dirname, "reporting/forensicDecisionReport.ts"),
+      "utf-8"
+    )
   );
 
   for (const col of BANNED_COLUMNS) {
@@ -276,7 +294,9 @@ describe("claimsIntelligenceReport.ts — HTML structure", () => {
   );
 
   it("exports generateClaimsIntelligenceReport function", () => {
-    expect(cirSource).toContain("export async function generateClaimsIntelligenceReport");
+    expect(cirSource).toContain(
+      "export async function generateClaimsIntelligenceReport"
+    );
   });
 
   it("includes §1 Claim Identity section", () => {
@@ -304,7 +324,9 @@ describe("claimsIntelligenceReport.ts — HTML structure", () => {
   });
 
   it("includes upgrade banner for forensic upsell", () => {
-    expect(cirSource).toMatch(/upgrade|forensic.*tier|Forensic Claim Decision/i);
+    expect(cirSource).toMatch(
+      /upgrade|forensic.*tier|Forensic Claim Decision/i
+    );
   });
 
   it("includes score strip or KPI band", () => {
@@ -312,17 +334,23 @@ describe("claimsIntelligenceReport.ts — HTML structure", () => {
   });
 
   it("includes settlement position calculation", () => {
-    expect(cirSource).toMatch(/settlement|recommended.*settlement|net.*payable/i);
+    expect(cirSource).toMatch(
+      /settlement|recommended.*settlement|net.*payable/i
+    );
   });
 
   it("includes timeline integrity table", () => {
-    expect(cirSource).toMatch(/timeline|incident.*date|submission.*date|days.*submit/i);
+    expect(cirSource).toMatch(
+      /timeline|incident.*date|submission.*date|days.*submit/i
+    );
   });
 
   it("reads claim data only through the canonical resolved report record", () => {
     expect(cirSource).toContain("resolveReportRecord({ claimId, tenantId");
     expect(cirSource).toContain("toReportDefinitionRow(record)");
-    expect(cirSource).not.toMatch(/mysql2\/promise|createConnection|conn\.(execute|query)|\bSELECT\b/);
+    expect(cirSource).not.toMatch(
+      /mysql2\/promise|createConnection|conn\.(execute|query)|\bSELECT\b/
+    );
   });
 });
 
@@ -335,15 +363,20 @@ describe("forensicDecisionReport.ts — HTML structure", () => {
   );
 
   it("exports generateForensicDecisionReport function", () => {
-    expect(fdrSource).toContain("export async function generateForensicDecisionReport");
+    expect(fdrSource).toContain(
+      "export async function generateForensicDecisionReport"
+    );
   });
 
   it("includes cover with verdict bar", () => {
-    expect(fdrSource).toMatch(/verdict|cover|KINGA.*Forensic|Forensic.*Decision/i);
+    expect(fdrSource).toMatch(
+      /verdict|cover|KINGA.*Forensic|Forensic.*Decision/i
+    );
   });
 
-  it("includes critical flags section", () => {
-    expect(fdrSource).toMatch(/critical.*flag|§F|impossibility|I2/i);
+  it("uses the P0 collision-physics hold instead of critical-flag conclusions", () => {
+    expect(fdrSource).toContain("renderP0A2CollisionPhysicsAbstentionMarker");
+    expect(fdrSource).not.toContain("riskSummary");
   });
 
   it("includes §1 Vehicle Identity section", () => {
@@ -372,19 +405,27 @@ describe("forensicDecisionReport.ts — HTML structure", () => {
 
   it("includes SVG speed bar chart or Chart.js visualisation", () => {
     // The forensic report uses pure SVG for speed charts (no CDN dependency, no render timing issues)
-    expect(fdrSource).toMatch(/Chart\.js|chart\.js|new Chart|chartjs|<svg|viewBox/i);
+    expect(fdrSource).toMatch(
+      /Chart\.js|chart\.js|new Chart|chartjs|<svg|viewBox/i
+    );
   });
 
   it("includes §4 Photo Forensics section", () => {
-    expect(fdrSource).toMatch(/§4|Photo.*Forensic|photo.*grid|Evidence.*Photo/i);
+    expect(fdrSource).toMatch(
+      /§4|Photo.*Forensic|photo.*grid|Evidence.*Photo/i
+    );
   });
 
   it("includes §5 Fraud Intelligence section", () => {
-    expect(fdrSource).toMatch(/§5|Fraud.*Intelligence|fraud.*radar|fraud.*score/i);
+    expect(fdrSource).toMatch(
+      /§5|Fraud.*Intelligence|fraud.*radar|fraud.*score/i
+    );
   });
 
   it("includes §6 Decision & Approval Workflow section", () => {
-    expect(fdrSource).toMatch(/§6|Decision.*Workflow|Approval.*Workflow|5.*stage/i);
+    expect(fdrSource).toMatch(
+      /§6|Decision.*Workflow|Approval.*Workflow|5.*stage/i
+    );
   });
 
   it("includes §7 Quality & Validation section", () => {
@@ -396,9 +437,15 @@ describe("forensicDecisionReport.ts — HTML structure", () => {
   });
 
   it("reads forensic report data only through the tenant-scoped forensic model", () => {
-    expect(fdrSource).toContain("resolveForensicReportModel({ claimId, tenantId, audience: \"forensic\" })");
-    expect(fdrSource).toContain("toForensicLegacyRendererInputs(forensicModel)");
-    expect(fdrSource).not.toMatch(/mysql2\/promise|createConnection|conn\.(execute|query)|\bSELECT\b/);
+    expect(fdrSource).toContain(
+      'resolveForensicReportModel({ claimId, tenantId, audience: "forensic" })'
+    );
+    expect(fdrSource).toContain(
+      "toForensicLegacyRendererInputs(forensicModel)"
+    );
+    expect(fdrSource).not.toMatch(
+      /mysql2\/promise|createConnection|conn\.(execute|query)|\bSELECT\b/
+    );
   });
 });
 
@@ -439,7 +486,10 @@ describe("kingaDesignSystem.ts — shared CSS design tokens", () => {
 
 describe("ClaimsManagerReportsCentre.tsx — report entries", () => {
   const uiSource = fs.readFileSync(
-    path.resolve(__dirname, "../client/src/components/ClaimsManagerReportsCentre.tsx"),
+    path.resolve(
+      __dirname,
+      "../client/src/components/ClaimsManagerReportsCentre.tsx"
+    ),
     "utf-8"
   );
 
@@ -464,12 +514,16 @@ describe("ClaimsManagerReportsCentre.tsx — report entries", () => {
   });
 
   it("claim.intelligence is in the Claim-Level category", () => {
-    const cirMatch = uiSource.match(/claim\.intelligence[\s\S]{0,300}category:\s*["']([^"']+)["']/);
+    const cirMatch = uiSource.match(
+      /claim\.intelligence[\s\S]{0,300}category:\s*["']([^"']+)["']/
+    );
     expect(cirMatch?.[1]).toBe("Claim-Level");
   });
 
   it("claim.forensic is in the Claim-Level category", () => {
-    const fdrMatch = uiSource.match(/claim\.forensic[^_][\s\S]{0,300}category:\s*["']([^"']+)["']/);
+    const fdrMatch = uiSource.match(
+      /claim\.forensic[^_][\s\S]{0,300}category:\s*["']([^"']+)["']/
+    );
     expect(fdrMatch?.[1]).toBe("Claim-Level");
   });
 });

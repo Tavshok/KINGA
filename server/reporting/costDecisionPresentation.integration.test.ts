@@ -3,11 +3,16 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "../..");
-const read = (relativePath: string) => readFileSync(resolve(root, relativePath), "utf8");
+const read = (relativePath: string) =>
+  readFileSync(resolve(root, relativePath), "utf8");
 
 describe("R0 cross-surface concise cost-decision presentation", () => {
   it("uses the shared evidence-governed report presenter in Claims Ledger, Claims Intelligence, and Forensic reports", () => {
-    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts", "server/reporting/forensicDecisionReport.ts"]) {
+    for (const file of [
+      "server/reporting/reportDefinitions.ts",
+      "server/reporting/claimsIntelligenceReport.ts",
+      "server/reporting/forensicDecisionReport.ts",
+    ]) {
       const source = read(file);
       expect(source).toContain('from "./costDecisionPresentation"');
       expect(source).toContain("renderCostDecisionSummaryHtml");
@@ -23,7 +28,9 @@ describe("R0 cross-surface concise cost-decision presentation", () => {
     expect(source).toContain("extractNonBlockingQuoteQualityIssues");
     expect(source).toContain("Submitted Quotations");
     expect(source).toContain("KINGA Quote Verification");
-    expect(read("shared/costDecisionPresentation.ts")).toContain("KINGA Optimised Quote");
+    expect(read("shared/costDecisionPresentation.ts")).toContain(
+      "KINGA Optimised Quote"
+    );
     expect(source).toContain("Quote Issues");
     expect(source).toContain("Repairability");
   });
@@ -34,10 +41,18 @@ describe("R0 cross-surface concise cost-decision presentation", () => {
     expect(source).not.toContain("assessorCalibrationCostUsd");
   });
 
-  it("passes explicit persisted repair intelligence to every report repairability surface", () => {
-    for (const file of ["server/reporting/reportDefinitions.ts", "server/reporting/claimsIntelligenceReport.ts", "server/reporting/forensicDecisionReport.ts"]) {
-      expect(read(file)).toContain("extractExplicitStructuralReviewEvidence");
+  it("does not pass legacy structural-review JSON into P0 report repairability surfaces", () => {
+    for (const file of [
+      "server/reporting/reportDefinitions.ts",
+      "server/reporting/claimsIntelligenceReport.ts",
+      "server/reporting/forensicDecisionReport.ts",
+    ]) {
+      expect(read(file)).not.toContain(
+        "extractExplicitStructuralReviewEvidence"
+      );
     }
-    expect(read("client/src/components/KingaClaimsReport.tsx")).toContain("structuralReviewRequired");
+    expect(read("client/src/components/KingaClaimsReport.tsx")).toContain(
+      "structuralReviewRequired"
+    );
   });
 });

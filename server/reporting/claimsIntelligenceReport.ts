@@ -21,12 +21,16 @@ import { resolveReportCostIntegrity, resolveReportQuoteEvidencePresentation } fr
 import { renderSharedQuoteEvidencePresentation } from "./sharedQuoteEvidencePresentation";
 import { renderCostEvidenceStateHtml } from "./costEvidenceStatePresentation";
 import { resolveReportDecisionIntegrity } from "./reportDecisionIntegrity";
-import { extractExplicitStructuralReviewEvidence, renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
+import { renderCostDecisionSummaryHtml } from "./costDecisionPresentation";
 import { normaliseCanonicalPhotoEvidence } from "./photoEvidencePresentation";
 import { renderEvidenceGovernancePanel } from "./evidenceGovernancePresentation";
 import { renderClaimReportReadinessBanner } from "./claimReportReadiness";
 import { resolveReportRecord, toReportDefinitionRow } from "./resolvedReportRecord";
 import { renderVehiclePassportEvidencePanel } from "./vehiclePassportEvidencePresentation";
+import {
+  projectP0A2DescriptivePhotoEvidence,
+  renderP0A2CollisionPhysicsAbstentionMarker,
+} from "./p0PhysicsPresentation";
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 export async function generateClaimsIntelligenceReport(
@@ -72,36 +76,19 @@ export async function generateClaimsIntelligenceReport(
     formatDate: fmtD,
     escapeHtml: esc,
   });
+  // The legacy report row does not contain the complete Stage 7 evidence
+  // snapshot. P0-A-2 therefore fails closed rather than treating stored PTL,
+  // cross-validation, or CGI fields as governing collision evidence.
+  const collisionPhysicsHoldHtml = renderP0A2CollisionPhysicsAbstentionMarker();
   const evidenceGovernanceData = record.evidence.evidenceGovernance;
     // ── 4. Parse JSON fields ─────────────────────────────────────────────────
     const costIntel  = safeJson(c.cost_intelligence_json as string) as any;
     const repairIntel = safeJson(c.repair_intelligence_json as string) as any;
     const fraudBreak = safeJson(c.fraud_score_breakdown_json as string) as any;
     const ife        = safeJson(c.ife_result_json as string) as any;
-    const physics    = safeJson(c.physics_analysis as string) as any;
-    // ARCH-02: Parse physics_truth_json (PTL) as primary source; fall back to legacy physics_analysis
-    const physicsTruthCI = safeJson(c.physics_truth_json as string) as any;
-    const ptCI = physicsTruthCI ?? null;
-    const canonicalSpeedCI = ptCI?.speed?.canonical;
-    const canonicalSpeedValueCI = canonicalSpeedCI && typeof canonicalSpeedCI === "object"
-      ? canonicalSpeedCI.value ?? null
-      : canonicalSpeedCI;
-    const ptlSpeedCI  = canonicalSpeedValueCI ?? ptCI?.speed?.deltaVKmh ?? physics?.deltaVKmh ?? physics?.velocityKmh ?? null;
-    const ptlConsistencyCI = ptCI?.integrityCheck?.consistencyScore ?? ptCI?.evidenceCompleteness?.dataQualityScore ?? null;
-    const ptlConsistencyLabelCI: string = ptlConsistencyCI !== null
-      ? (Number(ptlConsistencyCI) >= 80 ? 'consistent' : Number(ptlConsistencyCI) >= 50 ? 'anomaly detected' : 'significant anomaly')
-      : '';
     const narrative  = safeJson(c.narrative_analysis_json as string) as any;
-    const crossVal   = safeJson(c.cross_validation_json as string) as any;
     // ARCH-01: Canonical CTL call-site for CI tier
     const claimTruthCI  = safeJson(c.claim_truth_json as string) as any;
-    // Three-way speed comparison from cross_validation_json
-    const cvThreeWay  = crossVal?.threeWaySpeedComparison ?? crossVal?.speedComparison ?? null;
-    const cvXvRisk    = crossVal?.xvRiskBanner ?? crossVal?.crossValidationRisk ?? null;
-    const claimedSpd  = cvThreeWay?.claimedSpeedKmh ?? physics?.velocityKmh ?? null;
-    const consensusSpd = cvThreeWay?.consensusSpeedKmh ?? physics?.deltaVKmh ?? null;
-    const severitySpd  = cvThreeWay?.severityImpliedSpeedLabel ?? null;
-    const speedVerdict = cvThreeWay?.verdict ?? (claimedSpd && consensusSpd && Math.abs(Number(claimedSpd) - Number(consensusSpd)) > 5 ? 'DIVERGE' : 'CONSISTENT');
 
     // ── 5. Derived values ────────────────────────────────────────────────────
     const fraudScore   = Number(c.fraud_score ?? 0);
@@ -142,7 +129,6 @@ export async function generateClaimsIntelligenceReport(
         totalLossIndicated: Boolean(c.total_loss_indicated),
         repairToValueRatio: rtvRatio,
         kingaRecommendation: costIntel?.repairabilityDecision ?? null,
-        ...extractExplicitStructuralReviewEvidence(repairIntel),
       },
     });
     const quoteEvidence = resolveReportQuoteEvidencePresentation(costIntegrity);
@@ -247,17 +233,9 @@ export async function generateClaimsIntelligenceReport(
     const usablePhotos = photoEvidence.usablePhotos;
     const photoYield = totalPhotos > 0 ? Math.round(usablePhotos / totalPhotos * 100) : 0;
 
-    // Structural gaps
-    const structuralGaps = (repairIntel?.structuralGaps as Array<{component: string; severity: string}>) ??
-      (costIntel?.missingComponents as Array<{component: string; severity: string}>) ?? [];
-    const criticalStructural = structuralGaps.filter(g =>
-      String(g.severity ?? "").toLowerCase().includes("critical") ||
-      String(g.severity ?? "").toLowerCase().includes("structural")
-    );
-
-    // Upgrade signals
-    const physicsAnomaly = physics?.anomalyScore ? Number(physics.anomalyScore) : 0;
-    const showUpgrade = physicsAnomaly > 30 || criticalStructural.length > 0 || photoYield < 40;
+    // Upgrade signals are restricted to independently reviewable cost and
+    // evidence completeness. P0-A-2 excludes collision-physics inference.
+    const showUpgrade = photoYield < 40;
 
     // ── 6. Build HTML sections ───────────────────────────────────────────────
     const claimRef = esc(c.claim_reference ?? c.id);
@@ -275,12 +253,6 @@ export async function generateClaimsIntelligenceReport(
     const recLabel = reportDecision.status.replaceAll("_", " ");
     const chipCls = reportDecision.chipClass;
     const chipIcon = reportDecision.icon;
-    // ARCH-01: Use CTL reviewTriggers as canonical source for review context note
-    const ctlTriggersCI: string[] = Array.isArray(claimTruthCI?.decision?.reviewTriggers)
-      ? (claimTruthCI.decision.reviewTriggers as string[]).slice(0, 3)
-      : [];
-    const costVerdictCI = String(c.cost_verdict ?? claimTruthCI?.costBasis?.costVerdict ?? "").toUpperCase();
-    const showCIReviewNote = chipCls === "review" && (costVerdictCI === "FAIR" || costVerdictCI === "UNDERPRICED") && ctlTriggersCI.length > 0;
     const scoreCardFraudCls = fraudScore >= 70 ? "bad" : fraudScore >= 40 ? "warn" : "good";
     const scoreCardRtvCls = rtvRatio >= 70 ? "bad" : rtvRatio >= 50 ? "warn" : "good";
     const scoreCardDataCls = dataComplete >= 80 ? "good" : dataComplete >= 60 ? "warn" : "bad";
@@ -314,7 +286,6 @@ export async function generateClaimsIntelligenceReport(
   <div class="score-cell ${scoreCardRtvCls}"><div class="label">Repair-to-Value</div><div class="value">${fmtPct(rtvRatio, 0)}</div><div class="sub">${rtvRatio >= 70 ? "Total loss risk" : rtvRatio >= 50 ? "Monitor" : "Within range"}</div></div>
 </div>
 ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Submission Flag — claim submitted ${dayDelay} days after incident.</b> A written explanation is required before this claim can proceed. This flag does not override the system recommendation; adjuster review is required before settlement authorisation.</div>` : ""}
-${showCIReviewNote ? `<div class="callout amber" style="margin-bottom:14px"><b>Review Trigger Note —</b> The cost assessment is within the acceptable range (${costVerdictCI}), but this claim has been flagged for review due to non-cost factors: ${ctlTriggersCI.join("; ")}. Settlement authorisation requires adjuster sign-off on these items.</div>` : ""}
 <!-- ── SETTLEMENT WATERFALL ── -->
 ${costDecisionSummary}
 ${(() => {
@@ -454,51 +425,9 @@ ${(() => {
     &ldquo;${esc(String(narrative.claimantStatement))}&rdquo;
   </blockquote>` : ""}
 
-  ${(ptlSpeedCI != null || ptlConsistencyCI !== null) ? `
-  <div class="callout" style="margin-top:8px;">
-    ${ptlSpeedCI != null ? `Impact speed estimate: <strong>${Math.round(Number(ptlSpeedCI) * 10) / 10} km/h</strong>. ` : ""}
-    ${ptlConsistencyCI !== null ? `Physics consistency: <strong>${Math.round(Number(ptlConsistencyCI))}/100</strong> — ${ptlConsistencyLabelCI}. ` : ""}
-    Full evidence chain, causation classification, and uncertainty quantification available at Prove tier.
-  </div>` : physics ? `
-  <div class="callout" style="margin-top:8px;">${physics.deltaV != null ? `Estimated Delta-V: <strong>${Number(physics.deltaV).toFixed(1)} km/h</strong>. ` : ""}${physics.summary ? esc(String(physics.summary)) : "Physics analysis was performed at the standard tier. No significant anomalies detected at this assessment level."}${physicsAnomaly > 30 ? ` <em>Physics anomaly score ${physicsAnomaly}/100 — full reconstruction available in the Forensic Report.</em>` : ""}</div>` : ""}
-  ${(claimedSpd != null || consensusSpd != null) ? `
-  <div style="margin-top:10pt;">
-    <h4 style="margin:0 0 6pt 0;font-size:9pt;">Speed Comparison</h4>
-    <table style="width:100%;border-collapse:collapse;font-size:8pt;">
-      <thead><tr style="background:var(--rule);">
-        <th style="padding:4pt 6pt;text-align:left;">Source</th>
-        <th style="padding:4pt 6pt;text-align:right;">Speed</th>
-        <th style="padding:4pt 6pt;text-align:left;">Basis</th>
-      </tr></thead>
-      <tbody>
-        ${claimedSpd != null ? `<tr><td style="padding:3pt 6pt;">Claimant-stated</td><td style="padding:3pt 6pt;text-align:right;">${Number(claimedSpd).toFixed(1)} km/h</td><td style="padding:3pt 6pt;color:var(--ink-mid);">Claimant declaration</td></tr>` : ''}
-        ${consensusSpd != null ? `<tr><td style="padding:3pt 6pt;">Physics consensus</td><td style="padding:3pt 6pt;text-align:right;font-weight:700;">${Number(consensusSpd).toFixed(1)} km/h</td><td style="padding:3pt 6pt;color:var(--ink-mid);">Multi-method ensemble</td></tr>` : ''}
-        ${severitySpd ? `<tr><td style="padding:3pt 6pt;">Severity-implied</td><td style="padding:3pt 6pt;text-align:right;">${severitySpd}</td><td style="padding:3pt 6pt;color:var(--ink-mid);">Damage pattern analysis</td></tr>` : ''}
-      </tbody>
-    </table>
-    ${speedVerdict && speedVerdict !== 'CONSISTENT' ? `<div class="callout amber" style="margin-top:6pt;font-size:8pt;"><b>Speed Discrepancy Detected.</b> Claimed speed diverges from physics consensus. Full three-way analysis available in the Forensic Report.</div>` : `<div class="callout green" style="margin-top:6pt;font-size:8pt;">Speed sources are consistent.</div>`}
-  </div>` : ''}
-  ${(() => {
-    const cgi = safeJson(c.cgi_result_json as string) as any;
-    if (!cgi) return '';
-    // IMPL-CONSTRAINT: reads from same cgi_result_json as FR §09b — never recomputed independently
-    const indicators = [
-      { label: 'Contact Patch Ratio', val: cgi.contactPatchRatio?.value, status: cgi.contactPatchRatio?.status, avail: cgi.contactPatchRatio?.available !== false },
-      { label: 'Bumper Height Compatibility', val: cgi.bumperHeightCompatibility?.value, status: cgi.bumperHeightCompatibility?.status, avail: cgi.bumperHeightCompatibility?.available !== false },
-      { label: 'Multi-Image Convergence', val: cgi.multiImageConvergence?.value, status: cgi.multiImageConvergence?.status, avail: cgi.multiImageConvergence?.available !== false },
-      { label: 'Force Density Index', val: cgi.forceDensityIndex?.value, status: cgi.forceDensityIndex?.status, avail: cgi.forceDensityIndex?.available !== false },
-    ].filter(i => i.avail);
-    if (indicators.length === 0) return '';
-    const sc = (s: string) => s === 'PASS' || s === 'CONSISTENT' ? 'var(--green-dark)' : s === 'FAIL' || s === 'INCONSISTENT' ? 'var(--red)' : 'var(--amber)';
-    return `<div style="margin-top:10pt;">
-    <h4 style="margin:0 0 6pt 0;font-size:9pt;">Crash Geometry Intelligence (CGI)</h4>
-    <table style="width:100%;border-collapse:collapse;font-size:8pt;">
-      <thead><tr style="background:var(--rule);"><th style="padding:4pt 6pt;text-align:left;">Indicator</th><th style="padding:4pt 6pt;text-align:right;">Value</th><th style="padding:4pt 6pt;text-align:left;">Status</th></tr></thead>
-      <tbody>${indicators.map((ind, i) => `<tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fa'};"><td style="padding:3pt 6pt;">${ind.label}</td><td style="padding:3pt 6pt;text-align:right;">${ind.val != null ? (typeof ind.val === 'number' ? ind.val.toFixed(2) : String(ind.val)) : '—'}</td><td style="padding:3pt 6pt;font-weight:600;color:${sc(String(ind.status ?? ''))};">${ind.status ?? 'UNAVAILABLE'}</td></tr>`).join('')}</tbody>
-    </table>
-    <p class="caption" style="margin-top:4pt;">CGI cross-references photogrammetric measurements against vehicle geometry benchmarks. Full CGI methodology available in the Forensic Report.</p>
-  </div>`;
-  })()}
+  <div style="margin-top:10pt;" data-p0-collision-physics="withheld">
+    ${collisionPhysicsHoldHtml}
+  </div>
   ${(vehicleHistory as Record<string, unknown>[]).length > 0 ? (() => {
     const vh = vehicleHistory as Record<string, unknown>[];
     return `<div style="margin-top:10pt;">
@@ -581,14 +510,14 @@ ${(() => {
       <div class="verdict-cell"><div class="label">KINGA Optimised</div><div class="value">${l2Display}</div><div class="sub">${kingaOptimised === null ? "Coverage review required" : "All-in benchmarked recommendation"}</div></div>
       <div class="verdict-cell"><div class="label">Less Exclusions</div><div class="value" style="color:var(--red)">&minus;${fmtUSD(totalExclusions > 0 ? totalExclusions : 0)}</div><div class="sub">Policy exclusions removed</div></div>
       <div class="verdict-cell"><div class="label">Less Excess</div><div class="value" style="color:var(--red)">&minus;${fmtUSD(excess)}</div><div class="sub">Policy deductible</div></div>
-      <div class="verdict-cell accent"><div class="label">Recommended Settlement</div><div class="value" style="color:var(--green)">${recommendedSettlementDisplay}</div><div class="sub">${recommendedSettlement === null ? "Withheld pending scope reconciliation" : "Subject to structural assessment"}</div></div>
+      <div class="verdict-cell accent"><div class="label">Recommended Settlement</div><div class="value" style="color:var(--green)">${recommendedSettlementDisplay}</div><div class="sub">${recommendedSettlement === null ? "Withheld pending scope reconciliation" : "Subject to quote reconciliation"}</div></div>
     </div>
     <!-- TIER-06: Settlement rationale -->
     <p style="font-size:10px;color:#4a4a4a;margin-top:8px;padding:6px 10px;background:#f5f5f5;border-radius:2px;">
       ${kingaOptimised === null
         ? esc(l2IntegrityNote)
         : `Settlement rationale: KINGA Optimised estimate of <strong>${l2Display}</strong>, less policy exclusions of <strong>${fmtUSD(totalExclusions)}</strong>${excess > 0 ? `, less policy excess of <strong>${fmtUSD(excess)}</strong>` : ""}, equals recommended settlement of <strong>${recommendedSettlementDisplay}</strong>.`}
-      ${criticalStructural.length > 0 ? `Note: ${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} (${criticalStructural.map(g => esc(g.component)).join(", ")}) are not included in any submitted quote and must be assessed independently before this figure can be finalised.` : "All major components are included in the submitted quotes."}
+      Submitted quote line items require documentary scope reconciliation before this figure can be finalised.
     </p>
     ${costIntegrity.assessorCalibrationCostUsd !== null ? `<div class="callout" style="margin-top:8px"><b>Assessor documented cost — calibration reference only:</b> ${fmtUSD(costIntegrity.assessorCalibrationCostUsd)}. This historical assessor figure is displayed for comparison with KINGA costing; it is not a submitted quote, L2 value, or settlement authority.</div>` : ""}
     <div class="callout" style="margin-top:8px;border-left-color:#2d5f8b;background:#f3f7fb;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
@@ -683,7 +612,7 @@ ${(() => {
 <div class="page page-break">
 <div class="section">
   <div class="section-tab sans"><span class="num">02</span> Cost Intelligence</div>
-  <p class="small" style="margin:0 0 8px 0;">${esc(quoteEvidenceNarrative)}${costIntegrity.duplicateQuotesExcluded > 0 ? ` after excluding ${costIntegrity.duplicateQuotesExcluded} duplicate submission${costIntegrity.duplicateQuotesExcluded === 1 ? "" : "s"}` : ""} for the ${vehicleDesc}. ${kingaOptimised === null ? `<strong>${esc(l2IntegrityNote)}</strong>` : `The all-in optimised estimate of <strong>${l2Display}</strong> represents a saving of <strong>${fmtUSD(savings)} (${fmtPct(savingsPct)})</strong> against the highest active submitted quote.`} ${criticalStructural.length > 0 ? `<strong>${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} identified in the damage scope do not appear in any submitted quote</strong> — an independent structural assessment is required before the cost can be finalised.` : "All major components are included in the submitted quotes."}</p>
+  <p class="small" style="margin:0 0 8px 0;">${esc(quoteEvidenceNarrative)}${costIntegrity.duplicateQuotesExcluded > 0 ? ` after excluding ${costIntegrity.duplicateQuotesExcluded} duplicate submission${costIntegrity.duplicateQuotesExcluded === 1 ? "" : "s"}` : ""} for the ${vehicleDesc}. ${kingaOptimised === null ? `<strong>${esc(l2IntegrityNote)}</strong>` : `The all-in optimised estimate of <strong>${l2Display}</strong> represents a saving of <strong>${fmtUSD(savings)} (${fmtPct(savingsPct)})</strong> against the highest active submitted quote.`} Submitted line items remain subject to documentary scope reconciliation.</p>
   <div class="box">
     <h4>Quotation Evidence</h4>
     ${sharedQuoteEvidenceHtml}
@@ -709,8 +638,6 @@ ${(() => {
     </div>
   </div>
 
-  ${criticalStructural.length > 0 ? `
-  <div class="callout red" style="margin-top:8px;"><b>Structural Gap — ${criticalStructural.length} critical component${criticalStructural.length !== 1 ? "s" : ""} not quoted.</b> ${criticalStructural.map(g => esc(g.component)).join(", ")}. An independent structural assessment is required before the repair scope and cost can be finalised. Settlement must not be authorised until this assessment is complete.</div>` : ""}
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>KINGA AI · Confidential Claims Intelligence Report</div>
@@ -719,36 +646,15 @@ ${(() => {
 </div>`;
 
     // ── §3 RISK INDICATORS ───────────────────────────────────────────────────
-    // Wire real fraud_score_breakdown_json indicators
     type FraudInd = {name: string; score: number; threshold: string; finding: string; status: "pass" | "warn" | "fail" | "neutral"};
-    const fraudIndicators: FraudInd[] = [];
-    // Try to pull real indicators from fraudBreak.indicators or fraudBreak.breakdown
-    const rawIndicators: Array<{name?: string; label?: string; score?: number; weight?: number; threshold?: string; finding?: string; description?: string; triggered?: boolean; status?: string}> =
-      (fraudBreak?.indicators ?? fraudBreak?.breakdown ?? fraudBreak?.factors ?? []) as Array<{name?: string; label?: string; score?: number; weight?: number; threshold?: string; finding?: string; description?: string; triggered?: boolean; status?: string}>;
-    if (rawIndicators.length > 0) {
-      for (const ind of rawIndicators) {
-        const score = Number(ind.score ?? ind.weight ?? 0);
-        const triggered = ind.triggered ?? score > 0;
-        const status: FraudInd["status"] = triggered ? (score >= 20 ? "fail" : "warn") : "pass";
-        fraudIndicators.push({
-          name: String(ind.name ?? ind.label ?? "Indicator"),
-          score,
-          threshold: String(ind.threshold ?? "—"),
-          finding: String(ind.finding ?? ind.description ?? (triggered ? "Triggered" : "Not triggered")),
-          status,
-        });
-      }
-    } else {
-      // Fallback: derive from available data fields
-      fraudIndicators.push(
+    // P0-A-2 exposes only independently computed cost, date, and quote facts.
+    // Stored fraud JSON can include collision-derived prose and is never rendered.
+    const fraudIndicators: FraudInd[] = [
         { name: "Repair Cost vs Market Value", score: rtvRatio >= 50 ? 15 : 0, threshold: "> 50%", finding: `${fmtPct(rtvRatio)} — ${rtvRatio >= 50 ? "approaching total-loss threshold" : "within normal range"}`, status: rtvRatio >= 50 ? "warn" : "pass" },
         { name: "Late Claim Submission", score: dayDelay !== null && dayDelay > 90 ? 7 : 0, threshold: "> 90 days", finding: dayDelay !== null ? `${dayDelay} days — ${dayDelay > 90 ? "written explanation required" : "within normal range"}` : "—", status: dayDelay !== null && dayDelay > 90 ? "warn" : "pass" },
         { name: "Quote Spread", score: 0, threshold: "> 40%", finding: quoteArr.length > 1 ? "Spread within normal range" : "Insufficient quotes to assess", status: quoteArr.length > 1 ? "pass" : "neutral" },
-        { name: "Damage Inconsistency", score: 0, threshold: "> 30 pts", finding: "No physics anomaly detected at this tier", status: "pass" },
-        { name: "Repeat Claimant / Vehicle", score: 0, threshold: "Any match", finding: "No prior claims on this registration", status: "pass" },
-        { name: "Copy Quotation Detection", score: 0, threshold: "> 50% match", finding: "Requires Forensic tier — see upgrade below", status: "neutral" },
-      );
-    }
+        { name: "Collision Physics", score: 0, threshold: "Qualified governing measurement", finding: "Withheld pending P1-qualified measurement or documented human engineering review", status: "neutral" },
+    ];
 
     const fraudTableRows = fraudIndicators.map(ind => `<tr>
       <td>${esc(ind.name)}</td>
@@ -855,11 +761,12 @@ ${(() => {
   <div class="box" style="margin-top:10px;">
     <h4>Photo Evidence — ${enrichedPhotos.length} image${enrichedPhotos.length !== 1 ? 's' : ''} · ${usablePhotos} usable (≥70% confidence)</h4>
     ${photoZonePanel(
-      enrichedPhotos.slice(0, 8).map(p => ({
+      enrichedPhotos.slice(0, 8).map(p => projectP0A2DescriptivePhotoEvidence({
         url: p.url ?? '',
         zone: p.impactZone ?? undefined,
         caption: p.caption ?? undefined,
         usable: Number(p.confidenceScore ?? 0) >= 70,
+        // Stored visual-physics and direction conclusions are stripped at this P0 boundary.
         directionContradiction: (p as any).directionContradiction === true,
         semanticType: (p as any).semanticType ?? (p as any).imageClassification ?? undefined,
         detectedComponents: (p as any).detectedComponents ?? undefined,
@@ -873,8 +780,7 @@ ${(() => {
       })),
       4
     )}
-    ${enrichedPhotos.some(p => (p as any).directionContradiction === true) ? `<div style="background:#fbf1de;border-left:3px solid #b8720b;padding:6px 10px;margin-top:6px;font-size:10px;color:#b8720b;"><strong>⚠ Direction Contradiction Detected.</strong> One or more photos show damage in a zone that contradicts the narrative-stated collision direction. Review photo zones against the incident narrative before approving settlement. Full forensic analysis in the Forensic Report.</div>` : ""}
-    <p class="caption" style="margin-top:4px;">Zone labels show pipeline-detected impact zone per image. Red border = confidence below 70%. ⚠ amber border = zone contradicts narrative direction (display-only, does not affect scoring). Full EXIF, manipulation detection, and structural fingerprint analysis are in the Forensic Claim Decision Report.</p>
+    <p class="caption" style="margin-top:4px;">Zone labels are descriptive photo classifications only. Red border = confidence below 70%. Collision direction and physics conclusions are withheld pending qualified measurement or engineering review.</p>
   </div>` : `<p class="small" style="margin-top:8px;">No photographic evidence was submitted or processed by the pipeline. Detailed photo forensics are part of the Forensic Claim Decision Report.</p>`}
   ${(() => {
     // Damage zones vs photo coverage — compact table for CI
@@ -916,12 +822,11 @@ ${(() => {
     // ── §5 DECISION & NEXT STEPS ─────────────────────────────────────────────
     const actions: Array<{action: string; owner: string; priority: "High" | "Medium"; ref: string}> = [];
     if (!hasVehicleReg) actions.push({ action: "Obtain VIN certificate to complete vehicle identity verification", owner: "Claimant", priority: "High", ref: "§1" });
-    if (criticalStructural.length > 0) actions.push({ action: `Commission independent structural assessment for ${criticalStructural.map(g => g.component).join(", ")}`, owner: "Adjuster", priority: "High", ref: "§2" });
     if (totalExclusions > 0) actions.push({ action: `Remove excluded line items (${fmtUSD(totalExclusions)}) from settlement calculation`, owner: "Adjuster", priority: "High", ref: "§P" });
     if (!hasPolice) actions.push({ action: "Obtain police report — required for all accident claims", owner: "Claimant", priority: "High", ref: "§4" });
     if (dayDelay !== null && dayDelay > 90) actions.push({ action: `Obtain written explanation from claimant for ${dayDelay}-day submission delay`, owner: "Adjuster", priority: "Medium", ref: "§1" });
     if (photoYield < 40) actions.push({ action: "Request focused damage photographs — underbody, engine bay, and interior zones", owner: "Claimant", priority: "Medium", ref: "§4" });
-    if (rtvRatio >= 50) actions.push({ action: "Confirm total-loss threshold with insurer before authorising structural repairs", owner: "Adjuster", priority: "Medium", ref: "§3" });
+    if (rtvRatio >= 50) actions.push({ action: "Confirm total-loss threshold with insurer before authorising repair expenditure", owner: "Adjuster", priority: "Medium", ref: "§3" });
 
     const actionRows = actions.map((a, i) => `<tr class="${a.priority === "High" ? "at-high" : "at-medium"}">
       <td>${i + 1}</td>
@@ -932,8 +837,6 @@ ${(() => {
     </tr>`).join("");
 
     const upgradeSignals: string[] = [];
-    if (physicsAnomaly > 30) upgradeSignals.push(`Physics anomaly ${physicsAnomaly}/100`);
-    if (criticalStructural.length > 0) upgradeSignals.push(`${criticalStructural.length} structural gap${criticalStructural.length !== 1 ? "s" : ""} unquoted`);
     if (photoYield < 40) upgradeSignals.push(`Photo yield ${photoYield}%`);
     if (dayDelay !== null && dayDelay > 90) upgradeSignals.push(`Late submission ${dayDelay} days`);
     if (rtvRatio >= 50) upgradeSignals.push(`Repair-to-value ${fmtPct(rtvRatio)}`);
@@ -973,7 +876,7 @@ ${(() => {
   </div>
 
   ${showUpgrade ? `
-  <div class="callout" style="margin-top:10px;border-color:var(--teal);background:#eff8fa;"><b>Forensic Claim Decision Report — Recommended for This Claim.</b> This claim shows signals (${upgradeSignals.join(", ")}) that a Forensic Claim Decision Report would materially clarify before settlement. The forensic tier adds full physics reconstruction, crush-depth analysis, damage-zone mapping, photo manipulation detection, and a 5-stage executive sign-off chain.</div>` : ""}
+  <div class="callout" style="margin-top:10px;border-color:var(--teal);background:#eff8fa;"><b>Enhanced documentary and cost review recommended.</b> This claim shows review signals (${upgradeSignals.join(", ")}) that require an adjuster assessment before settlement. Collision-physics conclusions remain withheld pending a qualified governing measurement or documented engineering review.</div>` : ""}
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>CONFIDENTIAL — For authorised insurer use only · Generated by KINGA Intelligence · Requires adjuster sign-off. Not legal advice.</div>
