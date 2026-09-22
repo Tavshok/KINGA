@@ -224,44 +224,47 @@ describe("damage analysis steps", () => {
 // ─── 4. Physics steps and coherence cross-check ───────────────────────────────
 
 describe("physics steps and coherence cross-check", () => {
-  it("generates 'impact_direction_determined' step", () => {
-    const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7("frontal"), null, null, 80);
-    const s = r.causal_chain.find((x) => x.key === "impact_direction_determined");
-    expect(s).toBeDefined();
-    expect(s!.value).toBe("frontal");
+  it("withholds adversarial physics values when P0 crush evidence is advisory", () => {
+    const stage6 = makeStage6({
+      damageZones: [{ zone: "front", componentCount: 3, maxSeverity: "severe" }],
+      damagedParts: [{ name: "Bumper", location: "front", damageType: "crush", severity: "severe", visible: true, distanceFromImpact: 0, crushDepthM: 0.8 }],
+    });
+    const stage7 = makeStage7("rear", "catastrophic", {
+      impactForceKn: 900,
+      deltaVKmh: 155,
+      estimatedSpeedKmh: 240,
+      physicsExecuted: true,
+      quantitativeEvidence: {
+        crushDepth: {
+          contractVersion: "P0-1.0",
+          field: "crush_depth_m",
+          disposition: "ADVISORY",
+          governing: null,
+          advisoryEvidence: [{ sourceKind: "STAGE6_LLM_VISUAL_NUMERIC", reason: "RAW_STAGE6_NUMERIC_REMAINS_DESCRIPTIVE", carriesNumericValue: false }],
+          reasonCode: "P0_ADVISORY_RAW_STAGE6_ONLY",
+          explanation: "A raw Stage 6 visual crush-depth number is descriptive evidence only. It cannot supply governing crush, force, energy, speed, delta-V, fraud, cost, confidence, or learning input.",
+        },
+      },
+    });
+    const result = buildCausalChain(makeClaimRecord(), stage6, stage7, makeStage8(20, "low"), makeStage9(), 80);
+    const serialized = JSON.stringify(result);
+
+    expect(result.causal_chain.find(step => step.key === "physics_analysis_unavailable")).toMatchObject({ severity: "warning", source_stage: "stage-7" });
+    expect(result.causal_chain.map(step => step.key)).not.toEqual(expect.arrayContaining([
+      "impact_direction_determined",
+      "physics_damage_consistent",
+      "physics_damage_mismatch",
+      "mismatch_fraud_score_increased",
+    ]));
+    expect(serialized).not.toContain("155");
+    expect(serialized).not.toContain("900");
+    expect(serialized).not.toContain("240");
+    expect(serialized).not.toContain("rear impact");
   });
-  it("generates 'physics_damage_consistent' when direction matches zone", () => {
-    const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7("frontal"), null, null, 80);
-    const s = r.causal_chain.find((x) => x.key === "physics_damage_consistent");
-    expect(s).toBeDefined();
-    expect(s!.severity).toBe("info");
-  });
-  it("generates 'physics_damage_mismatch' when direction is opposite to zone", () => {
-    const r = buildCausalChain(makeClaimRecord(), makeStage6({ damageZones: [{ zone: "front", componentCount: 3, maxSeverity: "severe" }] }), makeStage7("rear"), null, null, 80);
-    const s = r.causal_chain.find((x) => x.key === "physics_damage_mismatch");
-    expect(s).toBeDefined();
-    expect(s!.severity).toBe("critical");
-    expect(s!.description).toContain("rear");
-    expect(s!.description).toContain("front");
-  });
-  it("generates 'mismatch_fraud_score_increased' after mismatch", () => {
-    const r = buildCausalChain(makeClaimRecord(), makeStage6({ damageZones: [{ zone: "front", componentCount: 3, maxSeverity: "severe" }] }), makeStage7("rear"), null, null, 80);
-    const s = r.causal_chain.find((x) => x.key === "mismatch_fraud_score_increased");
-    expect(s).toBeDefined();
-    expect(s!.category).toBe("decision");
-    expect(s!.severity).toBe("critical");
-  });
-  it("generates 'physics_analysis_unavailable' when physicsAnalysis is null", () => {
-    const r = buildCausalChain(makeClaimRecord(), makeStage6(), null, null, null, 80);
-    expect(r.causal_chain.find((x) => x.key === "physics_analysis_unavailable")).toBeDefined();
-  });
-  it("severe severity produces critical impact step", () => {
-    const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7("frontal", "severe"), null, null, 80);
-    expect(r.causal_chain.find((x) => x.key === "impact_direction_determined")!.severity).toBe("critical");
-  });
-  it("minor severity produces info impact step", () => {
-    const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7("frontal", "minor"), null, null, 80);
-    expect(r.causal_chain.find((x) => x.key === "impact_direction_determined")!.severity).toBe("info");
+
+  it("marks physics unavailable when there is no Stage 7 output", () => {
+    const result = buildCausalChain(makeClaimRecord(), makeStage6(), null, null, null, 80);
+    expect(result.causal_chain.find(step => step.key === "physics_analysis_unavailable")).toBeDefined();
   });
 });
 
@@ -392,8 +395,8 @@ describe("cost steps", () => {
 // ─── 7. Decision outcome derivation ──────────────────────────────────────────
 
 describe("decision outcome derivation", () => {
-  it("returns 'approve' when all checks pass and confidence is high", () => {
-    // Use cosmetic severity to avoid any warning steps that would produce approve_with_notes
+  it("does not approve from P0-withheld collision physics", () => {
+    // P0's explicit unavailable step requires a reviewer rather than a physics-led approval.
     const cleanDamage = makeStage6({
       damageZones: [{ zone: "front", componentCount: 1, maxSeverity: "cosmetic" }],
       overallSeverityScore: 10,
@@ -403,15 +406,15 @@ describe("decision outcome derivation", () => {
     const cleanFraud = makeStage8(10, "minimal", { damageConsistencyScore: 95 });
     const cleanCost = makeStage9(20_000, { savingsOpportunityCents: 0, quoteDeviationPct: null });
     const r = buildCausalChain(makeClaimRecord(), cleanDamage, cleanPhysics, cleanFraud, cleanCost, 90);
-    expect(r.decision_outcome).toBe("approve");
+    expect(r.decision_outcome).toBe("approve_with_notes");
   });
   it("returns 'escalate' when high fraud level", () => {
     const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7("frontal"), makeStage8(80, "high"), makeStage9(), 80);
     expect(r.decision_outcome).toBe("escalate");
   });
-  it("returns 'reject_pending' when fraud escalation AND physics mismatch", () => {
+  it("does not create a reject-pending result from a withheld physics mismatch", () => {
     const r = buildCausalChain(makeClaimRecord(), makeStage6({ damageZones: [{ zone: "front", componentCount: 3, maxSeverity: "severe" }] }), makeStage7("rear"), makeStage8(80, "high"), makeStage9(), 80);
-    expect(r.decision_outcome).toBe("reject_pending");
+    expect(r.decision_outcome).toBe("escalate");
   });
   it("returns 'insufficient_data' when confidence is below minimum threshold", () => {
     const r = buildCausalChain(makeClaimRecord({ dataQuality: { completenessScore: 10, missingFields: [], validationIssues: [] } }), null, null, null, null, MIN_CONFIDENCE_FOR_DECISION - 1);
@@ -421,9 +424,10 @@ describe("decision outcome derivation", () => {
     const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7("frontal"), makeStage8(50, "moderate"), makeStage9(), 80);
     expect(["manual_review", "approve_with_notes"]).toContain(r.decision_outcome);
   });
-  it("escalates when physics mismatch alone", () => {
+  it("does not escalate from a withheld physics mismatch alone", () => {
     const r = buildCausalChain(makeClaimRecord(), makeStage6({ damageZones: [{ zone: "front", componentCount: 3, maxSeverity: "severe" }] }), makeStage7("rear"), makeStage8(15, "minimal"), makeStage9(), 80);
-    expect(["escalate", "reject_pending"]).toContain(r.decision_outcome);
+    expect(r.decision_outcome).not.toBe("escalate");
+    expect(r.decision_outcome).not.toBe("reject_pending");
   });
 });
 

@@ -39,8 +39,11 @@ import { runDamageAnalysisStage } from "./stage-6-damage-analysis";
 import { runUnifiedStage7 } from "./stage-7-unified";
 import {
   buildUnavailablePhysicsOutput,
-  resolveCalibratedCrushDepth,
 } from "./stage-7-physics";
+import {
+  assessCrushDepthEligibility,
+  hasGoverningCrushDepthEligibility,
+} from "../evidence-governance/quantitativeFieldGovernance";
 import { scoreClaimComplexity, type ComplexityScore } from "./claimComplexityScorer";
 import { runFraudAnalysisStage, recomputeFraudScore } from "./stage-8-fraud";
 import { aggregateConfidence, buildConfidenceAggregationInput } from "./confidenceAggregationEngine";
@@ -197,14 +200,26 @@ const COST_DECISION_ANOMALY_CONFIDENCE = 50;
 export function buildUnifiedStage7FailurePhysics(
   ctx: PipelineContext,
   claimRecord: ClaimRecord,
-  reason: string
+  reason: string,
+  stage6Data?: Stage6Output | null
 ): Stage7Output {
+  const crushDepthEligibility = assessCrushDepthEligibility({
+    vgeResult: ctx.vgeCalibrationResult,
+    vgrResult: ctx.vgeReconciliationResult,
+    rawStage6CrushDepthCandidatePresent: Boolean(
+      stage6Data?.damagedParts.some(
+        part =>
+          typeof part.crushDepthM === "number" &&
+          Number.isFinite(part.crushDepthM) &&
+          part.crushDepthM > 0
+      )
+    ),
+  });
   return buildUnavailablePhysicsOutput(
     ctx,
     claimRecord.accidentDetails.collisionDirection,
-    resolveCalibratedCrushDepth(ctx) == null
-      ? "insufficient_geometry"
-      : "engine_failure"
+    "insufficient_geometry",
+    crushDepthEligibility
   );
 }
 
@@ -215,6 +230,138 @@ export function buildUnifiedStage7FailurePhysics(
  */
 export function readReusableUnifiedStage7Cache<T>(_cached: T | undefined): undefined {
   return undefined;
+}
+
+/**
+ * Determines whether collision-physics causal outputs can be constructed or
+ * published. The stored Stage 7 decision is re-bound to the live Stage 6/VGE/VGR
+ * snapshot so a stale, omitted, or forged JSON decision fails closed.
+ */
+export function hasGoverningCollisionPhysicsForCausation(
+  physicsAnalysis: Stage7Output | null,
+  damageAnalysis: Stage6Output | null
+): boolean {
+  const rawStage6CrushDepthCandidatePresent = Boolean(
+    damageAnalysis?.damagedParts?.some(
+      part =>
+        typeof part.crushDepthM === "number" &&
+        Number.isFinite(part.crushDepthM) &&
+        part.crushDepthM > 0
+    )
+  );
+  return Boolean(
+    physicsAnalysis?.physicsExecuted === true &&
+    hasGoverningCrushDepthEligibility(
+      physicsAnalysis.quantitativeEvidence?.crushDepth,
+      {
+        vgeResult: physicsAnalysis.geometryEvidenceBlock ?? null,
+        vgrResult: physicsAnalysis.vgrReconciliation ?? null,
+        rawStage6CrushDepthCandidatePresent,
+      }
+    )
+  );
+}
+
+/**
+ * Final defense for causal publication. Stage 7b, Stage 37, Stage 10, forensic
+ * output, and the top-level result must all observe the same P0 no-go state.
+ */
+export function applyP0CausalPublicationGate(
+  physicsAnalysis: Stage7Output | null,
+  damageAnalysis: Stage6Output | null,
+  causalChain: CausalChainOutput | null,
+  causalVerdict: CausalVerdict | null
+): {
+  collisionPhysicsCausationAvailable: boolean;
+  causalChain: CausalChainOutput | null;
+  causalVerdict: CausalVerdict | null;
+} {
+  const collisionPhysicsCausationAvailable =
+    hasGoverningCollisionPhysicsForCausation(physicsAnalysis, damageAnalysis);
+  return {
+    collisionPhysicsCausationAvailable,
+    causalChain: collisionPhysicsCausationAvailable ? causalChain : null,
+    causalVerdict: collisionPhysicsCausationAvailable ? causalVerdict : null,
+  };
+}
+
+/** Applies the same causal no-go state to the embedded forensic projection. */
+export function projectForensicAnalysisUnderP0(
+  forensicAnalysis: Record<string, any> | null,
+  causalPublicationGate: ReturnType<typeof applyP0CausalPublicationGate>
+): Record<string, any> | null {
+  if (forensicAnalysis == null || causalPublicationGate.collisionPhysicsCausationAvailable) {
+    return forensicAnalysis;
+  }
+  return { ...forensicAnalysis, causalChain: null };
+}
+
+/**
+ * Executes Stage 7b Pass 2 only after its collision-physics inputs satisfy the
+ * same source-bound P0 gate as every other causal consumer. Kept exported so the
+ * real orchestration path, not a duplicate test-only predicate, can be tested.
+ */
+export async function runP0GatedCausalRerun(input: {
+  stage6Data: Stage6Output | null;
+  stage7Data: Stage7Output | null;
+  stage8Data: Stage8Output | null;
+  stage9Data: Stage9Output | null;
+  claimRecord: ClaimRecord | null;
+  skipStage7bPass2: boolean;
+  enrichedPhotosJson: string | null;
+  log: PipelineContext["log"];
+  executeCausalReasoning?: typeof runCausalReasoningEngine;
+}): Promise<CausalVerdict | null> {
+  const {
+    stage6Data,
+    stage7Data,
+    stage8Data,
+    stage9Data,
+    claimRecord,
+    skipStage7bPass2,
+    enrichedPhotosJson,
+    log,
+    executeCausalReasoning = runCausalReasoningEngine,
+  } = input;
+  if (!(claimRecord && stage8Data && stage9Data && !skipStage7bPass2)) return null;
+  if (!hasGoverningCollisionPhysicsForCausation(stage7Data, stage6Data)) {
+    log(
+      "Stage 7b (re-run)",
+      "Skipped — P0 has no governing crush-depth evidence, so collision-physics causation remains unavailable and requires review."
+    );
+    return null;
+  }
+
+  try {
+    const precomputedScores = {
+      damageConsistencyScore: stage8Data.damageConsistencyScore ?? null,
+      fraudRiskScore: stage8Data.fraudRiskScore ?? null,
+      fraudRiskLevel: stage8Data.fraudRiskLevel ?? null,
+      fraudIndicators: stage8Data.indicators?.map((i: any) => i.indicator ?? i.description ?? String(i)) ?? [],
+      quoteDeviationPct: stage9Data.quoteDeviationPct ?? null,
+      estimatedCostCents: stage9Data.expectedRepairCostCents ?? null,
+      currency: stage9Data.currency ?? null,
+    };
+    const updatedVerdict = await executeCausalReasoning(
+      claimRecord,
+      stage6Data,
+      stage7Data,
+      enrichedPhotosJson,
+      precomputedScores
+    );
+    log(
+      "Stage 7b (re-run)",
+      `Updated causal verdict with downstream scores: ` +
+      `plausibility=${updatedVerdict.plausibilityScore}% (${updatedVerdict.plausibilityBand}), ` +
+      `fraudFlag=${updatedVerdict.flagForFraud}, ` +
+      `fraudScore=${precomputedScores.fraudRiskScore ?? 'N/A'}, ` +
+      `quoteDeviation=${precomputedScores.quoteDeviationPct != null ? precomputedScores.quoteDeviationPct.toFixed(1) + '%' : 'N/A'}`
+    );
+    return updatedVerdict;
+  } catch (err) {
+    log("Stage 7b (re-run)", `Re-run with downstream scores failed (non-fatal): ${String(err)}`);
+    return null;
+  }
 }
 
 /**
@@ -1633,8 +1780,8 @@ export async function runPipelineV2(
       ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
       : `engine_failure: ${String(err)}`;
     ctx.log("Stage 7", `${isTimeout ? "TIMEOUT" : "ERROR"}: ${err.message} — invoking physics/causal engine fallbacks`);
-    const noQualifiedGeometry = resolveCalibratedCrushDepth(ctx) == null;
-    const physicsAnalysis = buildUnifiedStage7FailurePhysics(ctx, claimRecord!, reason);
+    const noQualifiedGeometry = true;
+    const physicsAnalysis = buildUnifiedStage7FailurePhysics(ctx, claimRecord!, reason, stage6Data);
     return {
       status: "degraded" as const,
       data: {
@@ -1651,8 +1798,8 @@ export async function runPipelineV2(
         field: "physicsAnalysis",
         assumedValue: noQualifiedGeometry ? "insufficient_calibrated_geometry" : "physics_engine_unavailable",
         reason: noQualifiedGeometry
-          ? `Stage 7 ${isTimeout ? "timed out" : "failed"}: ${reason}. No qualified calibrated geometry was available, so physics remains unavailable and requires review.`
-          : `Stage 7 ${isTimeout ? "timed out" : "failed"}: ${reason}. Qualified geometry was available, but the physics engine did not complete; no numerical fallback was produced and review or rerun is required.`,
+          ? `Stage 7 ${isTimeout ? "timed out" : "failed"}: ${reason}. P0 classifies current visual geometry as advisory pending P1, so physics remains unavailable and requires review.`
+          : `Stage 7 ${isTimeout ? "timed out" : "failed"}: ${reason}. No numerical fallback was produced and review or rerun is required.`,
         strategy: "skip" as const,
         confidence: 5,
         stage: "Stage 7",
@@ -1671,7 +1818,7 @@ export async function runPipelineV2(
   recordStage("7_unified", s7Unified);
   stage7Data = s7Unified.data?.physicsAnalysis ?? null;
   causalVerdict = s7Unified.data?.causalVerdict ?? null;
-  const directionContradictionFlag = s7Unified.data?.directionContradictionFlag ?? null;
+  let directionContradictionFlag = s7Unified.data?.directionContradictionFlag ?? null;
   // Partial resume: persist result for potential retry (fire-and-forget).
   // QUALITY GATE: only cache clean successful runs — never cache degraded/fallback output.
   if (ctx.runId && s7Unified.status === "success" && !s7Unified.degraded) {
@@ -2080,40 +2227,21 @@ export async function runPipelineV2(
 
   // Stage 7b re-run task
   const stage7bRerunTask = async (): Promise<CausalVerdict | null> => {
-    if (!(stage8Data && stage9Data && !complexityScore?.skipStage7bPass2)) return null;
-    try {
-      const enrichedPhotosJsonRerun: string | null = ctx.enrichedPhotosJson ?? null;
-      const precomputedScores = {
-        damageConsistencyScore: stage8Data.damageConsistencyScore ?? null,
-        fraudRiskScore: stage8Data.fraudRiskScore ?? null,
-        fraudRiskLevel: stage8Data.fraudRiskLevel ?? null,
-        fraudIndicators: stage8Data.indicators?.map((i: any) => i.indicator ?? i.description ?? String(i)) ?? [],
-        quoteDeviationPct: stage9Data.quoteDeviationPct ?? null,
-        estimatedCostCents: stage9Data.expectedRepairCostCents ?? null,
-        currency: stage9Data.currency ?? null,
-      };
-      const _causalT0 = Date.now();
-      const updatedVerdict = await runCausalReasoningEngine(
-        claimRecord!,
-        stage6Data,
-        stage7Data,
-        enrichedPhotosJsonRerun,
-        precomputedScores
-      );
-      try { (await import('../logger')).logger.timing('7b_causal_reasoning', Date.now() - _causalT0); } catch { /* non-fatal */ }
-      ctx.log(
-        "Stage 7b (re-run)",
-        `Updated causal verdict with downstream scores: ` +
-        `plausibility=${updatedVerdict.plausibilityScore}% (${updatedVerdict.plausibilityBand}), ` +
-        `fraudFlag=${updatedVerdict.flagForFraud}, ` +
-        `fraudScore=${precomputedScores.fraudRiskScore ?? 'N/A'}, ` +
-        `quoteDeviation=${precomputedScores.quoteDeviationPct != null ? precomputedScores.quoteDeviationPct.toFixed(1) + '%' : 'N/A'}`
-      );
-      return updatedVerdict;
-    } catch (err) {
-      ctx.log("Stage 7b (re-run)", `Re-run with downstream scores failed (non-fatal): ${String(err)}`);
-      return null;
+    const causalStart = Date.now();
+    const updatedVerdict = await runP0GatedCausalRerun({
+      stage6Data,
+      stage7Data,
+      stage8Data,
+      stage9Data,
+      claimRecord,
+      skipStage7bPass2: complexityScore?.skipStage7bPass2 ?? false,
+      enrichedPhotosJson: ctx.enrichedPhotosJson ?? null,
+      log: ctx.log,
+    });
+    if (updatedVerdict) {
+      try { (await import('../logger')).logger.timing('7b_causal_reasoning', Date.now() - causalStart); } catch { /* non-fatal */ }
     }
+    return updatedVerdict;
   };
 
   // Deterministic post-processing task (stages 36, 37, 38, 40, 41, 42, 9b)
@@ -2139,12 +2267,19 @@ export async function runPipelineV2(
 
     // Stage 37: Causal Chain Builder
     let localCausalChain: typeof causalChain = null;
-    try {
-      const preliminaryConfidence = claimRecord?.dataQuality?.completenessScore ?? 50;
-      localCausalChain = buildCausalChain(claimRecord, stage6Data, stage7Data, stage8Data, validatedStage9Data, preliminaryConfidence);
-      ctx.log("Stage 37", `Causal chain built: ${localCausalChain.step_count} steps, outcome=${localCausalChain.decision_outcome}, escalation=${localCausalChain.escalation_required}, critical=${localCausalChain.critical_step_count}`);
-    } catch (err) {
-      ctx.log("Stage 37", `Causal chain build failed (non-fatal): ${String(err)}`);
+    if (!hasGoverningCollisionPhysicsForCausation(stage7Data, stage6Data)) {
+      ctx.log(
+        "Stage 37",
+        "Skipped — P0 has no governing crush-depth evidence, so no causal chain is constructed or published."
+      );
+    } else {
+      try {
+        const preliminaryConfidence = claimRecord?.dataQuality?.completenessScore ?? 50;
+        localCausalChain = buildCausalChain(claimRecord, stage6Data, stage7Data, stage8Data, validatedStage9Data, preliminaryConfidence);
+        ctx.log("Stage 37", `Causal chain built: ${localCausalChain.step_count} steps, outcome=${localCausalChain.decision_outcome}, escalation=${localCausalChain.escalation_required}, critical=${localCausalChain.critical_step_count}`);
+      } catch (err) {
+        ctx.log("Stage 37", `Causal chain build failed (non-fatal): ${String(err)}`);
+      }
     }
 
     // Stage 38: Evidence Strength Scorer
@@ -2294,6 +2429,18 @@ export async function runPipelineV2(
   consensusResult = localConsensusResult;
   recordStage("9b_turnaround", localS9b);
   stage9bData = localS9b.data;
+
+  const causalPublicationGate = applyP0CausalPublicationGate(
+    stage7Data,
+    stage6Data,
+    causalChain,
+    causalVerdict
+  );
+  causalChain = causalPublicationGate.causalChain;
+  causalVerdict = causalPublicationGate.causalVerdict;
+  if (!causalPublicationGate.collisionPhysicsCausationAvailable) {
+    directionContradictionFlag = null;
+  }
 
   ctx.log("Pipeline", `Post-S8/S9 parallel block complete. causalVerdict updated=${!!updatedCausalVerdict}, stage9b=${localS9b.status}`);
 
@@ -2856,6 +3003,18 @@ export async function runPipelineV2(
     ctx.log("Stage12.5", `Report Readiness error (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  const finalCausalPublicationGate = applyP0CausalPublicationGate(
+    stage7Data,
+    stage6Data,
+    causalChain,
+    causalVerdict
+  );
+  causalChain = finalCausalPublicationGate.causalChain;
+  causalVerdict = finalCausalPublicationGate.causalVerdict;
+  if (!finalCausalPublicationGate.collisionPhysicsCausationAvailable) {
+    directionContradictionFlag = null;
+  }
+
   // ── STAGE 13: Forensic Analysis Summary ─────────────────────────────────
   // Builds a comprehensive forensic analysis object from all stage data.
   let forensicAnalysisResult: Record<string, any> | null = null;
@@ -2895,7 +3054,7 @@ export async function runPipelineV2(
       decisionAuthority: decisionAuthorityResult ?? null,
       reportReadiness: reportReadinessResult ?? null,
       // Causal chain
-      causalChain: causalChain ?? null,
+      causalChain: finalCausalPublicationGate.causalChain,
       // Evidence
       evidenceBundle: evidenceBundle ?? null,
       // Consistency
@@ -3087,6 +3246,7 @@ export async function runPipelineV2(
         powertrainType: (veh as any)?.powertrain ?? null,
         bodyOnFrame: (veh as any)?.bodyOnFrame ?? null,
       },
+      crushDepthEligibility: stage7Data?.quantitativeEvidence?.crushDepth,
       vgeResult: ctx.vgeCalibrationResult ?? null,
       vgrResult: ctx.vgeReconciliationResult ?? null,
       stage6Components: (stage6Data?.damagedParts ?? (stage6Data as any)?.damagedComponents ?? []).map((c: any) => ({
@@ -3100,7 +3260,12 @@ export async function runPipelineV2(
         damageFractionEstimate: c.damageFractionEstimate ?? null,
         isStructural: c.isStructural ?? false,
       })),
-      stage6LlmCrushDepthM: (stage7Data as any)?.maxCrushDepthM ?? null,
+      stage6RawCrushDepthCandidatePresent: (stage6Data?.damagedParts ?? (stage6Data as any)?.damagedComponents ?? []).some(
+        (component: any) =>
+          typeof component.crushDepthM === 'number' &&
+          Number.isFinite(component.crushDepthM) &&
+          component.crushDepthM > 0
+      ),
       speedEnsemble: stage7Data?.speedInferenceEnsemble ?? null,
       deltaVKmh: stage7Data?.deltaVKmh ?? null,
       claimedSpeedKmh: claimRecord?.accidentDetails?.estimatedSpeedKmh ?? null,
@@ -3192,7 +3357,7 @@ export async function runPipelineV2(
     stage10iData
   );
 }
-function buildResult(
+export function buildResult(
   stages: Record<string, PipelineStageSummary>,
   pipelineStart: number,
   claimId: number,
@@ -3238,6 +3403,16 @@ function buildResult(
   interpretedClaim: InterpretedClaim | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
+  const causalPublicationGate = applyP0CausalPublicationGate(
+    physicsAnalysis,
+    damageAnalysis,
+    causalChain,
+    causalVerdict
+  );
+  const safeForensicAnalysis = projectForensicAnalysisUnderP0(
+    forensicAnalysis,
+    causalPublicationGate
+  );
 
   // ── System Intervention Tracker ───────────────────────────────────────────
   // Records every deterministic correction applied by the pipeline so auditors
@@ -3318,19 +3493,19 @@ function buildResult(
     costAnalysis,
     turnaroundAnalysis,
     stage4Output,
-    causalChain,
+    causalChain: causalPublicationGate.causalChain,
     evidenceBundle,
     realismBundle,
     benchmarkBundle,
     consensusResult,
-    causalVerdict,
+    causalVerdict: causalPublicationGate.causalVerdict,
     evidenceRegistry,
     validatedOutcome,
     caseSignature,
     stage2RawOcrText,
     decisionAuthority,
     reportReadiness,
-    forensicAnalysis,
+    forensicAnalysis: safeForensicAnalysis,
     // Image analysis monitoring — enriched photo metadata from Stage 6 vision analysis
     // Passed to db.ts so it can compute imageAnalysisSuccessCount/FailedCount/SuccessRate.
     enrichedPhotosJson,
@@ -3349,7 +3524,9 @@ function buildResult(
     claimTruth: claimTruthResult,
     claimTruthObject: claimTruthObject,
     physicsTruth,
-        directionContradictionFlag,
+    directionContradictionFlag: causalPublicationGate.collisionPhysicsCausationAvailable
+      ? directionContradictionFlag
+      : null,
     crossValidationResult,
     interpretedClaim,
   };

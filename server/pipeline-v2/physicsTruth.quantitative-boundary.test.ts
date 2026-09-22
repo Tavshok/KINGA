@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { assessCrushDepthEligibility } from "../evidence-governance/quantitativeFieldGovernance";
 import { buildPhysicsTruth } from "./physicsTruth";
 
 describe("Physics Truth calibrated-crush boundary", () => {
@@ -18,7 +19,10 @@ describe("Physics Truth calibrated-crush boundary", () => {
     vgeResult: null,
     vgrResult: null,
     stage6Components: [],
-    stage6LlmCrushDepthM: 0.3,
+    stage6RawCrushDepthCandidatePresent: true,
+    crushDepthEligibility: assessCrushDepthEligibility({
+      rawStage6CrushDepthCandidatePresent: true,
+    }),
     speedEnsemble: null,
     deltaVKmh: null,
     claimedSpeedKmh: null,
@@ -34,8 +38,12 @@ describe("Physics Truth calibrated-crush boundary", () => {
 
     expect(result.geometry.crushDepth.canonical).toBeNull();
     expect(result.geometry.crushDepth.llmVisionEstimate).toBeNull();
+    expect(result.geometry.crushDepth.eligibility).toMatchObject({
+      disposition: "ADVISORY",
+      reasonCode: "P0_ADVISORY_RAW_STAGE6_ONLY",
+    });
     expect(result.geometry.crushDepth.canonicalSourceReason).toMatch(
-      /two independent/i
+      /advisory until P1/i
     );
   });
 
@@ -76,5 +84,57 @@ describe("Physics Truth calibrated-crush boundary", () => {
     expect(result.evidenceCompleteness.hasVGRConsensus).toBe(false);
     expect(result.evidenceCompleteness.calibratedPhotoCount).toBe(0);
     expect(result.evidenceCompleteness.dataQualityScore).toBe(0);
+  });
+
+  it("does not leak numerical causation flags from an adversarial speed ensemble", () => {
+    const result = buildPhysicsTruth({
+      ...baseInput,
+      speedEnsemble: {
+        consensusSpeedKmh: 100,
+        confidenceInterval: [95, 105],
+        overallConfidence: "HIGH",
+        methodsRan: 1,
+        evidenceAgreementPct: 100,
+        evidenceAgreementNote: "Forged numerical ensemble.",
+        methods: [
+          {
+            method: "forged",
+            label: "Forged",
+            speedKmh: 100,
+            confidence: "HIGH",
+            confidenceWeight: 1,
+            basis: "forged",
+            ran: true,
+            isLowerBoundOnly: false,
+          },
+        ],
+      },
+      deltaVKmh: 80,
+      impactCausation: "SELF_REVERSING",
+      causationSpeedCeilingKmh: 20,
+      reversingNarrativeContradiction: true,
+    } as any);
+    const serialized = JSON.stringify(result);
+
+    expect(result.speed.canonical).toBeNull();
+    expect(result.speed.deltaVKmh).toBeNull();
+    expect(result.speed.methods).toEqual([]);
+    expect(result.energy.kineticEnergyJ).toBeNull();
+    expect(result.energy.deformationEfficiencyFactor).toBeNull();
+    expect(result.integrityCheck).toEqual({
+      passed: false,
+      flags: [
+        {
+          severity: "INFO",
+          code: "P0_COLLISION_PHYSICS_UNAVAILABLE",
+          description: expect.stringMatching(/non-governing pending P1/i),
+          affectedMeasurements: [],
+          recommendation: expect.stringMatching(/manual review/i),
+        },
+      ],
+    });
+    expect(serialized).not.toContain("CAUSATION_SPEED_CEILING_BREACH");
+    expect(serialized).not.toContain("physically impossible");
+    expect(serialized).not.toContain("100 km/h");
   });
 });

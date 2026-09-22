@@ -170,7 +170,7 @@ describe("Stage 7 quantitative geometry gate", () => {
     expect(result.data.estimatedSpeedKmh).toBeNull();
   });
 
-  it("admits a MEDIUM/HIGH VGR calibrated crush measurement to deterministic collision physics", async () => {
+  it("retains even qualified visual geometry as advisory pending P1 qualification", async () => {
     const log = vi.fn();
     const ctx = {
       log,
@@ -236,17 +236,23 @@ describe("Stage 7 quantitative geometry gate", () => {
 
     const result = await runPhysicsStage(ctx, claimRecord, damageAnalysis);
 
-    expect(result.data.physicsStatus).not.toBe("SKIPPED_INSUFFICIENT_GEOMETRY");
-    expect(result.data.physicsExecuted).toBe(true);
-    expect(result.data.impactForceKn).toBeGreaterThan(0);
-    expect(result.data.estimatedSpeedKmh).toBeGreaterThan(0);
+    expect(result.data.physicsStatus).toBe("SKIPPED_INSUFFICIENT_GEOMETRY");
+    expect(result.data.physicsExecuted).toBe(false);
+    expect(result.data.impactForceKn).toBeNull();
+    expect(result.data.estimatedSpeedKmh).toBeNull();
+    expect(result.data.quantitativeEvidence?.crushDepth.governing).toBeNull();
+    expect(result.data.quantitativeEvidence?.crushDepth.reasonCode).toBe(
+      "P0_ADVISORY_LLM_MEDIATED_VISUAL_GEOMETRY"
+    );
     expect(log).toHaveBeenCalledWith(
       "Stage 7",
-      expect.stringContaining("qualified calibrated crush depth: 230 mm")
+      expect.stringContaining(
+        "P0 classifies current VGE/VGR visual geometry as advisory"
+      )
     );
   });
 
-  it("keeps governing physics null when the internal calibrated engine throws", async () => {
+  it("does not invoke collision physics for visual geometry pending P1", async () => {
     mockAnalyzeAccidentPhysics.mockRejectedValueOnce(
       new Error("simulated physics failure")
     );
@@ -292,8 +298,8 @@ describe("Stage 7 quantitative geometry gate", () => {
       } as any
     );
 
-    expect(result.status).toBe("degraded");
-    expect(result.data.physicsStatus).toBe("SKIPPED_ENGINE_FAILURE");
+    expect(result.status).toBe("skipped");
+    expect(result.data.physicsStatus).toBe("SKIPPED_INSUFFICIENT_GEOMETRY");
     expect(result.data.physicsExecuted).toBe(false);
     expect(result.data.impactForceKn).toBeNull();
     expect(result.data.impactVector.magnitude).toBeNull();
@@ -304,10 +310,44 @@ describe("Stage 7 quantitative geometry gate", () => {
     expect(result.data.decelerationG).toBeNull();
     expect(result.data.accidentSeverity).toBe("none");
     expect(result.data.accidentReconstructionSummary).toMatch(
-      /no numerical fallback/i
+      /advisory pending P1/i
     );
-    expect(result.recoveryActions).toEqual(
-      expect.arrayContaining([expect.objectContaining({ strategy: "skip" })])
+    expect(result.recoveryActions).toEqual([]);
+  });
+
+  it("does not let animal-strike estimation bypass the P0 no-go boundary", async () => {
+    const result = await runPhysicsStage(
+      {
+        log: vi.fn(),
+        vgeCalibrationResult: null,
+        vgeReconciliationResult: null,
+      } as any,
+      {
+        vehicle: {
+          massKg: 1500,
+          make: "Test",
+          model: "Vehicle",
+          bodyType: "sedan",
+        },
+        accidentDetails: {
+          incidentType: "animal_strike",
+          collisionDirection: "frontal",
+          estimatedSpeedKmh: 75,
+          description: "Collision with a cow",
+        },
+        damage: { imageUrls: [], components: [] },
+      } as any,
+      { damagedParts: [], damageZones: [], overallSeverityScore: 95 } as any
     );
+
+    expect(result.status).toBe("skipped");
+    expect(result.data.physicsStatus).toBe("SKIPPED_INSUFFICIENT_GEOMETRY");
+    expect(result.data.physicsExecuted).toBe(false);
+    expect(result.data.impactForceKn).toBeNull();
+    expect(result.data.energyDistribution.kineticEnergyJ).toBeNull();
+    expect(result.data.estimatedSpeedKmh).toBeNull();
+    expect(result.data.deltaVKmh).toBeNull();
+    expect(result.data.decelerationG).toBeNull();
+    expect(result.data.animalStrikePhysics).toBeUndefined();
   });
 });

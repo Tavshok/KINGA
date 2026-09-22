@@ -944,6 +944,10 @@ export interface Stage7Input {
 }
 
 export interface Stage7Output {
+  /** P0 field-level eligibility and provenance for collision crush depth. */
+  quantitativeEvidence?: {
+    crushDepth: import('../evidence-governance/quantitativeFieldGovernance').QuantitativeFieldDecision;
+  };
   /**
    * Physics fields are nullable when physics was skipped (physicsStatus !== 'EXECUTED').
    * Consumers must check physicsStatus or physicsExecuted before using these values.

@@ -11,8 +11,10 @@
 
 import { ensurePhysicsContract } from "./engineFallback";
 import { WRITE_OFF_RECOMMENDATION_THRESHOLD } from "./pipelineCostConstants";
-import { isQualifiedVgeCalibratedGeometry } from "./stage-6-5a-vge";
-import { isQualifiedVgrCalibratedGeometry } from "./stage-6-5b-vgr";
+import {
+  assessCrushDepthEligibility,
+  type QuantitativeFieldDecision,
+} from "../evidence-governance/quantitativeFieldGovernance";
 import {
   validateDamagePattern,
   type DamagePatternOutput,
@@ -36,16 +38,7 @@ import type {
  * physics input without stored-dimension photogrammetric calibration.
  */
 export function resolveCalibratedCrushDepth(ctx: PipelineContext): number | null {
-  const vgr = ctx.vgeReconciliationResult;
-  if (isQualifiedVgrCalibratedGeometry(vgr)) {
-    return vgr.consensusCrushDepthM;
-  }
-
-  const vge = ctx.vgeCalibrationResult;
-  if (isQualifiedVgeCalibratedGeometry(vge)) {
-    return vge.calibratedCrushDepthM;
-  }
-
+  // P0 records VGE/VGR as advisory visual geometry pending P1 qualification.
   return null;
 }
 
@@ -58,10 +51,15 @@ export type PhysicsUnavailableReason = "insufficient_geometry" | "engine_failure
 export function buildUnavailablePhysicsOutput(
   ctx: Pick<PipelineContext, "vgeCalibrationResult" | "vgeReconciliationResult">,
   collisionDirection: ClaimRecord["accidentDetails"]["collisionDirection"],
-  reason: PhysicsUnavailableReason
+  reason: PhysicsUnavailableReason,
+  crushDepth: QuantitativeFieldDecision = assessCrushDepthEligibility({
+    vgeResult: ctx.vgeCalibrationResult,
+    vgrResult: ctx.vgeReconciliationResult,
+  })
 ): Stage7Output {
   const insufficientGeometry = reason === "insufficient_geometry";
   return {
+    quantitativeEvidence: { crushDepth },
     impactForceKn: null,
     impactVector: { direction: collisionDirection, magnitude: null, angle: 0 },
     energyDistribution: {
@@ -74,7 +72,7 @@ export function buildUnavailablePhysicsOutput(
     decelerationG: null,
     accidentSeverity: "none",
     accidentReconstructionSummary: insufficientGeometry
-      ? "Quantitative collision physics was not run because no MEDIUM/HIGH-confidence VGE/VGR calibrated crush measurement is available. Provide at least two independent, undamaged stored-dimension references in a suitable vehicle image; raw visual estimates remain advisory only."
+      ? "Quantitative collision physics was not run because P0 classifies all current visual crush geometry as advisory pending P1 qualification. Raw visual estimates remain descriptive evidence only."
       : "Quantitative collision physics did not complete after a pipeline failure. No numerical fallback was produced; the claim requires review or a rerun using the qualified calibrated geometry.",
     damageConsistencyScore: 0,
     latentDamageProbability: {
@@ -97,9 +95,16 @@ export function buildUnavailablePhysicsOutput(
 /** A review-required collision result when no calibrated VGE/VGR crush is admissible. */
 export function buildInsufficientGeometryPhysicsOutput(
   ctx: Pick<PipelineContext, "vgeCalibrationResult" | "vgeReconciliationResult">,
-  collisionDirection: ClaimRecord["accidentDetails"]["collisionDirection"]
+  collisionDirection: ClaimRecord["accidentDetails"]["collisionDirection"],
+  crushDepth?: QuantitativeFieldDecision
 ): Stage7Output {
-  return buildUnavailablePhysicsOutput(ctx, collisionDirection, "insufficient_geometry");
+  return buildUnavailablePhysicsOutput(ctx, collisionDirection, "insufficient_geometry", crushDepth);
+}
+
+function hasRawStage6CrushDepthCandidate(damageAnalysis: Stage6Output): boolean {
+  return damageAnalysis.damagedParts.some(
+    part => typeof part.crushDepthM === "number" && Number.isFinite(part.crushDepthM) && part.crushDepthM > 0
+  );
 }
 
 function buildPhysicsInput(
@@ -318,90 +323,41 @@ export async function runPhysicsStage(
     ctx.log("Stage 7", `Speed from claim form: ${extractedSpeed} km/h — using as primary speed input`);
   }
 
+  const crushDepthEligibility = assessCrushDepthEligibility({
+    vgeResult: ctx.vgeCalibrationResult,
+    vgrResult: ctx.vgeReconciliationResult,
+    rawStage6CrushDepthCandidatePresent: hasRawStage6CrushDepthCandidate(damageAnalysis),
+  });
+
   // ── ANIMAL STRIKE ROUTING ──────────────────────────────────────────────────
-  // When incident type is confirmed as animal_strike, use the dedicated
-  // Animal Strike Physics Engine instead of the vehicle-collision model.
+  // Animal-strike numerical estimation has no active P0 governing measurement
+  // adapter, so it must not bypass collision-physics eligibility.
   if (isAnimalStrike) {
-    ctx.log("Stage 7", "Animal strike detected — routing to Animal Strike Physics Engine");
-    try {
-      const { runAnimalStrikePhysics } = await import("./animalStrikePhysicsEngine");
-      // SAFEGUARD: Use extracted speed from claim form, not a hardcoded default
-      const speedKmh = extractedSpeed && extractedSpeed > 0 ? extractedSpeed : 60;
-      const damageComponents = damageAnalysis.damagedParts.map(p => p.name);
-      const hasBullbar: "true" | "false" | "unknown" = "unknown";
-
-      // Infer animal category from narrative
-      const narrative = (claimRecord.accidentDetails.description || "").toLowerCase();
-      let animalCategory: import('./animalStrikePhysicsEngine').AnimalCategory = "unknown";
-      if (narrative.includes("cow") || narrative.includes("cattle") || narrative.includes("bull")) animalCategory = "cattle";
-      else if (narrative.includes("horse")) animalCategory = "horse";
-      else if (narrative.includes("donkey")) animalCategory = "donkey";
-      else if (narrative.includes("goat")) animalCategory = "goat";
-      else if (narrative.includes("sheep")) animalCategory = "sheep";
-      else if (narrative.includes("pig")) animalCategory = "pig";
-      else if (narrative.includes("dog")) animalCategory = "dog";
-
-      const animalResult = runAnimalStrikePhysics({
-        speed_kmh: speedKmh,
-        vehicle_type: claimRecord.vehicle.bodyType,
-        damage_components: damageComponents,
-        presence_of_bullbar: hasBullbar as any,
-        animal_category: animalCategory,
-        airbags_deployed: claimRecord.accidentDetails.airbagDeployment === true,
-        seatbelts_triggered: false,
-      });
-
-      // Map animal strike output to Stage7Output format
-      const animalOutput: Stage7Output = {
-        impactForceKn: animalResult.impact_force_kn,
-        impactVector: {
-          direction: claimRecord.accidentDetails.collisionDirection,
-          magnitude: animalResult.impact_force_kn * 1000,
-          angle: 0,
-        },
-        energyDistribution: {
-          kineticEnergyJ: animalResult.energy_absorbed_kj * 1000,
-          energyDissipatedJ: animalResult.energy_absorbed_kj * 1000,
-          energyDissipatedKj: animalResult.energy_absorbed_kj,
-        },
-        estimatedSpeedKmh: speedKmh,
-        deltaVKmh: animalResult.delta_v_kmh,
-        decelerationG: animalResult.peak_deceleration_g,
-        accidentSeverity: animalResult.impact_severity as any,
-        accidentReconstructionSummary: animalResult.reasoning,
-        damageConsistencyScore: animalResult.plausibility_score,
-        latentDamageProbability: {
-          engine: animalResult.impact_severity === "catastrophic" ? 0.4 : animalResult.impact_severity === "severe" ? 0.25 : 0.1,
-          transmission: 0.05,
-          suspension: animalResult.impact_severity === "catastrophic" ? 0.3 : 0.1,
-          frame: animalResult.impact_severity === "catastrophic" ? 0.35 : animalResult.impact_severity === "severe" ? 0.15 : 0.05,
-          electrical: 0.1,
-        },
-        physicsExecuted: true,
-        physicsStatus: "EXECUTED" as const,
-        animalStrikePhysics: animalResult,
-      };
-
-      ctx.log("Stage 7", `Animal strike physics complete. Severity: ${animalResult.impact_severity}, Delta-V: ${animalResult.delta_v_kmh.toFixed(1)} km/h, Force: ${animalResult.impact_force_kn.toFixed(1)} kN, Plausibility: ${animalResult.plausibility_score}`);
-
-      // Run damage pattern validation for animal strike
-      const animalPatternValidation = runDamagePatternValidation(ctx, claimRecord, damageAnalysis);
-      animalOutput.damagePatternValidation = animalPatternValidation;
-
-      return {
-        status: "success",
-        data: animalOutput,
-        durationMs: Date.now() - start,
-        savedToDb: false,
-        assumptions: [],
-        recoveryActions: [],
-        degraded: false,
-      };
-    } catch (err) {
-      ctx.log("Stage 7", `Animal strike physics engine failed: ${String(err)} — falling through to vehicle collision engine`);
-      // Fall through to standard collision physics as a safety net
-    }
+    const unavailableOutput = buildInsufficientGeometryPhysicsOutput(
+      ctx,
+      claimRecord.accidentDetails.collisionDirection,
+      crushDepthEligibility
+    );
+    unavailableOutput.damagePatternValidation = runDamagePatternValidation(
+      ctx,
+      claimRecord,
+      damageAnalysis
+    );
+    ctx.log(
+      "Stage 7",
+      "Animal-strike numerical physics skipped: P0 has no governing quantitative measurement adapter for this route."
+    );
+    return {
+      status: "skipped",
+      data: unavailableOutput,
+      durationMs: Date.now() - start,
+      savedToDb: false,
+      assumptions,
+      recoveryActions,
+      degraded: false,
+    };
   }
+
 
   if (!isPhysicalDamage && !isAnimalStrike) {
     ctx.log("Stage 7", `Physics engine SKIPPED — incident type is "${incidentType}" (non-physical damage event)`);
@@ -445,7 +401,8 @@ export async function runPhysicsStage(
   if (calibratedCrushDepthM == null) {
     const unavailableOutput = buildInsufficientGeometryPhysicsOutput(
       ctx,
-      claimRecord.accidentDetails.collisionDirection
+      claimRecord.accidentDetails.collisionDirection,
+      crushDepthEligibility
     );
     unavailableOutput.damagePatternValidation = runDamagePatternValidation(
       ctx,
@@ -454,7 +411,7 @@ export async function runPhysicsStage(
     );
     ctx.log(
       "Stage 7",
-      "Quantitative physics skipped: VGE/VGR calibrated geometry is unavailable or below MEDIUM confidence; raw Stage 6 crush values were not admitted."
+      "Quantitative physics skipped: P0 classifies current VGE/VGR visual geometry as advisory pending P1; raw Stage 6 crush values were not admitted."
     );
     return {
       status: "skipped",
