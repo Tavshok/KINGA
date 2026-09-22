@@ -38,6 +38,7 @@ import { buildDataResponsibilityMatrix } from "./dataResponsibilityMatrix";
 import { buildDecisionTransparencyLayer } from "./decisionTransparencyLayer";
 import { runCrossStageConsistencyCheck } from "./crossStageConsistencyEngine";
 import { scoreClaimQuality } from "./claimQualityScorer";
+import { preserveOrFailClosedCrushDepthDecision } from "../evidence-governance/quantitativeFieldGovernance";
 
 function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
   return {
@@ -113,7 +114,11 @@ function buildDamageSection(damageAnalysis: Stage6Output | null, claimRecord: Cl
   };
 }
 
-export function buildPhysicsSection(physicsAnalysis: Stage7Output | null, ctx?: PipelineContext): ReportSection {
+export function buildPhysicsSection(
+  physicsAnalysis: Stage7Output | null,
+  ctx?: PipelineContext,
+  damageAnalysis: Stage6Output | null = null
+): ReportSection {
   if (!physicsAnalysis) {
     return {
       title: "Physics Reconstruction",
@@ -121,11 +126,26 @@ export function buildPhysicsSection(physicsAnalysis: Stage7Output | null, ctx?: 
     };
   }
 
+  const rawStage6CrushDepthCandidatePresent = (damageAnalysis?.damagedParts ?? []).some(
+    part =>
+      typeof part.crushDepthM === "number" &&
+      Number.isFinite(part.crushDepthM) &&
+      part.crushDepthM > 0
+  );
+  const crushDepthEligibility = preserveOrFailClosedCrushDepthDecision(
+    physicsAnalysis.quantitativeEvidence?.crushDepth,
+    {
+      vgeResult: ctx?.vgeCalibrationResult,
+      vgrResult: ctx?.vgeReconciliationResult,
+      rawStage6CrushDepthCandidatePresent,
+    }
+  );
+
   if (!physicsAnalysis.physicsExecuted) {
     const unavailablePhysics = physicsAnalysis.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY' || physicsAnalysis.physicsStatus === 'SKIPPED_ENGINE_FAILURE';
     const geometryUnavailable = physicsAnalysis.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY';
     const note = geometryUnavailable
-      ? 'Collision physics requires review because no qualifying VGE/VGR calibrated geometry was available. Raw visual estimates were retained as descriptive evidence only and were not used for force, energy, or speed calculations.'
+      ? 'Collision physics requires review because P0 classifies current visual geometry as advisory pending P1 qualification. Raw visual estimates were retained as descriptive evidence only and were not used for force, energy, or speed calculations.'
       : physicsAnalysis.physicsStatus === 'SKIPPED_ENGINE_FAILURE'
         ? 'Collision physics requires review because the engine did not complete. No numerical fallback was produced; rerun the analysis using the qualified calibrated geometry.'
         : 'Physics analysis was not applicable for this incident type.';
@@ -135,7 +155,21 @@ export function buildPhysicsSection(physicsAnalysis: Stage7Output | null, ctx?: 
         available: !unavailablePhysics,
         executed: false,
         reviewRequired: unavailablePhysics,
+        quantitativeEvidence: { crushDepth: crushDepthEligibility },
         note,
+      },
+    };
+  }
+
+  if (!crushDepthEligibility.governing) {
+    return {
+      title: "Physics Reconstruction",
+      content: {
+        available: false,
+        executed: false,
+        reviewRequired: true,
+        quantitativeEvidence: { crushDepth: crushDepthEligibility },
+        note: 'Collision physics requires review because P0 classifies current visual geometry as advisory pending P1 qualification. No force, energy, or speed result is reportable.',
       },
     };
   }
@@ -530,7 +564,7 @@ export async function runReportGenerationStage(
     // Build each section — null-safe, always produces output
     const claimSummary = buildClaimSummary(claimRecord);
     const damageSection = buildDamageSection(damageAnalysis, claimRecord);
-    const physicsSection = buildPhysicsSection(physicsAnalysis, ctx);
+    const physicsSection = buildPhysicsSection(physicsAnalysis, ctx, damageAnalysis);
     const costSection = buildCostSection(costAnalysis, claimRecord);
     const fraudSection = buildFraudSection(fraudAnalysis);
     const turnaroundSection = buildTurnaroundSection(turnaroundAnalysis);
@@ -539,9 +573,16 @@ export async function runReportGenerationStage(
     const damageNarrative = damageAnalysis
       ? buildDamageNarrative(damageAnalysis, claimRecord.damage.imageUrls ?? [], claimRecord.damage.description)
       : null;
-    const physicsNarrative = physicsAnalysis
-      ? buildPhysicsNarrative(physicsAnalysis)
-      : null;
+    const physicsNarrativeAllowed =
+      physicsAnalysis &&
+      (physicsSection.content as { available?: boolean; executed?: boolean })
+        .available === true &&
+      (physicsSection.content as { available?: boolean; executed?: boolean })
+        .executed === true;
+    const physicsNarrative =
+      physicsNarrativeAllowed
+        ? buildPhysicsNarrative(physicsAnalysis)
+        : null;
     const fraudNarrative = fraudAnalysis
       ? buildFraudNarrative(fraudAnalysis)
       : null;
@@ -664,7 +705,7 @@ export async function runReportGenerationStage(
         },
         turnaroundTimeEstimate: turnaroundSection.content,
         supportingImages: imageSection.content,
-        ...(causalChain ? {
+        ...(causalChain && physicsNarrativeAllowed ? {
           decisionReport: {
             causal_chain: causalChain.causal_chain,
             chain_summary: causalChain.chain_summary,

@@ -31,7 +31,10 @@ describe("Stage 10 calibrated-geometry physics status", () => {
     },
   } as any;
 
-  async function runFullReportWithPhysics(physicsAnalysis: any) {
+  async function runFullReportWithPhysics(
+    physicsAnalysis: any,
+    causalChain?: any
+  ) {
     const log = vi.fn();
     const result = await runReportGenerationStage(
       {
@@ -79,7 +82,8 @@ describe("Stage 10 calibrated-geometry physics status", () => {
       null,
       null,
       null,
-      []
+      [],
+      causalChain
     );
     return { log, result };
   }
@@ -93,6 +97,36 @@ describe("Stage 10 calibrated-geometry physics status", () => {
       reviewRequired: true,
     });
     expect((section.content as any).note).toMatch(/requires review/i);
+  });
+
+  it("rejects a false-unavailable P0 decision when Stage 6 still has raw crush evidence", () => {
+    const section = buildPhysicsSection(
+      {
+        ...insufficientGeometryPhysics,
+        quantitativeEvidence: {
+          crushDepth: {
+            contractVersion: "P0-1.0",
+            field: "crush_depth_m",
+            disposition: "UNAVAILABLE",
+            governing: null,
+            advisoryEvidence: [],
+            reasonCode: "P0_UNAVAILABLE_NO_CANDIDATE",
+            explanation: "No crush-depth candidate is available.",
+          },
+        },
+      } as any,
+      undefined,
+      {
+        damagedParts: [{ crushDepthM: 0.45 }],
+      } as any
+    );
+
+    expect(
+      (section.content as any).quantitativeEvidence.crushDepth
+    ).toMatchObject({
+      disposition: "UNAVAILABLE",
+      reasonCode: "P0_UNAVAILABLE_INCONSISTENT_PRESERVED_DECISION",
+    });
   });
 
   it("returns a degraded full report when collision physics is geometry-gated", async () => {
@@ -187,5 +221,33 @@ describe("Stage 10 calibrated-geometry physics status", () => {
         expect.stringMatching(/physics engine did not complete/i),
       ])
     );
+  });
+
+  it("does not publish a causal physics narrative when P0 blocks numerical physics", async () => {
+    const { result } = await runFullReportWithPhysics(
+      insufficientGeometryPhysics,
+      {
+        causal_chain: [
+          {
+            stage: "physics",
+            finding: "Forged delta-V was 88 km/h.",
+          },
+        ],
+        chain_summary: "Forged numerical physics narrative.",
+        decision_outcome: "approve",
+        escalation_required: false,
+        step_count: 1,
+        critical_step_count: 0,
+        warning_step_count: 0,
+      }
+    );
+
+    expect(
+      result.data.fullReport.sections.physicsReconstruction
+    ).not.toHaveProperty("narrative");
+    expect(result.data.fullReport.sections).not.toHaveProperty(
+      "decisionReport"
+    );
+    expect(JSON.stringify(result.data.fullReport)).not.toContain("88 km/h");
   });
 });

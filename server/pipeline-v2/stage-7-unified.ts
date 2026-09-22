@@ -46,6 +46,7 @@ import type { NarrativeAnalysis } from "./incidentNarrativeEngine";
 import type { DamagePatternOutput } from "./damagePatternValidationEngine";
 import type { AnimalStrikePhysicsOutput } from "./animalStrikePhysicsEngine";
 import type { SeverityConsensusOutput } from "./severityConsensusEngine";
+import { hasGoverningCrushDepthEligibility } from "../evidence-governance/quantitativeFieldGovernance";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Output type — carries all three merged outputs
@@ -53,7 +54,8 @@ import type { SeverityConsensusOutput } from "./severityConsensusEngine";
 
 export interface UnifiedStage7Output {
   physicsAnalysis: Stage7Output;
-  causalVerdict: CausalVerdict;
+  /** Null when P0 prevents collision-physics evidence from supporting causation. */
+  causalVerdict: CausalVerdict | null;
   narrativeAnalysis: NarrativeAnalysis;
   directionContradictionFlag: {
     narrativeDirection: string | null;
@@ -132,6 +134,21 @@ export async function runUnifiedStage7(
   // LLM calls to complete before it could start).
   const enrichedPhotosJson: string | null = ctx.enrichedPhotosJson ?? null;
   const rawDescription = claimRecord.accidentDetails?.description ?? "";
+  const collisionPhysicsGoverned = hasGoverningCrushDepthEligibility(
+    physicsAnalysis.quantitativeEvidence?.crushDepth,
+    {
+      vgeResult: ctx.vgeCalibrationResult,
+      vgrResult: ctx.vgeReconciliationResult,
+      rawStage6CrushDepthCandidatePresent: Boolean(
+        damageAnalysis.damagedParts?.some(
+          part =>
+            typeof part.crushDepthM === "number" &&
+            Number.isFinite(part.crushDepthM) &&
+            part.crushDepthM > 0
+        )
+      ),
+    }
+  );
 
   // ── STRUCTURAL INTELLIGENCE CONTEXT ──────────────────────────────────────
   // Build a concise structural context string for the narrative LLM.
@@ -183,7 +200,14 @@ export async function runUnifiedStage7(
     ctx.log("Stage 7 (StructuralIntel)", `Structural context build failed (non-fatal): ${String(err)}`);
   }
 
-  const causalReasoningTask = async (): Promise<CausalVerdict> => {
+  const causalReasoningTask = async (): Promise<CausalVerdict | null> => {
+    if (!collisionPhysicsGoverned) {
+      ctx.log(
+        "Stage 7b (CausalReasoning)",
+        "Skipped — P0 has no governing crush-depth evidence, so collision-physics causation is unavailable and requires review."
+      );
+      return null;
+    }
     try {
       const verdict = await runCausalReasoningEngine(
         claimRecord,
@@ -266,8 +290,14 @@ export async function runUnifiedStage7(
     }
   };
 
-  // Fire Stage 7b and Stage 7e concurrently
-  ctx.log("Stage 7 (Unified)", "Firing causal reasoning (7b) and narrative analysis (7e) in parallel");
+  // Fire only P0-eligible causal reasoning with the narrative analysis. Narrative
+  // interpretation remains descriptive and does not reintroduce physics claims.
+  ctx.log(
+    "Stage 7 (Unified)",
+    collisionPhysicsGoverned
+      ? "Firing causal reasoning (7b) and narrative analysis (7e) in parallel"
+      : "Firing narrative analysis (7e); P0 suppresses causal reasoning (7b)"
+  );
   const [causalVerdict, narrativeAnalysis] = await Promise.all([
     causalReasoningTask(),
     narrativeTask(),
@@ -289,7 +319,7 @@ export async function runUnifiedStage7(
     const physicsDir: string | null =
       (physicsResult as any)?.data?.impactVector?.direction ?? null;
 
-    if (narrativeDir && physicsDir) {
+    if (collisionPhysicsGoverned && narrativeDir && physicsDir) {
       // Normalise to lowercase tokens for comparison
       const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
       const nDir = norm(narrativeDir);

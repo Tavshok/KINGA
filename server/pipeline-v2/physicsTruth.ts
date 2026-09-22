@@ -44,6 +44,10 @@
 
 import { isQualifiedVgeCalibratedGeometry } from './stage-6-5a-vge';
 import { isQualifiedVgrCalibratedGeometry } from './stage-6-5b-vgr';
+import {
+  preserveOrFailClosedCrushDepthDecision,
+  type QuantitativeFieldDecision,
+} from '../evidence-governance/quantitativeFieldGovernance';
 
 // ── Shared measurement wrapper ────────────────────────────────────────────────
 
@@ -79,6 +83,8 @@ export type OptionalMeasurement = PhysicsMeasurement | null;
 // ── Geometry measurements ─────────────────────────────────────────────────────
 
 export interface CrushDepthEvidence {
+  /** P0 eligibility/provenance that governs whether this field can feed physics. */
+  eligibility: QuantitativeFieldDecision;
   /**
    * Canonical crush depth — highest quality source available.
    * Consumers MUST use this field, not the raw stage outputs.
@@ -406,10 +412,11 @@ export function buildPhysicsTruth(input: {
   claimRef: string;
   pipelineRunId: string | null;
   vehicle: PhysicsTruth['vehicle'];
+  crushDepthEligibility?: QuantitativeFieldDecision;
   vgeResult: import('./stage-6-5a-vge').VGECalibrationResult | null;
   vgrResult: import('./stage-6-5b-vgr').VGRConsensusResult | null;
   stage6Components: EnergyEvidence['componentEnergies'];
-  stage6LlmCrushDepthM: number | null;
+  stage6RawCrushDepthCandidatePresent: boolean;
   speedEnsemble: import('./speedInferenceEnsemble').SpeedInferenceResult | null;
   deltaVKmh: number | null;
   claimedSpeedKmh: number | null;
@@ -425,6 +432,18 @@ export function buildPhysicsTruth(input: {
   reversingNarrativeContradiction?: boolean | null;
 }): PhysicsTruth {
   const now = new Date().toISOString();
+  const crushDepthEligibility = preserveOrFailClosedCrushDepthDecision(
+    input.crushDepthEligibility,
+    {
+      vgeResult: input.vgeResult,
+      vgrResult: input.vgrResult,
+      rawStage6CrushDepthCandidatePresent:
+        input.stage6RawCrushDepthCandidatePresent,
+    }
+  );
+  // P0-A has no governing visual crush source. P1 must introduce a new,
+  // valid decision before this guard may become true.
+  const p0AllowsCollisionPhysics = false;
 
   // ── Crush depth: resolve canonical from provenance hierarchy ──────────────
   const qualifiedVgr = isQualifiedVgrCalibratedGeometry(input.vgrResult);
@@ -440,9 +459,9 @@ export function buildPhysicsTruth(input: {
   const vgeConf   = qualifiedVge ? input.vgeResult!.overallCalibrationConfidence : 0;
 
   let canonicalCrushDepth: OptionalMeasurement = null;
-  let canonicalSourceReason = 'No governing crush-depth measurement is available. Supply at least two independent, undamaged stored-dimension references in a qualified vehicle image to produce calibrated geometry.';
+  let canonicalSourceReason = 'No P0-governing crush-depth measurement is available. Current visual geometry remains advisory until P1 qualification.';
 
-  if (vgrDepthM != null && vgrMinM != null && vgrMaxM != null && vgrConf > 0) {
+  if (p0AllowsCollisionPhysics && vgrDepthM != null && vgrMinM != null && vgrMaxM != null && vgrConf > 0) {
     canonicalCrushDepth = {
       value: vgrDepthM,
       min: vgrMinM,
@@ -452,7 +471,7 @@ export function buildPhysicsTruth(input: {
       provenanceNote: `Multi-image photogrammetric consensus from ${input.vgrResult!.imageEntries.filter(e => e.contributesToConsensus).length} images (view-angle weighted). Agreement: ${input.vgrResult!.agreementAssessment.agreementLevel}.`,
     };
     canonicalSourceReason = 'VGR multi-image consensus selected (highest quality — view-angle-weighted photogrammetric measurement)';
-  } else if (vgeDepthM != null && vgeMinM != null && vgeMaxM != null && vgeConf > 0) {
+  } else if (p0AllowsCollisionPhysics && vgeDepthM != null && vgeMinM != null && vgeMaxM != null && vgeConf > 0) {
     canonicalCrushDepth = {
       value: vgeDepthM,
       min: vgeMinM,
@@ -482,7 +501,7 @@ export function buildPhysicsTruth(input: {
   // ── Speed canonical ───────────────────────────────────────────────────────
   const ensemble = input.speedEnsemble;
   let canonicalSpeed: OptionalMeasurement = null;
-  if (ensemble?.consensusSpeedKmh != null) {
+  if (p0AllowsCollisionPhysics && ensemble?.consensusSpeedKmh != null) {
     const ci = ensemble.confidenceInterval;
     canonicalSpeed = {
       value: ensemble.consensusSpeedKmh,
@@ -497,7 +516,7 @@ export function buildPhysicsTruth(input: {
 
   // ── Delta-V ───────────────────────────────────────────────────────────────
   let deltaV: OptionalMeasurement = null;
-  if (input.deltaVKmh != null) {
+  if (p0AllowsCollisionPhysics && input.deltaVKmh != null) {
     deltaV = {
       value: input.deltaVKmh,
       min: input.deltaVKmh * 0.80,
@@ -510,7 +529,7 @@ export function buildPhysicsTruth(input: {
 
   // ── Kinetic energy ────────────────────────────────────────────────────────
   let kineticEnergyJ: OptionalMeasurement = null;
-  if (canonicalSpeed && input.vehicle.massKg) {
+  if (p0AllowsCollisionPhysics && canonicalSpeed && input.vehicle.massKg) {
     const vMs = canonicalSpeed.value / 3.6;
     const ke = 0.5 * input.vehicle.massKg * vMs * vMs;
     kineticEnergyJ = {
@@ -524,8 +543,8 @@ export function buildPhysicsTruth(input: {
   }
 
   // ── Evidence completeness ─────────────────────────────────────────────────
-  const hasVGECalibration = qualifiedVge;
-  const hasVGRConsensus = qualifiedVgr;
+  const hasVGECalibration = p0AllowsCollisionPhysics && qualifiedVge;
+  const hasVGRConsensus = p0AllowsCollisionPhysics && qualifiedVgr;
   // A scaleAvailable image is descriptive until the enclosing VGE/VGR result
   // satisfies the same governing MEDIUM/HIGH admission predicate. Otherwise a
   // LOW-confidence scale could inflate the evidence-quality score.
@@ -541,14 +560,16 @@ export function buildPhysicsTruth(input: {
 
   // Data quality score: weighted sum of evidence quality signals
   let dqs = 0;
-  if (hasVGRConsensus)       dqs += 35;
-  else if (hasVGECalibration) dqs += 20;
-  if (hasDeploymentEvidence)  dqs += 20;
-  if ((ensemble?.methodsRan ?? 0) >= 3) dqs += 25;
-  else if ((ensemble?.methodsRan ?? 0) >= 2) dqs += 15;
-  else if ((ensemble?.methodsRan ?? 0) >= 1) dqs += 5;
-  if (calibratedPhotoCount >= 3) dqs += 20;
-  else if (calibratedPhotoCount >= 1) dqs += 10;
+  if (p0AllowsCollisionPhysics) {
+    if (hasVGRConsensus)       dqs += 35;
+    else if (hasVGECalibration) dqs += 20;
+    if (hasDeploymentEvidence)  dqs += 20;
+    if ((ensemble?.methodsRan ?? 0) >= 3) dqs += 25;
+    else if ((ensemble?.methodsRan ?? 0) >= 2) dqs += 15;
+    else if ((ensemble?.methodsRan ?? 0) >= 1) dqs += 5;
+    if (calibratedPhotoCount >= 3) dqs += 20;
+    else if (calibratedPhotoCount >= 1) dqs += 10;
+  }
 
   const completenessNote = dqs >= 80
     ? 'High-quality evidence set — photogrammetric calibration and multiple independent speed methods available.'
@@ -558,6 +579,13 @@ export function buildPhysicsTruth(input: {
 
   // ── Physics integrity checks ──────────────────────────────────────────────
   const integrityFlags: PhysicsIntegrityCheck['flags'] = [];
+  const p0UnavailableIntegrityFlags: PhysicsIntegrityCheck['flags'] = [{
+    severity: 'INFO',
+    code: 'P0_COLLISION_PHYSICS_UNAVAILABLE',
+    description: 'Collision-physics integrity checks are unavailable because P0 classifies current visual crush evidence as non-governing pending P1 qualification.',
+    affectedMeasurements: [],
+    recommendation: 'Obtain a future qualified governing measurement or complete manual review.',
+  }];
 
   // Check: large crush depth but low energy
   if (canonicalCrushDepth && totalDeformationEnergyJ > 0) {
@@ -598,7 +626,9 @@ export function buildPhysicsTruth(input: {
     integrityFlags.push({
       severity: 'WARNING',
       code: 'VGR_IMAGE_CONFLICT',
-      description: `Cross-image crush depth estimates conflict significantly (spread: ${input.vgrResult.agreementAssessment.spreadMm.toFixed(0)} mm, ${input.vgrResult.agreementAssessment.spreadPct.toFixed(0)}%). ${input.vgrResult.agreementAssessment.conflictDescription ?? ''}`,
+      description: p0AllowsCollisionPhysics
+        ? `Cross-image crush depth estimates conflict significantly (spread: ${input.vgrResult.agreementAssessment.spreadMm.toFixed(0)} mm, ${input.vgrResult.agreementAssessment.spreadPct.toFixed(0)}%). ${input.vgrResult.agreementAssessment.conflictDescription ?? ''}`
+        : 'Cross-image visual geometry conflicts and remains advisory under P0. No collision-physics measurement was admitted.',
       affectedMeasurements: ['crushDepth.vgrConsensus'],
       recommendation: 'Review individual image calibration results. Possible causes: different damage zones photographed, perspective distortion, or non-uniform deformation.',
     });
@@ -653,8 +683,9 @@ export function buildPhysicsTruth(input: {
 
     geometry: {
       crushDepth: {
+        eligibility: crushDepthEligibility,
         canonical: canonicalCrushDepth,
-        vgrConsensus: vgrDepthM != null ? {
+        vgrConsensus: p0AllowsCollisionPhysics && vgrDepthM != null ? {
           value: vgrDepthM,
           min: vgrMinM ?? vgrDepthM * 0.85,
           max: vgrMaxM ?? vgrDepthM * 1.15,
@@ -662,7 +693,7 @@ export function buildPhysicsTruth(input: {
           source: 'VGR_CONSENSUS',
           provenanceNote: `VGR multi-image consensus. Agreement: ${input.vgrResult!.agreementAssessment.agreementLevel}.`,
         } : null,
-        vgeSingleImage: vgeDepthM != null ? {
+        vgeSingleImage: p0AllowsCollisionPhysics && vgeDepthM != null ? {
           value: vgeDepthM,
           min: vgeMinM ?? vgeDepthM * 0.85,
           max: vgeMaxM ?? vgeDepthM * 1.15,
@@ -689,7 +720,7 @@ export function buildPhysicsTruth(input: {
     },
 
     energy: {
-      totalDeformationEnergyJ: totalDeformationEnergyJ > 0 ? {
+      totalDeformationEnergyJ: p0AllowsCollisionPhysics && totalDeformationEnergyJ > 0 ? {
         value: totalDeformationEnergyJ,
         min: totalDeformationEnergyJ * 0.70,
         max: totalDeformationEnergyJ * 1.30,
@@ -697,14 +728,14 @@ export function buildPhysicsTruth(input: {
         source: 'STAGE6_LLM_VISION',
         provenanceNote: `Sum of per-component deformation energy estimates from Stage 6 vision analysis (${input.stage6Components.length} components). Uncertainty ±30%.`,
       } : null,
-      componentEnergies: input.stage6Components,
-      kineticEnergyJ,
-      deformationEfficiencyFactor: eta,
+      componentEnergies: [],
+      kineticEnergyJ: p0AllowsCollisionPhysics ? kineticEnergyJ : null,
+      deformationEfficiencyFactor: p0AllowsCollisionPhysics ? eta : null,
     },
 
     speed: {
-      canonical: canonicalSpeed,
-      methods: ensemble?.methods.map(m => ({
+      canonical: p0AllowsCollisionPhysics ? canonicalSpeed : null,
+      methods: p0AllowsCollisionPhysics ? (ensemble?.methods.map(m => ({
         method: m.method,
         label: m.label,
         speedKmh: m.speedKmh,
@@ -713,23 +744,25 @@ export function buildPhysicsTruth(input: {
         basis: m.basis,
         ran: m.ran,
         isLowerBoundOnly: m.isLowerBoundOnly,
-      })) ?? [],
-      methodsRan: ensemble?.methodsRan ?? 0,
-      overallConfidence: ensemble?.overallConfidence ?? 'LOW',
-      evidenceAgreementPct: ensemble?.evidenceAgreementPct ?? 0,
-      evidenceAgreementNote: ensemble?.evidenceAgreementNote ?? 'No speed methods ran.',
-      highDivergence: ensemble?.highDivergence ?? false,
-      divergenceExplanation: ensemble?.divergenceExplanation,
-      crossValidation: ensemble?.crossValidation,
-      crushDepthPlausibilityCheck: ensemble?.crushDepthPlausibilityCheck,
-      physicalImpossibilityFlag: ensemble?.physicalImpossibilityFlag,
-      lowerBoundKmh: ensemble?.lowerBoundKmh ?? null,
+      })) ?? []) : [],
+      methodsRan: p0AllowsCollisionPhysics ? (ensemble?.methodsRan ?? 0) : 0,
+      overallConfidence: p0AllowsCollisionPhysics ? (ensemble?.overallConfidence ?? 'LOW') : 'LOW',
+      evidenceAgreementPct: p0AllowsCollisionPhysics ? (ensemble?.evidenceAgreementPct ?? 0) : 0,
+      evidenceAgreementNote: p0AllowsCollisionPhysics
+        ? (ensemble?.evidenceAgreementNote ?? 'No speed methods ran.')
+        : 'P0 withheld collision-speed evidence pending P1 visual-measurement qualification.',
+      highDivergence: p0AllowsCollisionPhysics ? (ensemble?.highDivergence ?? false) : false,
+      divergenceExplanation: p0AllowsCollisionPhysics ? ensemble?.divergenceExplanation : undefined,
+      crossValidation: p0AllowsCollisionPhysics ? ensemble?.crossValidation : undefined,
+      crushDepthPlausibilityCheck: p0AllowsCollisionPhysics ? ensemble?.crushDepthPlausibilityCheck : undefined,
+      physicalImpossibilityFlag: p0AllowsCollisionPhysics ? ensemble?.physicalImpossibilityFlag : undefined,
+      lowerBoundKmh: p0AllowsCollisionPhysics ? (ensemble?.lowerBoundKmh ?? null) : null,
       claimedSpeedKmh: input.claimedSpeedKmh,
       speedLimitKmh: input.speedLimitKmh,
-      deltaVKmh: deltaV,
+      deltaVKmh: p0AllowsCollisionPhysics ? deltaV : null,
     },
 
-    latentDamage: input.slpeResult ? {
+    latentDamage: p0AllowsCollisionPhysics && input.slpeResult ? {
       systems: [
         { system: 'Engine',       probabilityPct: input.slpeResult.latentDamageProbability.engine,       confidence: input.slpeResult.confidence, reasoning: 'SLPE load path cascade', loadPathBasis: 'Front load path', energyBasis: 'Crush depth energy model', evidenceBasis: [] },
         { system: 'Transmission', probabilityPct: input.slpeResult.latentDamageProbability.transmission, confidence: input.slpeResult.confidence, reasoning: 'SLPE load path cascade', loadPathBasis: 'Drivetrain path',   energyBasis: 'Crush depth energy model', evidenceBasis: [] },
@@ -745,19 +778,19 @@ export function buildPhysicsTruth(input: {
         .map((c: any) => `Inspect ${c.name} (${c.zone})`),
     } : null,
 
-    structuralLoadPath: input.slpeResult ?? null,
+    structuralLoadPath: p0AllowsCollisionPhysics ? (input.slpeResult ?? null) : null,
 
-    brakingDistanceM,
-    brakingFrictionCoefficient: brakingDistanceM !== null ? brakingMu : null,
+    brakingDistanceM: p0AllowsCollisionPhysics ? brakingDistanceM : null,
+    brakingFrictionCoefficient: p0AllowsCollisionPhysics && brakingDistanceM !== null ? brakingMu : null,
 
-    impactCausation: input.impactCausation ?? null,
-    causationSpeedCeilingKmh: input.causationSpeedCeilingKmh ?? null,
-    reversingNarrativeContradiction: input.reversingNarrativeContradiction ?? null,
-    causationSpeedExceedsCeiling,
+    impactCausation: p0AllowsCollisionPhysics ? (input.impactCausation ?? null) : null,
+    causationSpeedCeilingKmh: p0AllowsCollisionPhysics ? (input.causationSpeedCeilingKmh ?? null) : null,
+    reversingNarrativeContradiction: p0AllowsCollisionPhysics ? (input.reversingNarrativeContradiction ?? null) : null,
+    causationSpeedExceedsCeiling: p0AllowsCollisionPhysics ? causationSpeedExceedsCeiling : false,
 
     integrityCheck: {
-      passed: integrityFlags.filter(f => f.severity === 'CRITICAL').length === 0,
-      flags: integrityFlags,
+      passed: p0AllowsCollisionPhysics && integrityFlags.filter(f => f.severity === 'CRITICAL').length === 0,
+      flags: p0AllowsCollisionPhysics ? integrityFlags : p0UnavailableIntegrityFlags,
     },
 
     evidenceCompleteness: {

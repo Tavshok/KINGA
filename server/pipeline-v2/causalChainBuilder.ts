@@ -29,6 +29,7 @@ import type {
   AccidentSeverity,
   CollisionDirection,
 } from "./types";
+import { hasGoverningCrushDepthEligibility } from "../evidence-governance/quantitativeFieldGovernance";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Exported constants (used by tests and other modules)
@@ -281,6 +282,34 @@ function buildPhysicsSteps(
     steps.push(nextStep(
       "analysis", "physics_analysis_unavailable",
       "Physics reconstruction could not be completed — impact direction and severity unavailable.",
+      "warning", "stage-7"
+    ));
+    return { steps, hasMismatch };
+  }
+
+  const hasRawStage6CrushDepthCandidate = Boolean(
+    damageAnalysis?.damagedParts?.some(
+      part =>
+        typeof part.crushDepthM === "number" &&
+        Number.isFinite(part.crushDepthM) &&
+        part.crushDepthM > 0
+    )
+  );
+  const collisionPhysicsGoverned =
+    physicsAnalysis.physicsExecuted === true &&
+    hasGoverningCrushDepthEligibility(
+      physicsAnalysis.quantitativeEvidence?.crushDepth,
+      {
+        vgeResult: physicsAnalysis.geometryEvidenceBlock ?? null,
+        vgrResult: physicsAnalysis.vgrReconciliation ?? null,
+        rawStage6CrushDepthCandidatePresent: hasRawStage6CrushDepthCandidate,
+      }
+    );
+
+  if (!collisionPhysicsGoverned) {
+    steps.push(nextStep(
+      "analysis", "physics_analysis_unavailable",
+      "Collision-physics causation is unavailable under the quantitative-evidence contract and requires review.",
       "warning", "stage-7"
     ));
     return { steps, hasMismatch };
