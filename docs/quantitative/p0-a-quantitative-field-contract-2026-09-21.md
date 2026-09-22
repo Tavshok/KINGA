@@ -1,6 +1,6 @@
 # P0-A Quantitative Field Eligibility Contract
 
-**Status:** In implementation; source-only and not yet submitted for pull-request review
+**Status:** Submitted for owner review in PR #142; source-only
 **Date:** 2026-09-21
 **Package:** P0-A — shared contract foundation and the first physical-measurement vertical slice
 **Scope:** `crush_depth_m` from VGE/VGR and raw Stage 6 observations through Stage 7, Physics Truth, and the Stage 10 report boundary.
