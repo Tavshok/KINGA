@@ -21,6 +21,7 @@ import {
   P0FraudValidationHold,
   ValidationGate,
 } from "../client/src/components/ValidationGate";
+import { P0_B1_FRAUD_DECISION_HOLD } from "../shared/p0FraudDecisionHoldPresentation";
 
 const hold = {
   status: "FRAUD_DECISION_WITHHELD",
@@ -85,10 +86,12 @@ describe("P0-B1 fraud hold client presentation", () => {
     expect(normalized.explanation).toContain(
       "withholding response is incomplete"
     );
-    expect(normalized.requiredEvidence).toContain(
-      "A complete claim-linked evidence record"
+    expect(normalized.requiredEvidence).toEqual(
+      P0_B1_FRAUD_DECISION_HOLD.requiredEvidence
     );
-    expect(normalized.resolver.action).toContain("documented human review");
+    expect(normalized.resolver.action).toBe(
+      P0_B1_FRAUD_DECISION_HOLD.resolver.action
+    );
     expect(html).toContain("withholding response is incomplete");
     expect(html).toContain("What is missing:");
     expect(html).toContain("What resolves this:");

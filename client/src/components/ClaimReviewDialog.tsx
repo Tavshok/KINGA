@@ -84,8 +84,6 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
         incidentType: claim.incidentType,
       },
       aiAssessment: aiAssessment ? {
-        fraudRiskLevel: aiAssessment.fraudRiskLevel,
-        fraudIndicators: aiAssessment.fraudIndicators,
         estimatedCost: aiAssessment.estimatedCost,
         damageDescription: aiAssessment.damageDescription,
         detectedDamageTypes: aiAssessment.detectedDamageTypes,
@@ -96,7 +94,6 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
         laborCost: assessorEval.laborCost,
         partsCost: assessorEval.partsCost,
         estimatedDuration: assessorEval.estimatedDuration,
-        fraudRiskLevel: assessorEval.fraudRiskLevel,
         recommendations: assessorEval.recommendations,
         disagreesWithAi: assessorEval.disagreesWithAi != null ? Boolean(assessorEval.disagreesWithAi) : null,
         aiDisagreementReason: assessorEval.aiDisagreementReason,

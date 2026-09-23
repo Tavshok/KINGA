@@ -6,6 +6,7 @@
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { P0_B1_FRAUD_DECISION_HOLD } from '@shared/p0FraudDecisionHoldPresentation';
 
 export interface ClaimReportData {
   claim: {
@@ -19,8 +20,6 @@ export interface ClaimReportData {
     incidentType: string | null;
   };
   aiAssessment?: {
-    fraudRiskLevel: string | null;
-    fraudIndicators: string | null;
     estimatedCost: number | null;
     damageDescription: string | null;
     detectedDamageTypes: string | null;
@@ -31,7 +30,6 @@ export interface ClaimReportData {
     laborCost: number | null;
     partsCost: number | null;
     estimatedDuration: number;
-    fraudRiskLevel: string | null;
     recommendations: string | null;
     disagreesWithAi: boolean | null;
     aiDisagreementReason: string | null;
@@ -45,6 +43,14 @@ export interface ClaimReportData {
     status: string;
     createdAt: Date;
   }>;
+}
+
+export function buildP0B1FraudPdfHoldRows(): Array<[string, string]> {
+  return [
+    ['Status:', 'Withheld — Manual Review Required'],
+    ['What is missing:', P0_B1_FRAUD_DECISION_HOLD.requiredEvidence.join('; ')],
+    ['What resolves this:', P0_B1_FRAUD_DECISION_HOLD.resolver.action],
+  ];
 }
 
 export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: string = 'US$') {
@@ -98,6 +104,27 @@ export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: st
 
   yPos = (doc as any).lastAutoTable.finalY + 10;
 
+  // Fraud values are not display authority in P0-B1. This browser-generated
+  // report shows the same actionable manual-review boundary as server reports.
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Fraud Decision', 14, yPos);
+  yPos += 8;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [],
+    body: buildP0B1FraudPdfHoldRows(),
+    theme: 'plain',
+    styles: { fontSize: 10, cellPadding: 2 },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 40 },
+      1: { cellWidth: 'auto' }
+    }
+  });
+
+  yPos = (doc as any).lastAutoTable.finalY + 10;
+
   // KINGA Assessment Section
   if (data.aiAssessment) {
     doc.setFontSize(14);
@@ -109,8 +136,6 @@ export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: st
     doc.setFont('helvetica', 'normal');
 
     const aiInfo = [
-      ['Fraud Risk Level:', data.aiAssessment.fraudRiskLevel ?? 'Not Assessed'],
-      ['Fraud Indicators:', data.aiAssessment.fraudIndicators ?? 'None'],
       ['Damage Types:', data.aiAssessment.detectedDamageTypes ?? 'N/A'],
       ['KINGA Estimated Cost:', data.aiAssessment.estimatedCost ? `${currencySymbol}${data.aiAssessment.estimatedCost.toFixed(2)}` : 'N/A'],
     ];
@@ -160,7 +185,6 @@ export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: st
       ['Labor Cost:', data.assessorEval.laborCost ? `${currencySymbol}${data.assessorEval.laborCost.toFixed(2)}` : 'N/A'],
       ['Parts Cost:', data.assessorEval.partsCost ? `${currencySymbol}${data.assessorEval.partsCost.toFixed(2)}` : 'N/A'],
       ['Estimated Duration:', `${data.assessorEval.estimatedDuration} days`],
-      ['Fraud Risk Level:', (data.assessorEval.fraudRiskLevel || 'N/A').toUpperCase()],
     ];
 
     autoTable(doc, {
