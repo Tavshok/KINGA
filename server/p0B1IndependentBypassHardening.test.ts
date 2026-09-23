@@ -126,16 +126,17 @@ describe("P0-B1 independent bypass hardening", () => {
         )
       ),
     ]) {
-      expect(
-        procedure.indexOf(
-          "const tenantId = requireExceptionIntelligenceTenant(ctx);"
-        )
-      ).toBeGreaterThanOrEqual(0);
-      expect(
-        procedure.indexOf(
-          "const tenantId = requireExceptionIntelligenceTenant(ctx);"
-        )
-      ).toBeLessThan(procedure.indexOf("const db = await getDb();"));
+      const tenantCheck = procedure.indexOf(
+        "const tenantId = requireExceptionIntelligenceTenant(ctx);"
+      );
+      const databaseAcquisition = procedure.indexOf(
+        "const db = await getDb();"
+      );
+
+      expect(tenantCheck).toBeGreaterThanOrEqual(0);
+      if (databaseAcquisition >= 0) {
+        expect(tenantCheck).toBeLessThan(databaseAcquisition);
+      }
     }
 
     const heldSystemDrift = procedureBlock(

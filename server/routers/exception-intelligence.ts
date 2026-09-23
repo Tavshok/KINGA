@@ -16,7 +16,10 @@ import { getDb } from "../db";
 import { aiAssessments, claims } from "../../drizzle/schema";
 import { eq, and, desc, gte, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { throwP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
+import {
+  buildP0B1FraudDecisionHold,
+  throwP0B1FraudDecisionHold,
+} from "../evidence-governance/p0FraudDecisionHold";
 
 // ─── Exception category definitions ──────────────────────────────────────────
 
@@ -162,63 +165,10 @@ export const exceptionIntelligenceRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      void input;
       const tenantId = requireExceptionIntelligenceTenant(ctx);
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-
-      // Fetch recent assessments
-      const whereConditions = and(
-        eq(aiAssessments.tenantId, tenantId),
-        eq(claims.tenantId, tenantId),
-        isNotNull(aiAssessments.recommendation),
-      );
-
-      const rows = await db
-        .select({
-          assessment: aiAssessments,
-          claim: {
-            id: claims.id,
-            claimNumber: claims.claimNumber,
-            vehicleMake: claims.vehicleMake,
-            vehicleModel: claims.vehicleModel,
-            tenantId: claims.tenantId,
-            createdAt: claims.createdAt,
-          },
-        })
-        .from(aiAssessments)
-        .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
-        .where(whereConditions)
-        .orderBy(desc(aiAssessments.createdAt))
-        .limit(500); // fetch more than needed for client-side category filtering
-
-      // Filter to exception claims only
-      const exceptionRows = rows.filter(r => isInException(r.assessment));
-
-      // Classify and filter by category
-      const classified = exceptionRows.map(r => ({
-        claimId: r.assessment.claimId,
-        assessmentId: r.assessment.id,
-        claimNumber: r.claim.claimNumber,
-        vehicleMake: r.claim.vehicleMake,
-        vehicleModel: r.claim.vehicleModel,
-        tenantId: r.claim.tenantId,
-        createdAt: r.assessment.createdAt,
-        fcdiScore: r.assessment.fcdiScore,
-        fraudRiskLevel: r.assessment.fraudRiskLevel,
-        recommendation: r.assessment.recommendation,
-        category: classifyException(r.assessment),
-        categoryMeta: EXCEPTION_META[classifyException(r.assessment)],
-      }));
-
-      const filtered = input.category === "ALL"
-        ? classified
-        : classified.filter(c => c.category === input.category);
-
-      return {
-        total: filtered.length,
-        items: filtered.slice(input.offset, input.offset + input.limit),
-        categoryMeta: EXCEPTION_META,
-      };
+      void tenantId;
+      return buildP0B1FraudDecisionHold({ items: [], total: 0 });
     }),
 
   /**

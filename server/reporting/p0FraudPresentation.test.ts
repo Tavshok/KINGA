@@ -91,7 +91,9 @@ describe("P0-B1 fraud presentation boundary", () => {
       claimNumber: "P0B1-PDF-1",
     });
 
-    expect(html).toContain("Collision Physics Withheld — Manual Review Required");
+    expect(html).toContain(
+      "Collision Physics Withheld — Manual Review Required"
+    );
     expect(html).toContain("Fraud Decision Withheld — Manual Review Required");
     expect(html).toContain("Estimated Repair Cost");
     expect(html).not.toContain("90 km/h");
@@ -138,7 +140,10 @@ describe("P0-B1 fraud presentation boundary", () => {
   });
 
   it("uses field-level markers in operational reports and whole-document holds only for fraud-only reports", () => {
-    const source = readFileSync(resolve(__dirname, "reportDefinitions.ts"), "utf8");
+    const source = readFileSync(
+      resolve(__dirname, "reportDefinitions.ts"),
+      "utf8"
+    );
     const insurer = source.slice(
       source.indexOf("export async function generateExecutiveInsurerSummary"),
       source.indexOf("export async function generateCrossInsurerFraudReport")
