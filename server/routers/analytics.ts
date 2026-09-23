@@ -35,6 +35,7 @@ import {
   safeString,
   safeArray
 } from "../utils/analytics-utils";
+import { buildP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 
 /**
  * Role-based analytics procedure
@@ -75,6 +76,38 @@ const analyticsRoleProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 // explicitly selected tenant session rather than an implicit global fallback.
 function resolveAnalyticsTenant(ctx: { user: { id?: number; tenantId?: string | null; role: string }; req?: any }): string {
   return requireTenantScope(ctx as any, undefined, 'analytics');
+}
+
+/**
+ * Global Search is an operational discovery surface, not a fraud-decision
+ * surface. This allowlist prevents stored fraud fields from becoming
+ * publishable when new columns are later added to `claims`.
+ */
+export function projectP0B1GlobalSearchClaim(
+  claim: Record<string, unknown>,
+  claimant: Record<string, unknown> | null | undefined
+) {
+  return {
+    id: claim.id,
+    claimNumber: claim.claimNumber,
+    kingaRef: claim.kingaRef,
+    vehicleMake: claim.vehicleMake,
+    vehicleModel: claim.vehicleModel,
+    vehicleYear: claim.vehicleYear,
+    vehicleRegistration: claim.vehicleRegistration,
+    policyNumber: claim.policyNumber,
+    incidentDate: claim.incidentDate,
+    incidentType: claim.incidentType,
+    status: claim.status,
+    workflowState: claim.workflowState,
+    estimatedClaimValue: claim.estimatedClaimValue,
+    approvedAmount: claim.approvedAmount,
+    currencyCode: claim.currencyCode,
+    createdAt: claim.createdAt,
+    updatedAt: claim.updatedAt,
+    claimantName: safeString(claimant?.name, ""),
+    claimantEmail: safeString(claimant?.email, ""),
+  };
 }
 
 export const analyticsRouter = router({
@@ -123,22 +156,46 @@ export const analyticsRouter = router({
 
         const results = await db
           .select({
-            claim: claims,
-            claimant: users,
+            claim: {
+              id: claims.id,
+              claimNumber: claims.claimNumber,
+              kingaRef: claims.kingaRef,
+              vehicleMake: claims.vehicleMake,
+              vehicleModel: claims.vehicleModel,
+              vehicleYear: claims.vehicleYear,
+              vehicleRegistration: claims.vehicleRegistration,
+              policyNumber: claims.policyNumber,
+              incidentDate: claims.incidentDate,
+              incidentType: claims.incidentType,
+              status: claims.status,
+              workflowState: claims.workflowState,
+              estimatedClaimValue: claims.estimatedClaimValue,
+              approvedAmount: claims.approvedAmount,
+              currencyCode: claims.currencyCode,
+              createdAt: claims.createdAt,
+              updatedAt: claims.updatedAt,
+            },
+            claimant: {
+              name: users.name,
+              email: users.email,
+            },
           })
           .from(claims)
           .leftJoin(users, eq(claims.claimantId, users.id))
           .where(whereClause)
           .limit(50);
 
-        const mappedResults = results.map(({ claim, claimant }) => ({
-          ...claim,
-          claimantName: safeString(claimant?.name, ''),
-          claimantEmail: safeString(claimant?.email, ''),
-        }));
+        const mappedResults = results.map(({ claim, claimant }) =>
+          projectP0B1GlobalSearchClaim(claim, claimant)
+        );
 
         return createAnalyticsResponse(
-          { results: mappedResults },
+          buildP0B1FraudDecisionHold({
+            results: mappedResults,
+            // Preserve the existing dashboard shape while attaching the same
+            // actionable, score-free hold used by governed report surfaces.
+            claims: mappedResults,
+          }),
           { 
             tenantId: tenantId ?? undefined,
             role: ctx.user.insurerRole || ctx.user.role,

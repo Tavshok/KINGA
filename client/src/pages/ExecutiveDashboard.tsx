@@ -46,6 +46,7 @@ import { EscalationsDashboard } from "@/components/executive/EscalationsDashboar
 import { SettlementTrendChart } from "@/components/executive/SettlementTrendChart";
 import { GovernanceExceptionsRegister } from "@/components/executive/GovernanceExceptionsRegister";
 import { CrossClaimIntelligencePanel } from "@/components/executive/CrossClaimIntelligencePanel";
+import { P0B1GlobalSearchResults } from "@/components/P0B1GlobalSearchResults";
 import {
   exportKPIsToPDF,
   exportAssessorPerformanceToExcel,
@@ -287,7 +288,7 @@ export default function ExecutiveDashboard() {
   const _financialsRaw = financialsResponse?.data?.summaryMetrics;
   const financials = _financialsRaw ?? null;
 
-  const searchResults = searchResultsResponse?.data?.results;
+  const searchResults = searchResultsResponse?.data;
 
   const handleSearch = async () => {
     if (searchQuery.trim()) {
@@ -708,32 +709,11 @@ export default function ExecutiveDashboard() {
                     {searchLoading ? <Activity className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />} Search
                   </button>
                 </div>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      {['Claim ID','Claimant','Vehicle','Status','Assessor','Value','Age'].map(h => (
-                        <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA293', borderBottom: '1px solid #E7E2D6', background: '#F7F8F6' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {searchResults?.claims?.length > 0 ? searchResults.claims.slice(0,4).map((claim: any) => (
-                      <tr key={claim.id} style={{ cursor: 'pointer' }} onClick={() => setLocation(`/insurer/claims/${claim.id}`)}>
-                        <td style={{ padding: '10px 12px', fontSize: '12.5px', borderBottom: '1px solid #E7E2D6', fontFamily: 'JetBrains Mono, monospace', color: '#1C5C39', fontWeight: 500 }}>KGA-{String(claim.id).padStart(7,'0')}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '12.5px', borderBottom: '1px solid #E7E2D6', color: '#15201A' }}>{claim.claimantName || '—'}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '12px', borderBottom: '1px solid #E7E2D6', color: '#6B7568' }}>{claim.vehicleReg || '—'}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '12.5px', borderBottom: '1px solid #E7E2D6' }}><span style={{ background: claim.status === 'fraud_flag' ? '#F8E9E4' : '#E7F1EA', color: claim.status === 'fraud_flag' ? '#B1402F' : '#1C5C39', padding: '2px 7px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>{(claim.status || '').replace(/_/g,' ')}</span></td>
-                        <td style={{ padding: '10px 12px', fontSize: '12px', borderBottom: '1px solid #E7E2D6', color: '#6B7568' }}>{claim.assessorName || '—'}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '12.5px', borderBottom: '1px solid #E7E2D6', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{claim.estimatedValue ? `${currencySymbol} ${(claim.estimatedValue/100).toLocaleString()}` : '—'}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '12px', borderBottom: '1px solid #E7E2D6', color: '#6B7568', fontVariantNumeric: 'tabular-nums' }}>{claim.ageDays != null ? `${claim.ageDays}d` : '—'}</td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan={7} style={{ padding: '24px 12px', textAlign: 'center', fontSize: '13px', color: '#9AA293' }}>Use the search box above to find claims</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                <P0B1GlobalSearchResults
+                  payload={searchResults}
+                  currencySymbol={currencySymbol}
+                  onClaimSelect={claimId => setLocation(`/insurer/claims/${claimId}`)}
+                />
               </div>
 
               {/* ── Row 3 Col 3: Fast-Track Analytics ── */}

@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { P0_B1_FRAUD_DECISION_HOLD } from "@shared/p0FraudDecisionHoldPresentation";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES (mirrored from server/output-validation-engine.ts)
@@ -75,14 +76,9 @@ export const P0_FRAUD_VALIDATION_HOLD_FALLBACK: P0FraudDecisionHold = {
   status: "FRAUD_DECISION_WITHHELD",
   explanation:
     "Fraud authority is withheld because the withholding response is incomplete; no automated fraud conclusion may be inferred.",
-  requiredEvidence: [
-    "A complete claim-linked evidence record",
-    "Human-reviewed evidence with auditable provenance",
-    "A qualified owner-approved fraud-decision policy",
-  ],
+  requiredEvidence: P0_B1_FRAUD_DECISION_HOLD.requiredEvidence,
   resolver: {
-    action:
-      "Obtain the complete evidence record and a documented human review before any fraud-related action.",
+    action: P0_B1_FRAUD_DECISION_HOLD.resolver.action,
   },
 };
 
