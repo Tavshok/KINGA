@@ -35,47 +35,15 @@ import { sanitiseReportNarrative, buildBlockError } from "../services/externalRe
 import { logger } from "../logger";
 import { isAdminRole } from "@shared/role-permissions";
 import { requireGovernedTenantClaim } from "../services/governedClaimAuthority";
-import { buildP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
+import { buildP0B1FraudDecisionHold, throwP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
+import { buildP0A2CollisionPhysicsHold } from "../reporting/p0PhysicsPresentation";
 
-export const P0_FRAUD_REVIEW_HOLD = Object.freeze({
-  status: "FRAUD_DECISION_WITHHELD",
-  reviewRequired: true,
-  explanation:
-    "Automated fraud scoring is withheld because current visual, physics, model, and fallback inputs do not have qualified governing authority.",
-  requiredEvidence: [
-    "Independently verifiable, claim-linked documentary or metadata evidence",
-    "Human-reviewed evidence with auditable provenance",
-    "A future owner-approved qualified automated-decision policy",
-  ],
-});
-
-export function withP0FraudHold<T extends Record<string, unknown>>(assessment: T) {
+export function projectP0B1AssessmentHold<T extends Record<string, unknown>>(assessment: T) {
   return {
     id: assessment.id ?? null,
     claimId: assessment.claimId ?? null,
     createdAt: assessment.createdAt ?? null,
-    fraudDecision: {
-      ...P0_FRAUD_REVIEW_HOLD,
-      actionAllowed: false,
-      allowedActions: [],
-      evidenceRequirements: [
-        {
-          code: "CLAIM_LINKED_EVIDENCE",
-          missing: P0_FRAUD_REVIEW_HOLD.requiredEvidence[0],
-          resolver: "Attach a claim-linked source record or metadata reference.",
-        },
-        {
-          code: "HUMAN_PROVENANCE_REVIEW",
-          missing: P0_FRAUD_REVIEW_HOLD.requiredEvidence[1],
-          resolver: "Record the assigned reviewer's identity, timestamp, rationale, and source provenance.",
-        },
-        {
-          code: "QUALIFIED_POLICY_AUTHORITY",
-          missing: P0_FRAUD_REVIEW_HOLD.requiredEvidence[2],
-          resolver: "Approve and version the permitted automated-decision policy before activation.",
-        },
-      ],
-    },
+    fraudDecision: buildP0B1FraudDecisionHold(),
     suppressedFields: [
       "fraudScore",
       "fraudRiskLevel",
@@ -106,7 +74,7 @@ export const aiAssessmentsRouter = router({
       // P0-B1: this legacy read path previously recomputed and published fraud
       // scores from historic/advisory data. Publish only the actionable hold.
       if (p0B1FraudPolicyActive()) {
-        return withP0FraudHold(assessment as Record<string, unknown>);
+        return projectP0B1AssessmentHold(assessment as Record<string, unknown>);
       }
 
       // Apply normalisation service — ensures cost, fraud, and verdict are
@@ -435,7 +403,7 @@ export const aiAssessmentsRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const assessments = await db.select().from(aiAssessments).where(eq(aiAssessments.tenantId, tenantId));
-      return assessments.map(assessment => withP0FraudHold(assessment as Record<string, unknown>));
+      return assessments.map(assessment => projectP0B1AssessmentHold(assessment as Record<string, unknown>));
     }),
   // Intelligence Enforcement Layer — applies all enforcement rules to a claim's assessment
   getEnforcement: protectedProcedure
@@ -449,11 +417,11 @@ export const aiAssessmentsRouter = router({
       if (!assessment) return null;
       if (p0B1FraudPolicyActive()) {
         return {
-          ...withP0FraudHold(assessment as Record<string, unknown>),
+          ...projectP0B1AssessmentHold(assessment as Record<string, unknown>),
           weightedFraud: null,
           _phase2: {
             finalDecision: "REVIEW",
-            ...P0_FRAUD_REVIEW_HOLD,
+            ...buildP0B1FraudDecisionHold(),
           },
         };
       }
@@ -1118,7 +1086,7 @@ export const aiAssessmentsRouter = router({
           lifecycle_state: "DRAFT" as const,
           is_final: false,
           is_locked: false,
-          ...P0_FRAUD_REVIEW_HOLD,
+          ...buildP0B1FraudDecisionHold(),
         };
       }
       const result = await saveDecisionSnapshot({
@@ -1145,7 +1113,7 @@ export const aiAssessmentsRouter = router({
       const { getLatestSnapshotJson } = await import('../db');
       await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
-        return P0_FRAUD_REVIEW_HOLD;
+        return buildP0B1FraudDecisionHold();
       }
       const snapshot = await getLatestSnapshotJson(input.claimId);
       return snapshot ?? null;
@@ -1171,10 +1139,7 @@ export const aiAssessmentsRouter = router({
       const { getOrCreateLifecycle, isReplayAllowed, saveReplayLog } = await import('../decision-lifecycle');
       const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: `${P0_FRAUD_REVIEW_HOLD.explanation} ${P0_FRAUD_REVIEW_HOLD.requiredEvidence.join("; ")}`,
-        });
+        throwP0B1FraudDecisionHold();
       }
 
       // Fetch the original immutable snapshot
@@ -1288,17 +1253,18 @@ export const aiAssessmentsRouter = router({
       const { enforceGovernance } = await import('../decision-governance');
       const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
+        const fraudDecision = buildP0B1FraudDecisionHold();
         return {
           success: false,
           lifecycle_state: "DRAFT" as const,
           is_final: false,
           is_locked: false,
           action_allowed: false,
-          validation_errors: [P0_FRAUD_REVIEW_HOLD.explanation],
+          validation_errors: [fraudDecision.explanation],
           override_flag: false,
           authoritative_snapshot_id: null as number | null,
           final_decision_choice: input.finalDecisionChoice,
-          ...P0_FRAUD_REVIEW_HOLD,
+          ...fraudDecision,
         };
       }
 
@@ -1521,8 +1487,15 @@ export const aiAssessmentsRouter = router({
   getSnapshots: protectedProcedure
     .input(z.object({ claimId: z.string() }))
     .query(async ({ input, ctx }) => {
-      const { getDecisionSnapshots } = await import('../db');
       await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
+      if (p0B1FraudPolicyActive()) {
+        return buildP0B1FraudDecisionHold({
+          claimId: input.claimId,
+          snapshots: [],
+          collisionPhysics: buildP0A2CollisionPhysicsHold(),
+        });
+      }
+      const { getDecisionSnapshots } = await import('../db');
       const snapshots = await getDecisionSnapshots(input.claimId);
       return snapshots.map(s => ({
         id: s.id,
@@ -1715,7 +1688,7 @@ export const aiAssessmentsRouter = router({
         vehicleYear: row.vehicleYear,
         claimStatus: row.claimStatus,
         incidentDate: row.incidentDate,
-        fraudDecision: P0_FRAUD_REVIEW_HOLD,
+        fraudDecision: buildP0B1FraudDecisionHold(),
         createdAt: row.createdAt,
       })),
     };

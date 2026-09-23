@@ -21,10 +21,7 @@ import {
   buildFraudSection,
 } from "./stage-10-report";
 import { decisionRouter } from "../routers/decision";
-import {
-  P0_FRAUD_REVIEW_HOLD,
-  withP0FraudHold,
-} from "../routers/ai-assessments-core";
+import { projectP0B1AssessmentHold } from "../routers/ai-assessments-core";
 import { executeFastTrackAction } from "../services/fast-track-dispatcher";
 import { generateReportHtml } from "../reporting/reportDefinitions";
 import { buildP0PortfolioFraudHold } from "../routers/intelligence-platform";
@@ -434,7 +431,7 @@ describe("P0-B1 fraud and automated-decision boundary", () => {
   });
 
   it("sanitizes historic assessment score, level, indicators, and breakdowns", () => {
-    const result = withP0FraudHold({
+    const result = projectP0B1AssessmentHold({
       id: 7,
       fraudScore: 99,
       fraudRiskLevel: "critical",
@@ -444,7 +441,7 @@ describe("P0-B1 fraud and automated-decision boundary", () => {
 
     expect(result).toMatchObject({
       id: 7,
-      fraudDecision: expect.objectContaining(P0_FRAUD_REVIEW_HOLD),
+      fraudDecision: expect.objectContaining(P0_B1_FRAUD_DECISION_HOLD),
     });
     expect(result).not.toHaveProperty("fraudScore");
     expect(result).not.toHaveProperty("fraudRiskLevel");

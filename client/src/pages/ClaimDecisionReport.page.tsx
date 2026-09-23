@@ -58,6 +58,10 @@ import { PhysicsAnalysisChart } from "@/components/PhysicsAnalysisChart";
 import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import { RepairReplacePanel } from "@/components/RepairReplacePanel";
 import { ClaimCommentThread } from "@/components/ClaimCommentThread";
+import {
+  normalizeP0FraudValidationHold,
+  P0FraudValidationHold,
+} from "@/components/ValidationGate";
 
 import type { EnforcementResult } from './ClaimDecisionReport.sections';
 import {
@@ -140,10 +144,21 @@ export default function ClaimDecisionReport() {
   // ── Snapshot auto-save: fires once when enforcement data first loads ───────
   const snapshotSaved = useRef(false);
   const saveSnapshotMutation = trpc.aiAssessments.saveSnapshot.useMutation();
-  const { data: snapshotHistory = [] } = trpc.aiAssessments.getSnapshots.useQuery(
+  const { data: snapshotHistoryResponse } = trpc.aiAssessments.getSnapshots.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId }
   );
+  const snapshotHistory = Array.isArray(snapshotHistoryResponse)
+    ? snapshotHistoryResponse
+    : [];
+  const snapshotHistoryHold =
+    snapshotHistoryResponse && !Array.isArray(snapshotHistoryResponse)
+      ? normalizeP0FraudValidationHold(snapshotHistoryResponse)
+      : null;
+  const snapshotCollisionPhysicsHold =
+    snapshotHistoryResponse && !Array.isArray(snapshotHistoryResponse)
+      ? (snapshotHistoryResponse as any).collisionPhysics
+      : null;
   const { data: latestSnapshot } = trpc.aiAssessments.getLatestSnapshot.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId }
@@ -790,7 +805,32 @@ export default function ClaimDecisionReport() {
 
         <ReportSectionDivider label="Audit Trail & Decision History" icon="📜" />
         {/* 7. Snapshot History */}
-        {(snapshotHistory as any[]).length > 0 && (
+        {snapshotHistoryHold && (
+          <div className="mb-4 space-y-3">
+            <P0FraudValidationHold hold={snapshotHistoryHold} />
+            {snapshotCollisionPhysicsHold && (
+              <div
+                className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-3 text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100"
+              >
+                <p className="text-sm font-semibold">
+                  Collision Physics Withheld — Manual Review Required
+                </p>
+                <p className="mt-1 text-xs leading-relaxed">
+                  {snapshotCollisionPhysicsHold.explanation}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed">
+                  <span className="font-semibold">What is missing:</span>{" "}
+                  {(snapshotCollisionPhysicsHold.requiredEvidence ?? []).join("; ")}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed">
+                  <span className="font-semibold">What resolves this:</span>{" "}
+                  {snapshotCollisionPhysicsHold.resolver?.action}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+        {snapshotHistory.length > 0 && (
           <div className="mb-4 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
             <button
               className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold"
@@ -799,13 +839,13 @@ export default function ClaimDecisionReport() {
             >
               <span style={{ color: "var(--muted-foreground)" }}>
                 <FileText className="inline h-3.5 w-3.5 mr-1.5" />
-                Decision Snapshot History ({(snapshotHistory as any[]).length} version{(snapshotHistory as any[]).length !== 1 ? 's' : ''})
+                Decision Snapshot History ({snapshotHistory.length} version{snapshotHistory.length !== 1 ? 's' : ''})
               </span>
               {showSnapshotHistory ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
             {showSnapshotHistory && (
               <div className="divide-y" style={{ borderTop: "1px solid var(--border)", background: "var(--background)" }}>
-                {(snapshotHistory as any[]).map((snap: any) => (
+                {snapshotHistory.map((snap: any) => (
                   <div key={snap.id} className="px-4 py-3 flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold mb-0.5" style={{ color: "var(--foreground)" }}>

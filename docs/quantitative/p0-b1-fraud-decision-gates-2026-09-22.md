@@ -118,6 +118,14 @@ This **does not constitute complete browser closure**. The evidence-backed clien
 
 After the rebase to the merged browser-containment baseline, a sequential guarded matrix executed **30 suites** against `kinga_ci_test`: every test changed by this integration plus the P0-A-2 collision-physics presentation, canonical-PDF, Stage 10, and Physics Truth invariants. The initial multi-file invocation ended without a complete summary despite individual suites being healthy, so the matrix was executed one guarded file at a time; all 30 suites passed. Two stale assertions were reconciled: one referenced a removed router-local hold alias, and one incorrectly rejected the word “scoring” inside the actionable explanation instead of checking whether score or risk-level fields were present.
 
+## Canonical assessment-hold remediation
+
+A fresh adversarial review found that `aiAssessments.getSnapshots` still authorized a tenant-owned claim and then read and published historic fraud score, level, and contribution fields. The Claim Decision Report was the direct browser consumer, so the issue was a live legacy publication bypass rather than a dormant source reference.
+
+The endpoint now completes `requireGovernedTenantClaim()` before its P0 branch and returns before importing or querying the historic snapshot store. Its P0 response contains an empty snapshot list, the shared actionable P0-B1 fraud hold, and the independently actionable P0-A-2 collision-physics hold. It neither parses nor returns historic fraud score, level, contribution, verdict, physics, or related decision material. The sole browser consumer now distinguishes the canonical held-object response from an array and visibly renders both withholding records rather than assuming historic snapshots are available.
+
+The direct remediation matrix passed **17 files / 99 tests** through the guarded `kinga_ci_test` runner. It covers tenant-before-hold ordering, zero snapshot-query work on the held branch, canonical fraud-hold construction, collision-physics marker presence, and browser response-shape handling alongside the existing P0-A-2 and P0-B1 decision, report, queue, fast-track, TRE, and browser-containment regressions. A fresh adversarial re-review returned **APPROVE**. It verified that the P0 return precedes the snapshot-store import/query, cross-tenant and nonexistent claims retain their normal pre-hold errors, the held browser response cannot render historic rows, malformed fraud holds fail closed with actionable guidance, and the separately constructed P0-A-2 physics marker remains independent from the P0-B1 fraud contract.
+
 ## References
 
 [1]: file:///home/ubuntu/kinga-p0-b1-fraud-decision-gates/server/evidence-governance/quantitativeFieldGovernance.ts "P0-B1 source-bound fraud decision eligibility contract"
