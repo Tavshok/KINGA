@@ -199,4 +199,60 @@ describe("P0 Package 3 runtime — Executive operational detail", () => {
     expect(mocks.execute).not.toHaveBeenCalled();
     expect(mocks.getDb).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["getFraudDetectionTrends", { days: 30 }],
+    ["getFraudRiskDistribution", undefined],
+    ["getEscalationQueue", undefined],
+  ] as const)(
+    "withholds %s after executive authorization without querying fraud data",
+    async (procedure, input) => {
+      const caller = executiveRouter.createCaller(executiveA) as any;
+      const invoke = () =>
+        input === undefined ? caller[procedure]() : caller[procedure](input);
+
+      await expect(invoke()).rejects.toThrow(
+        P0_B1_FRAUD_DECISION_HOLD.explanation
+      );
+      expect(mocks.getDb).not.toHaveBeenCalled();
+      expect(mocks.execute).not.toHaveBeenCalled();
+    }
+  );
+
+  it("denies an unauthorized caller before each fraud hold", async () => {
+    const caller = executiveRouter.createCaller(processorA) as any;
+
+    await expect(caller.getFraudDetectionTrends({ days: 30 })).rejects.toThrow(
+      "Executive access required"
+    );
+    await expect(caller.getFraudRiskDistribution()).rejects.toThrow(
+      "Executive access required"
+    );
+    await expect(caller.getEscalationQueue()).rejects.toThrow(
+      "Executive access required"
+    );
+    expect(mocks.getDb).not.toHaveBeenCalled();
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["getFraudDetectionTrends", { days: 30 }],
+    ["getFraudRiskDistribution", undefined],
+    ["getEscalationQueue", undefined],
+  ] as const)(
+    "denies a tenantless platform super-admin before %s can return a P0 hold",
+    async (procedure, input) => {
+      const caller = executiveRouter.createCaller(
+        superAdminWithoutTenant
+      ) as any;
+      const invoke = () =>
+        input === undefined ? caller[procedure]() : caller[procedure](input);
+
+      await expect(invoke()).rejects.toThrow(
+        "Explicit tenant selection is required for executive fraud analytics"
+      );
+      expect(mocks.getDb).not.toHaveBeenCalled();
+      expect(mocks.execute).not.toHaveBeenCalled();
+    }
+  );
 });

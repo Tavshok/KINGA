@@ -12,7 +12,7 @@ import {
 import { getDb } from "../db";
 import { generateClaimsIntelligenceReport } from "./claimsIntelligenceReport";
 import { generateForensicDecisionReport } from "./forensicDecisionReport";
-import { generateReportHtml } from "./reportDefinitions";
+import { generateForensicReport, generateReportHtml } from "./reportDefinitions";
 import { resolveForensicReportModel } from "./forensicReportModel";
 
 describe("ForensicReportModel", () => {
@@ -814,6 +814,20 @@ describe("ForensicReportModel", () => {
       .toLowerCase();
     for (const report of reports)
       expect(report.toLowerCase()).toContain(decisionLabel);
+  });
+
+  it("withholds stored fraud metrics from the direct legacy forensic renderer", async () => {
+    const html = await generateForensicReport({ claimId }, tenantId);
+
+    expect(html).toContain('data-p0-fraud-decision="withheld"');
+    expect(html).toContain("Fraud Decision Withheld — Manual Review Required");
+    expect(html).not.toContain("Fraud Score</div>");
+    expect(html).not.toContain("47<span");
+    expect(html).not.toContain("moderate</span>");
+    expect(html).not.toContain("P0A2_FRAUD_COLLISION_INDICATOR_DO_NOT_PUBLISH");
+    expect(html).not.toContain("P0A2_FRAUD_COLLISION_FINDING_DO_NOT_PUBLISH");
+    expect(html).not.toContain("Recommendation</div>");
+    expect(html).not.toContain(">REVIEW</div>");
   });
 
   it("fails closed when a different tenant requests the same claim", async () => {

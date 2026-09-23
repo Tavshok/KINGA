@@ -6,7 +6,7 @@
  * Provides:
  *   - getExceptionQueue: categorised list of claims in exception state
  *   - getExceptionAggregates: aggregated analytics (% in exception, top causes, insurer/region breakdown)
- *   - getSystemDriftReport: DOE scoring drift, FCDI baseline shifts, fraud score distribution changes
+ *   - getSystemDriftReport: P0-B1-held fraud-sensitive drift surface
  *   - getActionableRecommendations: deterministic recommendations from DRM attribution patterns
  */
 
@@ -14,8 +14,9 @@ import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
 import { aiAssessments, claims } from "../../drizzle/schema";
-import { eq, and, desc, sql, gte, lte, isNotNull } from "drizzle-orm";
+import { eq, and, desc, gte, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { throwP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 
 // ─── Exception category definitions ──────────────────────────────────────────
 
@@ -64,6 +65,28 @@ const EXCEPTION_META: Record<ExceptionCategory, { label: string; meaning: string
     meaning: "The claim is in an exception state but the specific reason could not be determined.",
     severity: "medium",
   },
+};
+
+/**
+ * Retains the legacy client response type while P0-B1 rejects every authorized
+ * drift request with the canonical fraud hold. This type is not a payload and
+ * does not permit the router to construct or publish drift conclusions.
+ */
+type P0HeldSystemDriftReportResponse = {
+  windowDays: number;
+  currentPeriodCount: number;
+  previousPeriodCount: number;
+  overallHealth: "stable" | "warning" | "critical";
+  driftSummary: Array<{
+    metric: string;
+    current: number | string | null;
+    previous: number | string | null;
+    delta: number | null;
+    severity: "stable" | "warning" | "critical";
+    description: string;
+    interpretation: string;
+  }>;
+  generatedAt: string;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -303,180 +326,19 @@ export const exceptionIntelligenceRouter = router({
     }),
 
   /**
-   * System Drift Monitor — tracks DOE scoring drift, FCDI baseline shifts,
-   * fraud score distribution changes, and cost engine deviation over time.
+   * System Drift Monitor is fraud-sensitive because its legacy aggregate joins
+   * stored fraud scores to derive threshold-capable drift conclusions. P0-B1
+   * preserves session and tenant validation, then withholds the aggregate before
+   * any database read until qualified fraud authority is defined.
    */
   getSystemDriftReport: protectedProcedure
     .input(z.object({
       windowDays: z.number().min(7).max(180).default(30),
     }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ ctx }): Promise<P0HeldSystemDriftReportResponse> => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
-      const tenantId = requireExceptionIntelligenceTenant(ctx);
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-
-      // Current window
-      const nowMs = Date.now();
-      const windowMs = input.windowDays * 24 * 60 * 60 * 1000;
-      const currentSince = new Date(nowMs - windowMs).toISOString().slice(0, 19).replace("T", " ");
-      const previousSince = new Date(nowMs - 2 * windowMs).toISOString().slice(0, 19).replace("T", " ");
-      const previousUntil = currentSince;
-
-      const buildWhere = (since: string, until?: string) => {
-        const conditions = [gte(aiAssessments.createdAt, since)];
-        if (until) conditions.push(lte(aiAssessments.createdAt, until));
-        conditions.push(eq(aiAssessments.tenantId, tenantId));
-        return and(...conditions);
-      };
-
-      const [currentRows, previousRows] = await Promise.all([
-        db.select({
-          fcdiScore: aiAssessments.fcdiScore,
-          fraudScore: aiAssessments.fraudScore,
-          confidenceScore: aiAssessments.confidenceScore,
-          recommendation: aiAssessments.recommendation,
-          doeResultJson: aiAssessments.doeResultJson,
-          estimatedCost: aiAssessments.estimatedCost,
-        }).from(aiAssessments).where(buildWhere(currentSince)).limit(1000),
-        db.select({
-          fcdiScore: aiAssessments.fcdiScore,
-          fraudScore: aiAssessments.fraudScore,
-          confidenceScore: aiAssessments.confidenceScore,
-          recommendation: aiAssessments.recommendation,
-          doeResultJson: aiAssessments.doeResultJson,
-          estimatedCost: aiAssessments.estimatedCost,
-        }).from(aiAssessments).where(buildWhere(previousSince, previousUntil)).limit(1000),
-      ]);
-
-      function avg(arr: (number | null | undefined)[]): number | null {
-        const valid = arr.filter((v): v is number => v !== null && v !== undefined && !isNaN(Number(v))).map(Number);
-        return valid.length > 0 ? Math.round(valid.reduce((a, b) => a + b, 0) / valid.length) : null;
-      }
-
-      function pct(arr: any[], pred: (v: any) => boolean): number {
-        if (arr.length === 0) return 0;
-        return Math.round((arr.filter(pred).length / arr.length) * 100);
-      }
-
-      // FCDI drift
-      const currentFCDI = avg(currentRows.map(r => r.fcdiScore));
-      const previousFCDI = avg(previousRows.map(r => r.fcdiScore));
-      const fcdiDrift = currentFCDI !== null && previousFCDI !== null ? currentFCDI - previousFCDI : null;
-
-      // Fraud score drift
-      const currentFraud = avg(currentRows.map(r => r.fraudScore));
-      const previousFraud = avg(previousRows.map(r => r.fraudScore));
-      const fraudDrift = currentFraud !== null && previousFraud !== null ? currentFraud - previousFraud : null;
-
-      // Confidence score drift
-      const currentConfidence = avg(currentRows.map(r => r.confidenceScore));
-      const previousConfidence = avg(previousRows.map(r => r.confidenceScore));
-      const confidenceDrift = currentConfidence !== null && previousConfidence !== null ? currentConfidence - previousConfidence : null;
-
-      // DOE optimisation rate drift
-      const doeOptimisedRate = (rows: typeof currentRows) => {
-        const withDOE = rows.filter(r => r.doeResultJson);
-        if (withDOE.length === 0) return null;
-        const optimised = withDOE.filter(r => {
-          try {
-            const doe = typeof r.doeResultJson === "string" ? JSON.parse(r.doeResultJson as string) : r.doeResultJson;
-            return doe?.status === "OPTIMISED";
-          } catch { return false; }
-        });
-        return Math.round((optimised.length / withDOE.length) * 100);
-      };
-      const currentDOERate = doeOptimisedRate(currentRows);
-      const previousDOERate = doeOptimisedRate(previousRows);
-      const doeDrift = currentDOERate !== null && previousDOERate !== null ? currentDOERate - previousDOERate : null;
-
-      // Escalation rate drift
-      const currentEscalationRate = pct(currentRows, r => r.recommendation === "ESCALATE");
-      const previousEscalationRate = pct(previousRows, r => r.recommendation === "ESCALATE");
-      const escalationDrift = currentEscalationRate - previousEscalationRate;
-
-      // Drift severity classification
-      function driftSeverity(delta: number | null, threshold: number): "stable" | "warning" | "critical" {
-        if (delta === null) return "stable";
-        const abs = Math.abs(delta);
-        if (abs >= threshold * 2) return "critical";
-        if (abs >= threshold) return "warning";
-        return "stable";
-      }
-
-      const driftSummary = [
-        {
-          metric: "FCDI Baseline",
-          current: currentFCDI,
-          previous: previousFCDI,
-          delta: fcdiDrift,
-          severity: driftSeverity(fcdiDrift, 5),
-          description: "Average Forensic Confidence & Data Integrity score across all claims",
-          interpretation: fcdiDrift !== null
-            ? fcdiDrift < -5
-              ? "FCDI is declining — evidence quality is degrading. Check for new document types or extraction failures."
-              : fcdiDrift > 5
-              ? "FCDI is improving — evidence quality is strengthening."
-              : "FCDI is stable."
-            : "Insufficient data for comparison.",
-        },
-        {
-          metric: "Fraud Score Distribution",
-          current: currentFraud,
-          previous: previousFraud,
-          delta: fraudDrift,
-          severity: driftSeverity(fraudDrift, 8),
-          description: "Average fraud score across all claims",
-          interpretation: fraudDrift !== null
-            ? fraudDrift > 8
-              ? "Fraud scores are rising — possible increase in fraudulent submissions or model calibration drift."
-              : fraudDrift < -8
-              ? "Fraud scores are declining — may indicate improved claim quality or model drift."
-              : "Fraud score distribution is stable."
-            : "Insufficient data for comparison.",
-        },
-        {
-          metric: "DOE Optimisation Rate",
-          current: currentDOERate !== null ? `${currentDOERate}%` : null,
-          previous: previousDOERate !== null ? `${previousDOERate}%` : null,
-          delta: doeDrift,
-          severity: driftSeverity(doeDrift, 10),
-          description: "Percentage of DOE-eligible claims that reached OPTIMISED status",
-          interpretation: doeDrift !== null
-            ? doeDrift < -10
-              ? "DOE optimisation rate is falling — more claims are being gated or disqualified. Review FCDI thresholds and quote quality."
-              : doeDrift > 10
-              ? "DOE optimisation rate is rising — more claims are reaching automated adjudication."
-              : "DOE optimisation rate is stable."
-            : "Insufficient data for comparison.",
-        },
-        {
-          metric: "Escalation Rate",
-          current: `${currentEscalationRate}%`,
-          previous: `${previousEscalationRate}%`,
-          delta: escalationDrift,
-          severity: driftSeverity(escalationDrift, 5),
-          description: "Percentage of claims escalated for manual review",
-          interpretation: escalationDrift > 5
-            ? "Escalation rate is rising — more claims require manual intervention. Check for fraud pattern changes or data quality issues."
-            : escalationDrift < -5
-            ? "Escalation rate is falling — automated adjudication is handling more claims."
-            : "Escalation rate is stable.",
-        },
-      ];
-
-      const hasCritical = driftSummary.some(d => d.severity === "critical");
-      const hasWarning = driftSummary.some(d => d.severity === "warning");
-      const overallHealth = hasCritical ? "critical" : hasWarning ? "warning" : "stable";
-
-      return {
-        windowDays: input.windowDays,
-        currentPeriodCount: currentRows.length,
-        previousPeriodCount: previousRows.length,
-        overallHealth,
-        driftSummary,
-        generatedAt: new Date().toISOString(),
-      };
+      requireExceptionIntelligenceTenant(ctx);
+      throwP0B1FraudDecisionHold();
     }),
 
   /**
