@@ -566,7 +566,9 @@ describe("ForensicReportModel", () => {
     const processorStage = model.approval.stages[0]! as Record<string, unknown>;
 
     expect(html).toContain("Kinga Forensic Parity 2024");
-    expect(html).toContain("47<span");
+    expect(html).toContain("Fraud Decision Withheld");
+    expect(html).toContain("Manual Review Required");
+    expect(html).not.toContain("47<span");
     expect(html).toContain("88<span");
     expect(html).toContain('data-p0-collision-physics="withheld"');
     expect(html).toContain("Obtain a qualified governing measurement");
@@ -707,14 +709,16 @@ describe("ForensicReportModel", () => {
     const html = await generateClaimsIntelligenceReport(claimId, tenantId);
 
     expect(html).toContain("Kinga Forensic Parity 2024");
-    expect(html).toContain(`${model.executive.fraud.value}/100`);
+    expect(html).toContain("Fraud Decision Withheld");
+    expect(html).toContain("Manual Review Required");
+    expect(html).not.toContain(`${model.executive.fraud.value}/100`);
     expect(html).toContain("$30,000.00");
     expect(html).toContain('data-p0-collision-physics="withheld"');
     expect(html).toContain("Obtain a qualified governing measurement");
     expect(html).not.toContain("28 km/h");
     expect(html).not.toContain("32.0 kJ");
     expect(html).not.toContain("120.0 kN");
-    expect(html).toContain("Copy-Quotation — Possible");
+    expect(html).not.toContain("Copy-Quotation — Possible");
   });
 
   it("renders CL, CI, and FR with shared non-physics evidence while withholding raw collision values", async () => {
@@ -734,6 +738,9 @@ describe("ForensicReportModel", () => {
 
     for (const report of reports) {
       expect(report).toContain("Kinga Forensic Parity 2024");
+      expect(report).toContain("Fraud Decision Withheld");
+      expect(report).toContain("Manual Review Required");
+      expect(report).not.toContain(`${model.executive.fraud.value}/100`);
       expect(report).toContain("$30,000.00");
       expect(report).toContain('data-p0-collision-physics="withheld"');
       expect(report).toContain("Obtain a qualified governing measurement");
@@ -781,9 +788,8 @@ describe("ForensicReportModel", () => {
     expect(claimsLedgerHtml).toContain("Fraud Decision Withheld — Manual Review Required");
     expect(claimsLedgerHtml).not.toContain("Fraud Score");
     expect(claimsLedgerHtml).not.toContain("Copy-Quotation — Possible");
-    expect(claimsIntelligenceHtml).toContain(String(model.executive.fraud.value));
-    expect(forensicHtml).toContain(String(model.executive.fraud.value));
-
+    expect(claimsIntelligenceHtml).not.toContain("Copy-Quotation — Possible");
+    expect(forensicHtml).not.toContain("Copy-Quotation — Possible");
     expect(forensicHtml).toContain(
       "Source documents require manual date reconciliation before a documentary consistency conclusion is published."
     );

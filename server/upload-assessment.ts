@@ -3,6 +3,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { processExternalAssessment } from "./assessment-processor";
 import { sdk } from "./_core/sdk";
+import { P0_B1_FRAUD_DECISION_HOLD } from "./evidence-governance/p0FraudDecisionHold";
 
 // Configure multer for memory storage (files stored in memory as Buffer)
 const upload = multer({
@@ -31,11 +32,19 @@ async function authMiddleware(req: Request & { user?: any }, res: Response, next
   }
 }
 
+function p0B1AssessmentUploadHold(_req: Request, res: Response): void {
+  res.status(412).json({
+    ...P0_B1_FRAUD_DECISION_HOLD,
+    scope: "external_assessment_upload",
+  });
+}
+
 export const uploadAssessmentRouter = Router();
 
 uploadAssessmentRouter.post(
   "/upload-assessment",
   authMiddleware,
+  p0B1AssessmentUploadHold,
   upload.single("file"),
   async (req: Request & { user?: any }, res: Response) => {
     try {

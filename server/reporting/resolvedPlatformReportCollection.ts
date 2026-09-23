@@ -230,10 +230,7 @@ function summarisePortfolio(records: readonly AggregateRecord[]): PortfolioAggre
     incident.aiEstimatedValueUsd += estimated;
     incidentTypes.set(record.incidentType, incident);
 
-    if (record.normalised) {
-      fraudScores.push(record.normalised.fraud.score);
-      if (HIGH_RISK_LEVELS.has(record.normalised.fraud.level)) highRiskClaimCount += 1;
-    }
+    // P0-B1: unqualified fraud values are intentionally not aggregated.
   }
 
   return {
@@ -255,19 +252,9 @@ function summarisePortfolio(records: readonly AggregateRecord[]): PortfolioAggre
 }
 
 function summariseFraudRisk(records: readonly AggregateRecord[]): readonly FraudRiskAggregate[] {
-  const groups = new Map<FraudRiskAggregate["riskLevel"], { claimCount: number; scores: number[] }>();
-  for (const record of records) {
-    const riskLevel = record.normalised?.fraud.level ?? "unassessed";
-    const group = groups.get(riskLevel) ?? { claimCount: 0, scores: [] };
-    group.claimCount += 1;
-    if (record.normalised) group.scores.push(record.normalised.fraud.score);
-    groups.set(riskLevel, group);
-  }
-  const order: ReadonlyArray<FraudRiskAggregate["riskLevel"]> = ["elevated", "high", "moderate", "low", "minimal", "unassessed"];
-  return order.filter((level) => groups.has(level)).map((riskLevel) => {
-    const group = groups.get(riskLevel)!;
-    return { riskLevel, claimCount: group.claimCount, averageScore: average(group.scores) };
-  });
+  void records;
+  // P0-B1: no risk-band or score distribution may be reconstructed from history.
+  return [];
 }
 
 function summariseDwellTime(records: readonly AggregateRecord[]): readonly DwellTimeAggregate[] {

@@ -1064,7 +1064,11 @@ export interface Stage8Input {
 export interface FraudIndicator {
   indicator: string;
   category: string;
-  score: number;
+  /**
+   * Legacy/source score retained only inside descriptive evidence. A null score
+   * is a deliberate non-score review marker and must never be coerced to zero.
+   */
+  score: number | null;
   description: string;
   /** Optional severity label for display — does not affect scoring */
   severity?: "critical" | "high" | "medium" | "low" | "advisory";
@@ -1073,8 +1077,12 @@ export interface FraudIndicator {
 }
 
 export interface Stage8Output {
-  fraudRiskScore: number;
-  fraudRiskLevel: FraudRiskLevel;
+  /** Null until a later policy introduces a qualified governing fraud source. */
+  fraudRiskScore: number | null;
+  /** Null accompanies an unavailable/advisory fraud score; never infer low risk. */
+  fraudRiskLevel: FraudRiskLevel | null;
+  /** Source-bound P0-B1 authority state for every automated fraud consumer. */
+  fraudDecisionEligibility?: import("../evidence-governance/quantitativeFieldGovernance").FraudDecisionEligibility;
   indicators: FraudIndicator[];
   quoteDeviation: number | null;
   repairerHistory: {
@@ -1089,7 +1097,8 @@ export interface Stage8Output {
     flagged: boolean;
     notes: string;
   };
-  damageConsistencyScore: number;
+  /** Null when P0 withholds visual/physics-derived fraud evidence. */
+  damageConsistencyScore: number | null;
   damageConsistencyNotes: string;
   /** Scenario-aware fraud detection result — null if engine was skipped */
   scenarioFraudResult: {

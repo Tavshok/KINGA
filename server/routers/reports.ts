@@ -146,6 +146,13 @@ export const reportsRouter = router({
      })
   )
    .mutation(async ({ ctx, input }) => {
+      void ctx;
+      void input;
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message: "Executive fraud reporting is withheld pending independently verifiable claim-linked evidence, human-reviewed auditable evidence, and a future owner-approved qualified automated-decision policy.",
+      });
+
       requireAlternateReportAccess(ctx, "executive.portfolio_overview");
       assertRestrictedAgencyAssistedCapability(ctx.user, "report_access");
       requireReportTenant(ctx.user.tenantId, input.tenantId);

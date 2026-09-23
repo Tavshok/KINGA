@@ -23,10 +23,13 @@ export interface ClaimIntelligence {
   assessorEvaluation: any | null;
   panelBeaterQuotes: any[];
   fraudDetection: {
-    aiRiskScore: number;
-    assessorRiskLevel: string;
+    aiRiskScore: number | null;
+    assessorRiskLevel: string | null;
     indicators: string[];
     enhancedAnalysis: any;
+    status: "FRAUD_DECISION_WITHHELD";
+    explanation: string;
+    requiredEvidence: string[];
   };
   physicsValidation: {
     impactAnalysis: any | null;
@@ -167,12 +170,21 @@ export async function aggregateClaimIntelligence(
     });
   }
 
-  // Aggregate fraud detection data
+  // P0-B1: no stored, visual, model, or fallback fraud value is a governing
+  // report input. Snapshots retain an actionable review hold, never 0/low.
   const fraudDetection = {
-    aiRiskScore: (aiAssessment as any)?.fraudRiskScore || 0,
-    assessorRiskLevel: assessorEvaluation?.fraudRiskLevel || "low",
-    indicators: aiAssessment?.fraudIndicators ? JSON.parse(aiAssessment.fraudIndicators) : [],
-    enhancedAnalysis: (aiAssessment as any)?.enhancedFraudAnalysis || null,
+    aiRiskScore: null,
+    assessorRiskLevel: null,
+    indicators: [],
+    enhancedAnalysis: null,
+    status: "FRAUD_DECISION_WITHHELD" as const,
+    explanation:
+      "Automated fraud scoring is withheld because current evidence lacks qualified governing authority.",
+    requiredEvidence: [
+      "Independently verifiable claim-linked evidence",
+      "Human-reviewed evidence with auditable provenance",
+      "A future owner-approved qualified automated-decision policy",
+    ],
   };
 
   // Aggregate physics validation data
@@ -248,23 +260,14 @@ export function extractCostComparisonData(intelligence: ClaimIntelligence) {
  * Extracts fraud risk data from all detection sources
  */
 export function extractFraudRiskData(intelligence: ClaimIntelligence) {
-  const aiRiskScore = intelligence.fraudDetection.aiRiskScore;
-  const assessorRiskLevel = intelligence.fraudDetection.assessorRiskLevel;
-
-  // Determine overall risk level
-  let overallRiskLevel: "low" | "medium" | "high" = "low";
-  if (aiRiskScore >= 70 || assessorRiskLevel === "high") {
-    overallRiskLevel = "high";
-  } else if (aiRiskScore >= 40 || assessorRiskLevel === "medium") {
-    overallRiskLevel = "medium";
-  }
-
   return {
-    overallRiskLevel,
-    aiRiskScore,
-    assessorRiskLevel,
-    indicators: intelligence.fraudDetection.indicators,
-    enhancedAnalysis: intelligence.fraudDetection.enhancedAnalysis,
+    status: intelligence.fraudDetection.status,
+    explanation: intelligence.fraudDetection.explanation,
+    requiredEvidence: intelligence.fraudDetection.requiredEvidence,
+    aiRiskScore: null,
+    assessorRiskLevel: null,
+    indicators: [],
+    enhancedAnalysis: null,
   };
 }
 

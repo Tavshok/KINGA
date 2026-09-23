@@ -350,54 +350,8 @@ export const vehicleValuationCoreRouter = router({
             .set({ consistencyCheckJson: JSON.stringify(consistencyResult) })
             .where(eq(aiAssessments.id, freshAssessment.id));
 
-          // ─── Update fraud score if consistency check completed ────────────
-          // Only update when the check produced a complete result with
-          // high-severity mismatches — the weighted scorer handles the
-          // confidence-based weighting (HIGH→12, MEDIUM→5, LOW→0).
-          if (consistencyResult.status === 'complete') {
-            try {
-              const { computeWeightedFraudScore } = await import('../weighted-fraud-scoring');
-              const highSeverityMismatches = consistencyResult.mismatches.filter(
-                (m: any) => m.severity === 'high'
-              );
-
-              if (highSeverityMismatches.length > 0) {
-                // Build a minimal input using the consistency result
-                const fraudInput = {
-                  consistencyScore: consistencyResult.consistency_score,
-                  aiEstimatedCost: 0,
-                  quotedAmount: 0,
-                  impactDirection: 'unknown',
-                  damageZones: [],
-                  hasPreviousClaims: false,
-                  missingDataCount: 0,
-                  multiSourceConflict: {
-                    confidence: consistencyResult.confidence as 'HIGH' | 'MEDIUM' | 'LOW',
-                    highSeverityMismatchCount: highSeverityMismatches.length,
-                    details: highSeverityMismatches.map((m: any) => m.details).join('; '),
-                  },
-                };
-                const fraudResult = computeWeightedFraudScore(fraudInput);
-
-                // Persist the updated fraud score back to the assessment
-                if (freshAssessment.fraudScore !== null && freshAssessment.fraudScore !== undefined) {
-                  // Blend: take the higher of the existing score and the new conflict penalty
-                  const conflictPenalty = fraudResult.contributions
-                    .find((c: any) => c.factor === 'Multi-Source Damage Conflict')?.value ?? 0;
-                  const updatedScore = Math.min(100, (freshAssessment.fraudScore as number) + conflictPenalty);
-                  await db.update(aiAssessments)
-                    .set({ fraudScore: updatedScore })
-                    .where(eq(aiAssessments.id, freshAssessment.id));
-                }
-              }
-            } catch (fraudUpdateErr: unknown) {
-              // R-GH-16: Fraud score update failure is non-fatal but must be observable.
-              console.warn(
-                `[runConsistencyCheck] Fraud score update failed for assessment ${freshAssessment.id}: ` +
-                `${fraudUpdateErr instanceof Error ? fraudUpdateErr.message : String(fraudUpdateErr)}`
-              );
-            }
-          }
+          // P0-B1: consistency mismatches remain reviewer context only. They
+          // cannot produce, blend, or persist a numeric fraud score.
         }
       } catch (autoTriggerErr: unknown) {
         // R-GH-16: Auto-trigger consistency check failure is non-fatal but must be observable.

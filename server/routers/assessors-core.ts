@@ -37,6 +37,15 @@ export const assessorsRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
+      void input;
+      return {
+        status: "FRAUD_DECISION_WITHHELD",
+        reviewRequired: true,
+        explanation: "Assessor fraud-detection, prevention, and accuracy metrics are withheld pending qualified governing evidence.",
+        requiredEvidence: ["Independently verifiable claim-linked evidence", "Human-reviewed evidence with auditable provenance", "A future owner-approved qualified automated-decision policy"],
+        metrics: null,
+      };
+
       const tenantId = ctx.user.tenantId;
       if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       const db = await getDb();

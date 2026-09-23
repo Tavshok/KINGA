@@ -452,48 +452,22 @@ export const vehiclePassportRouter = router({
       const tenantId = requireVehiclePassportTenant(ctx);
 
       const [vehicle] = await db
-        .select({ registrationNumber: vehicleRegistry.registrationNumber, tenantId: vehicleRegistry.tenantId })
+        .select({ id: vehicleRegistry.id, tenantId: vehicleRegistry.tenantId })
         .from(vehicleRegistry)
         .where(eq(vehicleRegistry.id, input.vehicleRegistryId))
         .limit(1);
 
       if (!vehicle) throw new TRPCError({ code: "NOT_FOUND", message: "Vehicle not found" });
-      if (!vehicle.tenantId || vehicle.tenantId !== tenantId) {
+      if (!await canAccessVehiclePassport(db, vehicle, input.vehicleRegistryId, tenantId)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
       }
 
-      const regNum = vehicle.registrationNumber ?? "";
-
-      const claimHistory = await db
-        .select({
-          claimId: claims.id,
-          claimReference: claims.claimReference,
-          status: claims.status,
-          createdAt: claims.createdAt,
-          finalApprovedAmount: claims.finalApprovedAmount,
-          currencyCode: claims.currencyCode,
-          fraudScore: aiAssessments.fraudScore,
-          fraudRiskLevel: aiAssessments.fraudRiskLevel,
-          recommendation: aiAssessments.recommendation,
-          confidenceScore: aiAssessments.confidenceScore,
-        })
-        .from(claims)
-        .leftJoin(aiAssessments, eq(aiAssessments.claimId, claims.id))
-        .where(and(
-          eq(claims.vehicleRegistration, regNum),
-          eq(claims.tenantId, tenantId),
-        ))
-        .orderBy(desc(claims.createdAt))
-        .limit(input.limit);
-
       return {
-        registrationNumber: regNum,
-        totalClaims: claimHistory.length,
-        claims: claimHistory,
-        dataSourceMap: {
-          claims: "claims",
-          assessments: "ai_assessments",
-        },
+        status: "FRAUD_DECISION_WITHHELD",
+        reviewRequired: true,
+        explanation: "Vehicle claim fraud history is withheld pending qualified governing evidence.",
+        requiredEvidence: ["Independently verifiable claim-linked evidence", "Human-reviewed evidence with auditable provenance", "A future owner-approved qualified automated-decision policy"],
+        claims: [],
       };
     }),
 
@@ -513,65 +487,23 @@ export const vehiclePassportRouter = router({
       const tenantId = requireVehiclePassportTenant(ctx);
 
       const [vehicle] = await db
-        .select({ registrationNumber: vehicleRegistry.registrationNumber, tenantId: vehicleRegistry.tenantId })
+        .select({ id: vehicleRegistry.id, tenantId: vehicleRegistry.tenantId })
         .from(vehicleRegistry)
         .where(eq(vehicleRegistry.id, input.vehicleRegistryId))
         .limit(1);
 
       if (!vehicle) throw new TRPCError({ code: "NOT_FOUND", message: "Vehicle not found" });
-      if (!vehicle.tenantId || vehicle.tenantId !== tenantId) {
+      if (!await canAccessVehiclePassport(db, vehicle, input.vehicleRegistryId, tenantId)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
       }
 
-      const regNum = vehicle.registrationNumber ?? "";
-
-      // Cross-claim signals (canonical: cross_claim_signals)
-      const signals = await db
-        .select({
-          id: crossClaimSignals.id,
-          signalType: crossClaimSignals.signalType,
-          confidence: crossClaimSignals.confidence,
-          signalLabel: crossClaimSignals.signalLabel,
-          createdAt: crossClaimSignals.createdAt,
-          claimId: crossClaimSignals.claimId,
-        })
-        .from(crossClaimSignals)
-        .innerJoin(claims, eq(claims.id, crossClaimSignals.claimId))
-        .where(and(
-          eq(claims.vehicleRegistration, regNum),
-          eq(claims.tenantId, tenantId),
-          eq(crossClaimSignals.tenantId, tenantId),
-        ))
-        .orderBy(desc(crossClaimSignals.createdAt));
-
-      // Fraud alerts (canonical: fraud_alerts)
-      const alerts = await db
-        .select({
-          id: fraudAlerts.id,
-          alertType: fraudAlerts.alertType,
-          alertSeverity: fraudAlerts.alertSeverity,
-          alertDescription: fraudAlerts.alertDescription,
-          createdAt: fraudAlerts.createdAt,
-          claimId: fraudAlerts.claimId,
-        })
-        .from(fraudAlerts)
-        .innerJoin(claims, eq(claims.id, fraudAlerts.claimId))
-        .where(and(
-          eq(claims.vehicleRegistration, regNum),
-          eq(claims.tenantId, tenantId),
-        ))
-        .orderBy(desc(fraudAlerts.createdAt));
-
       return {
-        registrationNumber: regNum,
-        totalSignals: signals.length,
-        totalAlerts: alerts.length,
-        signals,
-        alerts,
-        dataSourceMap: {
-          signals: "cross_claim_signals",
-          alerts: "fraud_alerts",
-        },
+        status: "FRAUD_DECISION_WITHHELD",
+        reviewRequired: true,
+        explanation: "Vehicle fraud signals are withheld pending qualified governing evidence.",
+        requiredEvidence: ["Independently verifiable claim-linked evidence", "Human-reviewed evidence with auditable provenance", "A future owner-approved qualified automated-decision policy"],
+        signals: [],
+        alerts: [],
       };
     }),
 

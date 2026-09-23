@@ -30,6 +30,7 @@
  */
 
 import type { FraudRiskLevel } from "./types";
+import { buildP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -115,6 +116,7 @@ export interface ContradictionResult {
     minor_count: number;
     timestamp_utc: string;
   };
+  decision_hold?: ReturnType<typeof buildP0B1FraudDecisionHold>;
 }
 
 // ─── Rule Definitions ─────────────────────────────────────────────────────────
@@ -499,9 +501,9 @@ const CONTRADICTION_RULES: ContradictionRule[] = [
  * Detect logical contradictions between pipeline stage outputs and the final decision.
  *
  * @param input - All relevant stage outputs and the final recommendation
- * @returns ContradictionResult with contradictions list, valid flag, and ALLOW/BLOCK action
+ * @returns characterization-only rule output; never import into production decisions
  */
-export function detectContradictions(input: ContradictionInput): ContradictionResult {
+export function characterizeContradictions(input: ContradictionInput): ContradictionResult {
   const contradictions: ContradictionEntry[] = [];
 
   for (const rule of CONTRADICTION_RULES) {
@@ -556,6 +558,34 @@ export function detectContradictions(input: ContradictionInput): ContradictionRe
 }
 
 /**
+ * P0-B1 production boundary. Current fraud, visual, model, and physics inputs
+ * cannot validate, allow, or block a claim decision until qualified authority exists.
+ */
+export function detectContradictions(_input: ContradictionInput): ContradictionResult {
+  const decision_hold = buildP0B1FraudDecisionHold({
+    status: "CONTRADICTION_DECISION_WITHHELD" as const,
+  });
+
+  return {
+    contradictions: [],
+    valid: false,
+    action: "BLOCK",
+    summary:
+      "Contradiction decision withheld pending qualified, claim-linked evidence and human review.",
+    metadata: {
+      engine: "ContradictionDetectionEngine",
+      version: "1.0.0",
+      rules_checked: 0,
+      critical_count: 0,
+      major_count: 0,
+      minor_count: 0,
+      timestamp_utc: new Date().toISOString(),
+    },
+    decision_hold,
+  };
+}
+
+/**
  * Validate a batch of decisions. Returns per-item results.
  */
 export function detectContradictionsBatch(
@@ -564,6 +594,15 @@ export function detectContradictionsBatch(
   return items.map((item) => ({
     claim_id: item.claim_id,
     result: detectContradictions(item.input),
+  }));
+}
+
+export function characterizeContradictionsBatch(
+  items: Array<{ claim_id: string | number; input: ContradictionInput }>
+): Array<{ claim_id: string | number; result: ContradictionResult }> {
+  return items.map((item) => ({
+    claim_id: item.claim_id,
+    result: characterizeContradictions(item.input),
   }));
 }
 

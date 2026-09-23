@@ -215,7 +215,7 @@ export const STAGE_CONTRACTS: Record<string, StageContract> = {
     optional: ["stage7Data", "evidenceRegistryData"],
     outputGuarantees: ["stage8Data"],
     degradedAllowed: true,
-    fallbackBehaviour: "Use engineFallback.buildFraudFallback(). Score defaults to 30 (medium risk). All indicators marked estimated.",
+    fallbackBehaviour: "Use engineFallback.buildFraudFallback(). Fraud score and level remain unavailable; retain only actionable manual-review evidence.",
   },
 
   "9_cost": {

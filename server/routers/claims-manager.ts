@@ -44,6 +44,13 @@ function daysSince(dateStr: string | null | undefined): number {
   return Math.floor(ms / 86400000);
 }
 
+const p0FraudClaimsManagerProcedure = insurerDomainProcedure.use(async () => {
+  throw new TRPCError({
+    code: "PRECONDITION_FAILED",
+    message: "Fraud-derived claim queues and approval-workbench indicators are withheld pending independently verifiable claim-linked evidence, human-reviewed auditable evidence, and a future owner-approved qualified automated-decision policy.",
+  });
+});
+
 export const claimsManagerRouter = router({
   /**
    * Queue Health Matrix
@@ -132,7 +139,7 @@ export const claimsManagerRouter = router({
    * immediate Claims Manager attention. Each category includes a count and
    * the top 5 claim IDs/numbers for drill-down.
    */
-  getAttentionRequired: insurerDomainProcedure.query(async ({ ctx }) => {
+  getAttentionRequired: p0FraudClaimsManagerProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -277,7 +284,7 @@ export const claimsManagerRouter = router({
    * Returns counts and average ages for claims at approval stages.
    * Source: claims table, workflowState + technicallyApprovedAt fields.
    */
-  getApprovalWorkbenchMetrics: insurerDomainProcedure.query(async ({ ctx }) => {
+  getApprovalWorkbenchMetrics: p0FraudClaimsManagerProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 

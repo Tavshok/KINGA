@@ -31,6 +31,7 @@ import {
   projectP0A2DescriptivePhotoEvidence,
   renderP0A2CollisionPhysicsAbstentionMarker,
 } from "./p0PhysicsPresentation";
+import { renderP0B1FraudAbstentionMarker } from "./p0FraudPresentation";
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 export async function generateClaimsIntelligenceReport(
@@ -84,15 +85,13 @@ export async function generateClaimsIntelligenceReport(
     // ── 4. Parse JSON fields ─────────────────────────────────────────────────
     const costIntel  = safeJson(c.cost_intelligence_json as string) as any;
     const repairIntel = safeJson(c.repair_intelligence_json as string) as any;
-    const fraudBreak = safeJson(c.fraud_score_breakdown_json as string) as any;
     const ife        = safeJson(c.ife_result_json as string) as any;
     const narrative  = safeJson(c.narrative_analysis_json as string) as any;
     // ARCH-01: Canonical CTL call-site for CI tier
     const claimTruthCI  = safeJson(c.claim_truth_json as string) as any;
 
     // ── 5. Derived values ────────────────────────────────────────────────────
-    const fraudScore   = Number(c.fraud_score ?? 0);
-    const fraudLevel   = String(c.fraud_risk_level ?? "low").toLowerCase();
+    // Historic fraud score/classification fields are retained privately only.
     // FIX-RTV: If repair_to_value_ratio is null, derive it from estimated_cost / market_value.
     // This prevents the scorecard showing 0% when the pipeline hasn't written the column.
     const estimatedCostForRtv = Number(c.estimated_cost ?? 0);
@@ -216,10 +215,6 @@ export async function generateClaimsIntelligenceReport(
       ? "Not available"
       : fmtUSD(recommendedSettlement);
 
-    // Fraud badge
-    const fraudBadgeCls = fraudScore >= 70 ? "fail" : fraudScore >= 40 ? "warn" : "ok";
-    const fraudBadgeLabel = fraudScore >= 70 ? "High Risk" : fraudScore >= 40 ? "Moderate Risk" : "Low Risk";
-
     // ARCH-03 fix: use ife.completenessScore (same canonical field as FR tier) for data completeness.
     // ife.overallScore is a composite IFE score — not the same metric as completenessScore.
     // Label them distinctly so a user comparing CI and FR sees the same number with the same label.
@@ -253,7 +248,6 @@ export async function generateClaimsIntelligenceReport(
     const recLabel = reportDecision.status.replaceAll("_", " ");
     const chipCls = reportDecision.chipClass;
     const chipIcon = reportDecision.icon;
-    const scoreCardFraudCls = fraudScore >= 70 ? "bad" : fraudScore >= 40 ? "warn" : "good";
     const scoreCardRtvCls = rtvRatio >= 70 ? "bad" : rtvRatio >= 50 ? "warn" : "good";
     const scoreCardDataCls = dataComplete >= 80 ? "good" : dataComplete >= 60 ? "warn" : "bad";
     const scoreCardQCls = activeQuoteCount >= 3 ? "good" : activeQuoteCount >= 2 ? "warn" : "bad";
@@ -280,7 +274,7 @@ export async function generateClaimsIntelligenceReport(
 </div>
 <!-- ── SCORECARD ── -->
 <div class="scorecard">
-  <div class="score-cell ${scoreCardFraudCls}"><div class="label">Fraud Score</div><div class="value">${fraudScore}</div><div class="sub">${fraudBadgeLabel}</div></div>
+  <div class="score-cell warn" data-p0-fraud-decision="withheld"><div class="label">Fraud Decision</div><div class="value" style="font-size:12px">WITHHELD</div><div class="sub">Manual review required</div></div>
   <div class="score-cell ${scoreCardDataCls}"><div class="label">Data Complete</div><div class="value">${Math.round(dataComplete)}<span style="font-size:12px">%</span></div><div class="sub">${dataComplete >= 80 ? "Good" : dataComplete >= 60 ? "Partial" : "Incomplete"}</div></div>
   <div class="score-cell ${scoreCardQCls}"><div class="label">Quotes Received</div><div class="value">${reportedQuoteCount}</div><div class="sub">${quoteEvidenceState === "legacy_history_only" ? "History only" : activeQuoteCount >= 3 ? "Sufficient" : "Below minimum"}</div></div>
   <div class="score-cell ${scoreCardRtvCls}"><div class="label">Repair-to-Value</div><div class="value">${fmtPct(rtvRatio, 0)}</div><div class="sub">${rtvRatio >= 70 ? "Total loss risk" : rtvRatio >= 50 ? "Monitor" : "Within range"}</div></div>
@@ -335,7 +329,7 @@ ${(() => {
   <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§1</div><div style="font-size:10px;color:var(--ink)">Claim Identity &amp; Policy</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
   <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§P</div><div style="font-size:10px;color:var(--ink)">Policy &amp; Coverage Check</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
   <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§2</div><div style="font-size:10px;color:var(--ink)">Cost Intelligence</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
-  <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§3</div><div style="font-size:10px;color:var(--ink)">Risk Indicators</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
+  <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§3</div><div style="font-size:10px;color:var(--ink)">Fraud Decision Status</div><div style="font-size:8.5px;color:var(--amber);font-family:'Helvetica Neue',Arial,sans-serif">Manual review</div></div>
   <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§4</div><div style="font-size:10px;color:var(--ink)">Evidence Snapshot</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
   <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§5</div><div style="font-size:10px;color:var(--ink)">Decision &amp; Next Steps</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
 </div>
@@ -645,72 +639,23 @@ ${(() => {
   </div>
 </div>`;
 
-    // ── §3 RISK INDICATORS ───────────────────────────────────────────────────
-    type FraudInd = {name: string; score: number; threshold: string; finding: string; status: "pass" | "warn" | "fail" | "neutral"};
-    // P0-A-2 exposes only independently computed cost, date, and quote facts.
-    // Stored fraud JSON can include collision-derived prose and is never rendered.
-    const fraudIndicators: FraudInd[] = [
-        { name: "Repair Cost vs Market Value", score: rtvRatio >= 50 ? 15 : 0, threshold: "> 50%", finding: `${fmtPct(rtvRatio)} — ${rtvRatio >= 50 ? "approaching total-loss threshold" : "within normal range"}`, status: rtvRatio >= 50 ? "warn" : "pass" },
-        { name: "Late Claim Submission", score: dayDelay !== null && dayDelay > 90 ? 7 : 0, threshold: "> 90 days", finding: dayDelay !== null ? `${dayDelay} days — ${dayDelay > 90 ? "written explanation required" : "within normal range"}` : "—", status: dayDelay !== null && dayDelay > 90 ? "warn" : "pass" },
-        { name: "Quote Spread", score: 0, threshold: "> 40%", finding: quoteArr.length > 1 ? "Spread within normal range" : "Insufficient quotes to assess", status: quoteArr.length > 1 ? "pass" : "neutral" },
-        { name: "Collision Physics", score: 0, threshold: "Qualified governing measurement", finding: "Withheld pending P1-qualified measurement or documented human engineering review", status: "neutral" },
-    ];
-
-    const fraudTableRows = fraudIndicators.map(ind => `<tr>
-      <td>${esc(ind.name)}</td>
-      <td class="tm">${ind.score > 0 ? `<strong>${ind.score} pts</strong>` : "0 pts"}</td>
-      <td class="tm">${esc(ind.threshold)}</td>
-      <td>${esc(ind.finding)}</td>
-      <td>${chip(ind.status === "pass" ? "Clear" : ind.status === "warn" ? "Flagged" : ind.status === "neutral" ? "Not assessed" : "Alert", ind.status)}</td>
-    </tr>`).join("");
-
     const s3 = `
 <div class="page page-break">
 <div class="section">
-  <div class="section-tab sans"><span class="num">03</span> Risk Indicators <span class="flag-right ${fraudBadgeCls === "fail" ? "high" : fraudBadgeCls === "warn" ? "mid" : "ok"}">${fraudScore}/100 — ${fraudBadgeLabel}</span></div>
+  <div class="section-tab sans"><span class="num">03</span> Fraud Decision Status</div>
   <div class="cols-2">
     <div class="box">
-      <h4>Fraud Score — ${fraudScore}/100 (${fraudBadgeLabel})</h4>
-      <table class="kv">
-        <tr><td class="k">Overall assessment</td><td class="v"><span class="pill ${fraudBadgeCls === "fail" ? "red" : fraudBadgeCls === "warn" ? "amber" : "green"}">${fraudBadgeLabel}</span></td></tr>
-        <tr><td class="k">Data completeness (IFE)</td><td class="v">${Math.round(dataComplete)}% — ${dataComplete >= 80 ? "good" : "partial"}</td></tr>
-      </table>
+      ${renderP0B1FraudAbstentionMarker()}
     </div>
     <div class="box" ${dayDelay !== null && dayDelay > 90 ? `style="border-color:var(--red);"` : ""}>
       <h4 ${dayDelay !== null && dayDelay > 90 ? `style="color:var(--red);"` : ""}>Submission Delay</h4>
-      <p style="margin:0;">${dayDelay !== null ? `Claim lodged <b>${dayDelay} days</b> after the incident date. ${dayDelay > 90 ? "This is the primary risk indicator on this claim — a written explanation from the claimant is required before it can proceed, independent of the numeric fraud score." : "Submission timing is within normal parameters."}` : "Submission delay data not available."}</p>
+      <p style="margin:0;">${dayDelay !== null ? `Claim lodged <b>${dayDelay} days</b> after the incident date. ${dayDelay > 90 ? "Obtain a written explanation and supporting source documentation before settlement review." : "Submission timing is recorded in the documentary claim file."}` : "Submission delay data not available."}</p>
     </div>
   </div>
-
-  <div class="section" style="margin-top:10px;">
-    <div class="section-tab sans" style="background:var(--ink-soft);"><span class="num">Indicator Breakdown</span></div>
-    <table class="grid-t">
-      <tr><th>Indicator</th><th>Score</th><th>Threshold</th><th>Finding</th><th>Status</th></tr>
-      ${fraudTableRows}
-    </table>
-  </div>
-
-  ${rtvRatio >= 50 ? `
-  <div class="callout amber" style="margin-top:8px;"><b>Repair Cost Approaching Total-Loss Threshold.</b> At ${fmtPct(rtvRatio)} of market value, the repair cost is approaching the typical total-loss threshold. Confirm the insurer's total-loss policy before authorising repairs.</div>` : ""}
-  ${(() => {
-    const qs = fraudBreak?.quoteSimilarity;
-    if (!qs) return '';
-    const verdict = qs.overall_verdict ?? qs.verdict;
-    // TIER-05: Use pairs[0].structural_similarity (0–1 decimal) as canonical pairSim source
-    const rawPairSim = qs.pairs?.[0]?.structural_similarity ?? qs.highestPairSimilarity ?? qs.maxSimilarity;
-    const pairSimPct = rawPairSim != null ? Math.round(Number(rawPairSim) * 100) : null;
-    if (verdict === 'confirmed' || verdict === 'high_risk') {
-      return `<div class="callout" style="margin-top:8px;border-color:var(--red);background:#fff5f5;"><b>Copy-Quotation Detected.</b> Quote similarity analysis flagged a potential copy-quotation pattern (highest pair similarity: ${pairSimPct != null ? pairSimPct + '%' : 'N/A'}). This indicates two or more repair quotes may share a common origin — the quotes may have been produced by the same person or from the same template, which is a fraud indicator. <strong>Action required: all quotes from the flagged pair must be excluded from the settlement calculation. An independent quote from a repairer with no connection to the flagged parties must be obtained before settlement can be authorised.</strong> Refer to the Forensic Report for full pair-by-pair analysis and structural fingerprint breakdown.</div>`;
-    } else if (verdict === 'possible' || verdict === 'moderate_risk') {
-      return `<div class="callout amber" style="margin-top:8px;"><b>Copy-Quotation — Possible.</b> Quote similarity analysis detected a moderate similarity pattern (highest pair: ${pairSimPct != null ? pairSimPct + '%' : 'N/A'}). Quotes may share structural similarities. Further review recommended before settlement.</div>`;
-    }
-    return '';
-  })()} 
-  <p class="small" style="margin-top:8px;">Full fraud radar breakdown, cross-engine consistency checks, copy-quotation fingerprint analysis, and accident-date validation are available in the Forensic Claim Decision Report.</p>
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>KINGA AI · Confidential Claims Intelligence Report</div>
-    <div>${docRef} · Section 03 · Risk Indicators</div>
+    <div>${docRef} · Section 03 · Fraud Decision Status</div>
   </div>
 </div>`;
 

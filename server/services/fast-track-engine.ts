@@ -26,6 +26,7 @@ import {
 type FastTrackConfig = typeof fastTrackConfig.$inferSelect;
 type InsertFastTrackRoutingLog = typeof fastTrackRoutingLog.$inferInsert;
 import { eq, and, isNull, desc } from "drizzle-orm";
+import { hasGoverningFraudDecisionEligibility } from "../evidence-governance/quantitativeFieldGovernance";
 
 /**
  * Fast-track action types
@@ -49,7 +50,7 @@ export interface FastTrackEvaluationResult {
     configSpecificity: "claim_type_product" | "claim_type" | "product" | "tenant_wide" | "none";
     confidenceScore: number;
     claimValue: number;
-    fraudScore: number;
+    fraudScore: number | null;
     claimType: string;
     productId: number | null;
     reason: string;
@@ -69,9 +70,13 @@ export interface FastTrackEvaluationParams {
   tenantId: string;
   confidenceScore: number; // 0-100
   claimValue: number; // In cents
-  fraudScore: number; // 0-100
+  /** Null when P0 withholds a governing fraud score. */
+  fraudScore: number | null;
   claimType: string;
   productId: number | null;
+  /** P0-B1 source-bound authority required before an automated route. */
+  fraudDecisionEligibility?: import("../evidence-governance/quantitativeFieldGovernance").FraudDecisionEligibility;
+  fraudDecisionSources?: import("../evidence-governance/quantitativeFieldGovernance").FraudDecisionEligibilityInput;
 }
 
 /**
@@ -226,6 +231,33 @@ function getConfigSpecificity(config: FastTrackConfig): "claim_type_product" | "
   return "tenant_wide";
 }
 
+export function buildP0HeldFastTrackResult(
+  params: FastTrackEvaluationParams
+): FastTrackEvaluationResult {
+  const fraudEligibility = params.fraudDecisionEligibility;
+  const reason = `${fraudEligibility?.explanation ?? "Automated routing is withheld because fraud evidence eligibility is missing or invalid."} ${fraudEligibility?.requiredEvidence.join(" ") ?? "Obtain independently verifiable claim-linked fraud evidence and a qualified automated-decision authority, then route this claim to manual review."}`;
+  return {
+    eligible: false,
+    action: "MANUAL_REVIEW",
+    configVersion: null,
+    evaluationDetails: {
+      configId: null,
+      configSpecificity: "none",
+      confidenceScore: params.confidenceScore,
+      claimValue: params.claimValue,
+      fraudScore: null,
+      claimType: params.claimType,
+      productId: params.productId,
+      reason,
+      thresholdsMet: {
+        minConfidence: false,
+        maxClaimValue: false,
+        maxFraudScore: false,
+      },
+    },
+  };
+}
+
 /**
  * Evaluate claim against fast-track configuration
  * 
@@ -235,19 +267,37 @@ function getConfigSpecificity(config: FastTrackConfig): "claim_type_product" | "
 export async function evaluateFastTrack(
   params: FastTrackEvaluationParams
 ): Promise<FastTrackEvaluationResult> {
+  // Preserve resource and tenant authorization before returning an otherwise
+  // applicable P0 hold. A hold must never reveal that a foreign or nonexistent
+  // claim was validly addressed. This check reads no fraud evidence and cannot
+  // activate an automated routing outcome.
+  await validateTenantIsolation(params.claimId, params.tenantId);
+
+  // P0-B1: a current P0 evaluation can never have governing fraud authority.
+  // This guard precedes configuration, audit, and every routing decision.
+  const fraudEligibility = params.fraudDecisionEligibility;
+  if (
+    params.fraudScore == null ||
+    !fraudEligibility ||
+    !params.fraudDecisionSources ||
+    !hasGoverningFraudDecisionEligibility(
+      fraudEligibility,
+      params.fraudDecisionSources
+    )
+  ) {
+    return buildP0HeldFastTrackResult(params);
+  }
+
   const db = await getDb();
   if (!db) {
     throw new Error("Database connection not available");
   }
 
-  // Validate tenant isolation
-  await validateTenantIsolation(params.claimId, params.tenantId);
-
   // Validate input parameters
   if (params.confidenceScore < 0 || params.confidenceScore > 100) {
     throw new FastTrackValidationError("Confidence score must be between 0 and 100");
   }
-  if (params.fraudScore < 0 || params.fraudScore > 100) {
+  if (params.fraudScore != null && (params.fraudScore < 0 || params.fraudScore > 100)) {
     throw new FastTrackValidationError("Fraud score must be between 0 and 100");
   }
   if (params.claimValue < 0) {

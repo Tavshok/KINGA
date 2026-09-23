@@ -68,6 +68,13 @@ const analyticsRoleProcedure = protectedProcedure.use(async ({ ctx, next }) => {
   });
 });
 
+const p0FraudAnalyticsProcedure = analyticsRoleProcedure.use(async () => {
+  throw new TRPCError({
+    code: "PRECONDITION_FAILED",
+    message: "Automated fraud analytics are withheld pending independently verifiable claim-linked evidence, human-reviewed auditable evidence, and a future owner-approved qualified automated-decision policy.",
+  });
+});
+
 /**
  * Optimized Analytics Router
  */
@@ -219,7 +226,7 @@ export const analyticsRouter = router({
    * @queries 2 (reduced from 10)
    * @improvement 80% query reduction
    */
-  getKPIs: analyticsRoleProcedure
+  getKPIs: p0FraudAnalyticsProcedure
     .input(z.object({
       startDate: z.date().optional(),
       endDate: z.date().optional()
@@ -374,7 +381,7 @@ export const analyticsRouter = router({
    * @queries 1 (reduced from 4)
    * @improvement 75% query reduction
    */
-  getCriticalAlerts: analyticsRoleProcedure
+  getCriticalAlerts: p0FraudAnalyticsProcedure
     .query(async ({ ctx }) => {
       try {
         const db = await getDb();
@@ -721,7 +728,7 @@ export const analyticsRouter = router({
   }),
 
   /** Financial overview — total payouts, reserves, fraud prevented */
-  getFinancialOverview: analyticsRoleProcedure.query(async ({ ctx }) => {
+  getFinancialOverview: p0FraudAnalyticsProcedure.query(async ({ ctx }) => {
     try {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
@@ -771,7 +778,7 @@ export const analyticsRouter = router({
   }),
 
   // ─── Risk Manager Analytics (Top-Tier Gated) ─────────────────────────────────
-  getRiskManagerKPIs: analyticsRoleProcedure
+  getRiskManagerKPIs: p0FraudAnalyticsProcedure
     .input(z.object({ months: z.union([z.literal(3), z.literal(6), z.literal(12)]).default(6) }))
     .query(async ({ input, ctx }) => {
       try {
@@ -927,7 +934,7 @@ export const analyticsRouter = router({
     }),
 
   // ─── Send Risk Analytics Report by Email ─────────────────────────────────────
-  sendRiskAnalyticsReport: analyticsRoleProcedure
+  sendRiskAnalyticsReport: p0FraudAnalyticsProcedure
     .input(z.object({
       months: z.union([z.literal(3), z.literal(6), z.literal(12)]),
       recipientEmail: z.string().email(),
@@ -1006,7 +1013,7 @@ export const analyticsRouter = router({
    * Returns real current vs prior month metrics for the comparison strip.
    * Replaces the hardcoded DEMO_MONTH_COMPARISON fixture.
    */
-  getMonthComparison: analyticsRoleProcedure.query(async ({ ctx }) => {
+  getMonthComparison: p0FraudAnalyticsProcedure.query(async ({ ctx }) => {
     try {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
@@ -1099,7 +1106,7 @@ export const analyticsRouter = router({
    * Get Executive Alerts
    * Returns prioritised, actionable alerts for the executive — not raw data, but decisions.
    */
-  getExecutiveAlerts: analyticsRoleProcedure
+  getExecutiveAlerts: p0FraudAnalyticsProcedure
     .query(async ({ ctx }) => {
       try {
         const db = await getDb();
@@ -1266,7 +1273,7 @@ export const analyticsRouter = router({
    * Get Escalation Counts
    * Returns escalation counts by type and severity for the Escalations Dashboard.
    */
-  getEscalationCounts: analyticsRoleProcedure
+  getEscalationCounts: p0FraudAnalyticsProcedure
     .input(z.object({
       startDate: z.date().optional(),
       endDate: z.date().optional(),
@@ -1329,7 +1336,7 @@ export const analyticsRouter = router({
    * Get Settlement Trend
    * Returns monthly settlement amounts and counts for the Settlement Trend chart.
    */
-  getSettlementTrend: analyticsRoleProcedure
+  getSettlementTrend: p0FraudAnalyticsProcedure
     .input(z.object({
       months: z.number().min(3).max(24).default(12),
     }))
@@ -1386,7 +1393,7 @@ export const analyticsRouter = router({
    * Get Fraud Investigation Funnel
    * Returns the funnel from flagged → investigated → confirmed → prevented.
    */
-  getFraudInvestigationFunnel: analyticsRoleProcedure
+  getFraudInvestigationFunnel: p0FraudAnalyticsProcedure
     .query(async ({ ctx }) => {
       try {
         const db = await getDb();

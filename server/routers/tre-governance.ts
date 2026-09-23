@@ -29,6 +29,29 @@ function requireTreTenant(ctx: { user?: { tenantId?: string | null } | null }): 
   return tenantId;
 }
 
+async function requireTreClaim(claimId: number, tenantId: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+  const [claim] = await db
+    .select({ id: claims.id })
+    .from(claims)
+    .where(and(eq(claims.id, claimId), eq(claims.tenantId, tenantId)))
+    .limit(1);
+  if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+}
+
+const p0FraudTreProcedure = protectedProcedure.use(async ({ ctx, input }) => {
+  const tenantId = requireTreTenant(ctx);
+  const claimId = (input as { claimId?: unknown } | undefined)?.claimId;
+  if (typeof claimId === "number" && Number.isSafeInteger(claimId)) {
+    await requireTreClaim(claimId, tenantId);
+  }
+  throw new TRPCError({
+    code: "PRECONDITION_FAILED",
+    message: "TRE fraud values, certification, and governance conclusions are withheld pending independently verifiable claim-linked evidence, human-reviewed auditable evidence, and a future owner-approved qualified automated-decision policy.",
+  });
+});
+
 async function getAssessmentCTO(claimId: number, tenantId: string) {
   const db = await getDb();
   // Get claim number from claims table
@@ -67,7 +90,7 @@ async function getAssessmentCTO(claimId: number, tenantId: string) {
 export const treGovernanceRouter = router({
 
   /** E6: Get the full Claim Truth Object for a claim */
-  getClaimTruthObject: protectedProcedure
+  getClaimTruthObject: p0FraudTreProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }) => {
       const { cto, row } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
@@ -81,7 +104,7 @@ export const treGovernanceRouter = router({
     }),
 
   /** E6: Get canonical field values for a claim (machine-readable, stable API) */
-  getCanonicalValues: protectedProcedure
+  getCanonicalValues: p0FraudTreProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }) => {
       const { cto, row } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
@@ -107,7 +130,7 @@ export const treGovernanceRouter = router({
     }),
 
   /** E6: Verify certificate integrity for a claim */
-  verifyCertificate: protectedProcedure
+  verifyCertificate: p0FraudTreProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }) => {
       const { cto } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
@@ -143,7 +166,7 @@ export const treGovernanceRouter = router({
   // ─────────────────────────────────────────────────────────────────────────
 
   /** E10: Get full governance summary for a claim */
-  getGovernanceSummary: protectedProcedure
+  getGovernanceSummary: p0FraudTreProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }) => {
       const { cto, row } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
@@ -173,7 +196,7 @@ export const treGovernanceRouter = router({
     }),
 
   /** E10: Evaluate truth rules for a claim */
-  evaluateTruthRules: protectedProcedure
+  evaluateTruthRules: p0FraudTreProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }) => {
       const { cto } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
@@ -215,7 +238,7 @@ export const treGovernanceRouter = router({
     }),
 
   /** E10: Get regulatory compliance status for a claim */
-  getRegulatoryCompliance: protectedProcedure
+  getRegulatoryCompliance: p0FraudTreProcedure
     .input(z.object({
       claimId: z.number(),
       jurisdiction: z.enum(["ZA", "UK", "AU", "US", "EU", "GLOBAL"]).optional(),
@@ -232,7 +255,6 @@ export const treGovernanceRouter = router({
         hasQuotation: cto.evidence?.hasRepairQuotation ?? false,
         hasPoliceReport: cto.evidence?.hasPoliceReport ?? false,
         hasDriverStatement: cto.evidence?.hasDriverStatement ?? false,
-        fraudScore: cto.fraud?.fraudRiskScore ?? 0,
         overallConfidence: cto.confidence?.overallConfidence ?? 0,
         costUsd: cto.cost?.optimisedCostUsd ?? 0,
         hasPhysicsAnalysis: cto.physics?.estimatedSpeedKmh !== null && cto.physics?.estimatedSpeedKmh !== undefined,
@@ -252,7 +274,7 @@ export const treGovernanceRouter = router({
     }),
 
   /** E10: Get explainable truth summary for a claim */
-  getExplanation: protectedProcedure
+  getExplanation: p0FraudTreProcedure
     .input(z.object({
       claimId: z.number(),
       audience: z.enum(["CLAIMANT", "ASSESSOR", "AUDITOR"]).optional(),
@@ -307,7 +329,7 @@ export const treGovernanceRouter = router({
     }),
 
   /** E10: Get truth quality index for a claim */
-  getTruthQualityIndex: protectedProcedure
+  getTruthQualityIndex: p0FraudTreProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }) => {
       const { cto } = await getAssessmentCTO(input.claimId, requireTreTenant(ctx));
@@ -334,7 +356,7 @@ export const treGovernanceRouter = router({
     }),
 
   /** E10: Get governance dashboard summary across all recent claims */
-  getGovernanceDashboard: protectedProcedure
+  getGovernanceDashboard: p0FraudTreProcedure
     .input(z.object({
       limit: z.number().min(1).max(100).default(20),
       jurisdiction: z.enum(["ZA", "UK", "AU", "US", "EU", "GLOBAL"]).default("ZA"),

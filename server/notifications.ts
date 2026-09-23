@@ -49,20 +49,6 @@ export async function notifyQuoteSubmitted(data: NotificationData & { claimId: n
 }
 
 /**
- * Send notification when fraud indicators are detected
- */
-export async function notifyFraudDetected(data: NotificationData & { claimId: number; recipientUserId?: number }) {
-  await sendEmailSafe({
-    eventType: "fraud_detected",
-    entityId: data.claimId,
-    recipientUserId: data.recipientUserId ?? 0,
-    recipientEmail: data.recipientEmail,
-    subject: `⚠️ Fraud Indicators Detected: ${data.claimNumber}`,
-    body: `URGENT: Fraud indicators detected for claim ${data.claimNumber}.\n\nFraud Risk Score: ${data.fraudRiskScore}/100\nDiscrepancy Level: ${data.discrepancyLevel}%\n\nDetected Indicators:\n${data.fraudIndicators}\n\nPlease review the claim immediately.\n\nKINGA AI Team`,
-  });
-}
-
-/**
  * Send notification when KINGA assessment is completed
  */
 export async function notifyAiAssessmentComplete(data: NotificationData & { claimId: number; recipientUserId?: number }) {

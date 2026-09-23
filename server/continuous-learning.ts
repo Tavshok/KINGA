@@ -202,7 +202,8 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
           varianceCategory: category,
           vehicleMake: claim.vehicleMake || null,
           vehicleModel: claim.vehicleModel || null,
-          isFraudSuspected: (claim.fraudRiskScore || 0) > 70 ? 1 : 0,
+          // P0-B1: no model or historic fraud score may label learning data.
+          isFraudSuspected: null,
           isOutlier: absVariance > 50 ? 1 : 0,
         });
       } catch {
@@ -229,7 +230,8 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
             varianceCategory: categorizeVariance(aiAbsVariance),
             vehicleMake: claim.vehicleMake || null,
             vehicleModel: claim.vehicleModel || null,
-            isFraudSuspected: (claim.fraudRiskScore || 0) > 70 ? 1 : 0,
+            // P0-B1: no model or historic fraud score may label learning data.
+            isFraudSuspected: null,
             isOutlier: aiAbsVariance > 50 ? 1 : 0,
           });
         } catch {

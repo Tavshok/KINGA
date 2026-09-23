@@ -388,3 +388,191 @@ export function isGoverningQuantitativeField(
 ): _decision is never {
   return false;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P0-B1 — fraud and automated-decision eligibility
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * P0-B1 does not create a new fraud model or a positive fraud authority. It
+ * records why current Stage 8 inputs are retained only for review, then makes
+ * every score-derived decision sink fail closed until a later package defines a
+ * qualified governing source.
+ */
+export interface FraudDecisionEligibility {
+  contractVersion: typeof P0_QUANTITATIVE_EVIDENCE_CONTRACT_VERSION;
+  field: "fraud_risk_score";
+  disposition: "ADVISORY" | "UNAVAILABLE";
+  governing: null;
+  reasonCode:
+    | "P0_ADVISORY_FRAUD_SOURCES_REQUIRE_QUALIFICATION"
+    | "P0_UNAVAILABLE_FRAUD_ENGINE_FALLBACK"
+    | "P0_UNAVAILABLE_MISSING_OR_INCONSISTENT_DECISION";
+  explanation: string;
+  /** Specific, non-accusatory work required before an automated fraud action. */
+  requiredEvidence: string[];
+  reviewRequired: true;
+}
+
+export interface FraudDecisionEligibilityInput {
+  /** Stage 7's live, source-bound quantitative decision, if Stage 8 had physics inputs. */
+  crushDepthDecision?: unknown;
+  /** True when Stage 8 used raw visual/physics/photo-forensic or model-derived evidence. */
+  advisoryEvidencePresent: boolean;
+  /** True for an error/timeout/default result rather than a completed Stage 8 analysis. */
+  fallbackOrDegraded: boolean;
+}
+
+const FRAUD_DECISION_EXPLANATIONS: Record<
+  FraudDecisionEligibility["reasonCode"],
+  string
+> = {
+  P0_ADVISORY_FRAUD_SOURCES_REQUIRE_QUALIFICATION:
+    "Current visual, physics-derived, photo-forensic, model-derived and fallback fraud inputs are descriptive only under P0. They cannot produce a governing fraud score, fraud disposition, repairer disqualification, or automated routing action.",
+  P0_UNAVAILABLE_FRAUD_ENGINE_FALLBACK:
+    "Fraud analysis used a fallback or degraded result. P0 prevents fallback scores or levels from becoming a governing fraud or routing decision.",
+  P0_UNAVAILABLE_MISSING_OR_INCONSISTENT_DECISION:
+    "The persisted fraud eligibility decision was absent, malformed, or did not match the live evidence snapshot. P0 prevents missing provenance from becoming a fraud or routing decision.",
+};
+
+const FRAUD_DECISION_REQUIRED_EVIDENCE = [
+  "An independently verifiable documentary, metadata, or human-reviewed fraud finding linked to the claim.",
+  "A future owner-approved qualified fraud-evidence policy that binds the finding to an automated decision purpose.",
+] as const;
+
+function fraudDecisionEligibility(
+  reasonCode: FraudDecisionEligibility["reasonCode"],
+  disposition: FraudDecisionEligibility["disposition"]
+): FraudDecisionEligibility {
+  return {
+    contractVersion: P0_QUANTITATIVE_EVIDENCE_CONTRACT_VERSION,
+    field: "fraud_risk_score",
+    disposition,
+    governing: null,
+    reasonCode,
+    explanation: FRAUD_DECISION_EXPLANATIONS[reasonCode],
+    requiredEvidence: [...FRAUD_DECISION_REQUIRED_EVIDENCE],
+    reviewRequired: true,
+  };
+}
+
+/**
+ * Computes the only P0-B1 eligibility state. Its intentionally empty governing
+ * branch means a numeric-looking current Stage 8 result never gains authority
+ * merely because a source is present, a model is confident, or a default exists.
+ */
+export function assessFraudDecisionEligibility(
+  input: FraudDecisionEligibilityInput
+): FraudDecisionEligibility {
+  if (input.fallbackOrDegraded) {
+    return fraudDecisionEligibility(
+      "P0_UNAVAILABLE_FRAUD_ENGINE_FALLBACK",
+      "UNAVAILABLE"
+    );
+  }
+
+  void input.crushDepthDecision;
+  void input.advisoryEvidencePresent;
+  return fraudDecisionEligibility(
+    "P0_ADVISORY_FRAUD_SOURCES_REQUIRE_QUALIFICATION",
+    "ADVISORY"
+  );
+}
+
+function isValidFraudDecisionEligibility(
+  decision: unknown
+): decision is FraudDecisionEligibility {
+  if (!isPlainRecord(decision) || !hasOnlyKeys(decision, [
+    "contractVersion",
+    "field",
+    "disposition",
+    "governing",
+    "reasonCode",
+    "explanation",
+    "requiredEvidence",
+    "reviewRequired",
+  ])) {
+    return false;
+  }
+  const candidate = decision as Partial<FraudDecisionEligibility>;
+  return Boolean(
+    candidate.contractVersion === P0_QUANTITATIVE_EVIDENCE_CONTRACT_VERSION &&
+      candidate.field === "fraud_risk_score" &&
+      candidate.governing === null &&
+      candidate.reviewRequired === true &&
+      Array.isArray(candidate.requiredEvidence) &&
+      candidate.requiredEvidence.every(value => typeof value === "string") &&
+      (candidate.disposition === "ADVISORY" || candidate.disposition === "UNAVAILABLE") &&
+      (candidate.reasonCode === "P0_ADVISORY_FRAUD_SOURCES_REQUIRE_QUALIFICATION" ||
+        candidate.reasonCode === "P0_UNAVAILABLE_FRAUD_ENGINE_FALLBACK" ||
+        candidate.reasonCode === "P0_UNAVAILABLE_MISSING_OR_INCONSISTENT_DECISION") &&
+      candidate.explanation === FRAUD_DECISION_EXPLANATIONS[candidate.reasonCode]
+  );
+}
+
+/** Rebinds a persisted decision to the live Stage 7/8 source snapshot. */
+export function preserveOrFailClosedFraudDecisionEligibility(
+  decision: unknown,
+  sources: FraudDecisionEligibilityInput
+): FraudDecisionEligibility {
+  const expected = assessFraudDecisionEligibility(sources);
+  if (
+    isValidFraudDecisionEligibility(decision) &&
+    decision.disposition === expected.disposition &&
+    decision.reasonCode === expected.reasonCode &&
+    decision.explanation === expected.explanation &&
+    decision.requiredEvidence.length === expected.requiredEvidence.length &&
+    decision.requiredEvidence.every(
+      (value, index) => value === expected.requiredEvidence[index]
+    )
+  ) {
+    return decision;
+  }
+  return fraudDecisionEligibility(
+    "P0_UNAVAILABLE_MISSING_OR_INCONSISTENT_DECISION",
+    "UNAVAILABLE"
+  );
+}
+
+/** P0-B1 deliberately exposes no governing fraud or automated-decision authority. */
+export function hasGoverningFraudDecisionEligibility(
+  decision: unknown,
+  sources: FraudDecisionEligibilityInput
+): boolean {
+  void preserveOrFailClosedFraudDecisionEligibility(decision, sources);
+  return false;
+}
+
+/**
+ * Produces the only fraud values eligible for durable projection. The current
+ * P0-B1 policy always resolves both values to null, but the helper prevents a
+ * future caller from silently replacing an unavailable value with zero or low.
+ */
+export function resolvePersistableFraudValues(input: {
+  decision: unknown;
+  sources: FraudDecisionEligibilityInput;
+  candidateScore: unknown;
+  candidateLevel: unknown;
+}): {
+  eligibility: FraudDecisionEligibility;
+  fraudRiskScore: number | null;
+  fraudRiskLevel: string | null;
+} {
+  const eligibility = preserveOrFailClosedFraudDecisionEligibility(
+    input.decision,
+    input.sources
+  );
+  if (!hasGoverningFraudDecisionEligibility(eligibility, input.sources)) {
+    return { eligibility, fraudRiskScore: null, fraudRiskLevel: null };
+  }
+  return {
+    eligibility,
+    fraudRiskScore:
+      typeof input.candidateScore === "number" &&
+      Number.isFinite(input.candidateScore)
+        ? input.candidateScore
+        : null,
+    fraudRiskLevel:
+      typeof input.candidateLevel === "string" ? input.candidateLevel : null,
+  };
+}

@@ -101,8 +101,8 @@ describe("Police Report Integration", () => {
 
     const result = await caller.policeReports.create(input);
 
-    // Should detect 20 km/h discrepancy (80 - 60)
-    expect(result.speedDiscrepancy).toBe(20);
+    // P0-B1: the raw speed comparison remains non-governing and is not published.
+    expect(result.speedDiscrepancy).toBeUndefined();
     expect(result.id).toBeGreaterThan(0);
   });
 
@@ -159,7 +159,7 @@ describe("Police Report Integration", () => {
     expect(report?.reportNumber).toBe("ZRP-TAB 95/24");
     expect(report?.policeStation).toBe("Mutare Rural ZRP");
     expect(report?.reportedSpeed).toBe(80);
-    expect(report?.speedDiscrepancy).toBe(20);
+    expect(report?.speedDiscrepancy).toBeNull();
   });
 
   it("should reject unauthorized users", async () => {
