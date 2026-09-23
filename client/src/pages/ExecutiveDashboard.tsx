@@ -47,6 +47,8 @@ import { SettlementTrendChart } from "@/components/executive/SettlementTrendChar
 import { GovernanceExceptionsRegister } from "@/components/executive/GovernanceExceptionsRegister";
 import { CrossClaimIntelligencePanel } from "@/components/executive/CrossClaimIntelligencePanel";
 import { P0B1GlobalSearchResults } from "@/components/P0B1GlobalSearchResults";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
+import { P0_B1_FRAUD_DECISION_HOLD } from "@shared/p0FraudDecisionHoldPresentation";
 import {
   exportKPIsToPDF,
   exportAssessorPerformanceToExcel,
@@ -396,9 +398,9 @@ export default function ExecutiveDashboard() {
     line: '#E7E2D6', card: '#FFFFFF', bodyBg: '#F7F8F6',
     red: '#B1402F', redSoft: '#F8E9E4', amber: '#A6730B',
   };
-  const slaBreach = kpis?.slaBreachedCount ?? kpis?.highRiskCount ?? 0;
-  const fraudFlags = kpis?.fraudFlagCount ?? 0;
-  const highRisk = kpis?.highRiskCount ?? 0;
+  // P0-B1: SLA is independently measured. A fraud-derived high-risk count
+  // must never be relabelled as an SLA breach when the metric is unavailable.
+  const slaBreach = kpis?.slaBreachedCount ?? 0;
 
   return (
     <div className="exec-dashboard min-h-screen" style={{ background: G.bodyBg, fontFamily: 'Inter, sans-serif' }}>
@@ -499,13 +501,8 @@ export default function ExecutiveDashboard() {
           <span style={{ fontSize: '13px', fontWeight: 700, color: G.red, fontVariantNumeric: 'tabular-nums' }}>{slaBreach}</span>
           <span style={{ color: G.muted }}>claims breaching SLA</span>
         </div>
-        <div onClick={() => setActiveTab('overview')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px 8px 12px', borderLeft: `3px solid ${G.red}`, borderRight: `1px solid ${G.line}`, fontSize: '12px', cursor: 'pointer' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: G.red, fontVariantNumeric: 'tabular-nums' }}>{fraudFlags}</span>
-          <span style={{ color: G.muted }}>fraud flags requiring executive sign-off</span>
-        </div>
-        <div onClick={() => setActiveTab('overview')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px 8px 12px', borderLeft: `3px solid ${G.amber}`, borderRight: `1px solid ${G.line}`, fontSize: '12px', cursor: 'pointer' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: G.amber, fontVariantNumeric: 'tabular-nums' }}>{highRisk}</span>
-          <span style={{ color: G.muted }}>high-risk claims in AI review</span>
+        <div data-p0-b1-fraud-alert-hold="true" style={{ flex: 1, minWidth: '380px', padding: '6px 16px', borderLeft: `3px solid ${G.amber}`, borderRight: `1px solid ${G.line}` }}>
+          <P0FraudValidationHold hold={P0_B1_FRAUD_DECISION_HOLD} />
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', padding: '0 0 0 16px' }}>
           <button onClick={() => setActiveTab('overview')} style={{ fontSize: '12px', fontWeight: 500, color: G.g600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '4px' }}>
