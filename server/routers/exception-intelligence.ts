@@ -139,9 +139,9 @@ export const exceptionIntelligenceRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const tenantId = requireExceptionIntelligenceTenant(ctx);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const tenantId = requireExceptionIntelligenceTenant(ctx);
 
       // Fetch recent assessments
       const whereConditions = and(
@@ -207,9 +207,9 @@ export const exceptionIntelligenceRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const tenantId = requireExceptionIntelligenceTenant(ctx);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const tenantId = requireExceptionIntelligenceTenant(ctx);
       const since = new Date(Date.now() - input.daysBack * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
 
       const whereConditions = and(
@@ -312,9 +312,9 @@ export const exceptionIntelligenceRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const tenantId = requireExceptionIntelligenceTenant(ctx);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const tenantId = requireExceptionIntelligenceTenant(ctx);
 
       // Current window
       const nowMs = Date.now();
@@ -490,9 +490,9 @@ export const exceptionIntelligenceRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const tenantId = requireExceptionIntelligenceTenant(ctx);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const tenantId = requireExceptionIntelligenceTenant(ctx);
       const since = new Date(Date.now() - input.daysBack * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
 
       const whereConditions = and(

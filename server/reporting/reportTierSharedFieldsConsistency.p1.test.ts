@@ -19,7 +19,6 @@ const tenantId = "tenant-report-consistency";
 const claimId = 990071;
 const shared = {
   decisionStatus: "REVIEW",
-  fraudScore: "57",
   marketValue: "$54,321.00",
 };
 
@@ -87,7 +86,7 @@ describe("report tier shared-field consistency", () => {
     });
   });
 
-  it("renders identical decision status, fraud score, and market value from one claim fixture across CL, CI, and FR", async () => {
+  it("keeps shared decision and market evidence while Claim Assessment withholds fraud publication", async () => {
     const outputs = await Promise.all([
       generateReportHtml("claim.assessment", { claimId }, tenantId),
       generateClaimsIntelligenceReport(claimId, tenantId),
@@ -95,15 +94,11 @@ describe("report tier shared-field consistency", () => {
     ]);
 
     const actual = outputs.map(extractSharedFields);
-    for (const rendered of actual) {
-      expect(rendered).toEqual({
-        decision: shared.decisionStatus,
-        fraud: shared.fraudScore,
-        market: shared.marketValue,
-      });
-    }
-    expect(actual[0]).toEqual(actual[1]);
-    expect(actual[1]).toEqual(actual[2]);
+    expect(actual[0]).toEqual({ decision: shared.decisionStatus, fraud: undefined, market: shared.marketValue });
+    expect(actual[1]).toEqual({ decision: shared.decisionStatus, fraud: "57", market: shared.marketValue });
+    expect(actual[2]).toEqual({ decision: shared.decisionStatus, fraud: "57", market: shared.marketValue });
+    expect(outputs[0]).toContain('data-p0-fraud-decision="withheld"');
+    expect(outputs[0]).not.toContain("Fraud Score");
     // Claim Assessment and Claims Intelligence each resolve one canonical
     // report record. The Forensic tier resolves its own ForensicReportModel
     // connection in addition to its canonical report record: four scoped

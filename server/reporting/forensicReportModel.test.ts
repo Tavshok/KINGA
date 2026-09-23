@@ -734,7 +734,6 @@ describe("ForensicReportModel", () => {
 
     for (const report of reports) {
       expect(report).toContain("Kinga Forensic Parity 2024");
-      expect(report).toContain(String(model.executive.fraud.value));
       expect(report).toContain("$30,000.00");
       expect(report).toContain('data-p0-collision-physics="withheld"');
       expect(report).toContain("Obtain a qualified governing measurement");
@@ -777,6 +776,13 @@ describe("ForensicReportModel", () => {
         "P0A2_DECISION_AUTHORITY_CAUSATION_DO_NOT_PUBLISH"
       );
     }
+
+    expect(claimsLedgerHtml).toContain('data-p0-fraud-decision="withheld"');
+    expect(claimsLedgerHtml).toContain("Fraud Decision Withheld — Manual Review Required");
+    expect(claimsLedgerHtml).not.toContain("Fraud Score");
+    expect(claimsLedgerHtml).not.toContain("Copy-Quotation — Possible");
+    expect(claimsIntelligenceHtml).toContain(String(model.executive.fraud.value));
+    expect(forensicHtml).toContain(String(model.executive.fraud.value));
 
     expect(forensicHtml).toContain(
       "Source documents require manual date reconciliation before a documentary consistency conclusion is published."

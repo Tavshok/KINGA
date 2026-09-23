@@ -27,6 +27,7 @@ import { NotificationsInbox } from "@/components/NotificationsInbox";
 import { FleetManagerApprovalsTab } from "@/components/FleetManagerApprovalsTab";
 import { WorkloadDistributionPanel } from "@/components/WorkloadDistributionPanel";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
 
 // ── Design tokens (mirrors prototype CSS variables) ──────────────────────────
 const G = {
@@ -110,20 +111,6 @@ function StatusChip({ status }: { status: string }) {
   );
 }
 
-// ── Risk bar helper ───────────────────────────────────────────────────────────
-function RiskBar({ score }: { score: number | null }) {
-  const s = score ?? 0;
-  const fill = s >= 70 ? G.red : s >= 40 ? G.amber : G.g500;
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-      <div style={{ flex: 1, height: '4px', background: '#E5E7EB', borderRadius: '2px', overflow: 'hidden' }}>
-        <div style={{ width: `${s}%`, height: '100%', background: fill, borderRadius: '2px' }} />
-      </div>
-      <span style={{ fontSize: '11px', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: fill, width: '24px', textAlign: 'right' }}>{s}</span>
-    </div>
-  );
-}
-
 export default function ClaimsManagerDashboard() {
   const { fmt } = useTenantCurrency();
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
@@ -198,7 +185,6 @@ export default function ClaimsManagerDashboard() {
         aiCost, assessorCost, avgQuoteCost,
         aiVsAssessor: calculateVariance(assessorCost, aiCost),
         quotesVsAi: calculateVariance(avgQuoteCost, aiCost),
-        fraudRisk: aiAssessment.fraudRiskLevel,
         quoteCount: quotes?.length || 0,
       });
     }
@@ -220,7 +206,10 @@ export default function ClaimsManagerDashboard() {
 
   const { data: fraudAlertsData, isLoading: fraudAlertsLoading, error: fraudAlertsError } =
     trpc.claims.getFraudAlerts.useQuery({ from: analyticsFrom, to: analyticsTo });
-  const fraudAlerts = fraudAlertsData ?? [];
+  const fraudDecisionHold = !Array.isArray(fraudAlertsData) && (fraudAlertsData as any)?.status === 'FRAUD_DECISION_WITHHELD'
+    ? fraudAlertsData as any
+    : null;
+  const fraudAlerts = Array.isArray(fraudAlertsData) ? fraudAlertsData : [];
 
   const { data: dashboardStatsRaw, isLoading: dashboardStatsLoading, error: dashboardStatsError } =
     trpc.claims.getDashboardStats.useQuery({ from: analyticsFrom, to: analyticsTo });
@@ -374,7 +363,7 @@ export default function ClaimsManagerDashboard() {
       claimNumber: claim.claimNumber, vehicleRegistration: claim.vehicleRegistration,
       vehicleMake: claim.vehicleMake, vehicleModel: claim.vehicleModel,
       policyNumber: claim.policyNumber, status: claim.status,
-      workflowState: claim.workflowState, fraudRiskScore: claim.fraudRiskScore,
+      workflowState: claim.workflowState,
       estimatedCost: claim.estimatedCost, approvedAmount: claim.approvedAmount ?? null,
       createdAt: claim.createdAt ? new Date(claim.createdAt) : null,
       incidentDate: claim.incidentDate ? new Date(claim.incidentDate) : null,
@@ -389,7 +378,12 @@ export default function ClaimsManagerDashboard() {
   const kpiActive = summaryLoading ? '…' : (kpiUnavailable ?? managerOverview?.kpis?.activeClaims?.value ?? dashboardStats?.activeClaims ?? 0);
   const kpiPending = summaryLoading ? '…' : (kpiUnavailable ?? dashboardStats?.pendingIntake ?? 0);
   const kpiAvgDays = summaryLoading ? '…' : (kpiUnavailable ?? `${Number(dashboardStats?.avgProcessingDays ?? 0).toFixed(1)}d`);
-  const kpiFraud = summaryLoading ? '…' : (kpiUnavailable ?? `${Number(dashboardStats?.fraudRate ?? 0)}%`);
+  const kpiFraudDecision = fraudAlertsLoading ? '…' : (kpiUnavailable ?? (fraudDecisionHold ? 'Withheld' : 'Unavailable'));
+  const kpiFraudDecisionDetail = fraudAlertsLoading
+    ? 'Loading authority state…'
+    : fraudDecisionHold
+      ? 'Manual review required'
+      : 'Authority state unavailable';
   const kpiCompleted = summaryLoading ? '…' : (kpiUnavailable ?? managerOverview?.kpis?.completedClaims?.value ?? dashboardStats?.completedThisMonth ?? 0);
   const kpiSLA = summaryLoading ? '…' : (kpiUnavailable ?? `${Number(dashboardStats?.slaCompliance ?? 0)}%`);
   const summaryStateLabel = summaryUnavailable
@@ -400,7 +394,7 @@ export default function ClaimsManagerDashboard() {
         ? 'No claims yet'
         : 'Live tenant data';
 
-  const fraudFlagCount = fraudAlerts.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70 || c.fraudRiskLevel === 'high' || c.fraudRiskLevel === 'critical').length;
+  const fraudFlagCount = fraudDecisionHold ? 0 : fraudAlerts.length;
   const slaBreachCount = allClaims.filter((c: any) => {
     if (!c.createdAt) return false;
     return (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72;
@@ -411,7 +405,7 @@ export default function ClaimsManagerDashboard() {
     { id: 'all', label: 'All Claims', count: allClaims.length },
     { id: 'intake', label: 'Pending Intake', count: kpiPending },
     { id: 'review', label: 'Under Review', count: allReviewableClaims.length },
-    { id: 'fraud', label: 'KINGA Flagged', count: fraudFlagCount, alert: true },
+    { id: 'fraud', label: fraudDecisionHold ? 'Fraud Review Hold' : 'KINGA Flagged', count: fraudDecisionHold ? 'Hold' : fraudFlagCount, alert: true },
     { id: 'sla', label: 'SLA Watch', count: slaBreachCount, alert: slaBreachCount > 0 },
     { id: 'fleet-approvals', label: 'Fleet Approvals', count: null },
     { id: 'completed', label: 'Completed', count: null },
@@ -489,7 +483,7 @@ export default function ClaimsManagerDashboard() {
             { label: 'Pending Intake', value: kpiPending, delta: summaryStateLabel, deltaUp: null },
             { label: 'Under Review', value: summaryUnavailable ? 'Unavailable' : allReviewableClaims.length, delta: summaryStateLabel, deltaUp: null },
             { label: 'Avg Resolution', value: kpiAvgDays, delta: summaryStateLabel, deltaUp: null },
-            { label: 'Fraud Detection', value: kpiFraud, delta: summaryStateLabel, deltaUp: null },
+            { label: 'Fraud Decisions', value: kpiFraudDecision, delta: kpiFraudDecisionDetail, deltaUp: null },
             { label: 'SLA Compliance', value: kpiSLA, delta: summaryStateLabel, deltaUp: null },
           ].map((kpi, i) => (
             <div key={i} style={{
@@ -666,7 +660,7 @@ export default function ClaimsManagerDashboard() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: G.bodyBg }}>
-                      {['Claim ID', 'Claimant', 'Vehicle', 'Submitted', 'Status', 'Risk Score', 'Assessor', ''].map((h, i) => (
+                      {['Claim ID', 'Claimant', 'Vehicle', 'Submitted', 'Status', 'Fraud Decision', 'Assessor', ''].map((h, i) => (
                         <th key={i} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: G.muted2, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${G.line}`, whiteSpace: 'nowrap' }}>
                           {h}
                         </th>
@@ -678,6 +672,10 @@ export default function ClaimsManagerDashboard() {
                       <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: G.muted, fontSize: '13px' }}>Loading claims…</td></tr>
                     ) : claimsDataUnavailable ? (
                       <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: G.red, fontSize: '13px' }}>Claims data is unavailable. Please retry or contact support.</td></tr>
+                    ) : activeTab === 'fraud' && fraudDecisionHold ? (
+                      <tr><td colSpan={8} style={{ padding: '32px 40px', textAlign: 'left' }}>
+                        <P0FraudValidationHold hold={fraudDecisionHold} />
+                      </td></tr>
                     ) : paginatedClaims.length === 0 ? (
                       <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: G.muted, fontSize: '13px' }}>{noClaimsYet ? 'No claims yet' : 'No claims match the selected filters'}</td></tr>
                     ) : paginatedClaims.map((claim: any) => (
@@ -704,7 +702,7 @@ export default function ClaimsManagerDashboard() {
                           <StatusChip status={claim.workflowState ?? claim.status ?? 'pending'} />
                         </td>
                         <td style={{ padding: '10px 12px', minWidth: '100px' }}>
-                          <RiskBar score={claim.fraudRiskScore ?? null} />
+                          {fraudDecisionHold ? <P0FraudValidationHold hold={fraudDecisionHold} compact /> : null}
                         </td>
                         <td style={{ padding: '10px 12px', fontSize: '12px', color: claim.assessorName ? G.ink : G.muted2 }}>
                           {claim.assessorName ?? 'Unassigned'}
@@ -782,7 +780,7 @@ export default function ClaimsManagerDashboard() {
             </div>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {fraudAlerts.slice(0, 5).map((claim: any, i: number) => {
-                const severity = (claim.fraudRiskScore ?? 0) >= 80 ? 'critical' : (claim.fraudRiskScore ?? 0) >= 60 ? 'high' : 'medium';
+                const severity = 'medium';
                 const dotColor = severity === 'critical' ? G.red : severity === 'high' ? G.amber : '#6B7280';
                 return (
                   <li
@@ -798,7 +796,7 @@ export default function ClaimsManagerDashboard() {
                         {claim.claimNumber ?? `#${claim.id}`}
                       </div>
                       <div style={{ fontSize: '11.5px', color: G.ink, marginTop: '1px' }}>
-                        {claim.fraudFlags?.[0] ?? `Risk score: ${claim.fraudRiskScore ?? '—'}`}
+                        Manual fraud review is required before any fraud-related action.
                       </div>
                       <div style={{ fontSize: '11px', color: G.muted2, marginTop: '2px' }}>
                         {claim.createdAt ? `${Math.round((Date.now() - new Date(claim.createdAt).getTime()) / 3600000)}h ago` : 'Recently'}
@@ -814,7 +812,11 @@ export default function ClaimsManagerDashboard() {
                   </li>
                 );
               })}
-              {fraudAlertsLoading ? (
+              {fraudDecisionHold ? (
+                <li style={{ padding: '16px' }}>
+                  <P0FraudValidationHold hold={fraudDecisionHold} />
+                </li>
+              ) : fraudAlertsLoading ? (
                 <li style={{ padding: '16px', textAlign: 'center', color: G.muted2, fontSize: '12px' }}>Loading fraud alerts…</li>
               ) : fraudAlertsError ? (
                 <li style={{ padding: '16px', textAlign: 'center', color: G.red, fontSize: '12px' }}>Fraud alert data is unavailable</li>
