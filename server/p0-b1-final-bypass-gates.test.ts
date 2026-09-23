@@ -117,7 +117,7 @@ describe("P0-B1 final historical fraud bypass gates", () => {
     expect(geographic).not.toMatch(
       /fraudRisk(Level|Score)|fraudRate|highRiskClaims|avgFraudScore/
     );
-    expect(geographic).toContain("fraudDecision: { ...P0_B1_FRAUD_HOLD }");
+    expect(geographic).toContain("fraudDecision: buildP0B1FraudDecisionHold()");
     expect(processorQueue).not.toMatch(
       /fraudRisk(Level|Score)|desc\(claims\.fraudRiskScore\)/
     );

@@ -429,7 +429,6 @@ describe("ForensicReportModel", () => {
       executive: {
         currency: "USD",
         fraud: { value: 47, band: "moderate" },
-        fraudScoreAdjusted: 77,
         physicsConsistency: { value: 84, band: "good" },
         forensicAudit: { value: 82, band: "good" },
         dataCompleteness: { value: 88, band: "good" },
@@ -550,6 +549,10 @@ describe("ForensicReportModel", () => {
       approval: { completedStages: 1, source: "audit_log_derivation" },
     });
 
+    expect(model.executive).not.toHaveProperty("fraudScoreAdjusted");
+    expect(model.executive.reviewTriggers).not.toContain(
+      "fraud score 77/100 (threshold: 50)"
+    );
     expect(Object.isFrozen(model)).toBe(true);
     expect(Object.isFrozen(model.technical)).toBe(true);
     expect(Object.isFrozen(model.evidence.photos)).toBe(true);

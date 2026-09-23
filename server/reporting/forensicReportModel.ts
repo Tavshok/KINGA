@@ -126,7 +126,6 @@ export interface ForensicReportModel {
     reviewTriggers: readonly string[];
     reviewTriggerSource: "claim_truth" | "legacy_derived" | "unavailable";
     fraud: ForensicScore;
-    fraudScoreAdjusted: number | null;
     physicsConsistency: ForensicScore;
     forensicAudit: ForensicScore;
     dataCompleteness: ForensicScore;
@@ -624,7 +623,6 @@ export async function resolveForensicReportModel(input: Readonly<{
       ? strings(read(forensicAudit, "linkedClaims"))
       : strings(read(physics, "linkedClaims"));
     const impossibilityFlag = linkedClaims.length > 0 || bool(read(forensicAudit, "duplicateFlag")) === true;
-    const adjustedFraud = fraudScore == null ? null : (impossibilityFlag ? Math.min(100, fraudScore + 30) : fraudScore);
     const repairRatio = number(current.repair_to_value_ratio);
     const marketValue = number(current.vehicle_market_value) == null ? null : Number(current.vehicle_market_value) / 100;
     const currency = String(read(costIntel, "currency") ?? costIntegrity.submittedQuotes[0]?.currency ?? current.currency_code ?? "USD").toUpperCase();
@@ -689,7 +687,6 @@ export async function resolveForensicReportModel(input: Readonly<{
     const ctReviewTriggers = strings(read(object(read(claimTruth, "decision")), "reviewTriggers"));
     const fallbackTriggers: string[] = [];
     if (ctReviewTriggers.length === 0) {
-      if ((adjustedFraud ?? 0) >= 50) fallbackTriggers.push(`fraud score ${adjustedFraud}/100 (threshold: 50)`);
       if ((number(read(physics, "damageConsistencyScore")) ?? number(read(physics, "physicsScore")) ?? number(read(physics, "anomalyScore")) ?? 0) < 70) fallbackTriggers.push("physics consistency below 70% threshold");
       if ((number(read(ife, "completenessScore")) ?? number(read(ife, "overallScore")) ?? 0) < 90) fallbackTriggers.push("data completeness below 90% threshold");
       if ((auditScore ?? 0) < 60) fallbackTriggers.push("forensic audit score below 60 threshold");
@@ -744,7 +741,6 @@ export async function resolveForensicReportModel(input: Readonly<{
         reviewTriggers: ctReviewTriggers.length > 0 ? ctReviewTriggers : fallbackTriggers,
         reviewTriggerSource: ctReviewTriggers.length > 0 ? "claim_truth" : fallbackTriggers.length > 0 ? "legacy_derived" : "unavailable",
         fraud: { value: fraudScore, outOf: 100, band: fraudBand(fraudScore), source: "ai_assessments.fraud_score" },
-        fraudScoreAdjusted: adjustedFraud,
         physicsConsistency: { value: number(read(physics, "damageConsistencyScore")) ?? number(read(physics, "physicsScore")) ?? number(read(physics, "anomalyScore")), outOf: 100, band: confidenceBand(number(read(physics, "damageConsistencyScore")) ?? number(read(physics, "physicsScore")) ?? number(read(physics, "anomalyScore"))), source: "physics_analysis" },
         forensicAudit: { value: auditScore, outOf: 100, band: confidenceBand(auditScore), source: "forensic_audit_validation_json" },
         dataCompleteness: { value: number(read(ife, "completenessScore")) ?? number(read(ife, "overallScore")), outOf: 100, band: confidenceBand(number(read(ife, "completenessScore")) ?? number(read(ife, "overallScore"))), source: "ife_result_json" },

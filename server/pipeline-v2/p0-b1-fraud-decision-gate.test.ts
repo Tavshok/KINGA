@@ -29,7 +29,6 @@ import { executeFastTrackAction } from "../services/fast-track-dispatcher";
 import { generateReportHtml } from "../reporting/reportDefinitions";
 import { buildP0PortfolioFraudHold } from "../routers/intelligence-platform";
 import { projectP0AccidentCluster } from "../routers/intelligence";
-import { P0_B1_FRAUD_HOLD } from "../routers/claims-core";
 import { claimsRouter } from "../routers/claims-core";
 import { analyticsRouter } from "../routers/analytics";
 import { treGovernanceRouter } from "../routers/tre-governance";
@@ -38,7 +37,10 @@ import { detectContradictions } from "./contradictionDetectionEngine";
 import { buildP0B1DecisionTraceHold } from "./decisionTraceGenerator";
 import { validateClaimAnalysisResponse } from "../services/apiResponseValidator";
 import { resolveCanonicalClaimReportPresentation } from "../reporting/canonicalClaimReportPresentation";
-import { buildP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
+import {
+  buildP0B1FraudDecisionHold,
+  P0_B1_FRAUD_DECISION_HOLD,
+} from "../evidence-governance/p0FraudDecisionHold";
 
 const advisorySources = {
   crushDepthDecision: {
@@ -525,12 +527,13 @@ describe("P0-B1 fraud and automated-decision boundary", () => {
   });
 
   it("exposes an actionable claims hold without a fraud score or level", () => {
-    expect(P0_B1_FRAUD_HOLD).toMatchObject({
+    expect(P0_B1_FRAUD_DECISION_HOLD).toMatchObject({
       status: "FRAUD_DECISION_WITHHELD",
       reviewRequired: true,
     });
-    expect(P0_B1_FRAUD_HOLD.requiredEvidence).toHaveLength(3);
-    expect(JSON.stringify(P0_B1_FRAUD_HOLD)).not.toMatch(/score|riskLevel/i);
+    expect(P0_B1_FRAUD_DECISION_HOLD.requiredEvidence).toHaveLength(3);
+    expect(P0_B1_FRAUD_DECISION_HOLD).not.toHaveProperty("score");
+    expect(P0_B1_FRAUD_DECISION_HOLD).not.toHaveProperty("riskLevel");
   });
 
   it("short-circuits registered analytics, TRE, and executive PDF routes before data access", async () => {
