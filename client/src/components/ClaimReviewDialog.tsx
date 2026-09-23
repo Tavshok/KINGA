@@ -19,8 +19,8 @@ import { trpc } from "@/lib/trpc";
 import { exportClaimReportToPDF, type ClaimReportData } from "@/lib/export-pdf";
 import { toast } from "sonner";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
-import { fraudLevelDisplayLabel, normaliseFraudLevel } from '../../../shared/fraudScoring';
-import { ClaimIntelligenceHeader } from "@/components/ClaimIntelligenceHeader";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
+import { P0_B1_FRAUD_DECISION_HOLD } from "@shared/p0FraudDecisionHoldPresentation";
 
 interface ClaimReviewDialogProps {
   claimId: number | null;
@@ -46,25 +46,15 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
     { claimId: claimId! },
     { enabled: !!claimId }
   );
-  const { data: claim, isLoading: claimLoading } = trpc.claims.getById.useQuery(
-    { id: claimId! },
-    { enabled: !!claimId }
-  );
-
-  const { data: aiAssessment } = trpc.aiAssessments.byClaim.useQuery(
+  const { data: reviewView, isLoading: claimLoading } = trpc.claims.getReviewView.useQuery(
     { claimId: claimId! },
     { enabled: !!claimId }
   );
-
-  const { data: assessorEval } = trpc.assessorEvaluations.byClaim.useQuery(
-    { claimId: claimId! },
-    { enabled: !!claimId }
-  );
-
-  const { data: quotes } = trpc.quotes.byClaim.useQuery(
-    { claimId: claimId! },
-    { enabled: !!claimId }
-  );
+  const claim = reviewView?.claim;
+  const aiAssessment = reviewView?.aiAssessment;
+  const assessorEval = reviewView?.assessorEval;
+  const quotes = reviewView?.quotes;
+  const fraudDecision = reviewView?.fraudDecision ?? P0_B1_FRAUD_DECISION_HOLD;
 
   const handleExportPDF = () => {
     if (!claim) {
@@ -101,7 +91,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
       quotes: (quotes || []).map((q: any) => ({
         id: q.id,
         panelBeaterName: q.panelBeaterName || null,
-        amount: q.quotedAmount || 0,
+        amount: q.amount || 0,
         breakdown: q.breakdown || null,
         notes: q.notes || null,
         status: q.status || 'pending',
@@ -205,17 +195,6 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
             <ReportReadinessBadge claimId={claimId} variant="banner" />
           </div>
         )}
-        {/* KINGA Intelligence Header — action-driving layer */}
-        {(aiAssessment?._interpretation || aiAssessment?._cgi) && (
-          <div className="pb-2">
-            <ClaimIntelligenceHeader
-              interpretation={(aiAssessment as any)._interpretation}
-              cgi={(aiAssessment as any)._cgi}
-              variant="full"
-            />
-          </div>
-        )}
-
         {claimLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -261,55 +240,13 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                   </div>
                 </Card>
 
-                {/* Risk Assessment */}
+                {/* Fraud decision authority */}
                 <Card className="p-4">
                   <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-orange-500" />
-                    Risk Assessment
+                    Fraud Decision Authority
                   </h3>
-                  <div className="space-y-3">
-                    {claim?.fraudRiskScore !== undefined && claim.fraudRiskScore !== null ? (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Fraud Risk Score:</span>
-                          <Badge
-                            variant={
-                              claim.fraudRiskScore >= 70
-                                ? "destructive"
-                                : claim.fraudRiskScore >= 40
-                                ? "default"
-                                : "secondary"
-                            }
-                            className="text-lg font-bold"
-                          >
-                            {claim.fraudRiskScore}/100
-                          </Badge>
-                        </div>
-                        {claim.fraudFlags && (() => {
-                          try {
-                            const flags = JSON.parse(claim.fraudFlags);
-                            return Array.isArray(flags) && flags.length > 0 && (
-                              <div className="space-y-1">
-                                <span className="text-sm font-medium">Fraud Indicators:</span>
-                                <ul className="text-xs space-y-1">
-                                  {flags.map((flag: string, idx: number) => (
-                                    <li key={idx} className="flex items-start gap-2">
-                                      <span className="text-orange-500 mt-0.5">•</span>
-                                      <span>{flag}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            );
-                          } catch {
-                            return null;
-                          }
-                        })()}
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No KINGA risk assessment available</p>
-                    )}
-                  </div>
+                  <P0FraudValidationHold hold={fraudDecision} />
                 </Card>
 
                 {/* Cost Comparison */}
@@ -349,20 +286,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                   <div className="space-y-2 text-sm">
                     {assessorEval ? (
                       <>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">Fraud Risk:</span>
-                          <Badge
-                            variant={
-                              normaliseFraudLevel(assessorEval.fraudRiskLevel) === "high" || normaliseFraudLevel(assessorEval.fraudRiskLevel) === "elevated"
-                                ? "destructive"
-                                : normaliseFraudLevel(assessorEval.fraudRiskLevel) === "moderate"
-                                ? "default"
-                                : "secondary"
-                            }
-                          >
-                            {fraudLevelDisplayLabel(assessorEval.fraudRiskLevel)}
-                          </Badge>
-                        </div>
+                        <P0FraudValidationHold hold={fraudDecision} />
                         <div>
                           <span className="text-muted-foreground">Duration:</span>
                           <span className="ml-2 font-medium">{assessorEval.estimatedDuration} days</span>
@@ -415,26 +339,8 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                   </Card>
 
                   <Card className="p-4">
-                    <h3 className="font-semibold text-lg mb-3">Fraud Indicators</h3>
-                    {(() => {
-                      try {
-                        const indicators = aiAssessment.fraudIndicators ? JSON.parse(aiAssessment.fraudIndicators) : [];
-                        return Array.isArray(indicators) && indicators.length > 0 ? (
-                          <ul className="space-y-2">
-                            {indicators.map((indicator: string, idx: number) => (
-                              <li key={idx} className="flex items-start gap-2 text-sm">
-                                <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                                <span>{indicator}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No fraud indicators detected</p>
-                        );
-                      } catch {
-                        return <p className="text-sm text-muted-foreground">Invalid fraud indicators data</p>;
-                      }
-                    })()}
+                    <h3 className="font-semibold text-lg mb-3">Fraud Decision Authority</h3>
+                    <P0FraudValidationHold hold={fraudDecision} />
                   </Card>
                 </div>
               ) : (
@@ -485,21 +391,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                           <Clock className="h-4 w-4 text-muted-foreground" />
                           <span>Estimated Duration: {assessorEval.estimatedDuration} days</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                          <span>Fraud Risk: </span>
-                          <Badge
-                            variant={
-                              normaliseFraudLevel(assessorEval.fraudRiskLevel) === "high" || normaliseFraudLevel(assessorEval.fraudRiskLevel) === "elevated"
-                                ? "destructive"
-                                : normaliseFraudLevel(assessorEval.fraudRiskLevel) === "moderate"
-                                ? "default"
-                                : "secondary"
-                            }
-                          >
-                            {fraudLevelDisplayLabel(assessorEval.fraudRiskLevel)}
-                          </Badge>
-                        </div>
+                        <P0FraudValidationHold hold={fraudDecision} />
                         {assessorEval.disagreesWithAi && (
                           <div className="pt-2 border-t">
                             <p className="text-xs text-orange-600 font-medium">⚠️ Disagrees with KINGA Assessment</p>

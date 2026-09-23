@@ -31,6 +31,7 @@ import {
   getUsersByRole,
   getQuotesByClaimId,
   getQuotesByPanelBeater,
+  getLatestAcceptedAssessorEvaluation,
   emitClaimEvent,
   createAuditEntry,
   createNotification,
@@ -78,6 +79,66 @@ function requireSessionTenant(ctx: { user: { tenantId?: string | null } | null }
     throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
   }
   return tenantId;
+}
+
+/**
+ * P0-B1 browser boundary for ClaimReviewDialog. The dialog must not receive
+ * stored fraud scores, levels, flags, indicators, or verdicts merely because
+ * it needs independently supported claim, assessment, assessor, and quote
+ * evidence for manual review.
+ */
+export function projectP0B1ClaimReview(
+  claim: Record<string, any>,
+  aiAssessment: Record<string, any> | null,
+  assessorEval: Record<string, any> | null,
+  quotes: Array<Record<string, any>>,
+) {
+  return {
+    claim: {
+      id: claim.id,
+      claimNumber: claim.claimNumber,
+      vehicleRegistration: claim.vehicleRegistration,
+      vehicleMake: claim.vehicleMake,
+      vehicleModel: claim.vehicleModel,
+      policyNumber: claim.policyNumber,
+      createdAt: claim.createdAt,
+      incidentDate: claim.incidentDate,
+      incidentType: claim.incidentType,
+      technicallyApprovedAt: claim.technicallyApprovedAt,
+      financiallyApprovedAt: claim.financiallyApprovedAt,
+      closedAt: claim.closedAt,
+    },
+    aiAssessment: aiAssessment
+      ? {
+          estimatedCost: aiAssessment.estimatedCost,
+          damageDescription: aiAssessment.damageDescription,
+          detectedDamageTypes: aiAssessment.detectedDamageTypes,
+        }
+      : null,
+    assessorEval: assessorEval
+      ? {
+          createdAt: assessorEval.createdAt,
+          damageAssessment: assessorEval.damageAssessment,
+          laborCost: assessorEval.laborCost,
+          partsCost: assessorEval.partsCost,
+          estimatedRepairCost: assessorEval.estimatedRepairCost,
+          estimatedDuration: assessorEval.estimatedDuration,
+          recommendations: assessorEval.recommendations,
+          disagreesWithAi: assessorEval.disagreesWithAi,
+          aiDisagreementReason: assessorEval.aiDisagreementReason,
+        }
+      : null,
+    quotes: quotes.map(quote => ({
+      id: quote.id,
+      panelBeaterName: quote.panelBeaterName ?? quote.repairerName ?? null,
+      amount: quote.quotedAmount ?? quote.amount ?? null,
+      breakdown: quote.breakdown ?? null,
+      notes: quote.notes ?? null,
+      status: quote.status ?? null,
+      createdAt: quote.createdAt ?? null,
+    })),
+    fraudDecision: buildP0B1FraudDecisionHold(),
+  };
 }
 
 export const claimsRouter = router({
@@ -1767,6 +1828,29 @@ export const claimsRouter = router({
       if (Object.keys(updates).length === 0) throw new TRPCError({ code: 'BAD_REQUEST', message: 'No fields to update' });
       await db.update(insurerTenants).set(updates).where(eq(insurerTenants.id, input.tenantId));
       return { success: true };
+    }),
+
+  /**
+   * P0-B1 Claim Review dialog projection. This is intentionally separate from
+   * getById: the legacy detail response contains broad historical fields and
+   * must not be used to publish stored fraud analysis in the browser.
+   */
+  getReviewView: protectedProcedure
+    .input(z.object({ claimId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
+      if (isExternalAssessor(ctx.user) && claim.assignedAssessorId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
+      }
+
+      const [aiAssessment, assessorEval, quotes] = await Promise.all([
+        getAiAssessmentByClaimId(claim.id, tenantId),
+        getLatestAcceptedAssessorEvaluation(claim.id, tenantId),
+        getQuotesByClaimId(claim.id, tenantId),
+      ]);
+
+      return projectP0B1ClaimReview(claim, aiAssessment, assessorEval, quotes);
     }),
 
   // Get single claim by ID
