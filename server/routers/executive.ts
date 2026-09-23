@@ -6,11 +6,57 @@ import { sql, eq, and, desc, gt } from "drizzle-orm";
 import { claims } from "../../drizzle/schema";
 import { FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "../../shared/const";
 import { auditP0CrossTenantAccess, resolveP0TenantScope, validateP0TenantScope } from "../security/p0TenantBoundary";
+import { throwP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 
 const daysSince = (d: string | null) => {
   if (!d) return 0;
   return Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
 };
+
+/**
+ * Retains the legacy procedure's client type while P0-B1 rejects every
+ * authorized operational-detail request with the canonical fraud hold. This
+ * annotation does not construct or publish an operational-detail payload.
+ */
+type ExecutiveOperationalClaimDetailResponse =
+  | {
+      state: "unavailable";
+      reason: string;
+      claims: [];
+      workflowHistory: [];
+      overrideHistory: [];
+    }
+  | {
+      state: "available";
+      reason: null;
+      claims: Array<{
+        id: number;
+        claimNumber: string | null;
+        status: string | null;
+        workflowState: string | null;
+        incidentType: string | null;
+        createdAt: unknown;
+        totalClaimAmount: number | null;
+        approvedAmount: number | null;
+        fraudRiskScore: number | null;
+        fraudRiskLevel: string | null;
+      }>;
+      workflowHistory: Array<{
+        claimId: number | string;
+        createdAt: unknown;
+        previousState: string | null;
+        newState: string | null;
+        userRole: string | null;
+      }>;
+      overrideHistory: Array<{
+        claimId: number | string;
+        createdAt: unknown;
+        previousState: string | null;
+        newState: string | null;
+        userRole: string | null;
+        overrideReason: string | null;
+      }>;
+    };
 
 /**
  * Executive Router
@@ -47,23 +93,13 @@ export const executiveRouter = router({
       filter: z.enum(["all", "high_fraud", "overridden"]).default("all"),
       tenantId: z.string().min(1).optional(),
     }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ ctx, input }): Promise<ExecutiveOperationalClaimDetailResponse> => {
       const scope = resolveP0TenantScope(ctx as any, input.tenantId, "executive operational detail");
       await validateP0TenantScope(scope);
 
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-
-      const requestedClaim = input.claimId ? sql`AND c.id = ${input.claimId}` : sql``;
-      const requestedFilter = input.filter === "high_fraud"
-        ? sql`AND c.fraud_risk_score >= 70`
-        : input.filter === "overridden"
-          ? sql`AND EXISTS (
-              SELECT 1 FROM workflow_audit_trail wat
-              WHERE wat.claim_id = c.id AND wat.executive_override = 1
-            )`
-          : sql``;
-
+      // P0-B1: complete role, tenant, and cross-tenant authorization before
+      // withholding fraud output. No claim read or raw fraud publication may
+      // occur after this gate.
       if (scope.isCrossTenant) {
         await auditP0CrossTenantAccess(
           ctx as any,
@@ -73,88 +109,7 @@ export const executiveRouter = router({
           { filter: input.filter },
         );
       }
-
-      const result = await db.execute(sql`
-        SELECT
-          c.id,
-          c.claim_number AS claimNumber,
-          c.status,
-          c.workflow_state AS workflowState,
-          c.incident_type AS incidentType,
-          c.created_at AS createdAt,
-          c.total_claim_amount AS totalClaimAmount,
-          c.approved_amount AS approvedAmount,
-          c.fraud_risk_score AS fraudRiskScore,
-          c.fraud_risk_level AS fraudRiskLevel
-        FROM claims c
-        WHERE c.tenant_id = ${scope.tenantId}
-          ${requestedClaim}
-          ${requestedFilter}
-        ORDER BY c.created_at DESC
-        LIMIT 25
-      `) as any;
-
-      const claimRows = (result.rows ?? []) as Array<Record<string, unknown>>;
-      if (input.claimId && claimRows.length === 0) {
-        return {
-          state: "unavailable" as const,
-          reason: "No authorised claim detail is available for the requested record.",
-          claims: [],
-          workflowHistory: [],
-          overrideHistory: [],
-        };
-      }
-
-      const claimIds = claimRows.map(row => Number(row.id)).filter(Number.isFinite);
-      if (claimIds.length === 0) {
-        return {
-          state: "unavailable" as const,
-          reason: "No authorised operational claim records are available for this view.",
-          claims: [],
-          workflowHistory: [],
-          overrideHistory: [],
-        };
-      }
-
-      const historyResult = await db.execute(sql`
-        SELECT
-          wat.claim_id AS claimId,
-          wat.created_at AS createdAt,
-          wat.previous_state AS previousState,
-          wat.new_state AS newState,
-          wat.user_role AS userRole,
-          wat.executive_override AS executiveOverride,
-          wat.override_reason AS overrideReason
-        FROM workflow_audit_trail wat
-        INNER JOIN claims c ON c.id = wat.claim_id
-        WHERE c.tenant_id = ${scope.tenantId}
-          AND wat.claim_id IN (${sql.join(claimIds.map(id => sql`${id}`), sql`, `)})
-        ORDER BY wat.created_at DESC
-        LIMIT 100
-      `) as any;
-
-      const historyRows = (historyResult.rows ?? []) as Array<Record<string, unknown>>;
-      const workflowHistory = historyRows.filter(row => Number(row.executiveOverride ?? 0) !== 1);
-      const overrideHistory = historyRows.filter(row => Number(row.executiveOverride ?? 0) === 1);
-
-      return {
-        state: "available" as const,
-        reason: null,
-        claims: claimRows.map(row => ({
-          id: Number(row.id),
-          claimNumber: row.claimNumber ?? null,
-          status: row.status ?? null,
-          workflowState: row.workflowState ?? null,
-          incidentType: row.incidentType ?? null,
-          createdAt: row.createdAt ?? null,
-          totalClaimAmount: row.totalClaimAmount == null ? null : Number(row.totalClaimAmount),
-          approvedAmount: row.approvedAmount == null ? null : Number(row.approvedAmount),
-          fraudRiskScore: row.fraudRiskScore == null ? null : Number(row.fraudRiskScore),
-          fraudRiskLevel: row.fraudRiskLevel ?? null,
-        })),
-        workflowHistory,
-        overrideHistory,
-      };
+      throwP0B1FraudDecisionHold();
     }),
 
   getClaimsVolumeOverTime: executiveProcedure
