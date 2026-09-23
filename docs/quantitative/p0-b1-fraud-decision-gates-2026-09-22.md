@@ -1,7 +1,7 @@
 # P0-B1 fraud and automated-decision gates
 
 **Date:** 22 September 2026
-**Status:** P0-A-2 rebase integration complete; final independent re-review and merge-readiness validation pending. No merge or deployment authorization is implied.
+**Status:** Rebased onto the merged P0-A-2, independent hardening, Publication Hardening II, and browser-containment baselines. Combined behavioral validation is complete; final independent re-review and merge-readiness validation remain pending. No merge or deployment authorization is implied.
 **Author:** Manus AI
 
 ## Enforced boundary
@@ -98,6 +98,8 @@ P0-B1 was rebased onto the merged P0-A-2 collision-physics publication boundary 
 
 The composed branch removes the legacy `fraudScoreAdjusted` presentation fallback and preserves the P0-B1 rule that unavailable or advisory fraud evidence is never formatted as a neutral, low, moderate, or threshold-capable value. Claim Assessment, Claims Intelligence, Forensic Decision, generic assessment PDF, report snapshots, interactive report projections, and report narratives retain independently supported non-fraud evidence while withholding fraud fields.
 
+The final post-rebase source audit found that the model still calculated and exposed `fraudScoreAdjusted` before a renderer could suppress it. The model field, adjustment calculation, score-derived legacy review trigger, and fixture expectation are removed. The regression asserts that the forensic executive model does not expose the field and does not create a `fraud score 77/100 (threshold: 50)` trigger. Fraud presentation tests were also reconciled to consume the one shared P0 hold contract rather than an obsolete router-local alias; this preserves actionable wording without adding a score or a risk-level field.
+
 A fresh independent review blocked the first composed integration on four live paths. The processor queue had ordered claims by historic fraud score and returned fraud score/level fields; it now uses chronological operational ordering and a defensive allow-list projection that strips accidental fraud fields and attaches the manual-review state. Geographic clustering had aggregated historic fraud classifications and scores into fraud rates and high-risk ordering; it now presents only tenant-scoped workload, incident type, and financial exposure plus the actionable fraud hold. The fast-track evaluator had returned the hold before claim/tenant validation; it now validates the resource and tenant before withholding automation, so foreign and nonexistent claims retain their normal error behavior. TRE v4 fraud-bearing simulation, certification, dashboard, and Trust API endpoints had held immediately after authentication; each now runs the applicable tenant and assessment check before returning the P0 hold.
 
 The strengthened focused matrix passed **13 files / 87 tests** through the guarded `kinga_ci_test` runner. It includes behavioral regressions showing contradictory high/low historic fraud values cannot affect operational queue ordering or geographic workload output, fast-track returns its normal not-found/cross-tenant errors before a P0 hold, and TRE hold placement follows tenant/resource checks. A fresh independent re-review, full guarded suite, production build, and owner review remain required before a pull request can be opened.
@@ -105,6 +107,16 @@ The strengthened focused matrix passed **13 files / 87 tests** through the guard
 The fresh adversarial re-review then found three further reachable score-authority paths outside the initial report and routing set. Automatic component-outcome learning had queried `claims.fraud_risk_score` and excluded scores at or above 50. That query and threshold are removed; learning inclusion now relies only on the explicit component-outcome evidence. Legacy TRE regulatory compliance had passed a CTO fraud score into regulatory thresholds that could force escalation or make an approval non-compliant. The compliance validator no longer accepts or evaluates a fraud score, and the legacy TRE hold now validates the session tenant and addressed claim before withholding its result. Finally, truth reconciliation added a score-labelled review trigger at 70 or above; the score trigger is removed so the P0-gated reconciliation wrapper supplies the standard actionable manual-review hold without embedding a raw fraud value.
 
 New regressions prove that injected high and low historic fraud values produce identical regulatory compliance results, component learning source contains no fraud-score query or threshold guard, truth reconciliation emits no score-labelled trigger, and legacy TRE authorization precedes its hold. These repairs require one final fresh independent review before merge-readiness validation.
+
+## Merged independent hardening baselines and explicit client limitation
+
+This integration is rebased on the separately merged P0-B1 Independent Bypass Hardening, P0-B1 Independent Publication Hardening II, and P0-B1 Browser Fraud Publication Containment packages. It retains their canonical shared hold contract, server-side report/PDF/router guards, and six approved browser containment locations: four Claim Review displays and two Executive Dashboard alert-count displays.
+
+This **does not constitute complete browser closure**. The evidence-backed client inventory identifies **45 additional reachable client files** with direct fraud-field references. They are explicitly deferred to the separately scoped **P0-B1-Client** package, which must be completed before P0-B2 begins. The P0-B1 merge record and any pull request must state this limitation plainly; the six-location containment is valuable, but it is not a substitute for systematic browser-surface remediation.
+
+## Latest combined validation
+
+After the rebase to the merged browser-containment baseline, a sequential guarded matrix executed **30 suites** against `kinga_ci_test`: every test changed by this integration plus the P0-A-2 collision-physics presentation, canonical-PDF, Stage 10, and Physics Truth invariants. The initial multi-file invocation ended without a complete summary despite individual suites being healthy, so the matrix was executed one guarded file at a time; all 30 suites passed. Two stale assertions were reconciled: one referenced a removed router-local hold alias, and one incorrectly rejected the word “scoring” inside the actionable explanation instead of checking whether score or risk-level fields were present.
 
 ## References
 
