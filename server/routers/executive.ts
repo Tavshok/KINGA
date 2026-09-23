@@ -14,6 +14,51 @@ const daysSince = (d: string | null) => {
 };
 
 /**
+ * Retains the legacy procedure's client type while P0-B1 rejects every
+ * authorized operational-detail request with the canonical fraud hold. This
+ * annotation does not construct or publish an operational-detail payload.
+ */
+type ExecutiveOperationalClaimDetailResponse =
+  | {
+      state: "unavailable";
+      reason: string;
+      claims: [];
+      workflowHistory: [];
+      overrideHistory: [];
+    }
+  | {
+      state: "available";
+      reason: null;
+      claims: Array<{
+        id: number;
+        claimNumber: string | null;
+        status: string | null;
+        workflowState: string | null;
+        incidentType: string | null;
+        createdAt: unknown;
+        totalClaimAmount: number | null;
+        approvedAmount: number | null;
+        fraudRiskScore: number | null;
+        fraudRiskLevel: string | null;
+      }>;
+      workflowHistory: Array<{
+        claimId: number | string;
+        createdAt: unknown;
+        previousState: string | null;
+        newState: string | null;
+        userRole: string | null;
+      }>;
+      overrideHistory: Array<{
+        claimId: number | string;
+        createdAt: unknown;
+        previousState: string | null;
+        newState: string | null;
+        userRole: string | null;
+        overrideReason: string | null;
+      }>;
+    };
+
+/**
  * Executive Router
  *
  * All procedures use insurerDomainProcedure which guarantees:
@@ -48,7 +93,7 @@ export const executiveRouter = router({
       filter: z.enum(["all", "high_fraud", "overridden"]).default("all"),
       tenantId: z.string().min(1).optional(),
     }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ ctx, input }): Promise<ExecutiveOperationalClaimDetailResponse> => {
       const scope = resolveP0TenantScope(ctx as any, input.tenantId, "executive operational detail");
       await validateP0TenantScope(scope);
 

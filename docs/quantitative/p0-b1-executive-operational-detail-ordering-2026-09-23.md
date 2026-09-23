@@ -1,7 +1,7 @@
 # P0-B1 Executive Operational-Detail Ordering Hardening
 
 **Date:** 2026-09-23
-**Status:** Independent adversarial review approved; merge-readiness validation pending
+**Status:** Independent adversarial review approved; hosted quality-gate correction and re-review pending
 **Package:** Independent hardening between canonical P0-B1 fraud-hold remediation and the P0-B1 integration package
 
 ## Purpose
@@ -34,4 +34,4 @@ Focused guarded validation passed on 2026-09-23: `server/p0-package-3-executive-
 
 One fresh independent adversarial review approved the package on 2026-09-23. The review verified the required role, tenant, null-tenant, selected-super-admin-tenant, and cross-tenant audit ordering; canonical hold behavior; legacy filter containment; no-query regressions; and package scope. The reviewer recorded no blockers.
 
-Merge readiness completed on 2026-09-23. The guarded complete suite passed with 614 files, 9,720 tests, one intentionally skipped file, and four intentionally skipped tests. Equivalent production bundle validation completed with `vite build` and a Node ESM `esbuild` server bundle. TypeScript direct checking still reports 1,004 inherited repository diagnostics; the one diagnostic in `server/routers/executive.ts` is an unchanged pre-existing overload mismatch at the unrelated financial-approval query (`:542`), not the operational-detail hold boundary.
+The first hosted quality-gate run failed only at the TypeScript baseline comparison. Replacing the former query body with a terminal canonical throw caused tRPC to infer the procedure result as `never`; the pre-existing `ClaimDrillDownModal` consumer consequently lost its static response contract and produced ten client diagnostics. This did not expose or restore data at runtime. The correction declares the historical response union as the procedure return type while every runtime branch still throws the canonical hold after authorization. Focused guarded regression remains green; a fresh read-only adversarial review and a new hosted quality-gate run are required before merge readiness can be restored.
