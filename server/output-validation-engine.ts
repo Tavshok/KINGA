@@ -99,9 +99,9 @@ export interface ValidatedClaimOutput {
   // Rule 1 — terminology (corrected terms)
   terminologyCorrected: boolean;
 
-  // Pass-through enriched fields
-  fraudScore: number;
-  fraudLevel: string;
+  // Pass-through enriched fields. Fraud values are deliberately excluded:
+  // P0-B1 does not permit stored scores or levels to influence an automated
+  // decision, validation result, or downstream presentation.
   structuralDamage: boolean;
   damagedComponents: string[];
   vehicleMake: string | null;
@@ -403,7 +403,6 @@ const VALID_VERDICTS = new Set(["APPROVE", "REVIEW", "REJECT"]);
 
 function enforceDecisionVerdict(
   rawVerdict: string | null | undefined,
-  fraudScore: number,
   confidenceScore: number,
   corrections: ValidationCorrection[]
 ): { verdict: "APPROVE" | "REVIEW" | "REJECT"; label: string } {
@@ -423,18 +422,6 @@ function enforceDecisionVerdict(
 
   const upper = (rawVerdict ?? "").toUpperCase().replace(/\s+/g, "_");
   let mapped: "APPROVE" | "REVIEW" | "REJECT" = VERDICT_MAP[upper] ?? "REVIEW";
-
-  // Override: if fraud score > 60, force REJECT
-  if (fraudScore > 60 && mapped === "APPROVE") {
-    corrections.push({
-      rule: 7,
-      field: "decisionVerdict",
-      original: mapped,
-      corrected: "REJECT",
-      reason: `Fraud score ${fraudScore} > 60 — verdict overridden to REJECT`,
-    });
-    mapped = "REJECT";
-  }
 
   // Override: if confidence < 40, force REVIEW
   if (confidenceScore < 40 && mapped === "APPROVE") {
@@ -553,8 +540,6 @@ export interface ValidationEngineInput {
   // Raw pipeline outputs
   rawVerdict: string | null;
   confidenceScore: number;
-  fraudScore: number;
-  fraudLevel: string | null;
 
   // Cost fields
   aiEstimateUsd: number | null;
@@ -609,14 +594,11 @@ export function runOutputValidation(input: ValidationEngineInput): OutputValidat
   const accidentDate = safeString(input.accidentDate);
   const accidentLocation = safeString(input.accidentLocation);
   const accidentType = safeString(input.accidentType);
-  const fraudLevel = safeString(input.fraudLevel) ?? "unknown";
   const confidenceScore = safeNumber(input.confidenceScore) ?? 0;
-  const fraudScore = safeNumber(input.fraudScore) ?? 0;
 
   // ── Rule 1: Terminology validation ────────────────────────────────────────
   const rawAccidentDesc = validateTerminology(input.accidentDescription, "accidentDescription", corrections);
   const rawCostBasis = validateTerminology(input.costBasis, "costBasis", corrections);
-  const rawFraudLevel = validateTerminology(fraudLevel, "fraudLevel", corrections);
 
   // ── Rule 4: Accident description sanity ───────────────────────────────────
   const { text: accidentDescription, sanitised: accidentDescriptionSanitised } =
@@ -678,7 +660,6 @@ export function runOutputValidation(input: ValidationEngineInput): OutputValidat
   // ── Rule 7: UI status mapping ──────────────────────────────────────────────
   const { verdict: decisionVerdict, label: decisionLabel } = enforceDecisionVerdict(
     input.rawVerdict,
-    fraudScore,
     confidenceScore,
     corrections
   );
@@ -737,8 +718,6 @@ export function runOutputValidation(input: ValidationEngineInput): OutputValidat
     isComplete,
     missingCriticalFields,
     terminologyCorrected: corrections.some(c => c.rule === 1),
-    fraudScore,
-    fraudLevel: rawFraudLevel ?? "unknown",
     structuralDamage: input.structuralDamage ?? false,
     damagedComponents: input.damagedComponents ?? [],
     vehicleMake,

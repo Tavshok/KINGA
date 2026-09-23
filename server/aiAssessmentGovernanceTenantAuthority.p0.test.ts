@@ -30,7 +30,10 @@ describe("AI assessment governance tenant authority", () => {
     expect(finalise).toContain("requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)");
     expect(lock).toContain("requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)");
     expect(auditReads).toContain("requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)");
-    expect(validation).toContain("getAiAssessmentByClaimId(input.claimId, tenantId)");
+    expect(validation).toContain("requireGovernedTenantClaim(String(input.claimId), ctx.user.tenantId)");
+    expect(validation).toContain("buildP0B1FraudDecisionHold({ claimId: input.claimId })");
+    expect(validation).not.toContain("runOutputValidation");
+    expect(validation).not.toContain("fraudScore:");
     expect(validation).not.toContain("ctx.user.role === 'admin' ? undefined");
     expect(snapshots).toContain("requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)");
   });

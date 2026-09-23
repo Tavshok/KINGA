@@ -8,12 +8,13 @@ import { z } from 'zod';
 import { protectedProcedure, router } from '../_core/trpc';
 import { getDb } from '../db';
 import { assertRestrictedAgencyAssistedCapability } from '../agency/agencyAssistedClaimantIdentity';
-import { claims, aiAssessments, users, workflowAuditTrail, claimInvolvementTracking } from '../../drizzle/schema';
+import { claims, users, workflowAuditTrail, claimInvolvementTracking } from '../../drizzle/schema';
 import { eq, and, desc, sql, gte } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { parsePhysicsAnalysis } from '../../shared/physics-types';
 import PDFDocument from 'pdfkit';
 import { canAccessReport } from './reporting';
+import { buildP0B1FraudAbstentionText } from '../reporting/p0FraudPresentation';
 
 /**
  * Helper function to safely convert any value to number
@@ -82,7 +83,7 @@ async function generatePDFBuffer(data: any, reportType: string): Promise<Buffer>
       doc.text(`Pending Claims: ${data.pendingClaims}`);
       doc.text(`Average Processing Time: ${data.avgProcessingDays} days`);
       doc.text(`Total Approved Amount: ${formatCurrency(data.totalApprovedAmount)}`);
-      doc.text(`Fraud Detection Rate: ${data.fraudDetectionRate}%`);
+      doc.text(data.fraudDecisionNotice);
       doc.moveDown(2);
 
       doc.fontSize(14).text('Key Performance Indicators', { underline: true });
@@ -166,10 +167,8 @@ export const reportsRouter = router({
             pendingClaims: sql<number>`SUM(CASE WHEN ${claims.status} IN ('submitted', 'under_review', 'pending_approval') THEN 1 ELSE 0 END)`,
             avgProcessingDays: sql<number>`AVG(CASE WHEN ${claims.closedAt} IS NOT NULL THEN DATEDIFF(${claims.closedAt}, ${claims.createdAt}) ELSE NULL END)`,
             totalApprovedAmount: sql<number>`SUM(CASE WHEN ${claims.status} = 'closed' THEN ${claims.finalApprovedAmount} ELSE 0 END)`,
-            fraudDetected: sql<number>`COUNT(DISTINCT CASE WHEN ${aiAssessments.fraudRiskLevel} = 'high' THEN ${claims.id} ELSE NULL END)`,
           })
           .from(claims)
-          .leftJoin(aiAssessments, eq(claims.id, aiAssessments.claimId))
           .where(eq(claims.tenantId, tenantId));
 
         const dbEndTime = Date.now();
@@ -187,8 +186,6 @@ export const reportsRouter = router({
         const pendingClaims = safeNumber(metrics.pendingClaims);
         const avgProcessingDays = safeNumber(metrics.avgProcessingDays, 0);
         const totalApprovedAmount = safeNumber(metrics.totalApprovedAmount);
-        const fraudDetected = safeNumber(metrics.fraudDetected);
-        const fraudDetectionRate = totalClaims > 0 ? ((fraudDetected / totalClaims) * 100).toFixed(2) : '0.00';
 
         // Structured JSON payload
         const reportData = {
@@ -197,11 +194,10 @@ export const reportsRouter = router({
           pendingClaims,
           avgProcessingDays: avgProcessingDays.toFixed(1),
           totalApprovedAmount,
-          fraudDetectionRate,
+          fraudDecisionNotice: buildP0B1FraudAbstentionText(),
           kpis: [
             { name: 'Completion Rate', value: totalClaims > 0 ? `${((completedClaims / totalClaims) * 100).toFixed(1)}%` : '0%' },
             { name: 'Average Claim Value', value: formatCurrency(completedClaims > 0 ? totalApprovedAmount / completedClaims : 0) },
-            { name: 'Fraud Detection Rate', value: `${fraudDetectionRate}%` },
             { name: 'Processing Efficiency', value: `${avgProcessingDays.toFixed(1)} days` },
           ],
         };

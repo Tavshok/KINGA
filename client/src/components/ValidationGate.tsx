@@ -18,7 +18,7 @@
  * clearly informed of any quality issues.
  */
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   AlertTriangle,
@@ -56,6 +56,77 @@ interface ValidationFlag {
   message: string;
 }
 
+interface LegacyValidationResult {
+  status: ValidationStatus;
+  flags: ValidationFlag[];
+  suppressed_fields: string[];
+  corrections: ValidationCorrection[];
+  notes: string;
+}
+
+type P0FraudDecisionHold = {
+  status: "FRAUD_DECISION_WITHHELD";
+  explanation: string;
+  requiredEvidence: readonly string[];
+  resolver: Readonly<{ action: string }>;
+};
+
+export const P0_FRAUD_VALIDATION_HOLD_FALLBACK: P0FraudDecisionHold = {
+  status: "FRAUD_DECISION_WITHHELD",
+  explanation:
+    "Fraud authority is withheld because the withholding response is incomplete; no automated fraud conclusion may be inferred.",
+  requiredEvidence: [
+    "A complete claim-linked evidence record",
+    "Human-reviewed evidence with auditable provenance",
+    "A qualified owner-approved fraud-decision policy",
+  ],
+  resolver: {
+    action:
+      "Obtain the complete evidence record and a documented human review before any fraud-related action.",
+  },
+};
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * The API contract is expected to provide the complete shared P0-B1 hold. A
+ * malformed sentinel must still fail closed with actionable evidence and
+ * resolution guidance rather than silently rendering blank fields.
+ */
+export function normalizeP0FraudValidationHold(
+  payload: unknown
+): P0FraudDecisionHold {
+  if (!payload || typeof payload !== "object") {
+    return P0_FRAUD_VALIDATION_HOLD_FALLBACK;
+  }
+
+  const candidate = payload as Record<string, unknown>;
+  const resolver = candidate.resolver;
+  const requiredEvidence = candidate.requiredEvidence;
+  const hasCompleteHold =
+    candidate.status === "FRAUD_DECISION_WITHHELD" &&
+    isNonEmptyString(candidate.explanation) &&
+    Array.isArray(requiredEvidence) &&
+    requiredEvidence.length > 0 &&
+    requiredEvidence.every(isNonEmptyString) &&
+    resolver &&
+    typeof resolver === "object" &&
+    isNonEmptyString((resolver as Record<string, unknown>).action);
+
+  if (!hasCompleteHold) {
+    return P0_FRAUD_VALIDATION_HOLD_FALLBACK;
+  }
+
+  return {
+    status: "FRAUD_DECISION_WITHHELD",
+    explanation: candidate.explanation as string,
+    requiredEvidence: [...(requiredEvidence as string[])],
+    resolver: { action: (resolver as Record<string, string>).action },
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STATUS BANNER CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,7 +144,8 @@ const STATUS_CONFIG: Record<
   VALIDATED: {
     icon: CheckCircle2,
     label: "Output Validated",
-    description: "All 10 validation rules passed. Output is complete and reliable.",
+    description:
+      "All 10 validation rules passed. Output is complete and reliable.",
     containerClass:
       "border border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100",
     badgeClass:
@@ -136,6 +208,44 @@ const RULE_LABELS: Record<number, string> = {
   10: "Data Integrity",
 };
 
+export function P0FraudValidationHold({
+  hold,
+  compact = false,
+}: {
+  hold: P0FraudDecisionHold;
+  compact?: boolean;
+}) {
+  if (compact) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-amber-300 bg-amber-50 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+      >
+        <ShieldAlert className="mr-1 h-3 w-3" />
+        Fraud decision withheld — manual review required
+      </Badge>
+    );
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <ShieldAlert className="h-4 w-4 shrink-0" />
+        Fraud Decision Withheld — Manual Review Required
+      </div>
+      <p className="text-xs leading-relaxed">{hold.explanation}</p>
+      <p className="text-xs leading-relaxed">
+        <span className="font-semibold">What is missing:</span>{" "}
+        {hold.requiredEvidence.join("; ")}
+      </p>
+      <p className="text-xs leading-relaxed">
+        <span className="font-semibold">What resolves this:</span>{" "}
+        {hold.resolver.action}
+      </p>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CORRECTION ROW
 // ─────────────────────────────────────────────────────────────────────────────
@@ -157,11 +267,17 @@ function CorrectionRow({ correction }: { correction: ValidationCorrection }) {
         Rule {correction.rule}
       </Badge>
       <span className="font-medium text-foreground truncate">{ruleLabel}</span>
-      <span className="text-muted-foreground font-mono truncate" title={originalStr}>
+      <span
+        className="text-muted-foreground font-mono truncate"
+        title={originalStr}
+      >
         {originalStr.length > 40 ? originalStr.slice(0, 40) + "…" : originalStr}
       </span>
       <span className="text-foreground font-mono truncate" title={correctedStr}>
-        → {correctedStr.length > 60 ? correctedStr.slice(0, 60) + "…" : correctedStr}
+        →{" "}
+        {correctedStr.length > 60
+          ? correctedStr.slice(0, 60) + "…"
+          : correctedStr}
       </span>
     </div>
   );
@@ -175,7 +291,9 @@ function FlagRow({ flag }: { flag: ValidationFlag }) {
   const config = FLAG_SEVERITY_CONFIG[flag.severity];
   const Icon = config.icon;
   return (
-    <div className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${config.bg}`}>
+    <div
+      className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${config.bg}`}
+    >
       <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${config.class}`} />
       <div className="min-w-0">
         <span className={`font-semibold ${config.class}`}>
@@ -183,7 +301,9 @@ function FlagRow({ flag }: { flag: ValidationFlag }) {
         </span>{" "}
         <span className="text-foreground">{flag.message}</span>
         {flag.flag !== flag.message && (
-          <span className="ml-1 font-mono text-[10px] opacity-60">[{flag.flag}]</span>
+          <span className="ml-1 font-mono text-[10px] opacity-60">
+            [{flag.flag}]
+          </span>
         )}
       </div>
     </div>
@@ -200,7 +320,10 @@ interface ValidationGateProps {
   compact?: boolean;
 }
 
-export function ValidationGate({ claimId, compact = false }: ValidationGateProps) {
+export function ValidationGate({
+  claimId,
+  compact = false,
+}: ValidationGateProps) {
   const [showCorrections, setShowCorrections] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
@@ -223,7 +346,20 @@ export function ValidationGate({ claimId, compact = false }: ValidationGateProps
 
   if (!validation) return null;
 
-  const config = STATUS_CONFIG[validation.status];
+  if (validation.status === "FRAUD_DECISION_WITHHELD") {
+    return (
+      <P0FraudValidationHold
+        hold={normalizeP0FraudValidationHold(validation)}
+        compact={compact}
+      />
+    );
+  }
+
+  // The endpoint currently returns the P0 hold, but this view retains the
+  // legacy validation renderer for compatibility with a future, separately
+  // governed non-fraud validation contract.
+  const legacyValidation = validation as unknown as LegacyValidationResult;
+  const config = STATUS_CONFIG[legacyValidation.status];
   const Icon = config.icon;
 
   // In compact mode, just show the status badge
@@ -231,13 +367,16 @@ export function ValidationGate({ claimId, compact = false }: ValidationGateProps
     return (
       <Badge variant="outline" className={`text-xs ${config.badgeClass}`}>
         <Icon className="mr-1 h-3 w-3" />
-        {validation.status}
+        {legacyValidation.status}
       </Badge>
     );
   }
 
   // VALIDATED with no flags — show a minimal green bar, dismissible
-  if (validation.status === "VALIDATED" && validation.flags.length === 0) {
+  if (
+    legacyValidation.status === "VALIDATED" &&
+    legacyValidation.flags.length === 0
+  ) {
     if (dismissed) return null;
     return (
       <div
@@ -246,7 +385,7 @@ export function ValidationGate({ claimId, compact = false }: ValidationGateProps
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
           <span className="font-medium">{config.label}</span>
-          <span className="opacity-70">— {validation.notes}</span>
+          <span className="opacity-70">— {legacyValidation.notes}</span>
         </div>
         <Button
           variant="ghost"
@@ -261,7 +400,9 @@ export function ValidationGate({ claimId, compact = false }: ValidationGateProps
   }
 
   return (
-    <div className={`rounded-lg border px-4 py-3 space-y-3 ${config.containerClass}`}>
+    <div
+      className={`rounded-lg border px-4 py-3 space-y-3 ${config.containerClass}`}
+    >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -269,8 +410,11 @@ export function ValidationGate({ claimId, compact = false }: ValidationGateProps
           <div>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm">{config.label}</span>
-              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 ${config.badgeClass}`}>
-                {validation.status}
+              <Badge
+                variant="outline"
+                className={`text-[10px] px-1.5 py-0 h-4 ${config.badgeClass}`}
+              >
+                {legacyValidation.status}
               </Badge>
             </div>
             <p className="text-xs opacity-80 mt-0.5">{config.description}</p>
@@ -283,26 +427,32 @@ export function ValidationGate({ claimId, compact = false }: ValidationGateProps
           onClick={() => setDismissed(!dismissed)}
           title={dismissed ? "Show validation details" : "Collapse"}
         >
-          {dismissed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+          {dismissed ? (
+            <Eye className="h-3.5 w-3.5" />
+          ) : (
+            <EyeOff className="h-3.5 w-3.5" />
+          )}
         </Button>
       </div>
 
       {!dismissed && (
         <>
           {/* Flags */}
-          {validation.flags.length > 0 && (
+          {legacyValidation.flags.length > 0 && (
             <div className="space-y-1.5">
-              {validation.flags.map((flag, i) => (
+              {legacyValidation.flags.map((flag, i) => (
                 <FlagRow key={i} flag={flag} />
               ))}
             </div>
           )}
 
           {/* Suppressed fields list */}
-          {validation.suppressed_fields.length > 0 && (
+          {legacyValidation.suppressed_fields.length > 0 && (
             <div className="flex flex-wrap gap-1.5 items-center">
-              <span className="text-xs font-medium opacity-70">Suppressed fields:</span>
-              {validation.suppressed_fields.map((f) => (
+              <span className="text-xs font-medium opacity-70">
+                Suppressed fields:
+              </span>
+              {legacyValidation.suppressed_fields.map(f => (
                 <Badge
                   key={f}
                   variant="outline"
@@ -315,7 +465,7 @@ export function ValidationGate({ claimId, compact = false }: ValidationGateProps
           )}
 
           {/* Corrections (collapsible) */}
-          {validation.corrections.length > 0 && (
+          {legacyValidation.corrections.length > 0 && (
             <div>
               <button
                 onClick={() => setShowCorrections(!showCorrections)}
@@ -326,8 +476,8 @@ export function ValidationGate({ claimId, compact = false }: ValidationGateProps
                 ) : (
                   <ChevronDown className="h-3.5 w-3.5" />
                 )}
-                {validation.corrections.length} auto-correction
-                {validation.corrections.length !== 1 ? "s" : ""} applied
+                {legacyValidation.corrections.length} auto-correction
+                {legacyValidation.corrections.length !== 1 ? "s" : ""} applied
               </button>
 
               {showCorrections && (
@@ -338,7 +488,7 @@ export function ValidationGate({ claimId, compact = false }: ValidationGateProps
                     <span>Original</span>
                     <span>Corrected</span>
                   </div>
-                  {validation.corrections.map((c, i) => (
+                  {legacyValidation.corrections.map((c, i) => (
                     <CorrectionRow key={i} correction={c} />
                   ))}
                 </div>
@@ -347,7 +497,9 @@ export function ValidationGate({ claimId, compact = false }: ValidationGateProps
           )}
 
           {/* Notes */}
-          <p className="text-[11px] opacity-60 font-mono">{validation.notes}</p>
+          <p className="text-[11px] opacity-60 font-mono">
+            {legacyValidation.notes}
+          </p>
         </>
       )}
     </div>

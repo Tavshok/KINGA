@@ -19,8 +19,6 @@ function baseline(overrides: Partial<ValidationEngineInput> = {}): ValidationEng
     claimNumber: "CLM-2024-001",
     rawVerdict: "APPROVE",
     confidenceScore: 82,
-    fraudScore: 12,
-    fraudLevel: "minimal",
     aiEstimateUsd: 1500,
     documentedOriginalQuoteUsd: 1800,
     documentedAgreedCostUsd: 1500,
@@ -349,46 +347,46 @@ describe("Rule 6 — Physics Output Visibility", () => {
 
 describe("Rule 7 — UI Status Mapping", () => {
   it("maps APPROVE correctly", () => {
-    const result = runOutputValidation(baseline({ rawVerdict: "APPROVE", fraudScore: 10, confidenceScore: 82 }));
+    const result = runOutputValidation(baseline({ rawVerdict: "APPROVE", confidenceScore: 82 }));
     expect(result.final_output.decisionVerdict).toBe("APPROVE");
     expect(result.final_output.decisionLabel).toBe("Approve");
   });
 
   it("maps FINALISE_CLAIM to APPROVE", () => {
-    const result = runOutputValidation(baseline({ rawVerdict: "FINALISE_CLAIM", fraudScore: 10, confidenceScore: 82 }));
+    const result = runOutputValidation(baseline({ rawVerdict: "FINALISE_CLAIM", confidenceScore: 82 }));
     expect(result.final_output.decisionVerdict).toBe("APPROVE");
   });
 
   it("maps REVIEW_REQUIRED to REVIEW", () => {
-    const result = runOutputValidation(baseline({ rawVerdict: "REVIEW_REQUIRED", fraudScore: 10, confidenceScore: 82 }));
+    const result = runOutputValidation(baseline({ rawVerdict: "REVIEW_REQUIRED", confidenceScore: 82 }));
     expect(result.final_output.decisionVerdict).toBe("REVIEW");
   });
 
   it("maps ESCALATE_INVESTIGATION to REJECT", () => {
-    const result = runOutputValidation(baseline({ rawVerdict: "ESCALATE_INVESTIGATION", fraudScore: 10, confidenceScore: 82 }));
+    const result = runOutputValidation(baseline({ rawVerdict: "ESCALATE_INVESTIGATION", confidenceScore: 82 }));
     expect(result.final_output.decisionVerdict).toBe("REJECT");
   });
 
-  it("overrides APPROVE to REJECT when fraud score > 60", () => {
-    const result = runOutputValidation(baseline({ rawVerdict: "APPROVE", fraudScore: 75, confidenceScore: 82 }));
-    expect(result.final_output.decisionVerdict).toBe("REJECT");
-    expect(result.corrections.some(c => c.rule === 7 && String(c.corrected) === "REJECT")).toBe(true);
+  it("does not accept a stored fraud score as an input or decision override", () => {
+    const result = runOutputValidation(baseline({ rawVerdict: "APPROVE", confidenceScore: 82 }));
+    expect(result.final_output.decisionVerdict).toBe("APPROVE");
+    expect(result.final_output).not.toHaveProperty("fraudScore");
+    expect(result.final_output).not.toHaveProperty("fraudLevel");
   });
 
   it("overrides APPROVE to REVIEW when confidence < 40", () => {
-    const result = runOutputValidation(baseline({ rawVerdict: "APPROVE", fraudScore: 10, confidenceScore: 35 }));
+    const result = runOutputValidation(baseline({ rawVerdict: "APPROVE", confidenceScore: 35 }));
     expect(result.final_output.decisionVerdict).toBe("REVIEW");
     expect(result.corrections.some(c => c.rule === 7 && String(c.corrected) === "REVIEW")).toBe(true);
   });
 
-  it("does not override REVIEW to REJECT even with high fraud", () => {
-    const result = runOutputValidation(baseline({ rawVerdict: "REVIEW_REQUIRED", fraudScore: 75, confidenceScore: 82 }));
-    // Fraud override only applies when verdict is APPROVE
+  it("preserves REVIEW without any fraud-score branch", () => {
+    const result = runOutputValidation(baseline({ rawVerdict: "REVIEW_REQUIRED", confidenceScore: 82 }));
     expect(result.final_output.decisionVerdict).toBe("REVIEW");
   });
 
   it("maps unknown verdict to REVIEW as safe default", () => {
-    const result = runOutputValidation(baseline({ rawVerdict: "SOME_UNKNOWN_VERDICT", fraudScore: 10, confidenceScore: 82 }));
+    const result = runOutputValidation(baseline({ rawVerdict: "SOME_UNKNOWN_VERDICT", confidenceScore: 82 }));
     expect(result.final_output.decisionVerdict).toBe("REVIEW");
   });
 });
@@ -553,7 +551,6 @@ describe("Overall Status", () => {
     const result = runOutputValidation(baseline({
       aiEstimateUsd: 4.62,
       confidenceScore: 20,
-      fraudScore: 90,
       panelBeaterFromCostIntel: null,
       panelBeaterFromAssessor: null,
       repairerName: null,

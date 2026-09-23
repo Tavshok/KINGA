@@ -57,6 +57,7 @@ import {
   projectP0A2DescriptivePhotoEvidence,
   renderP0A2CollisionPhysicsAbstentionMarker,
 } from "./p0PhysicsPresentation";
+import { renderP0B1FraudAbstentionMarker } from "./p0FraudPresentation";
 import { resolveReportRecord, toReportDefinitionRow } from "./resolvedReportRecord";
 import { renderVehiclePassportEvidencePanel } from "./vehiclePassportEvidencePresentation";
 import {
@@ -283,7 +284,6 @@ async function generateClaimAssessmentReport(
     const canonicalReport = canonicalPresentation.report;
 
     const collisionPhysicsHold = renderP0A2CollisionPhysicsAbstentionMarker();
-    const fraud = safeJson(claim.fraud_score_breakdown_json);
     const costIntel = safeJson(claim.cost_intelligence_json);
     // CL Photo section — parse enriched_photos_json (same source as CI and FR)
     const photoEvidenceCL = normaliseCanonicalPhotoEvidence(safeJson(claim.enriched_photos_json));
@@ -353,11 +353,6 @@ async function generateClaimAssessmentReport(
       };
     }).sort((a, b) => b.estimated_cost - a.estimated_cost);
 
-    // The normalisation contract owns fraud-score priority and contradiction handling.
-    const fraudScoreRaw = Number(claim.fraud_score ?? 0);
-    const fraudBreakOverall = (fraud as any)?.overallScore ?? (fraud as any)?.compositeScore ?? null;
-    const fraudScore = canonicalReport.fraud.score;
-    const fraudScoreMismatch = fraudBreakOverall != null && Math.abs(Number(fraudBreakOverall) - fraudScore) >= 5;
     const confidenceScore = Number(claim.confidence_score ?? 0);
     const estimatedCost = canonicalReport.costs.aiEstimateUsd ?? 0;
     const costIntegrity = resolveReportCostIntegrity(costIntel, quoteRows as unknown[]);
@@ -428,11 +423,6 @@ async function generateClaimAssessmentReport(
     // green/pass indicator or a zero-valued anomaly score.
     const physicsAnomalyScore = null;
 
-    // Fraud risk colour
-    const riskLevel = String(claim.fraud_risk_level ?? "low").toLowerCase();
-    const riskColour = riskLevel === "high" ? "#a83232" : riskLevel === "medium" ? "#b8720b" : "#3C7844";
-    const riskBg = riskLevel === "high" ? "#fbe9e7" : riskLevel === "medium" ? "#fbf1de" : "#e9f3ea";
-
     const compTotal = comps.reduce((s, c) => s + c.estimated_cost, 0);
     const labourTotal = comps.reduce((s, c) => s + c.labour_hours, 0);
 
@@ -440,10 +430,6 @@ async function generateClaimAssessmentReport(
     // contain collision-derived conclusions. Keep this panel deterministic and
     // limited to the canonical workflow/cost decision context.
     const daText = `A qualified human adjuster must review the ${reportDecision.status.replaceAll("_", " ")} claim status together with the evidence-qualified cost and documentary record. Collision-physics conclusions remain withheld pending a P1-qualified governing measurement or documented human engineering review.`;
-
-    // Stored indicator text is not a source-bound publication contract. It can
-    // contain collision-derived prose, so this tier exposes no raw indicators.
-    const fraudIndicators: Record<string, unknown>[] = [];
 
     const claimRef2 = esc(String(claim.claim_reference ?? claim.id));
     const genDate2 = new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
@@ -604,12 +590,7 @@ ${(() => {
   <div class="section-tab sans"><span class="num">02</span> Assessment Summary</div>
   <table style="width:100%;border-collapse:collapse">
     <tr>
-      ${scoreCell(fraudScore, "Fraud Score")}
       ${scoreCell(confidenceScore, "Confidence", true)}
-      <td style="padding:8px 12px;border-right:1px solid #e8e8e8;vertical-align:top">
-        <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Risk Level</div>
-        <span style="background:${riskBg};color:${riskColour};font-size:10px;font-weight:700;padding:3px 9px;border-radius:2px;text-transform:uppercase">${esc(riskLevel)}</span>
-      </td>
       <td style="padding:8px 12px;border-right:1px solid #e8e8e8;vertical-align:top">
         <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Recommendation</div>
         <div style="font-size:13px;font-weight:700;color:#171717">${esc(String(claim.recommendation ?? "—").toUpperCase())}</div>
@@ -621,41 +602,7 @@ ${(() => {
     </tr>
   </table>
   ${costDecisionSummary}
-  ${fraudScoreMismatch ? `
-  <div style="margin-top:8px;padding:6px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#4a4a4a;">
-    <b>Score reconciliation note:</b> The fraud breakdown engine computed a score of <b>${fraudScore}</b> (from ${fraudIndicators.length} indicator${fraudIndicators.length !== 1 ? 's' : ''}). The pipeline stored a score of <b>${fraudScoreRaw}</b> in the assessment record (set by a separate stage). This report uses the breakdown engine score as the authoritative value. If these differ significantly, re-run the assessment to synchronise.
-  </div>` : ""}
-    ${fraudIndicators.length > 0 ? (() => {
-      // Find the top indicator by score for the plain-language callout
-      const topInd = fraudIndicators.reduce((best: Record<string,unknown>, cur: Record<string,unknown>) =>
-        Number(cur.points ?? cur.score ?? 0) > Number(best.points ?? best.score ?? 0) ? cur : best,
-        fraudIndicators[0]);
-      const topDesc = String(topInd.description ?? topInd.reason ?? topInd.explanation ?? "");
-      const topName = String(topInd.name ?? topInd.indicator ?? "");
-      const topScore = Number(topInd.points ?? topInd.score ?? 0);
-      return `
-  <div style="margin-top:12px">
-    ${topDesc ? `<div style="margin-bottom:8px;padding:8px 12px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:11px;color:#171717;line-height:1.5;"><strong>Primary risk driver (${topScore} pts):</strong> ${esc(topDesc)}</div>` : ""}
-    <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Triggered Fraud Indicators</div>
-    <table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead><tr style="border-bottom:2px solid #d9d9d9">
-        <th style="text-align:left;padding:3px 8px;font-size:10px;color:#4a4a4a">Indicator</th>
-        <th style="text-align:left;padding:3px 8px;font-size:10px;color:#4a4a4a">Category</th>
-        <th style="text-align:right;padding:3px 8px;font-size:10px;color:#4a4a4a">Score</th>
-      </tr></thead>
-      <tbody>
-        ${fraudIndicators.map((ind: Record<string,unknown>) => {
-          const indDesc = String(ind.description ?? ind.reason ?? ind.explanation ?? "");
-          return `<tr style="border-bottom:1px solid #e8e8e8">
-          <td style="padding:3px 8px"><div style="font-weight:600">${esc(String(ind.name ?? ind.indicator ?? ""))}</div>${indDesc ? `<div style="font-size:10px;color:#4a4a4a;margin-top:2px;line-height:1.4">${esc(indDesc)}</div>` : ""}</td>
-          <td style="padding:3px 8px;color:#4a4a4a">${esc(String(ind.category ?? ""))}</td>
-          <td style="padding:3px 8px;text-align:right;font-weight:600">${ind.points ?? ind.score ?? 0}</td>
-        </tr>`;
-        }).join("")}
-      </tbody>
-    </table>
-  </div>`;
-    })() : ""}
+  ${renderP0B1FraudAbstentionMarker()}
 </div>
 
 <!-- ── §3 DAMAGED COMPONENTS ── -->
@@ -746,29 +693,12 @@ ${totalPhotosCL > 0 ? `
 			${sharedQuoteEvidenceHtml}
 </div>
 
-<!-- ── §5 PHYSICS / FRAUD ── -->
+<!-- ── §5 EVIDENCE AUTHORITY ── -->
 <div class="section">
-  <div class="section-tab sans"><span class="num">05</span> Fraud &amp; Physics</div>
+  <div class="section-tab sans"><span class="num">05</span> Evidence Authority</div>
   ${collisionPhysicsHold}
-  ${(() => {
-    const qs = (fraud as any)?.quoteSimilarity;
-    if (!qs) return '';
-    const verdict = qs.overall_verdict ?? qs.verdict;
-    // CONSIST-01 fix: structural_similarity is a 0-1 decimal stored in pairs[0].
-    // The old code read qs.highestPairSimilarity (undefined) and multiplied by 100,
-    // producing NaN which rendered as 0%. Use the same source as the FR report.
-    const rawPairSim = qs.pairs?.[0]?.structural_similarity ?? qs.highestPairSimilarity ?? qs.maxSimilarity ?? null;
-    const pairSimPct = rawPairSim != null ? Math.round(Number(rawPairSim) <= 1 ? Number(rawPairSim) * 100 : Number(rawPairSim)) : null;
-    // Sanity check: suppress 'confirmed' if similarity is 0 (contradictory signal)
-    const effectiveVerdict = (verdict === 'confirmed' || verdict === 'high_risk') && pairSimPct === 0 ? 'possible' : verdict;
-    if (effectiveVerdict === 'confirmed' || effectiveVerdict === 'high_risk') {
-      return `<div style="margin-top:8px;padding:8px 12px;border:1px solid #a83232;background:#fbe9e7;border-radius:3px;font-size:11px;"><strong>Copy-Quotation Detected.</strong> Quote similarity analysis flagged a potential copy-quotation pattern (highest pair similarity: ${pairSimPct != null ? pairSimPct + '%' : 'N/A'}). Two or more repair quotes may share a common origin. Refer to the Forensic Report for full analysis.</div>`;
-    } else if (effectiveVerdict === 'possible' || effectiveVerdict === 'moderate_risk' || effectiveVerdict === 'suspected') {
-      return `<div style="margin-top:8px;padding:8px 12px;border:1px solid #b8720b;background:#fbf1de;border-radius:3px;font-size:11px;"><strong>Copy-Quotation — Possible.</strong> Moderate quote similarity detected (highest pair: ${pairSimPct != null ? pairSimPct + '%' : 'N/A'}). Further review recommended.</div>`;
-    }
-    return '';
-  })()}
-  <div style="font-size:10px;color:#8a8a8a;margin-top:8px">Collision-physics conclusions are not available in this report while the evidence contract requires manual review.</div>
+  ${renderP0B1FraudAbstentionMarker()}
+  <div style="font-size:10px;color:#8a8a8a;margin-top:8px">Collision-physics and fraud conclusions are not available in this report while the evidence contracts require manual review.</div>
 </div>
 
 <!-- TIER-03: Explicit tier-boundary badge -->

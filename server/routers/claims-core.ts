@@ -55,6 +55,7 @@ import { isAdminRole } from "@shared/role-permissions";
 import { isExternalAssessor } from "../assessor-role-authority";
 import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment } from "../services/canonicalClaimIntake";
 import { submitPortalCanonicalIntake } from "../services/canonicalIntakeAdapters";
+import { buildP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 
 async function requireTenantScopedClaim(
   ctx: { user: { tenantId?: string | null } | null },
@@ -959,7 +960,8 @@ export const claimsRouter = router({
     }),
 
   // ─── Claims Manager: Fraud Alerts ───────────────────────────────────────────
-  // Returns claims with high/critical/elevated fraud risk or score > 70
+  // P0-B1: legacy fraud scores and levels have no governing authority. Do not
+  // query, sort, classify, or return claims from those stored values.
   getFraudAlerts: insurerDomainProcedure
     .input(z.object({
       from: z.string().optional(),
@@ -968,60 +970,14 @@ export const claimsRouter = router({
       search: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      const conditions: any[] = [
-        eq(claims.tenantId, ctx.insurerTenantId),
-        or(
-          inArray(claims.fraudRiskLevel, ['high', 'critical', 'elevated'] as any[]),
-          gt(claims.fraudRiskScore, input?.minScore ?? 70)
-        ),
-      ];
-      if (input?.from) conditions.push(gte(claims.createdAt, input.from));
-      if (input?.to) conditions.push(lte(claims.createdAt, input.to + ' 23:59:59'));
-      const rows = await db
-        .select({
-          id: claims.id,
-          claimNumber: claims.claimNumber,
-          status: claims.status,
-          workflowState: claims.workflowState,
-          fraudRiskLevel: claims.fraudRiskLevel,
-          fraudRiskScore: claims.fraudRiskScore,
-          approvedAmount: claims.approvedAmount,
-          estimatedClaimValue: claims.estimatedClaimValue,
-          incidentType: claims.incidentType,
-          vehicleMake: claims.vehicleMake,
-          vehicleModel: claims.vehicleModel,
-          vehicleYear: claims.vehicleYear,
-          vehicleRegistration: claims.vehicleRegistration,
-          claimantName: claims.lodgerName,
-          claimantEmail: claims.claimantEmail,
-          incidentDate: claims.incidentDate,
-          createdAt: claims.createdAt,
-          updatedAt: claims.updatedAt,
-          currencyCode: claims.currencyCode,
-          kingaRef: claims.kingaRef,
-          policyNumber: claims.policyNumber,
-        })
-        .from(claims)
-        .where(and(...conditions))
-        .orderBy(desc(claims.fraudRiskScore))
-        .limit(300);
-      if (input?.search) {
-        const q = input.search.toLowerCase();
-        return rows.filter(r =>
-          r.claimNumber?.toLowerCase().includes(q) ||
-          r.claimantName?.toLowerCase().includes(q) ||
-          r.vehicleRegistration?.toLowerCase().includes(q) ||
-          r.kingaRef?.toLowerCase().includes(q) ||
-          r.policyNumber?.toLowerCase().includes(q)
-        );
-      }
-      return rows;
+      void ctx;
+      void input;
+      return buildP0B1FraudDecisionHold({ results: [] as never[] });
     }),
 
   // ─── Claims Manager: Dashboard Statistics ───────────────────────────────────
-  // Aggregate counts by status, fraud risk breakdown, total claim value, avg processing time
+  // Aggregate operational counts only. P0-B1 excludes legacy fraud scores and
+  // levels from this dashboard response; use the actionable fraud hold instead.
   getDashboardStats: insurerDomainProcedure
     .input(z.object({
       from: z.string().optional(),
@@ -1039,8 +995,6 @@ export const claimsRouter = router({
           id: claims.id,
           status: claims.status,
           workflowState: claims.workflowState,
-          fraudRiskLevel: claims.fraudRiskLevel,
-          fraudRiskScore: claims.fraudRiskScore,
           approvedAmount: claims.approvedAmount,
           estimatedClaimValue: claims.estimatedClaimValue,
           finalApprovedAmount: claims.finalApprovedAmount,
@@ -1057,16 +1011,12 @@ export const claimsRouter = router({
       // Count by status
       const statusCounts: Record<string, number> = {};
       let totalAmount = 0;
-      let fraudHighCount = 0;
       let closedWithTime: { ms: number }[] = [];
 
       for (const c of allClaims) {
         const s = c.status ?? 'unknown';
         statusCounts[s] = (statusCounts[s] ?? 0) + 1;
         totalAmount += parseFloat(String(c.estimatedClaimValue ?? 0));
-        if (c.fraudRiskLevel === 'high' || (c.fraudRiskLevel as string) === 'critical' || (c.fraudRiskLevel as string) === 'elevated') {
-          fraudHighCount++;
-        }
         if ((c.status === 'completed' || c.status === 'closed') && c.createdAt && c.updatedAt) {
           const ms = new Date(c.updatedAt).getTime() - new Date(c.createdAt).getTime();
           if (ms > 0) closedWithTime.push({ ms });
@@ -1078,7 +1028,6 @@ export const claimsRouter = router({
         : null;
 
       const total = allClaims.length;
-      const fraudRate = total > 0 ? Math.round((fraudHighCount / total) * 100) : 0;
       // Active = not in terminal state
       const terminalStatuses = new Set(['completed', 'rejected', 'closed']);
       const activeCount = allClaims.filter(c => !terminalStatuses.has(c.status ?? '')).length;
@@ -1106,8 +1055,7 @@ export const claimsRouter = router({
         activeCount,
         completedCount,
         rejectedCount,
-        fraudHighCount,
-        fraudRate,
+        fraudDecision: buildP0B1FraudDecisionHold(),
         totalAmount,
         avgProcessingDays,
         statusCounts,
@@ -1253,8 +1201,6 @@ export const claimsRouter = router({
           id: claims.id,
           status: claims.status,
           workflowState: claims.workflowState,
-          fraudRiskLevel: claims.fraudRiskLevel,
-          fraudRiskScore: claims.fraudRiskScore,
           approvedAmount: claims.approvedAmount,
           estimatedClaimValue: claims.estimatedClaimValue,
           finalApprovedAmount: claims.finalApprovedAmount,
@@ -1281,8 +1227,6 @@ export const claimsRouter = router({
         const terminal = new Set(['completed', 'rejected', 'closed']);
         const active = rows.filter(r => !terminal.has(r.status ?? '')).length;
         const completed = rows.filter(r => r.status === 'completed').length;
-        const fraudHigh = rows.filter(r => ['high','critical','elevated'].includes(r.fraudRiskLevel ?? '')).length;
-        const fraudRate = total > 0 ? Math.round((fraudHigh / total) * 100) : 0;
         let savings = 0;
         let totalAmt = 0;
         let closedMs: number[] = [];
@@ -1303,7 +1247,7 @@ export const claimsRouter = router({
         const avgCycleDays = closedMs.length > 0
           ? Math.round(closedMs.reduce((a, b) => a + b, 0) / closedMs.length / 86400000)
           : null;
-        return { total, active, completed, fraudHigh, fraudRate, totalAmt, savings: Math.round(savings), avgCycleDays, incidentCounts, statusCounts };
+        return { total, active, completed, totalAmt, savings: Math.round(savings), avgCycleDays, incidentCounts, statusCounts };
       };
 
       const cur = calcKpis(current);
@@ -1327,7 +1271,7 @@ export const claimsRouter = router({
           totalClaims: { value: cur.total, delta: delta(cur.total, prev.total) },
           activeClaims: { value: cur.active, delta: delta(cur.active, prev.active) },
           completedClaims: { value: cur.completed, delta: delta(cur.completed, prev.completed) },
-          fraudRate: { value: cur.fraudRate, delta: delta(cur.fraudRate, prev.fraudRate) },
+          fraudDecision: buildP0B1FraudDecisionHold(),
           totalSavings: { value: cur.savings, delta: delta(cur.savings, prev.savings) },
           avgCycleDays: { value: cur.avgCycleDays, delta: delta(cur.avgCycleDays, prev.avgCycleDays) },
         },
