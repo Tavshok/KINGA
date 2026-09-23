@@ -359,7 +359,6 @@ export function validateAgainstProfile(
     hasQuotation: boolean;
     hasPoliceReport: boolean;
     hasDriverStatement: boolean;
-    fraudScore: number;
     overallConfidence: number;
     costUsd: number;
     hasPhysicsAnalysis: boolean;
@@ -428,27 +427,6 @@ export function validateAgainstProfile(
           }
           break;
       }
-    }
-  }
-
-  // Check fraud thresholds
-  if (params.fraudScore >= profile.fraudThresholds.autoDeclineThreshold) {
-    if (params.recommendation !== "ESCALATE") {
-      violations.push({
-        field: "fraud.fraudRiskScore",
-        requirement: `Score ≥ ${profile.fraudThresholds.autoDeclineThreshold}% requires ESCALATE`,
-        actual: `Score: ${params.fraudScore}%, Decision: ${params.recommendation}`,
-        severity: "CRITICAL",
-      });
-    }
-  } else if (params.fraudScore >= profile.fraudThresholds.escalationThreshold) {
-    if (params.recommendation === "APPROVE") {
-      violations.push({
-        field: "fraud.fraudRiskScore",
-        requirement: `Score ≥ ${profile.fraudThresholds.escalationThreshold}% cannot be auto-approved`,
-        actual: `Score: ${params.fraudScore}%, Decision: APPROVE`,
-        severity: "HIGH",
-      });
     }
   }
 

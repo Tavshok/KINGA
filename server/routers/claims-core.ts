@@ -56,7 +56,11 @@ import { isAdminRole } from "@shared/role-permissions";
 import { isExternalAssessor } from "../assessor-role-authority";
 import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment } from "../services/canonicalClaimIntake";
 import { submitPortalCanonicalIntake } from "../services/canonicalIntakeAdapters";
-import { buildP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
+import {
+  buildP0B1FraudDecisionHold,
+  P0_B1_FRAUD_DECISION_HOLD,
+  throwP0B1FraudDecisionHold,
+} from "../evidence-governance/p0FraudDecisionHold";
 
 async function requireTenantScopedClaim(
   ctx: { user: { tenantId?: string | null } | null },
@@ -139,6 +143,132 @@ export function projectP0B1ClaimReview(
     })),
     fraudDecision: buildP0B1FraudDecisionHold(),
   };
+}
+
+export function buildP0B1FraudOutputHold() {
+  return { ...buildP0B1FraudDecisionHold(), results: [] as never[] };
+}
+
+type P0B1GeographicOperationalRow = {
+  incidentLocation: string | null;
+  incidentType: string | null;
+  approvedAmount: string | number | null;
+  fraudRiskLevel?: unknown;
+  fraudRiskScore?: unknown;
+};
+
+/**
+ * Builds a geographic workload view from independently supported operational
+ * data. Fraud values are accepted only so an accidental legacy projection is
+ * explicitly discarded rather than spread into the response or ordering.
+ */
+export function buildP0B1GeographicOperationalClusters(
+  rows: readonly P0B1GeographicOperationalRow[]
+) {
+  const parseLocation = (location: string | null): string => {
+    if (!location) return "Unknown";
+    const token = location.split(",")[0].trim();
+    return token.length > 40 ? token.slice(0, 40) : token || "Unknown";
+  };
+
+  const clusterMap: Record<string, {
+    totalClaims: number;
+    totalExposure: number;
+    incidentTypes: Record<string, number>;
+  }> = {};
+
+  for (const row of rows) {
+    const location = parseLocation(row.incidentLocation);
+    const cluster = (clusterMap[location] ??= {
+      totalClaims: 0,
+      totalExposure: 0,
+      incidentTypes: {},
+    });
+    cluster.totalClaims++;
+    cluster.totalExposure += Number(row.approvedAmount ?? 0);
+    const incidentType = row.incidentType ?? "other";
+    cluster.incidentTypes[incidentType] =
+      (cluster.incidentTypes[incidentType] ?? 0) + 1;
+  }
+
+  const clusters = Object.entries(clusterMap)
+    .map(([location, cluster]) => ({
+      location,
+      totalClaims: cluster.totalClaims,
+      totalExposure: Math.round(cluster.totalExposure),
+      dominantIncidentType:
+        Object.entries(cluster.incidentTypes).sort((a, b) => b[1] - a[1])[0]?.[0] ??
+        "other",
+    }))
+    .sort((a, b) => b.totalClaims - a.totalClaims || a.location.localeCompare(b.location))
+    .slice(0, 20);
+
+  return { clusters, totalLocations: Object.keys(clusterMap).length };
+}
+
+type P0B1ProcessorQueueRow = {
+  createdAt: string | null;
+  fraudRiskLevel?: unknown;
+  fraudRiskScore?: unknown;
+  [key: string]: unknown;
+};
+
+/**
+ * Applies neutral chronological queue ordering and removes any accidental
+ * historic fraud fields before operational queue publication.
+ */
+export function projectP0B1ProcessorQueueRows<T extends P0B1ProcessorQueueRow>(
+  rows: readonly T[],
+  nowMs = Date.now()
+): Array<
+  Omit<T, "fraudRiskLevel" | "fraudRiskScore"> & {
+    ageHours: number;
+    slaHoursRemaining: number;
+    slaStatus: "breached" | "critical" | "warning" | "ok";
+    fraudDecision: ReturnType<typeof buildP0B1FraudDecisionHold>;
+  }
+> {
+  return [...rows]
+    .sort(
+      (left, right) =>
+        new Date(left.createdAt ?? 0).getTime() -
+        new Date(right.createdAt ?? 0).getTime()
+    )
+    .map(row => {
+      const {
+        fraudRiskLevel: _fraudRiskLevel,
+        fraudRiskScore: _fraudRiskScore,
+        ...operationalRow
+      } = row;
+      const ageHours = row.createdAt
+        ? Math.round((nowMs - new Date(row.createdAt).getTime()) / 3600000)
+        : 0;
+      const slaHoursRemaining = 72 - ageHours;
+      const slaStatus =
+        slaHoursRemaining < 0
+          ? "breached"
+          : slaHoursRemaining < 12
+            ? "critical"
+            : slaHoursRemaining < 24
+              ? "warning"
+              : "ok";
+      return {
+        ...operationalRow,
+        ageHours,
+        slaHoursRemaining,
+        slaStatus,
+        fraudDecision: buildP0B1FraudDecisionHold(),
+      } as Omit<T, "fraudRiskLevel" | "fraudRiskScore"> & {
+        ageHours: number;
+        slaHoursRemaining: number;
+        slaStatus: "breached" | "critical" | "warning" | "ok";
+        fraudDecision: ReturnType<typeof buildP0B1FraudDecisionHold>;
+      };
+    });
+}
+
+function assertP0B1FraudCommandHold(): never {
+  return throwP0B1FraudDecisionHold();
 }
 
 export const claimsRouter = router({
@@ -1135,6 +1265,10 @@ export const claimsRouter = router({
       search: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
+      void ctx;
+      void input;
+      return buildP0B1FraudOutputHold();
+
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const conditions: any[] = [
@@ -1350,6 +1484,10 @@ export const claimsRouter = router({
       to: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
+      void ctx;
+      void input;
+      return buildP0B1FraudOutputHold();
+
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const now = new Date();
@@ -1496,13 +1634,13 @@ export const claimsRouter = router({
     };
   }),
 
-  // ─── Risk Manager: Geographic Risk Clustering ─────────────────────────────
+  // ─── Risk Manager: Geographic Operational Clustering ─────────────────────
   /**
    * getGeographicRiskClusters
    *
-   * Groups high-risk claims (fraudRiskLevel = high/critical/elevated) by
-   * incidentLocation token (first segment before comma) to identify geographic
-   * hotspots. Returns top 20 clusters sorted by claim count descending.
+   * Groups tenant-scoped claims by incident-location token (first segment before
+   * comma) to identify operational workload concentrations. Historic fraud
+   * scores and classifications are deliberately excluded under P0-B1.
    *
    * Source: claims table (incidentLocation free-text field).
    * No schema changes required.
@@ -1523,8 +1661,6 @@ export const claimsRouter = router({
       const rows = await db
         .select({
           incidentLocation: claims.incidentLocation,
-          fraudRiskLevel: claims.fraudRiskLevel,
-          fraudRiskScore: claims.fraudRiskScore,
           incidentType: claims.incidentType,
           approvedAmount: claims.approvedAmount,
         })
@@ -1537,55 +1673,14 @@ export const claimsRouter = router({
         ))
         .limit(5000);
 
-      // Parse location token: first segment before comma, trimmed, max 40 chars
-      const parseLocation = (loc: string | null): string => {
-        if (!loc) return 'Unknown';
-        const token = loc.split(',')[0].trim();
-        return token.length > 40 ? token.slice(0, 40) : token || 'Unknown';
-      };
-
-      // Aggregate by location token
-      const clusterMap: Record<string, {
-        totalClaims: number;
-        highRiskClaims: number;
-        totalExposure: number;
-        incidentTypes: Record<string, number>;
-        avgFraudScore: number;
-        fraudScoreSum: number;
-      }> = {};
-
-      for (const r of rows) {
-        const loc = parseLocation(r.incidentLocation);
-        if (!clusterMap[loc]) {
-          clusterMap[loc] = { totalClaims: 0, highRiskClaims: 0, totalExposure: 0, incidentTypes: {}, avgFraudScore: 0, fraudScoreSum: 0 };
-        }
-        const c = clusterMap[loc];
-        c.totalClaims++;
-        if (['high', 'critical', 'elevated'].includes(r.fraudRiskLevel ?? '')) c.highRiskClaims++;
-        c.totalExposure += Number(r.approvedAmount ?? 0);
-        c.fraudScoreSum += r.fraudRiskScore ?? 0;
-        const it = r.incidentType ?? 'other';
-        c.incidentTypes[it] = (c.incidentTypes[it] ?? 0) + 1;
-      }
-
-      const clusters = Object.entries(clusterMap)
-        .map(([location, c]) => ({
-          location,
-          totalClaims: c.totalClaims,
-          highRiskClaims: c.highRiskClaims,
-          fraudRate: c.totalClaims > 0 ? Math.round((c.highRiskClaims / c.totalClaims) * 100) : 0,
-          totalExposure: Math.round(c.totalExposure),
-          avgFraudScore: c.totalClaims > 0 ? Math.round(c.fraudScoreSum / c.totalClaims) : 0,
-          dominantIncidentType: Object.entries(c.incidentTypes).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other',
-        }))
-        .sort((a, b) => b.highRiskClaims - a.highRiskClaims || b.fraudRate - a.fraudRate)
-        .slice(0, 20);
+      const { clusters, totalLocations } = buildP0B1GeographicOperationalClusters(rows);
 
       return {
         period: { from: fmt(fromDate), to: fmt(toDate) },
         clusters,
-        totalLocations: Object.keys(clusterMap).length,
+        totalLocations,
         hasData: rows.length > 0,
+        fraudDecision: buildP0B1FraudDecisionHold(),
       };
     }),
 
@@ -1617,7 +1712,6 @@ export const claimsRouter = router({
           finalApprovedAmount: claims.finalApprovedAmount,
           createdAt: claims.createdAt,
           closedAt: claims.closedAt,
-          fraudRiskLevel: claims.fraudRiskLevel,
         })
         .from(claims)
         .where(and(
@@ -1690,7 +1784,8 @@ export const claimsRouter = router({
     }),
 
   // ─── Analytics: Processor Queue ──────────────────────────────────────────────
-  // AI priority-sorted queue with SLA hours, AI recommendation, confidence, missing docs
+  // Operational queue with SLA hours, claim workflow state, and missing documents.
+  // P0-B1 deliberately removes historic fraud ordering and output fields.
   getProcessorQueue: insurerDomainProcedure
     .input(z.object({
       from: z.string().optional(),
@@ -1713,8 +1808,6 @@ export const claimsRouter = router({
         claimNumber: claims.claimNumber,
         status: claims.status,
         workflowState: claims.workflowState,
-        fraudRiskLevel: claims.fraudRiskLevel,
-        fraudRiskScore: claims.fraudRiskScore,
         approvedAmount: claims.approvedAmount,
         estimatedClaimValue: claims.estimatedClaimValue,
         incidentType: claims.incidentType,
@@ -1740,19 +1833,10 @@ export const claimsRouter = router({
       })
       .from(claims)
       .where(and(...conditions))
-      .orderBy(desc(claims.fraudRiskScore), asc(claims.createdAt))
+      .orderBy(asc(claims.createdAt))
       .limit(500);
 
-      // Calculate SLA hours remaining (72h SLA from creation)
-      const SLA_HOURS = 72;
-      const enriched = rows.map(r => {
-        const ageHours = r.createdAt
-          ? Math.round((Date.now() - new Date(r.createdAt).getTime()) / 3600000)
-          : 0;
-        const slaHoursRemaining = SLA_HOURS - ageHours;
-        const slaStatus = slaHoursRemaining < 0 ? 'breached' : slaHoursRemaining < 12 ? 'critical' : slaHoursRemaining < 24 ? 'warning' : 'ok';
-        return { ...r, ageHours, slaHoursRemaining, slaStatus };
-      });
+      const enriched = projectP0B1ProcessorQueueRows(rows);
 
       if (input?.search) {
         const q = input.search.toLowerCase();
@@ -2196,41 +2280,24 @@ export const claimsRouter = router({
                   recipientName: asyncUserName,
                   claimNumber: claim.claimNumber,
                   estimatedCost: (aiAssessment.estimatedCost || 0).toString(),
-                  fraudRiskLevel: aiAssessment.fraudRiskLevel || "low",
+                  fraudRiskLevel: "withheld_pending_qualified_evidence",
                   confidenceScore: (aiAssessment.confidenceScore || 0).toString(),
                 });
               }
 
               // Create in-app notification
               const { createNotification } = await import("../db");
-              if (aiAssessment.fraudRiskLevel === "high") {
-                await createNotification({
-                  userId: asyncUserId,
-                  title: isRerun ? "\u26a0\ufe0f High Fraud Risk — Re-Analysis" : "\u26a0\ufe0f High Fraud Risk Detected",
-                  message: `KINGA ${isRerun ? 're-analysis' : 'assessment'} flagged claim ${claim.claimNumber} as high fraud risk. Immediate review recommended.`,
-                  type: "fraud_detected",
-                  claimId: input.claimId,
-                  entityType: "ai_assessment",
-                  entityId: aiAssessment.id,
-                  actionUrl: `/insurer/claims/${input.claimId}/comparison`,
-                  priority: "urgent",
-                  tenantId: asyncTenantId,
-                });
-              } else {
-                await createNotification({
-                  userId: asyncUserId,
-                  title: isRerun ? "KINGA Re-Analysis Complete" : "KINGA Assessment Complete",
-                  message: isRerun
-                    ? `Re-analysis complete for claim ${claim.claimNumber}. Updated estimate: $${(aiAssessment.estimatedCost || 0).toFixed(2)}`
-                    : `AI damage assessment completed for claim ${claim.claimNumber}. Estimated cost: $${(aiAssessment.estimatedCost || 0).toFixed(2)}`,
-                  type: "assessment_completed",
-                  claimId: input.claimId,
-                  entityType: "ai_assessment",
-                  actionUrl: `/insurer/claims/${input.claimId}/comparison`,
-                  priority: "medium",
-                  tenantId: asyncTenantId,
-                });
-              }
+              await createNotification({
+                userId: asyncUserId,
+                title: isRerun ? "KINGA Re-Analysis Requires Review" : "KINGA Assessment Requires Review",
+                message: `Automated fraud scoring for claim ${claim.claimNumber} is withheld pending independently verifiable claim-linked evidence, human-reviewed auditable evidence, and a future qualified automated-decision policy.`,
+                type: "assessment_completed",
+                claimId: input.claimId,
+                entityType: "ai_assessment",
+                actionUrl: `/insurer/claims/${input.claimId}/comparison`,
+                priority: "medium",
+                tenantId: asyncTenantId,
+              });
             }
 
             // Audit entry for completion
@@ -2415,6 +2482,7 @@ export const claimsRouter = router({
       
       // Get claim and quote details
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
+      assertP0B1FraudCommandHold();
       
       // Do NOT apply tenant filtering for quotes — claimId already uniquely identifies the claim.
       const quotes = await getQuotesByClaimId(input.claimId);

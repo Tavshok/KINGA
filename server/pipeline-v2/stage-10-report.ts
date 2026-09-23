@@ -38,7 +38,12 @@ import { buildDataResponsibilityMatrix } from "./dataResponsibilityMatrix";
 import { buildDecisionTransparencyLayer } from "./decisionTransparencyLayer";
 import { runCrossStageConsistencyCheck } from "./crossStageConsistencyEngine";
 import { scoreClaimQuality } from "./claimQualityScorer";
-import { preserveOrFailClosedCrushDepthDecision } from "../evidence-governance/quantitativeFieldGovernance";
+import {
+  hasGoverningFraudDecisionEligibility,
+  preserveOrFailClosedCrushDepthDecision,
+  preserveOrFailClosedFraudDecisionEligibility,
+  type FraudDecisionEligibilityInput,
+} from "../evidence-governance/quantitativeFieldGovernance";
 
 function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
   return {
@@ -72,7 +77,8 @@ function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
         officerName: (claimRecord.policeReport as any)?.officerName ?? null,
         chargeNumber: (claimRecord.policeReport as any)?.chargeNumber ?? null,
         fineAmount: (claimRecord.policeReport as any)?.fineAmount ?? null,
-        trafficReportDate: (claimRecord.policeReport as any)?.trafficReportDate ?? null,
+        trafficReportDate:
+          (claimRecord.policeReport as any)?.trafficReportDate ?? null,
       },
       dataQuality: {
         completenessScore: claimRecord.dataQuality.completenessScore,
@@ -83,7 +89,10 @@ function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
   };
 }
 
-function buildDamageSection(damageAnalysis: Stage6Output | null, claimRecord: ClaimRecord): ReportSection {
+function buildDamageSection(
+  damageAnalysis: Stage6Output | null,
+  claimRecord: ClaimRecord
+): ReportSection {
   if (!damageAnalysis) {
     return {
       title: "Damage Analysis",
@@ -122,11 +131,17 @@ export function buildPhysicsSection(
   if (!physicsAnalysis) {
     return {
       title: "Physics Reconstruction",
-      content: { available: false, executed: false, note: "Physics analysis data unavailable." },
+      content: {
+        available: false,
+        executed: false,
+        note: "Physics analysis data unavailable.",
+      },
     };
   }
 
-  const rawStage6CrushDepthCandidatePresent = (damageAnalysis?.damagedParts ?? []).some(
+  const rawStage6CrushDepthCandidatePresent = (
+    damageAnalysis?.damagedParts ?? []
+  ).some(
     part =>
       typeof part.crushDepthM === "number" &&
       Number.isFinite(part.crushDepthM) &&
@@ -142,13 +157,16 @@ export function buildPhysicsSection(
   );
 
   if (!physicsAnalysis.physicsExecuted) {
-    const unavailablePhysics = physicsAnalysis.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY' || physicsAnalysis.physicsStatus === 'SKIPPED_ENGINE_FAILURE';
-    const geometryUnavailable = physicsAnalysis.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY';
+    const unavailablePhysics =
+      physicsAnalysis.physicsStatus === "SKIPPED_INSUFFICIENT_GEOMETRY" ||
+      physicsAnalysis.physicsStatus === "SKIPPED_ENGINE_FAILURE";
+    const geometryUnavailable =
+      physicsAnalysis.physicsStatus === "SKIPPED_INSUFFICIENT_GEOMETRY";
     const note = geometryUnavailable
-      ? 'Collision physics requires review because P0 classifies current visual geometry as advisory pending P1 qualification. Raw visual estimates were retained as descriptive evidence only and were not used for force, energy, or speed calculations.'
-      : physicsAnalysis.physicsStatus === 'SKIPPED_ENGINE_FAILURE'
-        ? 'Collision physics requires review because the engine did not complete. No numerical fallback was produced; rerun the analysis using the qualified calibrated geometry.'
-        : 'Physics analysis was not applicable for this incident type.';
+      ? "Collision physics requires review because P0 classifies current visual geometry as advisory pending P1 qualification. Raw visual estimates were retained as descriptive evidence only and were not used for force, energy, or speed calculations."
+      : physicsAnalysis.physicsStatus === "SKIPPED_ENGINE_FAILURE"
+        ? "Collision physics requires review because the engine did not complete. No numerical fallback was produced; rerun the analysis using the qualified calibrated geometry."
+        : "Physics analysis was not applicable for this incident type.";
     return {
       title: "Physics Reconstruction",
       content: {
@@ -169,7 +187,7 @@ export function buildPhysicsSection(
         executed: false,
         reviewRequired: true,
         quantitativeEvidence: { crushDepth: crushDepthEligibility },
-        note: 'Collision physics requires review because P0 classifies current visual geometry as advisory pending P1 qualification. No force, energy, or speed result is reportable.',
+        note: "Collision physics requires review because P0 classifies current visual geometry as advisory pending P1 qualification. No force, energy, or speed result is reportable.",
       },
     };
   }
@@ -180,10 +198,19 @@ export function buildPhysicsSection(
   const geb = vge?.geometryEvidenceBlock;
 
   // VGR reconciliation summary — populated when Stage 6.5B ran successfully
-  const vgrReconciliation = vgr?.reconciliationAvailable ? {
-    consensusCrushDepthMm: vgr.consensusCrushDepthM != null ? Math.round(vgr.consensusCrushDepthM * 1000) : null,
-    consensusCrushDepthRangeMm: (vgr.consensusCrushDepthMinM != null && vgr.consensusCrushDepthMaxM != null)
-      ? { min: Math.round(vgr.consensusCrushDepthMinM * 1000), max: Math.round(vgr.consensusCrushDepthMaxM * 1000) }
+  const vgrReconciliation = vgr?.reconciliationAvailable
+    ? {
+        consensusCrushDepthMm:
+          vgr.consensusCrushDepthM != null
+            ? Math.round(vgr.consensusCrushDepthM * 1000)
+            : null,
+        consensusCrushDepthRangeMm:
+          vgr.consensusCrushDepthMinM != null &&
+          vgr.consensusCrushDepthMaxM != null
+            ? {
+                min: Math.round(vgr.consensusCrushDepthMinM * 1000),
+                max: Math.round(vgr.consensusCrushDepthMaxM * 1000),
+              }
       : null,
     confidenceLevel: vgr.confidenceLevel,
     overallConfidence: vgr.overallConfidence,
@@ -198,36 +225,54 @@ export function buildPhysicsSection(
     spreadMm: Math.round(vgr.agreementAssessment.spreadMm),
     spreadPct: Math.round(vgr.agreementAssessment.spreadPct),
     convergenceAdjustment: vgr.agreementAssessment.convergenceAdjustment,
-    conflictDescription: vgr.agreementAssessment.conflictDescription ?? null,
+        conflictDescription:
+          vgr.agreementAssessment.conflictDescription ?? null,
     crushDepthSource: `VGR consensus (${vgr.agreementAssessment.contributingImages} image(s), ${vgr.agreementAssessment.agreementLevel} agreement, ${vgr.confidenceLevel} confidence)`,
-  } : null;
+      }
+    : null;
 
-  const geometryEvidenceBlock = vge ? {
+  const geometryEvidenceBlock = vge
+    ? {
     calibrationAvailable: vge.calibrationAvailable,
-    calibrationStatusCode: geb?.calibrationStatusCode ?? (vge.calibrationAvailable ? 'CALIBRATED' : 'FAILED'),
-    calibrationStatus: geb?.calibrationStatus ?? (vge.calibrationAvailable ? '✓ Calibrated' : '✗ Not available'),
+        calibrationStatusCode:
+          geb?.calibrationStatusCode ??
+          (vge.calibrationAvailable ? "CALIBRATED" : "FAILED"),
+        calibrationStatus:
+          geb?.calibrationStatus ??
+          (vge.calibrationAvailable ? "✓ Calibrated" : "✗ Not available"),
     confidenceLevel: vge.confidenceLevel,
     overallCalibrationConfidence: vge.overallCalibrationConfidence,
     totalReferenceObjectsDetected: vge.totalReferenceObjectsDetected,
     vehicleProfileUsed: vge.vehicleProfileUsed ?? null,
     // Source quality gate output
     sourceQualityAssessment: geb?.sourceQualityAssessment ?? null,
-    evidenceAcquisitionRecommendation: geb?.evidenceAcquisitionRecommendation ?? null,
+        evidenceAcquisitionRecommendation:
+          geb?.evidenceAcquisitionRecommendation ?? null,
     // Measurement basis and limitations
     measurementBasis: geb?.measurementBasis ?? null,
     limitations: geb?.limitations ?? [],
     referenceDisagreementWarning: geb?.referenceDisagreementWarning ?? null,
     // Calibrated crush depth
-    calibratedCrushDepthMm: vge.calibratedCrushDepthM != null ? Math.round(vge.calibratedCrushDepthM * 1000) : null,
-    calibratedCrushDepthRangeMm: (vge.calibratedCrushDepthMinM != null && vge.calibratedCrushDepthMaxM != null)
-      ? { min: Math.round(vge.calibratedCrushDepthMinM * 1000), max: Math.round(vge.calibratedCrushDepthMaxM * 1000) }
+        calibratedCrushDepthMm:
+          vge.calibratedCrushDepthM != null
+            ? Math.round(vge.calibratedCrushDepthM * 1000)
+            : null,
+        calibratedCrushDepthRangeMm:
+          vge.calibratedCrushDepthMinM != null &&
+          vge.calibratedCrushDepthMaxM != null
+            ? {
+                min: Math.round(vge.calibratedCrushDepthMinM * 1000),
+                max: Math.round(vge.calibratedCrushDepthMaxM * 1000),
+              }
       : null,
-    crushDepthSource: (vge.calibrationAvailable && vge.calibratedCrushDepthM != null &&
-      (vge.confidenceLevel === 'HIGH' || vge.confidenceLevel === 'MEDIUM'))
-      ? `VGE calibrated (${vge.confidenceLevel} confidence, ${vge.totalReferenceObjectsDetected} reference object(s)${vge.vehicleProfileUsed ? `, vehicle profile: ${vge.vehicleProfileUsed}` : ''})`
-      : geb?.calibrationStatusCode === 'NOT_APPLICABLE'
-        ? `Not applicable — ${geb.sourceQualityAssessment?.sourceType?.replace(/_/g, ' ').toLowerCase() ?? 'unsuitable source images'}`
-        : 'LLM per-component estimate (no VGE calibration available)',
+        crushDepthSource:
+          vge.calibrationAvailable &&
+          vge.calibratedCrushDepthM != null &&
+          (vge.confidenceLevel === "HIGH" || vge.confidenceLevel === "MEDIUM")
+            ? `VGE calibrated (${vge.confidenceLevel} confidence, ${vge.totalReferenceObjectsDetected} reference object(s)${vge.vehicleProfileUsed ? `, vehicle profile: ${vge.vehicleProfileUsed}` : ""})`
+            : geb?.calibrationStatusCode === "NOT_APPLICABLE"
+              ? `Not applicable — ${geb.sourceQualityAssessment?.sourceType?.replace(/_/g, " ").toLowerCase() ?? "unsuitable source images"}`
+              : "LLM per-component estimate (no VGE calibration available)",
     referenceObjects: vge.perImageResults
       .filter(r => r.scaleAvailable)
       .map(r => ({
@@ -239,10 +284,11 @@ export function buildPhysicsSection(
           detectedPx: Math.round(d.pixelMeasurementPx),
           scaleMmPerPx: parseFloat(d.scaleMmPerPixel.toFixed(3)),
           confidence: d.confidence,
-        }))
+            })),
       }))
       .slice(0, 5),
-  } : null;
+      }
+    : null;
 
   return {
     title: "Physics Reconstruction",
@@ -253,7 +299,8 @@ export function buildPhysicsSection(
       impactVector: physicsAnalysis.impactVector,
       energyDistribution: {
         kineticEnergyJ: physicsAnalysis.energyDistribution.kineticEnergyJ,
-        energyDissipatedKj: physicsAnalysis.energyDistribution.energyDissipatedKj,
+        energyDissipatedKj:
+          physicsAnalysis.energyDistribution.energyDissipatedKj,
       },
       estimatedSpeedKmh: physicsAnalysis.estimatedSpeedKmh,
       deltaVKmh: physicsAnalysis.deltaVKmh,
@@ -268,7 +315,10 @@ export function buildPhysicsSection(
   };
 }
 
-function buildCostSection(costAnalysis: Stage9Output | null, claimRecord: ClaimRecord): ReportSection {
+function buildCostSection(
+  costAnalysis: Stage9Output | null,
+  claimRecord: ClaimRecord
+): ReportSection {
   if (!costAnalysis) {
     return {
       title: "Cost Optimisation",
@@ -317,11 +367,50 @@ function buildCostSection(costAnalysis: Stage9Output | null, claimRecord: ClaimR
   };
 }
 
-function buildFraudSection(fraudAnalysis: Stage8Output | null): ReportSection {
+export function buildFraudSection(
+  fraudAnalysis: Stage8Output | null,
+  sources: FraudDecisionEligibilityInput = {
+    crushDepthDecision: undefined,
+    advisoryEvidencePresent: true,
+    fallbackOrDegraded: false,
+  }
+): ReportSection {
   if (!fraudAnalysis) {
     return {
       title: "Fraud Risk Indicators",
       content: { available: false, note: "Fraud analysis data unavailable." },
+    };
+  }
+
+  const fraudEligibility = preserveOrFailClosedFraudDecisionEligibility(
+    fraudAnalysis.fraudDecisionEligibility,
+    sources
+  );
+  if (!hasGoverningFraudDecisionEligibility(fraudEligibility, sources)) {
+    return {
+      title: "Fraud Risk Indicators",
+      content: {
+        available: false,
+        reviewRequired: true,
+        status: "FRAUD_DECISION_WITHHELD",
+        reasonCode:
+          fraudEligibility?.reasonCode ??
+          "P0_UNAVAILABLE_MISSING_OR_INCONSISTENT_DECISION",
+        note:
+          fraudEligibility?.explanation ??
+          "Automated fraud scoring and routing were withheld because evidence eligibility was missing or invalid.",
+        requiredEvidence: fraudEligibility?.requiredEvidence ?? [
+          "Obtain independently verifiable claim-linked fraud evidence and a qualified automated-decision authority.",
+        ],
+        effect:
+          "No fraud score, fraud level, adverse fraud disposition, repairer disqualification, or fast-track decision was produced from current evidence.",
+        indicators: fraudAnalysis.indicators.map(i => ({
+          indicator: i.indicator,
+          category: i.category,
+          description: i.description,
+          severity: i.severity ?? "advisory",
+        })),
+      },
     };
   }
 
@@ -349,11 +438,27 @@ function buildFraudSection(fraudAnalysis: Stage8Output | null): ReportSection {
   };
 }
 
-function buildTurnaroundSection(turnaround: TurnaroundTimeOutput | null): ReportSection {
+/** P0-B1 prevents the legacy 0/low fallback narrative from rendering. */
+export function buildFraudNarrativeForReport(
+  fraudAnalysis: Stage8Output | null,
+  fraudSection: ReportSection = buildFraudSection(fraudAnalysis)
+) {
+  return fraudAnalysis &&
+    (fraudSection.content as { available?: boolean }).available === true
+    ? buildFraudNarrative(fraudAnalysis)
+    : null;
+}
+
+function buildTurnaroundSection(
+  turnaround: TurnaroundTimeOutput | null
+): ReportSection {
   if (!turnaround) {
     return {
       title: "Turnaround Time Estimate",
-      content: { available: false, note: "Turnaround time analysis data unavailable." },
+      content: {
+        available: false,
+        note: "Turnaround time analysis data unavailable.",
+      },
     };
   }
 
@@ -372,10 +477,14 @@ function buildTurnaroundSection(turnaround: TurnaroundTimeOutput | null): Report
   };
 }
 
-function buildImageSection(claimRecord: ClaimRecord, pdfPageImageUrls?: string[]): ReportSection {
+function buildImageSection(
+  claimRecord: ClaimRecord,
+  pdfPageImageUrls?: string[]
+): ReportSection {
   const uploadedPhotos = claimRecord.damage.imageUrls ?? [];
   // Include PDF page renders as fallback when no uploaded photos exist
-  const pdfFallback = uploadedPhotos.length === 0 ? (pdfPageImageUrls ?? []) : [];
+  const pdfFallback =
+    uploadedPhotos.length === 0 ? (pdfPageImageUrls ?? []) : [];
   const allImages = [...uploadedPhotos, ...pdfFallback];
   return {
     title: "Supporting Images",
@@ -384,7 +493,8 @@ function buildImageSection(claimRecord: ClaimRecord, pdfPageImageUrls?: string[]
       imageUrls: allImages,
       uploadedPhotoCount: uploadedPhotos.length,
       pdfPageRenderCount: pdfFallback.length,
-      note: allImages.length === 0
+      note:
+        allImages.length === 0
         ? "No photos were submitted with this claim. Damage analysis is based on text descriptions only."
         : uploadedPhotos.length === 0 && pdfFallback.length > 0
           ? "No dedicated damage photos were submitted. The images below are PDF page renders from the submitted documents."
@@ -396,11 +506,16 @@ function buildImageSection(claimRecord: ClaimRecord, pdfPageImageUrls?: string[]
 /**
  * Compute overall pipeline confidence from all stage assumptions.
  */
-function computeOverallConfidence(allAssumptions: Assumption[], dataCompleteness: number): number {
+function computeOverallConfidence(
+  allAssumptions: Assumption[],
+  dataCompleteness: number
+): number {
   if (allAssumptions.length === 0) return Math.min(95, dataCompleteness);
 
   // Average confidence of all assumptions, weighted by how many there are
-  const avgAssumptionConfidence = allAssumptions.reduce((sum, a) => sum + a.confidence, 0) / allAssumptions.length;
+  const avgAssumptionConfidence =
+    allAssumptions.reduce((sum, a) => sum + a.confidence, 0) /
+    allAssumptions.length;
 
   // Penalty for number of assumptions (more assumptions = less reliable)
   const assumptionPenalty = Math.min(40, allAssumptions.length * 3);
@@ -408,7 +523,13 @@ function computeOverallConfidence(allAssumptions: Assumption[], dataCompleteness
   // Base from data completeness
   const base = dataCompleteness * 0.6;
 
-  return Math.max(5, Math.min(95, Math.round(base + avgAssumptionConfidence * 0.2 - assumptionPenalty)));
+  return Math.max(
+    5,
+    Math.min(
+      95,
+      Math.round(base + avgAssumptionConfidence * 0.2 - assumptionPenalty)
+    )
+  );
 }
 
 /**
@@ -420,7 +541,8 @@ function identifyMissingDocuments(claimRecord: ClaimRecord): MissingDocument[] {
   if (!claimRecord.policeReport.reportNumber) {
     missing.push({
       documentType: "police_report",
-      impact: "Fraud analysis has reduced accuracy without police report verification.",
+      impact:
+        "Fraud analysis has reduced accuracy without police report verification.",
       required: false,
     });
   }
@@ -428,7 +550,8 @@ function identifyMissingDocuments(claimRecord: ClaimRecord): MissingDocument[] {
   if (claimRecord.damage.imageUrls.length === 0) {
     missing.push({
       documentType: "vehicle_photos",
-      impact: "Damage analysis relies entirely on text descriptions without photo verification.",
+      impact:
+        "Damage analysis relies entirely on text descriptions without photo verification.",
       required: true,
     });
   }
@@ -436,7 +559,8 @@ function identifyMissingDocuments(claimRecord: ClaimRecord): MissingDocument[] {
   if (!claimRecord.repairQuote.quoteTotalCents) {
     missing.push({
       documentType: "repair_quote",
-      impact: "Cost deviation analysis cannot be performed without a repair quote.",
+      impact:
+        "Cost deviation analysis cannot be performed without a repair quote.",
       required: false,
     });
   }
@@ -468,26 +592,45 @@ export async function runReportGenerationStage(
     const decisionReadiness = evaluateDecisionReadiness({
       photos: {
         damage_photos_status:
-          (claimRecord.evidenceRegistry?.evidence_registry?.damage_photos as "PRESENT" | "ABSENT" | "UNKNOWN") ??
-          (claimRecord.damage.imageUrls && claimRecord.damage.imageUrls.length > 0 ? "PRESENT" : "UNKNOWN"),
+          (claimRecord.evidenceRegistry?.evidence_registry?.damage_photos as
+            | "PRESENT"
+            | "ABSENT"
+            | "UNKNOWN") ??
+          (claimRecord.damage.imageUrls &&
+          claimRecord.damage.imageUrls.length > 0
+            ? "PRESENT"
+            : "UNKNOWN"),
         photos_processed_count: claimRecord.damage.imageUrls?.length ?? null,
       },
       incident: {
-        incident_type: claimRecord.accidentDetails.incidentClassification?.incident_type ??
-          claimRecord.accidentDetails.incidentType ?? null,
-        classification_confidence: claimRecord.accidentDetails.incidentClassification?.confidence ?? null,
-        conflict_detected: claimRecord.accidentDetails.incidentClassification?.conflict_detected ?? false,
+        incident_type:
+          claimRecord.accidentDetails.incidentClassification?.incident_type ??
+          claimRecord.accidentDetails.incidentType ??
+          null,
+        classification_confidence:
+          claimRecord.accidentDetails.incidentClassification?.confidence ??
+          null,
+        conflict_detected:
+          claimRecord.accidentDetails.incidentClassification
+            ?.conflict_detected ?? false,
       },
       physics: {
-        physics_ran_successfully: physicsAnalysis !== null && (physicsAnalysis as any).runMode !== "fallback",
-        physics_marked_invalid: physicsAnalysis !== null &&
+        physics_ran_successfully:
+          physicsAnalysis !== null &&
+          (physicsAnalysis as any).runMode !== "fallback",
+        physics_marked_invalid:
+          physicsAnalysis !== null &&
           typeof (physicsAnalysis as any).causalPlausibility === "number" &&
           (physicsAnalysis as any).causalPlausibility < 20,
         physics_confidence: (physicsAnalysis as any)?.overallConfidence ?? null,
       },
       cost: {
         true_cost_usd: costAnalysis?.costDecision?.true_cost_usd ?? null,
-        cost_basis: (costAnalysis?.costDecision?.cost_basis as "assessor_validated" | "system_optimised" | null) ?? null,
+        cost_basis:
+          (costAnalysis?.costDecision?.cost_basis as
+            | "assessor_validated"
+            | "system_optimised"
+            | null) ?? null,
         cost_confidence: costAnalysis?.costDecision?.confidence ?? null,
       },
     });
@@ -496,11 +639,14 @@ export async function runReportGenerationStage(
       ctx.log(
         "Stage 10",
         `Decision Readiness Gate: BLOCKED — ${decisionReadiness.blocking_issues.length} blocking issue(s): ` +
-        decisionReadiness.blocking_issues.map((i) => i.check_id).join(", ")
+          decisionReadiness.blocking_issues.map(i => i.check_id).join(", ")
       );
       isDegraded = true;
     } else {
-      ctx.log("Stage 10", `Decision Readiness Gate: PROCEED — confidence ${decisionReadiness.confidence}%`);
+      ctx.log(
+        "Stage 10",
+        `Decision Readiness Gate: PROCEED — confidence ${decisionReadiness.confidence}%`
+      );
     }
 
     // ── QUALITY GATES — Structural safeguards against recurring quality issues ────
@@ -508,12 +654,19 @@ export async function runReportGenerationStage(
     // They do NOT block report generation but ensure issues are visible in the audit trail.
 
     // QG-1: Speed extraction gate
-    if (!claimRecord.accidentDetails.estimatedSpeedKmh || claimRecord.accidentDetails.estimatedSpeedKmh <= 0) {
-      ctx.log("Stage 10", `⚠️ QUALITY GATE QG-1: No speed extracted from claim form. Physics analysis may use default values.`);
+    if (
+      !claimRecord.accidentDetails.estimatedSpeedKmh ||
+      claimRecord.accidentDetails.estimatedSpeedKmh <= 0
+    ) {
+      ctx.log(
+        "Stage 10",
+        `⚠️ QUALITY GATE QG-1: No speed extracted from claim form. Physics analysis may use default values.`
+      );
       assumptions.push({
         field: "estimatedSpeedKmh",
         assumedValue: "Not extracted",
-        reason: "Speed was not extracted from the claim form. If the form contains a handwritten speed, the OCR may have missed it.",
+        reason:
+          "Speed was not extracted from the claim form. If the form contains a handwritten speed, the OCR may have missed it.",
         strategy: "default_value",
         confidence: 20,
         stage: "Stage 10 (QG-1)",
@@ -523,11 +676,15 @@ export async function runReportGenerationStage(
     // QG-2: Incident description completeness gate
     const desc = claimRecord.accidentDetails.description;
     if (!desc || desc.length < 20) {
-      ctx.log("Stage 10", `⚠️ QUALITY GATE QG-2: Incident description is missing or too short (${desc?.length ?? 0} chars).`);
+      ctx.log(
+        "Stage 10",
+        `⚠️ QUALITY GATE QG-2: Incident description is missing or too short (${desc?.length ?? 0} chars).`
+      );
       assumptions.push({
         field: "accidentDescription",
         assumedValue: "Incomplete",
-        reason: "The incident description is missing or very short. The report narrative may be incomplete.",
+        reason:
+          "The incident description is missing or very short. The report narrative may be incomplete.",
         strategy: "partial_data",
         confidence: 15,
         stage: "Stage 10 (QG-2)",
@@ -536,9 +693,14 @@ export async function runReportGenerationStage(
 
     // QG-3: Cost source transparency gate
     if (costAnalysis) {
-      const hasLearningData = (costAnalysis as any).repairIntelligence?.some?.((r: any) => r.costSource === "learning_db");
+      const hasLearningData = (costAnalysis as any).repairIntelligence?.some?.(
+        (r: any) => r.costSource === "learning_db"
+      );
       if (!hasLearningData) {
-        ctx.log("Stage 10", `ℹ️ QUALITY GATE QG-3: No learning DB data available for cost benchmarks. All benchmarks are estimates.`);
+        ctx.log(
+          "Stage 10",
+          `ℹ️ QUALITY GATE QG-3: No learning DB data available for cost benchmarks. All benchmarks are estimates.`
+        );
       }
     }
 
@@ -547,12 +709,21 @@ export async function runReportGenerationStage(
     const visibility = claimRecord.accidentDetails.visibilityConditions;
     const roadSurface = claimRecord.accidentDetails.roadSurface;
     if (!weather && !visibility && !roadSurface) {
-      ctx.log("Stage 10", `⚠️ QUALITY GATE QG-4: No environmental conditions extracted (weather, visibility, road surface).`);
+      ctx.log(
+        "Stage 10",
+        `⚠️ QUALITY GATE QG-4: No environmental conditions extracted (weather, visibility, road surface).`
+      );
     }
 
     // QG-5: Market value gate (needed for valuation section)
-    if (!claimRecord.vehicle.marketValueUsd || claimRecord.vehicle.marketValueUsd <= 0) {
-      ctx.log("Stage 10", `⚠️ QUALITY GATE QG-5: No market value extracted. Valuation section will show 'Not stated'.`);
+    if (
+      !claimRecord.vehicle.marketValueUsd ||
+      claimRecord.vehicle.marketValueUsd <= 0
+    ) {
+      ctx.log(
+        "Stage 10",
+        `⚠️ QUALITY GATE QG-5: No market value extracted. Valuation section will show 'Not stated'.`
+      );
     }
 
     // ── Phase 4C: Data Responsibility Matrix + Decision Transparency Layer ────────
@@ -564,14 +735,26 @@ export async function runReportGenerationStage(
     // Build each section — null-safe, always produces output
     const claimSummary = buildClaimSummary(claimRecord);
     const damageSection = buildDamageSection(damageAnalysis, claimRecord);
-    const physicsSection = buildPhysicsSection(physicsAnalysis, ctx, damageAnalysis);
+    const physicsSection = buildPhysicsSection(
+      physicsAnalysis,
+      ctx,
+      damageAnalysis
+    );
     const costSection = buildCostSection(costAnalysis, claimRecord);
-    const fraudSection = buildFraudSection(fraudAnalysis);
+    const fraudSection = buildFraudSection(fraudAnalysis, {
+      crushDepthDecision: physicsAnalysis?.quantitativeEvidence?.crushDepth,
+      advisoryEvidencePresent: true,
+      fallbackOrDegraded: Boolean((fraudAnalysis as any)?._fallback),
+    });
     const turnaroundSection = buildTurnaroundSection(turnaroundAnalysis);
     const imageSection = buildImageSection(claimRecord, ctx.pdfPageImageUrls);
     // Stage 39 — evidence-anchored narratives (no hedging, OEC structure)
     const damageNarrative = damageAnalysis
-      ? buildDamageNarrative(damageAnalysis, claimRecord.damage.imageUrls ?? [], claimRecord.damage.description)
+      ? buildDamageNarrative(
+          damageAnalysis,
+          claimRecord.damage.imageUrls ?? [],
+          claimRecord.damage.description
+        )
       : null;
     const physicsNarrativeAllowed =
       physicsAnalysis &&
@@ -579,15 +762,20 @@ export async function runReportGenerationStage(
         .available === true &&
       (physicsSection.content as { available?: boolean; executed?: boolean })
         .executed === true;
-    const physicsNarrative =
-      physicsNarrativeAllowed
+    const physicsNarrative = physicsNarrativeAllowed
         ? buildPhysicsNarrative(physicsAnalysis)
         : null;
-    const fraudNarrative = fraudAnalysis
-      ? buildFraudNarrative(fraudAnalysis)
-      : null;
+    // P0-B1: the legacy narrative fabricates 0/low when score/level are null.
+    // Only a future governing fraud authority may invoke that score-bearing path.
+    const fraudNarrative = buildFraudNarrativeForReport(
+      fraudAnalysis,
+      fraudSection
+    );
     const costNarrative = costAnalysis
-      ? buildCostNarrative(costAnalysis, claimRecord.repairQuote.quoteTotalCents)
+      ? buildCostNarrative(
+          costAnalysis,
+          claimRecord.repairQuote.quoteTotalCents
+        )
       : null;
 
     // Track which sections are degraded
@@ -595,8 +783,8 @@ export async function runReportGenerationStage(
     if (!damageAnalysis) unavailableSections.push("Damage Analysis");
     if (
       !physicsAnalysis ||
-      physicsAnalysis.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY' ||
-      physicsAnalysis.physicsStatus === 'SKIPPED_ENGINE_FAILURE'
+      physicsAnalysis.physicsStatus === "SKIPPED_INSUFFICIENT_GEOMETRY" ||
+      physicsAnalysis.physicsStatus === "SKIPPED_ENGINE_FAILURE"
     ) {
       unavailableSections.push("Physics Reconstruction");
     }
@@ -638,31 +826,42 @@ export async function runReportGenerationStage(
       );
     }
     if (!physicsAnalysis) {
-      const speedMissing = !claimRecord.accidentDetails.estimatedSpeedKmh || claimRecord.accidentDetails.estimatedSpeedKmh <= 0;
+      const speedMissing =
+        !claimRecord.accidentDetails.estimatedSpeedKmh ||
+        claimRecord.accidentDetails.estimatedSpeedKmh <= 0;
       degradationReasons.push(
         speedMissing
           ? "Physics Reconstruction is unavailable because vehicle speed was not extracted from the claim form. " +
             "If the form contains a handwritten speed value, the OCR may have missed it."
           : "Physics Reconstruction did not complete successfully."
       );
-    } else if (physicsAnalysis.physicsStatus === 'SKIPPED_INSUFFICIENT_GEOMETRY') {
+    } else if (
+      physicsAnalysis.physicsStatus === "SKIPPED_INSUFFICIENT_GEOMETRY"
+    ) {
       degradationReasons.push(
         "Physics Reconstruction requires review because no qualifying calibrated vehicle geometry was available. " +
           "Request suitable vehicle images showing at least two independent, undamaged stored-dimension references."
       );
-    } else if (physicsAnalysis.physicsStatus === 'SKIPPED_ENGINE_FAILURE') {
+    } else if (physicsAnalysis.physicsStatus === "SKIPPED_ENGINE_FAILURE") {
       degradationReasons.push(
         "Physics Reconstruction requires review because the physics engine did not complete. " +
           "No numerical fallback was produced; rerun the analysis using the qualified calibrated geometry."
       );
     }
     if (!fraudAnalysis) {
-      degradationReasons.push("Fraud Risk Indicators section is unavailable — fraud analysis did not run or failed.");
+      degradationReasons.push(
+        "Fraud Risk Indicators section is unavailable — fraud analysis did not run or failed."
+      );
     }
     if (!costAnalysis) {
-      degradationReasons.push("Cost Optimisation section is unavailable — cost analysis did not run or failed.");
+      degradationReasons.push(
+        "Cost Optimisation section is unavailable — cost analysis did not run or failed."
+      );
     }
-    if (!decisionReadiness?.decision_ready && decisionReadiness?.blocking_issues?.length) {
+    if (
+      !decisionReadiness?.decision_ready &&
+      decisionReadiness?.blocking_issues?.length
+    ) {
       degradationReasons.push(
         `Decision Readiness blocked by: ${decisionReadiness.blocking_issues.map((i: any) => i.description).join("; ")}`
       );
@@ -678,7 +877,15 @@ export async function runReportGenerationStage(
     const missingDocuments = identifyMissingDocuments(claimRecord);
 
     // Compile full report
-    const fullReport: { reportVersion: string; generatedAt: string; claimId: string | null; overallConfidence: number; assumptionCount: number; missingDocumentCount: number; sections: Record<string, any> } = {
+    const fullReport: {
+      reportVersion: string;
+      generatedAt: string;
+      claimId: string | null;
+      overallConfidence: number;
+      assumptionCount: number;
+      missingDocumentCount: number;
+      sections: Record<string, any>;
+    } = {
       reportVersion: "3.0",
       generatedAt: new Date().toISOString(),
       claimId: claimRecord.claimId != null ? String(claimRecord.claimId) : null,
@@ -689,23 +896,44 @@ export async function runReportGenerationStage(
         claimSummary: claimSummary.content,
         damageAnalysis: {
           ...damageSection.content,
-          ...(damageNarrative ? { narrative: damageNarrative.full_text, narrative_sentences: damageNarrative.sentences } : {}),
+          ...(damageNarrative
+            ? {
+                narrative: damageNarrative.full_text,
+                narrative_sentences: damageNarrative.sentences,
+              }
+            : {}),
         },
         physicsReconstruction: {
           ...physicsSection.content,
-          ...(physicsNarrative ? { narrative: physicsNarrative.full_text, narrative_sentences: physicsNarrative.sentences } : {}),
+          ...(physicsNarrative
+            ? {
+                narrative: physicsNarrative.full_text,
+                narrative_sentences: physicsNarrative.sentences,
+              }
+            : {}),
         },
         costOptimisation: {
           ...costSection.content,
-          ...(costNarrative ? { narrative: costNarrative.full_text, narrative_sentences: costNarrative.sentences } : {}),
+          ...(costNarrative
+            ? {
+                narrative: costNarrative.full_text,
+                narrative_sentences: costNarrative.sentences,
+              }
+            : {}),
         },
         fraudRiskIndicators: {
           ...fraudSection.content,
-          ...(fraudNarrative ? { narrative: fraudNarrative.full_text, narrative_sentences: fraudNarrative.sentences } : {}),
+          ...(fraudNarrative
+            ? {
+                narrative: fraudNarrative.full_text,
+                narrative_sentences: fraudNarrative.sentences,
+              }
+            : {}),
         },
         turnaroundTimeEstimate: turnaroundSection.content,
         supportingImages: imageSection.content,
-        ...(causalChain && physicsNarrativeAllowed ? {
+        ...(causalChain && physicsNarrativeAllowed
+          ? {
           decisionReport: {
             causal_chain: causalChain.causal_chain,
             chain_summary: causalChain.chain_summary,
@@ -715,7 +943,8 @@ export async function runReportGenerationStage(
             critical_step_count: causalChain.critical_step_count,
             warning_step_count: causalChain.warning_step_count,
           },
-        } : {}),
+            }
+          : {}),
         // Phase 4C: Data Responsibility Matrix
         dataResponsibilityMatrix: {
           totalGaps: dataResponsibilityMatrix.totalGaps,
@@ -732,7 +961,8 @@ export async function runReportGenerationStage(
           selectedPanelBeater: decisionTransparencyLayer.selectedPanelBeater,
           selectedCost: decisionTransparencyLayer.selectedCost,
           currency: decisionTransparencyLayer.currency,
-          benchmarkDeviationPct: decisionTransparencyLayer.benchmarkDeviationPct,
+          benchmarkDeviationPct:
+            decisionTransparencyLayer.benchmarkDeviationPct,
           decisionConfidence: decisionTransparencyLayer.decisionConfidence,
           fcdiScoreAtDecision: decisionTransparencyLayer.fcdiScoreAtDecision,
           candidates: decisionTransparencyLayer.candidates,
@@ -749,16 +979,21 @@ export async function runReportGenerationStage(
       damageAnalysis ?? ({} as any),
       physicsAnalysis ?? null,
       fraudAnalysis ?? null,
-      costAnalysis ?? null,
+      costAnalysis ?? null
     );
 
     // Surface blocking consistency flags in fullReport sections
-    if (consistencyCheck.blockAutoApproval && consistencyCheck.flags.length > 0) {
+    if (
+      consistencyCheck.blockAutoApproval &&
+      consistencyCheck.flags.length > 0
+    ) {
       fullReport.sections.consistencyFlags = {
         blockAutoApproval: consistencyCheck.blockAutoApproval,
         overallStatus: consistencyCheck.status,
         flagCount: consistencyCheck.flags.length,
-        criticalCount: consistencyCheck.flags.filter(f => f.severity === 'CRITICAL').length,
+        criticalCount: consistencyCheck.flags.filter(
+          f => f.severity === "CRITICAL"
+        ).length,
         flags: consistencyCheck.flags.map(f => ({
           id: f.ruleId,
           severity: f.severity,
@@ -789,9 +1024,15 @@ export async function runReportGenerationStage(
         mandatoryActions: claimQuality.mandatoryActions,
         dimensions: claimQuality.dimensions,
       };
-      ctx.log("Stage 10", `Claim quality score: ${claimQuality.overallScore}/100 (Grade ${claimQuality.grade}), manual review: ${claimQuality.requiresManualReview}`);
+      ctx.log(
+        "Stage 10",
+        `Claim quality score: ${claimQuality.overallScore}/100 (Grade ${claimQuality.grade}), manual review: ${claimQuality.requiresManualReview}`
+      );
     } catch (qErr) {
-      ctx.log("Stage 10", `Claim quality scoring failed (non-fatal): ${String(qErr)}`);
+      ctx.log(
+        "Stage 10",
+        `Claim quality scoring failed (non-fatal): ${String(qErr)}`
+      );
     }
 
     const output: Stage10Output = {
@@ -823,31 +1064,44 @@ export async function runReportGenerationStage(
       claim: {
         claimNumber: ctx.claim?.claimNumber ?? null,
         id: ctx.claimId ?? null,
-        incidentDate: claimRecord.accidentDetails?.date ?? (ctx.claim as any)?.incidentDate ?? null,
+        incidentDate:
+          claimRecord.accidentDetails?.date ??
+          (ctx.claim as any)?.incidentDate ??
+          null,
         createdAt: (ctx.claim as any)?.createdAt ?? null,
       },
       aiAssessment: {
         fraudScore: (fraudAnalysis as any)?.fraudRiskScore ?? null,
-        fraudScoreBreakdownJson: (fraudAnalysis as any)?.fraudScoreBreakdown ?? null,
+        fraudScoreBreakdownJson:
+          (fraudAnalysis as any)?.fraudScoreBreakdown ?? null,
         photosDetected: claimRecord.damage.imageUrls?.length ?? null,
       },
       enforcement: null, // Enforcement runs post-pipeline; not available here
       valuation: {
-        repairToValueRatio: (costAnalysis as any)?.valuation?.repairToValueRatio ?? null,
-        marketValueUsd: (costAnalysis as any)?.valuation?.marketValueUsd ?? null,
+        repairToValueRatio:
+          (costAnalysis as any)?.valuation?.repairToValueRatio ?? null,
+        marketValueUsd:
+          (costAnalysis as any)?.valuation?.marketValueUsd ?? null,
       },
-      accidentDateCrossCheck: (fraudAnalysis as any)?.accidentDateCrossCheck ?? null,
+      accidentDateCrossCheck:
+        (fraudAnalysis as any)?.accidentDateCrossCheck ?? null,
       severityConsensus: physicsAnalysis?.severityConsensus ?? null,
       decisionReadiness,
     });
 
     if (!prePublicationResult.valid) {
-      const criticalCount = prePublicationResult.blockers.filter(b => b.severity === "CRITICAL").length;
-      const highCount = prePublicationResult.blockers.filter(b => b.severity === "HIGH").length;
+      const criticalCount = prePublicationResult.blockers.filter(
+        b => b.severity === "CRITICAL"
+      ).length;
+      const highCount = prePublicationResult.blockers.filter(
+        b => b.severity === "HIGH"
+      ).length;
       ctx.log(
         "Stage 10 [PrePublicationValidator]",
         `Validation ${prePublicationResult.blocked ? "BLOCKED" : "WARNED"}: ${criticalCount} CRITICAL, ${highCount} HIGH blockers. ` +
-        prePublicationResult.blockers.map(b => `[${b.checkId}] ${b.description}`).join(" | ")
+          prePublicationResult.blockers
+            .map(b => `[${b.checkId}] ${b.description}`)
+            .join(" | ")
       );
       if (prePublicationResult.blocked) {
         isDegraded = true;
@@ -868,7 +1122,10 @@ export async function runReportGenerationStage(
       validatedAt: prePublicationResult.validatedAt,
     };
 
-    ctx.log("Stage 10", `Report generation complete. ${Object.keys(fullReport.sections).length} sections, confidence: ${overallConfidence}%, assumptions: ${allAssumptions.length}, missing docs: ${missingDocuments.length}`);
+    ctx.log(
+      "Stage 10",
+      `Report generation complete. ${Object.keys(fullReport.sections).length} sections, confidence: ${overallConfidence}%, assumptions: ${allAssumptions.length}, missing docs: ${missingDocuments.length}`
+    );
 
     return {
       status: isDegraded ? "degraded" : "success",
@@ -880,21 +1137,40 @@ export async function runReportGenerationStage(
       degraded: isDegraded,
     };
   } catch (err) {
-    ctx.log("Stage 10", `Report generation failed: ${String(err)} — producing minimal report`);
+    ctx.log(
+      "Stage 10",
+      `Report generation failed: ${String(err)} — producing minimal report`
+    );
 
     // Self-healing: produce a minimal report
     const minimalReport: Stage10Output = {
       claimSummary: buildClaimSummary(claimRecord),
-      damageAnalysis: { title: "Damage Analysis", content: { available: false, note: "Report generation failed." } },
-      physicsReconstruction: { title: "Physics Reconstruction", content: { available: false, note: "Report generation failed." } },
-      costOptimisation: { title: "Cost Optimisation", content: { available: false, note: "Report generation failed." } },
-      fraudRiskIndicators: { title: "Fraud Risk Indicators", content: { available: false, note: "Report generation failed." } },
-      turnaroundTimeEstimate: { title: "Turnaround Time Estimate", content: { available: false, note: "Report generation failed." } },
+      damageAnalysis: {
+        title: "Damage Analysis",
+        content: { available: false, note: "Report generation failed." },
+      },
+      physicsReconstruction: {
+        title: "Physics Reconstruction",
+        content: { available: false, note: "Report generation failed." },
+      },
+      costOptimisation: {
+        title: "Cost Optimisation",
+        content: { available: false, note: "Report generation failed." },
+      },
+      fraudRiskIndicators: {
+        title: "Fraud Risk Indicators",
+        content: { available: false, note: "Report generation failed." },
+      },
+      turnaroundTimeEstimate: {
+        title: "Turnaround Time Estimate",
+        content: { available: false, note: "Report generation failed." },
+      },
       supportingImages: buildImageSection(claimRecord),
       fullReport: {
         reportVersion: "3.0",
         generatedAt: new Date().toISOString(),
-        claimId: claimRecord.claimId != null ? String(claimRecord.claimId) : null,
+        claimId:
+          claimRecord.claimId != null ? String(claimRecord.claimId) : null,
         overallConfidence: 5,
         assumptionCount: 0,
         missingDocumentCount: 0,
@@ -903,19 +1179,23 @@ export async function runReportGenerationStage(
       },
       generatedAt: new Date().toISOString(),
       confidenceScore: 5,
-      assumptions: [{
+      assumptions: [
+        {
         field: "report",
         assumedValue: "minimal",
         reason: `Report generation failed: ${String(err)}. Only claim summary and images are available.`,
         strategy: "default_value",
         confidence: 5,
         stage: "Stage 10",
-      }],
+        },
+      ],
       missingDocuments: [],
       missingFields: claimRecord.dataQuality.missingFields,
       evidenceTrace: null,
       decisionReadiness: null,
-      degradationReasons: [`Report generation failed: ${String(err)}. Only claim summary and images are available.`],
+      degradationReasons: [
+        `Report generation failed: ${String(err)}. Only claim summary and images are available.`,
+      ],
     };
 
     return {
@@ -924,20 +1204,24 @@ export async function runReportGenerationStage(
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,
-      assumptions: [{
+      assumptions: [
+        {
         field: "report",
         assumedValue: "minimal",
         reason: `Report generation failed: ${String(err)}.`,
         strategy: "default_value",
         confidence: 5,
         stage: "Stage 10",
-      }],
-      recoveryActions: [{
+        },
+      ],
+      recoveryActions: [
+        {
         target: "report_error",
         strategy: "default_value",
         success: true,
         description: `Report generation error caught. Produced minimal report with claim summary only.`,
-      }],
+        },
+      ],
       degraded: true,
     };
   }

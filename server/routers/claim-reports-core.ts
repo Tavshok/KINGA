@@ -13,6 +13,11 @@ import { getClaimById, createAuditEntry } from "../db";
 import { claims } from "../../drizzle/schema";
 import { and, eq } from "drizzle-orm";
 import { isAdminRole } from "@shared/role-permissions";
+import { sanitiseReportNarrative, buildBlockError } from "../services/externalReportSanitiser";
+import {
+  buildP0B1FraudAbstentionText,
+  redactP0B1FraudReportPayload,
+} from "../reporting/p0FraudPresentation";
 
 async function requireReportTenantClaim(claimId: string, tenantId: string | null | undefined) {
   if (!tenantId) {
@@ -35,10 +40,11 @@ async function requireReportTenantClaim(claimId: string, tenantId: string | null
   return claim;
 }
 
-function requireReportTenant(ctx: { user?: { tenantId?: string | null } | null }): string {
+function requireReportTenant(
+  ctx: { user?: { tenantId?: string | null } | null },
+): asserts ctx is { user: { tenantId: string } } {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
-  return tenantId;
 }
 
 export const claimReportsRouter = router({
@@ -57,6 +63,7 @@ export const claimReportsRouter = router({
       role: z.enum(['insurer', 'assessor', 'regulatory']),
     }))
     .query(async ({ input, ctx }) => {
+      requireReportTenant(ctx);
       // Check permissions
       const { hasPermission } = await import('../rbac');
       if (!isAdminRole(ctx.user.role) && !hasPermission(ctx.user, 'viewAllClaims')) {
@@ -71,7 +78,7 @@ export const claimReportsRouter = router({
       const intelligence = await aggregateClaimIntelligence(input.claimId);
       const validationReport = getValidationReport(intelligence, input.role);
 
-      return validationReport;
+      return redactP0B1FraudReportPayload(validationReport);
     }),
 
   /**
@@ -93,6 +100,7 @@ export const claimReportsRouter = router({
       includeSupportingEvidence: z.boolean().default(true),
     }))
     .mutation(async ({ input, ctx }) => {
+      requireReportTenant(ctx);
       // Check permissions
       const { hasPermission } = await import('../rbac');
       if (!isAdminRole(ctx.user.role) && !hasPermission(ctx.user, 'viewAllClaims')) {
@@ -108,7 +116,9 @@ export const claimReportsRouter = router({
       const { validateReportData } = await import('../report-validation-service');
 
       // Aggregate intelligence
-      const intelligence = await aggregateClaimIntelligence(input.claimId);
+      const intelligence = redactP0B1FraudReportPayload(
+        await aggregateClaimIntelligence(input.claimId),
+      );
 
       // Validate data
       const validation = validateReportData(intelligence, input.role);
@@ -131,7 +141,10 @@ export const claimReportsRouter = router({
           cause: blockErr,
         });
       }
-      const safeNarrative = sanitiseResult.sanitised as unknown as typeof narrative;
+      const safeNarrative = {
+        ...(sanitiseResult.sanitised as unknown as typeof narrative),
+        fraudRiskEvaluation: buildP0B1FraudAbstentionText(),
+      };
       // ───────────────────────────────────────────────────────────────────
       // Generate visualizations
       const visualizations = generateReportVisualizations(intelligence);
@@ -169,10 +182,11 @@ export const claimReportsRouter = router({
       reportType: z.enum(['insurer', 'assessor', 'regulatory']),
     }))
     .mutation(async ({ input, ctx }) => {
+      requireReportTenant(ctx);
       const { canGenerateReport } = await import('../report-governance-service');
       const { createReportSnapshot } = await import('../report-snapshot-service');
       const { aggregateClaimIntelligence } = await import('../report-intelligence-aggregator');
-      const tenantId = requireReportTenant(ctx);
+      const tenantId = ctx.user.tenantId;
 
       // Check permissions
       const permissionCheck = await canGenerateReport(ctx.user, input.claimId, input.reportType);
@@ -181,7 +195,9 @@ export const claimReportsRouter = router({
       }
 
       // Aggregate intelligence
-      const intelligence = await aggregateClaimIntelligence(input.claimId);
+      const intelligence = redactP0B1FraudReportPayload(
+        await aggregateClaimIntelligence(input.claimId),
+      );
 
       // Create snapshot
       // Note: claimId from input is string, but DB expects number
@@ -214,13 +230,14 @@ export const claimReportsRouter = router({
       includeSupportingEvidence: z.boolean().default(true),
     }))
     .mutation(async ({ input, ctx }) => {
+      requireReportTenant(ctx);
       const { canAccessReport, auditReportAccess } = await import('../report-governance-service');
       const { getSnapshotById } = await import('../report-snapshot-service');
       const { storePdfReport } = await import('../pdf-storage-service');
       const { generateReportNarrative } = await import('../report-narrative-generator');
       const { generateReportVisualizations } = await import('../report-visualization-generator');
       const { generateReportPDF } = await import('../report-pdf-generator');
-      const tenantId = requireReportTenant(ctx);
+      const tenantId = ctx.user.tenantId;
 
       // Check permissions
       const accessCheck = await canAccessReport(ctx.user, input.snapshotId);
@@ -235,7 +252,7 @@ export const claimReportsRouter = router({
       }
 
       // Cast intelligence data
-      const intelligence = snapshot.intelligenceData as any;
+      const intelligence = redactP0B1FraudReportPayload(snapshot.intelligenceData as any);
       
        // Generate narrative and visualizations from snapshot
       const narrative = await generateReportNarrative(intelligence, snapshot.reportType);
@@ -249,7 +266,10 @@ export const claimReportsRouter = router({
           cause: blockErr,
         });
       }
-      const safeNarrative = sanitiseResult.sanitised as unknown as typeof narrative;
+      const safeNarrative = {
+        ...(sanitiseResult.sanitised as unknown as typeof narrative),
+        fraudRiskEvaluation: buildP0B1FraudAbstentionText(),
+      };
       // ───────────────────────────────────────────────────────────────────
       const visualizations = generateReportVisualizations(intelligence);
       // Generate PDF
@@ -297,10 +317,11 @@ export const claimReportsRouter = router({
       accessToken: z.string().optional(),
     }))
     .query(async ({ input, ctx }) => {
+      requireReportTenant(ctx);
       const { canAccessReport, auditReportAccess, validateTenantIsolation } = await import('../report-governance-service');
       const { getSnapshotById } = await import('../report-snapshot-service');
       const { validateAccessToken } = await import('../report-linking-service');
-      const tenantId = requireReportTenant(ctx);
+      const tenantId = ctx.user.tenantId;
 
       // If access token provided, validate it
       if (input.accessToken) {
@@ -339,7 +360,10 @@ export const claimReportsRouter = router({
         'view'
       );
 
-      return snapshot;
+      return {
+        ...snapshot,
+        intelligenceData: redactP0B1FraudReportPayload(snapshot.intelligenceData),
+      };
     }),
 
   /**
@@ -363,11 +387,12 @@ export const claimReportsRouter = router({
       sendToStakeholders: z.boolean().default(true),
     }))
     .mutation(async ({ input, ctx }) => {
+      requireReportTenant(ctx);
       const { canAccessReport } = await import('../report-governance-service');
       const { getSnapshotById } = await import('../report-snapshot-service');
       const { getPdfReportById } = await import('../pdf-storage-service');
       const { sendReportEmail, sendReportToStakeholders, getReportStakeholders } = await import('../report-email-service');
-      const tenantId = requireReportTenant(ctx);
+      const tenantId = ctx.user.tenantId;
 
       // Check permissions
       const accessCheck = await canAccessReport(ctx.user, input.snapshotId);
@@ -457,7 +482,8 @@ export const claimReportsRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const { getReportAccessHistory } = await import('../report-governance-service');
-      const tenantId = requireReportTenant(ctx);
+      requireReportTenant(ctx);
+      const tenantId = ctx.user.tenantId;
 
       const history = await getReportAccessHistory(
         input.snapshotId,

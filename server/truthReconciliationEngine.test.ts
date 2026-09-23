@@ -16,7 +16,7 @@
  *  12. Idempotency — running TRE twice on the same input produces equal CTOs (excluding timestamps)
  *  13. Null-safety — TRE does not throw when all optional inputs are null
  *  14. Decision recommendation — APPROVE when CTL says APPROVE and no blocks
- *  15. Decision recommendation — REVIEW when fraud score ≥ 70 (high fraud trigger)
+ *  15. Decision reconciliation — historic fraud score does not create a trigger
  *  16. claimIdentity — claimId is correctly mapped from claimRecord
  *  17. vehicle — make/model/year are correctly mapped from claimRecord.vehicle
  *  18. auditTrail — conflicts array is present
@@ -26,10 +26,12 @@
 
 import { describe, it, expect } from "vitest";
 import {
+  runP0GatedTruthReconciliationEngine,
   runTruthReconciliationEngine,
   type TREInput,
   type ClaimTruthObject,
 } from "./pipeline-v2/truthReconciliationEngine";
+import { assessFraudDecisionEligibility } from "./evidence-governance/quantitativeFieldGovernance";
 
 // ─── Minimal stub factory ────────────────────────────────────────────────────
 
@@ -359,7 +361,7 @@ describe("TRE — runTruthReconciliationEngine", () => {
     expect(cto.decision.recommendation).toBe("APPROVE");
   });
 
-  it("15. Decision recommendation — REVIEW when fraud score ≥ 70 (high fraud trigger)", () => {
+  it("15. Decision reconciliation — historic fraud score does not create a score-labelled trigger", () => {
     const input = makeMinimalInput({
       fraudAnalysis: {
         fraudRiskScore: 75,
@@ -368,8 +370,8 @@ describe("TRE — runTruthReconciliationEngine", () => {
     });
 
     const cto = runTruthReconciliationEngine(input);
-    // High fraud score adds a reviewTrigger → REVIEW (not ESCALATE unless CTL/S9 also escalate)
-    expect(["REVIEW", "ESCALATE"]).toContain(cto.decision.recommendation);
+    expect(cto.decision.reviewTriggers).not.toContain("High fraud risk score: 75");
+    expect(cto.decision.reviewTriggers.join(" ")).not.toMatch(/fraud risk score/i);
   });
 
   it("16. claimIdentity — claimId is correctly mapped from claimRecord", () => {
@@ -402,5 +404,28 @@ describe("TRE — runTruthReconciliationEngine", () => {
       makeMinimalInput({ costAnalysis: null })
     );
     expect(cto.cost.optimisedCostUsd).toBe(0);
+  });
+
+  it("21. P0 publication gate withholds adversarial fraud scores and blocks automatic certification", () => {
+    const fraudDecisionEligibility = assessFraudDecisionEligibility({
+      crushDepthDecision: null,
+      advisoryEvidencePresent: true,
+      fallbackOrDegraded: false,
+    });
+    const cto = runP0GatedTruthReconciliationEngine(makeMinimalInput({
+      fraudAnalysis: {
+        fraudRiskScore: 99,
+        fraudRiskLevel: "elevated",
+        indicators: [{ indicator: "forged_high_risk", category: "test", score: 99, description: "adversarial" }],
+        fraudDecisionEligibility,
+      } as any,
+    }));
+
+    expect(cto.fraud.fraudRiskScore).toBeNull();
+    expect(cto.fraud.fraudRiskLevel).toBeNull();
+    expect(cto.fraud.indicators.every(indicator => indicator.score === null)).toBe(true);
+    expect(cto.decision.recommendation).toBe("REVIEW");
+    expect(cto.decision.primaryReason).toMatch(/governing fraud score/i);
+    expect(cto.certification.certificate.certified).toBe("BLOCKED");
   });
 });

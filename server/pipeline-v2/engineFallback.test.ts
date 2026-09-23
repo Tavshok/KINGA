@@ -260,16 +260,14 @@ describe("Fraud Engine — buildFraudFallback", () => {
     expect(output).not.toBeUndefined();
   });
 
-  it("always includes required field: score (fraudRiskScore)", () => {
+  it("makes fallback score explicitly unavailable rather than fabricating a threshold value", () => {
     const output = buildFraudFallback();
-    expect(output.fraudRiskScore).toBeDefined();
-    expect(typeof output.fraudRiskScore).toBe("number");
+    expect(output).toHaveProperty("fraudRiskScore", null);
   });
 
-  it("always includes required field: level (fraudRiskLevel)", () => {
+  it("makes fallback level explicitly unavailable rather than labelling it low or moderate", () => {
     const output = buildFraudFallback();
-    expect(output.fraudRiskLevel).toBeDefined();
-    expect(typeof output.fraudRiskLevel).toBe("string");
+    expect(output).toHaveProperty("fraudRiskLevel", null);
   });
 
   it("always includes at least 1 contributing factor (indicators)", () => {
@@ -311,15 +309,15 @@ describe("Fraud Engine — ensureFraudContract", () => {
     expect(output._fallback_fields).not.toContain("indicators");
   });
 
-  it("fills in missing score", () => {
+  it("preserves missing score as unavailable", () => {
     const output = ensureFraudContract({ fraudRiskLevel: "medium", indicators: [] });
-    expect(output.fraudRiskScore).toBeDefined();
+    expect(output.fraudRiskScore).toBeNull();
     expect(output._fallback_fields).toContain("fraudRiskScore");
   });
 
-  it("fills in missing level", () => {
+  it("preserves missing level as unavailable", () => {
     const output = ensureFraudContract({ fraudRiskScore: 50, indicators: [] });
-    expect(output.fraudRiskLevel).toBeDefined();
+    expect(output.fraudRiskLevel).toBeNull();
     expect(output._fallback_fields).toContain("fraudRiskLevel");
   });
 
@@ -327,8 +325,8 @@ describe("Fraud Engine — ensureFraudContract", () => {
     const output = ensureFraudContract({});
     expect(output).not.toBeNull();
     expect(output).not.toBeUndefined();
-    expect(output.fraudRiskScore).toBeDefined();
-    expect(output.fraudRiskLevel).toBeDefined();
+    expect(output.fraudRiskScore).toBeNull();
+    expect(output.fraudRiskLevel).toBeNull();
     expect(output.indicators.length).toBeGreaterThanOrEqual(1);
   });
 });

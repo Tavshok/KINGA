@@ -29,6 +29,7 @@ import {
   projectP0A2DescriptivePhotoEvidence,
   renderP0A2CollisionPhysicsAbstentionMarker,
 } from "./p0PhysicsPresentation";
+import { renderP0B1FraudAbstentionMarker } from "./p0FraudPresentation";
 
 type LegacyRendererInputs = Readonly<{
   c: Record<string, unknown>;
@@ -192,7 +193,6 @@ export async function generateForensicDecisionReport(
     const enrichedPhotos = photoEvidence.photos;
 
     // ── 5. Derived values ────────────────────────────────────────────────────
-    const fraudScore = forensicModel.executive.fraud.value ?? 0;
     // repair_to_value_ratio is stored as a percentage integer (e.g. 5 = 5%)
     const rtvRatio = forensicModel.executive.repairToValueRatioPercent ?? 0;
     // vehicle_market_value is stored in cents — divide by 100 for display
@@ -434,37 +434,13 @@ export async function generateForensicDecisionReport(
     const matchedComponents = Number(costIntel?.matchedComponents ?? repairIntel?.matchedComponents ?? 0);
     const missingFromQuote  = Number(costIntel?.missingFromQuote ?? repairIntel?.missingFromQuote ?? 0);
     const extraInQuote      = Number(costIntel?.extraInQuote ?? repairIntel?.extraInQuote ?? 0);
-    // Copy-quotation data lives in fraud_score_breakdown_json.quoteSimilarity, NOT in forensic_audit_validation_json
-    const quoteSimilarityRaw = (fraudBreak as any)?.quoteSimilarity ?? null;
-    const copyQuotation = quoteSimilarityRaw ? {
-      detected: quoteSimilarityRaw.overall_verdict === "confirmed" || quoteSimilarityRaw.overall_verdict === "suspected",
-      similarity: quoteSimilarityRaw.pairs?.[0]?.structural_similarity ?? 0,
-      verdict: quoteSimilarityRaw.overall_verdict ?? "none",
-      highestPairSimilarity: Math.round((quoteSimilarityRaw.pairs?.[0]?.structural_similarity ?? 0) * 100),
-    } : null;
-
     // Tenant-scoped same-registration history is documentary claim evidence.
     // It never inherits a flag or score adjustment from forensic-audit JSON.
     const linkedClaims = forensicModel.reportRecord.history.vehicleClaimHistory;
     const hasDuplicateRegistrationFlag = linkedClaims.length > 0;
-    const fraudScoreAdjusted = fraudScore;
-
-    // ARCH-01 fix: read the actual pipeline category breakdown (fraudCategoryBreakdown)
-    // instead of the legacy per-field names (damageInconsistency, costDeviation, etc.)
-    // which are no longer populated by the weighted fraud engine.
-    const catBreak = (fraudBreak as any)?.fraudCategoryBreakdown ?? null;
-    const hasPublishableFraudCategoryBreakdown = Boolean(catBreak && [
-      catBreak.financial_anomaly,
-      catBreak.documentation_integrity,
-      catBreak.entity_intelligence,
-    ].some((value: any) => value?.normScore != null));
-    const fbFinancial     = catBreak ? Math.round(Number(catBreak.financial_anomaly?.normScore ?? 0)) : Number((fraudBreak as any)?.costDeviation ?? (fraudBreak as any)?.costAnomalyScore ?? 0);
-    const fbDocumentation = catBreak ? Math.round(Number(catBreak.documentation_integrity?.normScore ?? 0)) : Number((fraudBreak as any)?.missingData ?? 0);
-    const fbEntity        = catBreak ? Math.round(Number(catBreak.entity_intelligence?.normScore ?? 0)) : Number((fraudBreak as any)?.repeatClaim ?? 0);
-    // Budget caps for display (matches CATEGORY_BUDGET in stage-8-fraud.ts)
-    const budgetFinancial = catBreak?.financial_anomaly?.budget ?? 20;
-    const budgetDocumentation = catBreak?.documentation_integrity?.budget ?? 15;
-    const budgetEntity = catBreak?.entity_intelligence?.budget ?? 10;
+    // Stored fraud JSON is retained as historical evidence but is never used as
+    // a score, indicator, classification, threshold, or report conclusion.
+    void fraudBreak;
 
     // Approval stage mapping belongs to the canonical model, where audit events
     // are tenant-scoped and pipeline-provided approval workflow takes precedence.
@@ -686,10 +662,10 @@ export async function generateForensicDecisionReport(
 
   <!-- SCORECARD (5 KPIs) -->
   <div class="scorecard sans">
-    <div class="score-cell ${scoreCellCls(fraudScoreAdjusted, false)}">
-      <div class="label">Fraud Risk</div>
-      <div class="value">${fraudScoreAdjusted}<span style="font-size:12px;">/100</span></div>
-      <div class="sub">${fraudScoreAdjusted >= 70 ? "High" : fraudScoreAdjusted >= 40 ? "Moderate" : "Low"}${hasDuplicateRegistrationFlag ? " — see p.4 flag" : ""}</div>
+    <div class="score-cell warn" data-p0-fraud-decision="withheld">
+      <div class="label">Fraud Decision</div>
+      <div class="value" style="font-size:12px;">WITHHELD</div>
+      <div class="sub">Manual review required</div>
     </div>
     <div class="score-cell warn" data-p0-collision-physics="withheld">
       <div class="label">Collision Physics</div>
@@ -735,6 +711,7 @@ export async function generateForensicDecisionReport(
   <div class="callout" style="margin-top:8px;border-left-color:#2d5f8b;background:#f3f7fb;color:#294a66;"><b>Cost evidence boundary:</b> KINGA compares only traceable submitted evidence with equivalent repair scope, tax basis, and revision status. A pricing variance is a review signal, not a fraud conclusion, automatic adjustment, or settlement authority.</div>
   ${renderEvidenceGovernancePanel(evidenceGovernanceData, activeQuoteIds)}
   ${renderCostEvidenceStateHtml({ costIntegrity, formatAmount: (amount) => fmtCurrency(amount, claimCurrency), escapeHtml: esc })}
+  ${renderP0B1FraudAbstentionMarker()}
 
   <!-- §01 EXECUTIVE SUMMARY -->
   <div class="section">
@@ -749,7 +726,6 @@ export async function generateForensicDecisionReport(
           const costIsFair = costVerdictDB === "FAIR" || costVerdictDB === "UNDERPRICED";
           if (isReview && costIsFair) {
             const fallbackTriggers: string[] = [];
-            if (fraudScoreAdjusted >= 50) fallbackTriggers.push(`fraud score ${fraudScoreAdjusted}/100 (threshold: 50)`);
             if (Number(ife?.completenessScore ?? ife?.overallScore ?? 100) < 90) fallbackTriggers.push(`data completeness ${Number(ife?.completenessScore ?? ife?.overallScore ?? 0)}% (below 90% threshold)`);
             const triggers = fallbackTriggers;
             const triggerText = triggers.length > 0 ? triggers.join("; ") : "one or more non-cost forensic indicators";
@@ -883,9 +859,8 @@ export async function generateForensicDecisionReport(
         </table>
       </div>
       <div class="box">
-        <h4>Integrity Flags</h4>
-        ${copyQuotation?.detected ? co(`<b>Copy-quotation signal (${esc(copyQuotation.verdict?.toUpperCase() ?? "DETECTED")})</b> — structural fingerprint analysis indicates multiple submitted quotes were likely authored from the same source document. Highest pair structural similarity: ${copyQuotation.highestPairSimilarity}%. Manual adjuster review of all submitted quotations is required before settlement.`, copyQuotation.verdict === "confirmed" ? "red" : "amber") : ""}
-        <p class="small" style="margin-top:8px;">Review submitted quote line items and their documentary scope before finalising any cost decision.</p>
+        <h4>Documentary Reconciliation</h4>
+        <p class="small" style="margin-top:8px;">Review submitted quote line items, source documents, scope, tax basis, and revision history before finalising any cost decision.</p>
       </div>
     </div>
   </div>
@@ -978,20 +953,12 @@ export async function generateForensicDecisionReport(
     // ── PAGE 4 ───────────────────────────────────────────────────────────────
     const page4 = `
 <div class="page page-break">
-  <!-- §09 RISK & FRAUD ASSESSMENT -->
+  <!-- §09 FRAUD DECISION BOUNDARY -->
   <div class="section">
-    ${sectionTab("09", "Risk & Fraud Assessment", hasDuplicateRegistrationFlag ? "Registration history" : fraudScoreAdjusted >= 70 ? "High risk" : fraudScoreAdjusted >= 40 ? "Moderate risk" : "Low risk", hasDuplicateRegistrationFlag || fraudScoreAdjusted >= 70 ? "high" : fraudScoreAdjusted >= 40 ? "mid" : "ok")}
+    ${sectionTab("09", "Fraud Decision Boundary")}
     <div class="cols-2">
       <div class="box">
-        <h4>Fraud Score — ${fraudScoreAdjusted}/100 (${fraudScoreAdjusted >= 70 ? "High" : fraudScoreAdjusted >= 40 ? "Moderate" : "Low"})</h4>
-        ${!hasPublishableFraudCategoryBreakdown ? `
-        <p class="small" style="color:var(--ink-soft);margin:0 0 8px 0;">Component breakdown not available — the pipeline did not produce category-level fraud scores for this assessment. The headline score of ${fraudScoreAdjusted}/100 is derived from the overall fraud model output.</p>` : ""}
-        ${hasPublishableFraudCategoryBreakdown ? `<table class="kv">
-          ${kvRow("Financial anomaly", `<span style="color:${fbFinancial >= Math.round(budgetFinancial * 0.5) ? "var(--amber)" : "inherit"}">${fbFinancial}/${budgetFinancial}</span>`)}
-          ${kvRow("Documentation integrity", `<span style="color:${fbDocumentation >= Math.round(budgetDocumentation * 0.5) ? "var(--amber)" : "inherit"}">${fbDocumentation}/${budgetDocumentation}</span>`)}
-          ${kvRow("Entity intelligence", `<span style="color:${fbEntity >= Math.round(budgetEntity * 0.5) ? "var(--amber)" : "inherit"}">${fbEntity}/${budgetEntity}</span>`)}
-        </table>` : ""}
-        ${hasDuplicateRegistrationFlag ? `<p class="small" style="margin-top:8px;">The documentary duplicate-registration finding at right is not reflected in the headline score.</p>` : ""}
+        ${renderP0B1FraudAbstentionMarker()}
       </div>
       <div class="box" style="${hasDuplicateRegistrationFlag ? "border-color:var(--red);" : ""}">
         ${hasDuplicateRegistrationFlag ? `

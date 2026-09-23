@@ -46,6 +46,20 @@ describe("Fast-Track Engine", () => {
   });
 
   describe("Config Hierarchy Resolution", () => {
+    it("rejects a nonexistent claim before an otherwise applicable P0 hold", async () => {
+      await expect(
+        evaluateFastTrack({
+          claimId: 999_001,
+          tenantId: TEST_TENANT_ID,
+          confidenceScore: 85,
+          claimValue: 100000,
+          fraudScore: null,
+          claimType: "collision",
+          productId: null,
+        })
+      ).rejects.toThrow("not found");
+    });
+
     it("should resolve most specific config (claim type + product + tenant)", async () => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -132,9 +146,10 @@ describe("Fast-Track Engine", () => {
         productId: 1,
       });
 
-      expect(result.eligible).toBe(true);
-      expect(result.action).toBe("AUTO_APPROVE");
-      expect(result.evaluationDetails.configSpecificity).toBe("claim_type_product");
+      expect(result.eligible).toBe(false);
+      expect(result.action).toBe("MANUAL_REVIEW");
+      expect(result.evaluationDetails.configSpecificity).toBe("none");
+      expect(result.evaluationDetails.reason).toMatch(/automated routing is withheld/i);
     });
 
     it("should fall back to claim type config when no product-specific config exists", async () => {
@@ -176,9 +191,10 @@ describe("Fast-Track Engine", () => {
         productId: 1, // Product ID provided but no product-specific config
       });
 
-      expect(result.eligible).toBe(true);
-      expect(result.action).toBe("REDUCED_DOCUMENTATION");
-      expect(result.evaluationDetails.configSpecificity).toBe("claim_type");
+      expect(result.eligible).toBe(false);
+      expect(result.action).toBe("MANUAL_REVIEW");
+      expect(result.evaluationDetails.configSpecificity).toBe("none");
+      expect(result.evaluationDetails.reason).toMatch(/automated routing is withheld/i);
     });
 
     it("should return MANUAL_REVIEW when no config found", async () => {
@@ -253,11 +269,15 @@ describe("Fast-Track Engine", () => {
         productId: null,
       });
 
-      expect(result.eligible).toBe(true);
-      expect(result.action).toBe("AUTO_APPROVE");
-      expect(result.evaluationDetails.thresholdsMet.minConfidence).toBe(true);
-      expect(result.evaluationDetails.thresholdsMet.maxClaimValue).toBe(true);
-      expect(result.evaluationDetails.thresholdsMet.maxFraudScore).toBe(true);
+      expect(result.eligible).toBe(false);
+      expect(result.action).toBe("MANUAL_REVIEW");
+      expect(result.evaluationDetails.fraudScore).toBeNull();
+      expect(result.evaluationDetails.thresholdsMet).toEqual({
+        minConfidence: false,
+        maxClaimValue: false,
+        maxFraudScore: false,
+      });
+      expect(result.evaluationDetails.reason).toMatch(/qualified automated-decision authority/i);
     });
 
     it("should mark claim ineligible when confidence score too low", async () => {
@@ -302,8 +322,8 @@ describe("Fast-Track Engine", () => {
 
       expect(result.eligible).toBe(false);
       expect(result.action).toBe("MANUAL_REVIEW");
-      expect(result.evaluationDetails.thresholdsMet.minConfidence).toBe(false);
-      expect(result.evaluationDetails.reason).toContain("confidence 75%");
+      expect(result.evaluationDetails.fraudScore).toBeNull();
+      expect(result.evaluationDetails.reason).toMatch(/automated routing is withheld/i);
     });
 
     it("should mark claim ineligible when claim value too high", async () => {
@@ -348,8 +368,8 @@ describe("Fast-Track Engine", () => {
 
       expect(result.eligible).toBe(false);
       expect(result.action).toBe("MANUAL_REVIEW");
-      expect(result.evaluationDetails.thresholdsMet.maxClaimValue).toBe(false);
-      expect(result.evaluationDetails.reason).toContain("claim value 250000 > 200000");
+      expect(result.evaluationDetails.fraudScore).toBeNull();
+      expect(result.evaluationDetails.reason).toMatch(/automated routing is withheld/i);
     });
 
     it("should mark claim ineligible when fraud score too high", async () => {
@@ -394,8 +414,8 @@ describe("Fast-Track Engine", () => {
 
       expect(result.eligible).toBe(false);
       expect(result.action).toBe("MANUAL_REVIEW");
-      expect(result.evaluationDetails.thresholdsMet.maxFraudScore).toBe(false);
-      expect(result.evaluationDetails.reason).toContain("fraud score 25%");
+      expect(result.evaluationDetails.fraudScore).toBeNull();
+      expect(result.evaluationDetails.reason).toMatch(/automated routing is withheld/i);
     });
   });
 
@@ -456,9 +476,10 @@ describe("Fast-Track Engine", () => {
         productId: 1,
       });
 
-      expect(result.eligible).toBe(true);
-      expect(result.action).toBe("PRIORITY_QUEUE"); // Uses enabled fallback config
-      expect(result.evaluationDetails.configSpecificity).toBe("claim_type");
+      expect(result.eligible).toBe(false);
+      expect(result.action).toBe("MANUAL_REVIEW");
+      expect(result.evaluationDetails.configSpecificity).toBe("none");
+      expect(result.evaluationDetails.reason).toMatch(/automated routing is withheld/i);
     });
   });
 
@@ -519,14 +540,15 @@ describe("Fast-Track Engine", () => {
         productId: null,
       });
 
-      expect(result.eligible).toBe(true);
-      expect(result.action).toBe("AUTO_APPROVE"); // Uses version 2
-      expect(result.configVersion).toBe(2);
+      expect(result.eligible).toBe(false);
+      expect(result.action).toBe("MANUAL_REVIEW");
+      expect(result.configVersion).toBeNull();
+      expect(result.evaluationDetails.reason).toMatch(/automated routing is withheld/i);
     });
   });
 
   describe("Cross-Tenant Isolation", () => {
-    it("should reject evaluation for claim from different tenant", async () => {
+    it("rejects a cross-tenant claim before an otherwise applicable P0 hold", async () => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
@@ -541,7 +563,6 @@ describe("Fast-Track Engine", () => {
       const claimInsert = await db.insert(claims).values(testClaim);
       const claimId = (claimInsert as any)[0]?.insertId ?? (claimInsert as any)?.insertId;
 
-      // Try to evaluate with tenant 2 credentials
       await expect(
         evaluateFastTrack({
           claimId,
@@ -552,7 +573,7 @@ describe("Fast-Track Engine", () => {
           claimType: "collision",
           productId: null,
         })
-      ).rejects.toThrow(FastTrackValidationError);
+      ).rejects.toThrow("Tenant isolation violation");
     });
 
     it("should not use config from different tenant", async () => {
@@ -605,7 +626,7 @@ describe("Fast-Track Engine", () => {
   });
 
   describe("Audit Trail", () => {
-    it("should log all evaluations to fastTrackRoutingLog", async () => {
+    it("does not persist a fabricated fraud value for a P0-held evaluation", async () => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
@@ -651,13 +672,7 @@ describe("Fast-Track Engine", () => {
         tenantId: TEST_TENANT_ID,
       });
 
-      expect(history.length).toBe(1);
-      expect(history[0].decision).toBe("AUTO_APPROVE");
-      expect(history[0].eligible).toBe(true);
-      expect(history[0].configVersion).toBe(1);
-      expect(history[0].confidenceScore).toBe(85);
-      expect(history[0].claimValue).toBe(150000);
-      expect(history[0].fraudScore).toBe(15);
+      expect(history).toEqual([]);
     });
   });
 

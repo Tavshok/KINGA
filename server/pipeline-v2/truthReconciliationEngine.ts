@@ -47,6 +47,7 @@ import type {
   FraudRiskLevel,
   AccidentSeverity,
 } from "./types";
+import { hasGoverningFraudDecisionEligibility } from "../evidence-governance/quantitativeFieldGovernance";
 import type { ClaimTruth } from "./claimTruthLayer";
 import type { ReconciliationLog } from "./reconciliation-engine";
 import type { ClaimQualityResult } from "./claimQualityScorer";
@@ -297,12 +298,13 @@ export interface CTOPhysics {
 }
 
 export interface CTOFraud {
-  fraudRiskScore: number;
-  fraudRiskLevel: FraudRiskLevel;
+  fraudRiskScore: number | null;
+  fraudRiskLevel: FraudRiskLevel | null;
+  fraudDecisionEligibility?: import("../evidence-governance/quantitativeFieldGovernance").FraudDecisionEligibility | null;
   indicators: Array<{
     indicator: string;
     category: string;
-    score: number;
+    score: number | null;
     severity: string;
     evidence: string[];
   }>;
@@ -560,8 +562,8 @@ function reconcileNumeric(
   conflicts: TruthConflict[],
   now: string
 ): {
-  fraudRiskScore: number;
-  fraudRiskLevel: FraudRiskLevel;
+  fraudRiskScore: number | null;
+  fraudRiskLevel: FraudRiskLevel | null;
   estimatedSpeedKmh: number | null;
   optimisedCostUsd: number;
 } {
@@ -571,10 +573,10 @@ function reconcileNumeric(
   const ctl = input.claimTruth;
 
   // ── Fraud score: Stage 8 is canonical owner ───────────────────────────────
-  const s8Score = s8?.fraudRiskScore ?? 0;
+  const s8Score = s8?.fraudRiskScore ?? null;
   const ctlScore = ctl?.meta?.stage8FraudScore ?? null;
   const fraudRiskScore = s8Score;
-  if (ctlScore !== null && Math.abs(ctlScore - s8Score) > 10) {
+  if (ctlScore !== null && s8Score !== null && Math.abs(ctlScore - s8Score) > 10) {
     conflicts.push(makeConflict(
       `C-FRAUD-${Date.now()}`,
       "numeric_divergence",
@@ -594,7 +596,7 @@ function reconcileNumeric(
       now
     ));
   }
-  const fraudRiskLevel: FraudRiskLevel = s8?.fraudRiskLevel ?? "minimal";
+  const fraudRiskLevel: FraudRiskLevel | null = s8?.fraudRiskLevel ?? null;
 
   // ── Speed: Stage 7 is canonical owner ────────────────────────────────────
   // ENSEMBLE FIX: prefer the multi-method ensemble consensus over the single-method
@@ -778,12 +780,6 @@ function reconcileDecision(
   // Consistency engine block
   if (blockAutoApproval) {
     reviewTriggers.push("Cross-stage consistency engine flagged contradictions");
-  }
-
-  // Fraud escalation
-  const fraudScore = input.fraudAnalysis?.fraudRiskScore ?? 0;
-  if (fraudScore >= 70) {
-    reviewTriggers.push(`High fraud risk score: ${fraudScore}`);
   }
 
   // Reconcile CTL vs Stage 9 decision
@@ -1008,12 +1004,12 @@ function buildPhysics(input: TREInput, estimatedSpeedKmh: number | null, now: st
   };
 }
 
-function buildFraud(input: TREInput, fraudRiskScore: number, fraudRiskLevel: FraudRiskLevel, now: string): CTOFraud {
+function buildFraud(input: TREInput, fraudRiskScore: number | null, fraudRiskLevel: FraudRiskLevel | null, now: string): CTOFraud {
   const s8 = input.fraudAnalysis;
   const indicators = (s8?.indicators ?? []).map((ind: any) => ({
     indicator: ind.indicator ?? ind.description ?? "unknown",
     category: ind.category ?? "unknown",
-    score: ind.score ?? 0,
+    score: ind.score ?? null,
     severity: ind.severity ?? "LOW",
     evidence: ind.evidence ?? [],
   }));
@@ -1021,6 +1017,7 @@ function buildFraud(input: TREInput, fraudRiskScore: number, fraudRiskLevel: Fra
   return {
     fraudRiskScore,
     fraudRiskLevel,
+    fraudDecisionEligibility: s8?.fraudDecisionEligibility ?? null,
     indicators,
     quoteDeviation: (s8 as any)?.quoteDeviation ?? null,
     _provenance: makeProvenance("stage8_fraud", s8, 85, now, ["Stage8Output.fraudRiskScore", "Stage8Output.indicators"]),
@@ -1408,6 +1405,62 @@ export function runTruthReconciliationEngine(input: TREInput): ClaimTruthObject 
     treVersion: TRE_VERSION,
     ctoSchemaVersion: CTO_SCHEMA_VERSION,
     generatedAt: now,
+  };
+}
+
+/**
+ * P0-B1 production boundary for reconciled truth publication. It removes raw
+ * visual/model fraud numerics and replaces every automated disposition with an
+ * actionable human-review hold. The base reconciler remains testable as a pure
+ * reconciliation component; pipeline callers must use this wrapper.
+ */
+export function runP0GatedTruthReconciliationEngine(
+  input: TREInput
+): ClaimTruthObject {
+  const cto = runTruthReconciliationEngine(input);
+  const fraudEligibility = input.fraudAnalysis?.fraudDecisionEligibility;
+  const fraudDecisionEligible = Boolean(
+    fraudEligibility &&
+      hasGoverningFraudDecisionEligibility(fraudEligibility, {
+        crushDepthDecision: input.physicsAnalysis?.quantitativeEvidence?.crushDepth,
+        advisoryEvidencePresent: true,
+        fallbackOrDegraded: Boolean((input.fraudAnalysis as any)?._fallback),
+      })
+  );
+  if (fraudDecisionEligible) return cto;
+
+  const reason = `${fraudEligibility?.explanation ?? "Fraud decision eligibility is missing or invalid."} ${fraudEligibility?.requiredEvidence.join(" ") ?? "Obtain independently verifiable claim-linked fraud evidence and a qualified automated-decision authority."}`;
+  return {
+    ...cto,
+    fraud: {
+      ...cto.fraud,
+      fraudRiskScore: null,
+      fraudRiskLevel: null,
+      fraudDecisionEligibility: fraudEligibility ?? null,
+      indicators: cto.fraud.indicators.map(indicator => ({
+        ...indicator,
+        score: null,
+      })),
+    },
+    decision: {
+      ...cto.decision,
+      recommendation: "REVIEW",
+      primaryReason: reason,
+      confidence: 0,
+      reviewTriggers: [reason],
+      approvalConditions: ["Human review must determine the outcome; P0 did not produce an automated fraud finding."],
+      isBlocked: false,
+      blockingReasons: [],
+      _provenance: makeProvenance("truth_reconciliation_engine", "REVIEW", 0, cto.generatedAt, [reason]),
+    },
+    certification: {
+      ...cto.certification,
+      certificate: {
+        ...cto.certification.certificate,
+        certified: "BLOCKED",
+        blockingReasons: [...cto.certification.certificate.blockingReasons, reason],
+      },
+    },
   };
 }
 

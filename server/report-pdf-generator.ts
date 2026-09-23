@@ -11,10 +11,8 @@ import path from "path";
 import type { ClaimIntelligence } from "./report-intelligence-aggregator";
 import type { ReportNarrative } from "./report-narrative-generator";
 import type { ReportVisualizations } from "./report-visualization-generator";
-import {
-  generateGaugeSVG,
-  generateHeatScaleSVG,
-} from "./report-visualization-generator";
+import { generateGaugeSVG } from './report-visualization-generator';
+import { buildP0B1FraudAbstentionText } from './reporting/p0FraudPresentation';
 import puppeteer from "puppeteer-core";
 import { panelBeaterQuotes } from "../../drizzle/schema";
 
@@ -266,7 +264,7 @@ function generateReportHTML(
     <p><strong>Incident Date:</strong> ${new Date(intelligence.claim.incidentDate).toLocaleDateString()}</p>
     <p><strong>Incident Location:</strong> ${intelligence.claim.incidentLocation || 'N/A'}</p>
     <p><strong>Claim Status:</strong> ${intelligence.claim.status}</p>
-    <p><strong>Fraud Risk:</strong> <span class="risk-badge risk-${getFraudRiskClass(intelligence.claim.fraudRiskScore || 0)}">${getFraudRiskLabel(intelligence.claim.fraudRiskScore || 0)}</span></p>
+    <p><strong>Fraud Decision:</strong> Withheld — Manual Review Required</p>
   </div>
 
   <!-- Executive Summary -->
@@ -358,17 +356,10 @@ function generateReportHTML(
   </div>
   ` : ''}
 
-  <!-- Fraud Risk Evaluation -->
+  <!-- Fraud Decision Evidence Boundary -->
   <div class="page-break"></div>
-  <h2>Fraud Risk Evaluation</h2>
-  ${narrative.fraudRiskEvaluation}
-
-  ${includeVisualizations ? `
-  <div class="visualization">
-    <h3>Fraud Risk Assessment</h3>
-    ${generateHeatScaleSVG(visualizations.fraudRiskHeatScale)}
-  </div>
-  ` : ''}
+  <h2>Fraud Decision Evidence Boundary</h2>
+  <p>${buildP0B1FraudAbstentionText()}</p>
 
   <!-- Physics Validation Summary -->
   <h2>Physics Validation Summary</h2>
@@ -430,22 +421,4 @@ function generateReportHTML(
 </body>
 </html>
   `.trim();
-}
-
-/**
- * Get fraud risk CSS class based on score
- */
-function getFraudRiskClass(score: number): string {
-  if (score < 30) return "low";
-  if (score < 60) return "medium";
-  return "high";
-}
-
-/**
- * Get fraud risk label based on score
- */
-function getFraudRiskLabel(score: number): string {
-  if (score < 30) return "Low Risk";
-  if (score < 60) return "Medium Risk";
-  return "High Risk";
 }
