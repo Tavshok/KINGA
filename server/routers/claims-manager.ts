@@ -19,6 +19,7 @@ import { claims, workflowAuditTrail, users } from "../../drizzle/schema";
 import { eq, and, desc, gte, lte, inArray, sql, count, avg } from "drizzle-orm";
 import { z } from "zod";
 import { FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "../../shared/const";
+import { throwP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 
 const WORKFLOW_STAGES = [
   "intake_queue",
@@ -44,12 +45,19 @@ function daysSince(dateStr: string | null | undefined): number {
   return Math.floor(ms / 86400000);
 }
 
-const p0FraudClaimsManagerProcedure = insurerDomainProcedure.use(async () => {
-  throw new TRPCError({
-    code: "PRECONDITION_FAILED",
-    message: "Fraud-derived claim queues and approval-workbench indicators are withheld pending independently verifiable claim-linked evidence, human-reviewed auditable evidence, and a future owner-approved qualified automated-decision policy.",
-  });
-});
+function requireP0FraudClaimsManagerTenant(ctx: {
+  insurerTenantId?: string | null;
+  user?: { tenantId?: string | null } | null;
+}): string {
+  const tenantId = ctx.insurerTenantId ?? ctx.user?.tenantId;
+  if (!tenantId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "A tenant-scoped session is required for fraud-related claims management",
+    });
+  }
+  return tenantId;
+}
 
 export const claimsManagerRouter = router({
   /**
@@ -139,238 +147,22 @@ export const claimsManagerRouter = router({
    * immediate Claims Manager attention. Each category includes a count and
    * the top 5 claim IDs/numbers for drill-down.
    */
-  getAttentionRequired: p0FraudClaimsManagerProcedure.query(async ({ ctx }) => {
-    const db = await getDb();
-    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+  getAttentionRequired: insurerDomainProcedure.query(
+    async ({ ctx }): Promise<any> => {
+      const tenantId = requireP0FraudClaimsManagerTenant(ctx);
+      void tenantId;
+      throwP0B1FraudDecisionHold();
+    }
+  ),
 
-    const now = Date.now();
-    const oneDayMs = 86400000;
+  getApprovalWorkbenchMetrics: insurerDomainProcedure.query(
+    async ({ ctx }): Promise<any> => {
+      const tenantId = requireP0FraudClaimsManagerTenant(ctx);
+      void tenantId;
+      throwP0B1FraudDecisionHold();
+    }
+  ),
 
-    // Fetch all active claims for the tenant
-    const activeClaims = await db
-      .select({
-        id: claims.id,
-        claimNumber: claims.claimNumber,
-        workflowState: claims.workflowState,
-        status: claims.status,
-        fraudRiskLevel: claims.fraudRiskLevel,
-        fraudRiskScore: claims.fraudRiskScore,
-        totalClaimAmount: (claims as any).totalClaimAmount,
-        estimatedClaimValue: claims.estimatedClaimValue,
-        createdAt: claims.createdAt,
-        updatedAt: claims.updatedAt,
-        technicallyApprovedAt: claims.technicallyApprovedAt,
-        financiallyApprovedAt: claims.financiallyApprovedAt,
-        priority: claims.priority,
-        vehicleRegistration: claims.vehicleRegistration,
-        claimantName: (claims as any).claimantName,
-      })
-      .from(claims)
-      .where(
-        and(
-          eq(claims.tenantId, ctx.insurerTenantId),
-          // Exclude terminal states
-          sql`${claims.workflowState} NOT IN ('closed', 'rejected', 'archived')`
-        )
-      )
-      .orderBy(desc(claims.createdAt))
-      .limit(1000);
-
-    // Rule 1: High Value Pending (> ZAR 25,000 = 2,500,000 cents)
-    const highValueThreshold = FINANCIAL_APPROVAL_THRESHOLD_CENTS;
-    const highValuePending = activeClaims.filter(c =>
-      (c.totalClaimAmount ?? 0) > highValueThreshold &&
-      !["closed", "rejected"].includes(c.status ?? "")
-    );
-
-    // Rule 2: High Fraud Risk Active
-    const highFraudActive = activeClaims.filter(c =>
-      c.fraudRiskLevel === "high" || (c.fraudRiskLevel as string) === "critical"
-    );
-
-    // Rule 3: Stuck > 7 days in same state
-    // Threshold: 7 calendar days since last updatedAt (or createdAt if never updated).
-    // This is intentionally separate from the SLA chip (72h from createdAt) — the chip
-    // measures total claim age; "stuck" measures inactivity within the current state.
-    // Rationale: a claim can be within SLA but still stuck if it was submitted late and
-    // never progressed. The 7-day inactivity threshold is the agreed operations standard.
-    const stuckClaims = activeClaims.filter(c => {
-      const age = daysSince(c.updatedAt ?? c.createdAt);
-      return age > 7;
-    });
-
-    // Rule 4: SLA Breach (in stage longer than threshold)
-    const slaBreachClaims = activeClaims.filter(c => {
-      const stage = c.workflowState ?? "";
-      const threshold = SLA_THRESHOLDS_DAYS[stage] ?? 5;
-      const age = daysSince(c.createdAt);
-      return age > threshold;
-    });
-
-    // Rule 5: Awaiting Technical Approval > 2 days
-    const awaitingTechApproval = activeClaims.filter(c =>
-      c.workflowState === "technical_approval" &&
-      daysSince(c.createdAt) > 2
-    );
-
-    // Rule 6: Awaiting Financial Decision > 2 days
-    const awaitingFinancialDecision = activeClaims.filter(c =>
-      c.workflowState === "financial_decision" &&
-      daysSince(c.createdAt) > 2
-    );
-
-    // Rule 7: Escalated (disputed or manual_review)
-    const escalatedClaims = activeClaims.filter(c =>
-      c.workflowState === "disputed" || c.workflowState === "manual_review"
-    );
-
-    // Rule 8: Fleet-flagged for review (audit trail entries in last 30 days)
-    let fleetFlaggedClaims: typeof activeClaims = [];
-    try {
-      const { auditTrail } = await import("../../drizzle/schema");
-      const thirtyDaysAgo = new Date(now - 30 * oneDayMs).toISOString().slice(0, 19).replace("T", " ");
-      const flaggedEntries = await db
-        .select({ claimId: auditTrail.claimId })
-        .from(auditTrail)
-        .where(
-          and(
-            sql`${auditTrail.action} = 'fleet_flagged_for_review'`,
-            sql`${auditTrail.createdAt} >= ${thirtyDaysAgo}`
-          )
-        );
-      const flaggedClaimIds = new Set(flaggedEntries.map(e => e.claimId).filter(Boolean));
-      fleetFlaggedClaims = activeClaims.filter(c => flaggedClaimIds.has(c.id));
-    } catch { /* non-fatal — fleet flags are supplementary */ }
-
-    const summarise = (arr: typeof activeClaims) => ({
-      count: arr.length,
-      topClaims: arr.slice(0, 5).map(c => ({
-        id: c.id,
-        claimNumber: c.claimNumber,
-        workflowState: c.workflowState,
-        ageDays: daysSince(c.createdAt),
-        amount: c.totalClaimAmount,
-        fraudRiskLevel: c.fraudRiskLevel,
-        claimantName: c.claimantName,
-        vehicleRegistration: c.vehicleRegistration,
-      })),
-    });
-
-    return {
-      highValuePending: summarise(highValuePending),
-      highFraudActive: summarise(highFraudActive),
-      stuckClaims: summarise(stuckClaims),
-      slaBreaches: summarise(slaBreachClaims),
-      awaitingTechApproval: summarise(awaitingTechApproval),
-      awaitingFinancialDecision: summarise(awaitingFinancialDecision),
-      escalatedClaims: summarise(escalatedClaims),
-      fleetFlaggedClaims: summarise(fleetFlaggedClaims),
-      totalAttentionRequired: new Set([
-        ...highValuePending.map(c => c.id),
-        ...highFraudActive.map(c => c.id),
-        ...stuckClaims.map(c => c.id),
-        ...slaBreachClaims.map(c => c.id),
-        ...awaitingTechApproval.map(c => c.id),
-        ...awaitingFinancialDecision.map(c => c.id),
-        ...escalatedClaims.map(c => c.id),
-        ...fleetFlaggedClaims.map(c => c.id),
-      ]).size,
-    };
-  }),
-
-  /**
-   * Approval Workbench Metrics
-   *
-   * Returns counts and average ages for claims at approval stages.
-   * Source: claims table, workflowState + technicallyApprovedAt fields.
-   */
-  getApprovalWorkbenchMetrics: p0FraudClaimsManagerProcedure.query(async ({ ctx }) => {
-    const db = await getDb();
-    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
-    const approvalClaims = await db
-      .select({
-        id: claims.id,
-        claimNumber: claims.claimNumber,
-        workflowState: claims.workflowState,
-        totalClaimAmount: (claims as any).totalClaimAmount,
-        estimatedClaimValue: claims.estimatedClaimValue,
-        fraudRiskLevel: claims.fraudRiskLevel,
-        fraudRiskScore: claims.fraudRiskScore,
-        createdAt: claims.createdAt,
-        updatedAt: claims.updatedAt,
-        technicallyApprovedAt: claims.technicallyApprovedAt,
-        financiallyApprovedAt: claims.financiallyApprovedAt,
-        claimantName: (claims as any).claimantName,
-        vehicleRegistration: claims.vehicleRegistration,
-        priority: claims.priority,
-      })
-      .from(claims)
-      .where(
-        and(
-          eq(claims.tenantId, ctx.insurerTenantId),
-          inArray(claims.workflowState, ["technical_approval", "financial_decision"] as any[])
-        )
-      )
-      .orderBy(desc((claims as any).totalClaimAmount));
-
-    const techApproval = approvalClaims.filter(c => c.workflowState === "technical_approval");
-    const financialDecision = approvalClaims.filter(c => c.workflowState === "financial_decision");
-
-    const avgAge = (arr: typeof approvalClaims) => arr.length > 0
-      ? Math.round(arr.reduce((sum, c) => sum + daysSince(c.createdAt), 0) / arr.length)
-      : 0;
-
-    const highValueThreshold = FINANCIAL_APPROVAL_THRESHOLD_CENTS;
-    const highValuePending = approvalClaims.filter(c => (c.totalClaimAmount ?? 0) > highValueThreshold);
-
-    const oldestApproval = approvalClaims.reduce((oldest, c) => {
-      const age = daysSince(c.createdAt);
-      return age > oldest.age ? { age, claimNumber: c.claimNumber } : oldest;
-    }, { age: 0, claimNumber: null as string | null });
-
-    return {
-      techApproval: {
-        count: techApproval.length,
-        avgAgeDays: avgAge(techApproval),
-        topClaims: techApproval.slice(0, 5).map(c => ({
-          id: c.id,
-          claimNumber: c.claimNumber,
-          ageDays: daysSince(c.createdAt),
-          amount: c.totalClaimAmount,
-          fraudRiskLevel: c.fraudRiskLevel,
-          priority: c.priority,
-        })),
-      },
-      financialDecision: {
-        count: financialDecision.length,
-        avgAgeDays: avgAge(financialDecision),
-        topClaims: financialDecision.slice(0, 5).map(c => ({
-          id: c.id,
-          claimNumber: c.claimNumber,
-          ageDays: daysSince(c.createdAt),
-          amount: c.totalClaimAmount,
-          fraudRiskLevel: c.fraudRiskLevel,
-          priority: c.priority,
-        })),
-      },
-      highValuePending: {
-        count: highValuePending.length,
-        totalAmount: highValuePending.reduce((sum, c) => sum + (c.totalClaimAmount ?? 0), 0),
-      },
-      oldestApproval: oldestApproval.age > 0 ? oldestApproval : null,
-      totalPendingApproval: approvalClaims.length,
-      avgApprovalAgeDays: avgAge(approvalClaims),
-    };
-  }),
-
-  /**
-   * Capacity Forecast
-   *
-   * Returns 7-day intake vs completion trend and a backlog trajectory indicator.
-   * Source: claims table, createdAt and updatedAt fields.
-   * Zero schema changes required.
-   */
   getCapacityForecast: insurerDomainProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
