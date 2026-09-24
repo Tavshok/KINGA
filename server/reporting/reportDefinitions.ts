@@ -721,7 +721,7 @@ ${totalPhotosCL > 0 ? `
     return buildKingaHtml(`KINGA Claims Report — ${claim.claim_reference ?? claim.id}`, body);
 }
 
-async function generateForensicReport(
+export async function generateForensicReport(
   params: Record<string, unknown>,
   tenantId?: string
 ): Promise<string> {
@@ -754,8 +754,6 @@ async function generateForensicReport(
       classification: "CONFIDENTIAL",
     };
 
-    const fraudScore = Number(claim.fraud_score ?? 0);
-
     const body = `
       <!-- Claim Identity -->
       <div class="section">
@@ -770,16 +768,10 @@ async function generateForensicReport(
         </div>
       </div>
 
-      <!-- Fraud Risk Summary -->
+      <!-- P0-B1 Fraud Authority -->
       <div class="section">
-        <div class="section-title">2. Fraud Risk Assessment</div>
-        <div class="kv-grid cols-4">
-          <div class="kv-item"><div class="kv-label">Overall Risk Level</div><div class="kv-value">${riskBadge(String(claim.fraud_risk_level ?? "low"))}</div></div>
-          <div class="kv-item"><div class="kv-label">Fraud Score</div><div class="kv-value">${scoreBar(fraudScore)}</div></div>
-          <div class="kv-item"><div class="kv-label">Confidence Score</div><div class="kv-value">${scoreBar(Number(claim.confidence_score ?? 0))}</div></div>
-          <div class="kv-item"><div class="kv-label">Recommendation</div><div class="kv-value bold">${escHtml(String(claim.recommendation ?? "—")).toUpperCase()}</div></div>
-        </div>
-        <div class="finding-box info">Detailed legacy fraud-indicator text is not published in this report. Use separately governed documentary and cost evidence for manual review.</div>
+        <div class="section-title">2. Fraud Decision Authority</div>
+        ${renderP0B1FraudAbstentionMarker()}
       </div>
 
       <div class="section">

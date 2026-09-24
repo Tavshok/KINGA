@@ -120,11 +120,6 @@ describe("P0-B1 independent bypass hardening", () => {
         "getExceptionAggregates: protectedProcedure",
         "getSystemDriftReport: protectedProcedure"
       ),
-      procedureBlock(
-        exceptionRouter,
-        "getSystemDriftReport: protectedProcedure",
-        "getActionableRecommendations: protectedProcedure"
-      ),
       exceptionRouter.slice(
         exceptionRouter.indexOf(
           "getActionableRecommendations: protectedProcedure"
@@ -142,5 +137,16 @@ describe("P0-B1 independent bypass hardening", () => {
         )
       ).toBeLessThan(procedure.indexOf("const db = await getDb();"));
     }
+
+    const heldSystemDrift = procedureBlock(
+      exceptionRouter,
+      "getSystemDriftReport: protectedProcedure",
+      "getActionableRecommendations: protectedProcedure"
+    );
+    expect(heldSystemDrift).toContain(
+      "requireExceptionIntelligenceTenant(ctx);"
+    );
+    expect(heldSystemDrift).toContain("throwP0B1FraudDecisionHold();");
+    expect(heldSystemDrift).not.toContain("const db = await getDb();");
   });
 });

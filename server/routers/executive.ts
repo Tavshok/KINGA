@@ -2,16 +2,9 @@ import { router, insurerDomainProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { sql, eq, and, desc, gt } from "drizzle-orm";
-import { claims } from "../../drizzle/schema";
-import { FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "../../shared/const";
+import { sql, eq } from "drizzle-orm";
 import { auditP0CrossTenantAccess, resolveP0TenantScope, validateP0TenantScope } from "../security/p0TenantBoundary";
 import { throwP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
-
-const daysSince = (d: string | null) => {
-  if (!d) return 0;
-  return Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
-};
 
 /**
  * Retains the legacy procedure's client type while P0-B1 rejects every
@@ -59,6 +52,41 @@ type ExecutiveOperationalClaimDetailResponse =
     };
 
 /**
+ * These legacy response annotations preserve the typed browser contract while
+ * the P0-B1 executive fraud routes fail closed. The held routes never build,
+ * query, or publish these payloads; the annotations prevent unrelated,
+ * display-only browser consumers from inferring `never` before their deferred
+ * P0-B1-Client remediation is separately authorized.
+ */
+type ExecutiveFraudDetectionTrendsResponse = {
+  data: Array<Record<string, unknown>>;
+  success: boolean;
+};
+
+type ExecutiveFraudRiskDistributionResponse = {
+  data: Array<Record<string, unknown>>;
+  success: boolean;
+};
+
+type ExecutiveEscalationQueueResponse = {
+  threshold: number;
+  count: number;
+  totalExposure: number;
+  items: Array<{
+    id: number;
+    claimNumber: string | null;
+    amount: number;
+    approvedAmount: number | null;
+    fraudRiskLevel: string | null;
+    fraudRiskScore: number | null;
+    priority: string | null;
+    vehicleRegistration: string | null;
+    ageDays: number;
+    updatedAt: unknown;
+  }>;
+};
+
+/**
  * Executive Router
  *
  * All procedures use insurerDomainProcedure which guarantees:
@@ -76,6 +104,23 @@ const executiveProcedure = insurerDomainProcedure.use(async ({ ctx, next }) => {
   }
   return next({ ctx });
 });
+
+/**
+ * The insurer-domain middleware deliberately allows a platform administrator
+ * without a session tenant to reach insurer procedures so routes that support
+ * explicit cross-tenant selection can resolve and validate that selection.
+ * These fraud-only endpoints accept no such selection, so they must reject an
+ * unscoped administrator before returning the P0-B1 hold.
+ */
+function requireExecutiveFraudTenantScope(ctx: { insurerTenantId?: string | null }): string {
+  if (!ctx.insurerTenantId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Explicit tenant selection is required for executive fraud analytics",
+    });
+  }
+  return ctx.insurerTenantId;
+}
 
 export const executiveRouter = router({
   // ─── Existing procedures ────────────────────────────────────────────────────
@@ -137,29 +182,9 @@ export const executiveRouter = router({
 
   getFraudDetectionTrends: executiveProcedure
     .input(z.object({ days: z.number().default(30) }))
-    .query(async ({ input, ctx }) => {
-      try {
-        const db = await getDb();
-        if (!db) return { data: [], success: false };
-        const { insurerTenantId } = ctx;
-        const since = new Date();
-        since.setDate(since.getDate() - input.days);
-        const rows = await (db.execute(sql`
-          SELECT DATE(c.created_at) as date,
-            SUM(CASE WHEN ai.fraud_risk_level = 'high' THEN 1 ELSE 0 END) as high,
-            SUM(CASE WHEN ai.fraud_risk_level = 'medium' THEN 1 ELSE 0 END) as medium,
-            SUM(CASE WHEN ai.fraud_risk_level = 'low' THEN 1 ELSE 0 END) as low
-          FROM claims c
-          LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
-          WHERE c.created_at >= ${since.toISOString()}
-            AND c.tenant_id = ${insurerTenantId}
-          GROUP BY DATE(c.created_at)
-          ORDER BY date ASC
-        `) as any);
-        return { data: rows.rows as any[], success: true };
-      } catch (e) {
-        return { data: [], success: false };
-      }
+    .query(({ ctx }): Promise<ExecutiveFraudDetectionTrendsResponse> => {
+      requireExecutiveFraudTenantScope(ctx);
+      throwP0B1FraudDecisionHold();
     }),
 
   getCostBreakdownByStatus: executiveProcedure
@@ -204,23 +229,9 @@ export const executiveRouter = router({
     }),
 
   getFraudRiskDistribution: executiveProcedure
-    .query(async ({ ctx }) => {
-      try {
-        const db = await getDb();
-        if (!db) return { data: [], success: false };
-        const { insurerTenantId } = ctx;
-        const rows = await (db.execute(sql`
-          SELECT ai.fraud_risk_level as level, COUNT(*) as count
-          FROM claims c
-          LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
-          WHERE ai.fraud_risk_level IS NOT NULL
-            AND c.tenant_id = ${insurerTenantId}
-          GROUP BY ai.fraud_risk_level
-        `) as any);
-        return { data: rows.rows as any[], success: true };
-      } catch (e) {
-        return { data: [], success: false };
-      }
+    .query(({ ctx }): Promise<ExecutiveFraudRiskDistributionResponse> => {
+      requireExecutiveFraudTenantScope(ctx);
+      throwP0B1FraudDecisionHold();
     }),
 
   // ─── NEW: Quote Optimisation & Override Analytics ───────────────────────────
@@ -562,52 +573,11 @@ export const executiveRouter = router({
    * financial threshold (ZAR 25,000 / 2,500,000 cents). These require
    * executive sign-off before settlement can proceed.
    * Sorted by amount descending so the highest-value claim appears first.
-   */
-  getEscalationQueue: executiveProcedure.query(async ({ ctx }) => {
-    const db = await getDb();
-    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
-    const rows = await db
-      .select({
-        id: claims.id,
-        claimNumber: claims.claimNumber,
-        totalClaimAmount: (claims as any).totalClaimAmount,
-        approvedAmount: (claims as any).approvedAmount,
-        fraudRiskLevel: claims.fraudRiskLevel,
-        fraudRiskScore: claims.fraudRiskScore,
-        priority: claims.priority,
-        vehicleRegistration: claims.vehicleRegistration,
-        workflowState: claims.workflowState,
-        createdAt: claims.createdAt,
-        updatedAt: claims.updatedAt,
-      })
-      .from(claims)
-      .where(
-        and(
-          eq(claims.tenantId, ctx.insurerTenantId),
-          eq(claims.workflowState as any, "financial_decision"),
-          gt((claims as any).totalClaimAmount, FINANCIAL_APPROVAL_THRESHOLD_CENTS)
-        )
-      )
-      .orderBy(desc((claims as any).totalClaimAmount))
-      .limit(20);
-
-    return {
-      threshold: FINANCIAL_APPROVAL_THRESHOLD_CENTS,
-      count: rows.length,
-      totalExposure: rows.reduce((s, r) => s + ((r.totalClaimAmount as number) ?? 0), 0),
-      items: rows.map(r => ({
-        id: r.id,
-        claimNumber: r.claimNumber,
-        amount: (r.totalClaimAmount as number) ?? 0,
-        approvedAmount: (r.approvedAmount as number) ?? null,
-        fraudRiskLevel: r.fraudRiskLevel,
-        fraudRiskScore: r.fraudRiskScore,
-        priority: r.priority,
-        vehicleRegistration: r.vehicleRegistration,
-        ageDays: daysSince(r.createdAt),
-        updatedAt: r.updatedAt,
-      })),
-    };
-  }),
+  */
+  getEscalationQueue: executiveProcedure.query(
+    ({ ctx }): Promise<ExecutiveEscalationQueueResponse> => {
+      requireExecutiveFraudTenantScope(ctx);
+      throwP0B1FraudDecisionHold();
+    }
+  ),
 });

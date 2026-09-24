@@ -18,8 +18,9 @@ describe("exception intelligence tenant authority", () => {
     expect(source).not.toContain("isAdminRole(ctx.user.role)");
   });
 
-  it("requires a session tenant in drift comparisons and actionable recommendations", () => {
-    expect(source).toContain("conditions.push(eq(aiAssessments.tenantId, tenantId));");
+  it("requires a session tenant before the held drift report and actionable recommendations", () => {
+    expect(source).toContain("requireExceptionIntelligenceTenant(ctx);");
+    expect(source).toContain("throwP0B1FraudDecisionHold();");
     expect(source).toContain("isNotNull(aiAssessments.ifeResultJson)");
     expect(source).toContain("throw new TRPCError({ code: \"FORBIDDEN\", message: \"A tenant-scoped session is required\" })");
     expect(source).not.toContain("tenantId: z.string().optional()");
