@@ -15,6 +15,7 @@ import { insurerTenants, insuranceCarriers, assessors, fleetAccounts, engineerPr
 import { sendInvitation, getInvitationByToken, acceptInvitation } from "../invitation-service";
 import { sql } from "drizzle-orm";
 import { isAdminRole } from "../../shared/role-permissions";
+import { throwP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 
 // Super-admin middleware
 const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -27,12 +28,6 @@ const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 
-const p0FraudSuperAdminProcedure = superAdminProcedure.use(async () => {
-  throw new TRPCError({
-    code: "PRECONDITION_FAILED",
-    message: "Fraud classifications and fraud-derived platform health metrics are withheld pending qualified governing evidence and a future owner-approved automated-decision policy.",
-  });
-});
 
 export const adminRouter = router({
   /**
@@ -805,49 +800,17 @@ export const adminRouter = router({
   /**
    * Sprint B: Unified Platform Health — control room data
    */
-  getPlatformHealth: p0FraudSuperAdminProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
-    const [jobStats] = await db.select({
-      total: count(),
-      running: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'running' THEN 1 ELSE 0 END)`,
-      failed24h: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'failed' AND ${pipelineJobs.startedAt} >= ${hoursAgo(24)} THEN 1 ELSE 0 END)`,
-      pending: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'pending' THEN 1 ELSE 0 END)`,
-      completed24h: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'completed' AND ${pipelineJobs.startedAt} >= ${hoursAgo(24)} THEN 1 ELSE 0 END)`,
-    }).from(pipelineJobs);
-    const stageStats = await db.select({
-      stageId: pipelineJobs.stageId,
-      total: count(),
-      completed: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'completed' THEN 1 ELSE 0 END)`,
-      failed: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'failed' THEN 1 ELSE 0 END)`,
-      running: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'running' THEN 1 ELSE 0 END)`,
-      last1h: sql<number>`SUM(CASE WHEN ${pipelineJobs.startedAt} >= ${hoursAgo(1)} THEN 1 ELSE 0 END)`,
-    }).from(pipelineJobs).where(gte(pipelineJobs.startedAt, daysAgo(7))).groupBy(pipelineJobs.stageId);
-    const [assessStats] = await db.select({
-      total: count(),
-      avgConf: sql<number>`AVG(${aiAssessments.confidenceScore})`,
-      highFraud: sql<number>`SUM(CASE WHEN ${aiAssessments.fraudRiskLevel} IN ('high','elevated','critical') THEN 1 ELSE 0 END)`,
-      last24h: sql<number>`SUM(CASE WHEN ${aiAssessments.createdAt} >= ${hoursAgo(24)} THEN 1 ELSE 0 END)`,
-    }).from(aiAssessments);
-    const tenantStats = await db.select({
-      id: tenants.id,
-      name: tenants.name,
-      tier: (tenants as any).subscriptionTier,
-      currency: (tenants as any).currency,
-      createdAt: tenants.createdAt,
-    }).from(tenants).limit(50);
-    const recentFailed = await db.select({
-      id: pipelineJobs.id,
-      claimId: pipelineJobs.claimId,
-      stageId: pipelineJobs.stageId,
-      startedAt: pipelineJobs.startedAt,
-    }).from(pipelineJobs).where(and(eq(pipelineJobs.status, 'failed'), gte(pipelineJobs.startedAt, hoursAgo(24)))).orderBy(desc(pipelineJobs.startedAt)).limit(10);
-    return { jobStats, stageStats, assessStats, tenantStats, recentFailed, collectedAt: new Date().toISOString() };
-  }),
-
   /**
-   * Sprint B: Update panel beater status with audit log
+   * Sprint B: Unified Platform Health — fraud-derived platform health is held
+   * after the route's existing super-admin admission and before database reads.
    */
+  getPlatformHealth: superAdminProcedure.query(
+    async ({ ctx }): Promise<any> => {
+      void ctx;
+      throwP0B1FraudDecisionHold();
+    }
+  ),
+
   updatePanelBeaterStatus: superAdminProcedure
     .input(z.object({
       panelBeaterId: z.number().int().positive(),
