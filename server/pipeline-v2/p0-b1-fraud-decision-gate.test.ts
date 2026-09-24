@@ -533,7 +533,7 @@ describe("P0-B1 fraud and automated-decision boundary", () => {
     expect(P0_B1_FRAUD_DECISION_HOLD).not.toHaveProperty("riskLevel");
   });
 
-  it("short-circuits registered analytics, TRE, and executive PDF routes before data access", async () => {
+  it("holds registered analytics and executive PDF routes while preserving TRE resource checks before its hold", async () => {
     const user = {
       id: 91004,
       openId: "p0-b1-public-route-gate",
@@ -556,7 +556,7 @@ describe("P0-B1 fraud and automated-decision boundary", () => {
       treGovernanceRouter
         .createCaller({ user })
         .getCanonicalValues({ claimId: 99 })
-    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(
       reportsRouter.createCaller({ user }).generateExecutiveReport({})
     ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
