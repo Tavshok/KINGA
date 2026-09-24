@@ -52,6 +52,41 @@ type ExecutiveOperationalClaimDetailResponse =
     };
 
 /**
+ * These legacy response annotations preserve the typed browser contract while
+ * the P0-B1 executive fraud routes fail closed. The held routes never build,
+ * query, or publish these payloads; the annotations prevent unrelated,
+ * display-only browser consumers from inferring `never` before their deferred
+ * P0-B1-Client remediation is separately authorized.
+ */
+type ExecutiveFraudDetectionTrendsResponse = {
+  data: Array<Record<string, unknown>>;
+  success: boolean;
+};
+
+type ExecutiveFraudRiskDistributionResponse = {
+  data: Array<Record<string, unknown>>;
+  success: boolean;
+};
+
+type ExecutiveEscalationQueueResponse = {
+  threshold: number;
+  count: number;
+  totalExposure: number;
+  items: Array<{
+    id: number;
+    claimNumber: string | null;
+    amount: number;
+    approvedAmount: number | null;
+    fraudRiskLevel: string | null;
+    fraudRiskScore: number | null;
+    priority: string | null;
+    vehicleRegistration: string | null;
+    ageDays: number;
+    updatedAt: unknown;
+  }>;
+};
+
+/**
  * Executive Router
  *
  * All procedures use insurerDomainProcedure which guarantees:
@@ -147,7 +182,7 @@ export const executiveRouter = router({
 
   getFraudDetectionTrends: executiveProcedure
     .input(z.object({ days: z.number().default(30) }))
-    .query(({ ctx }) => {
+    .query(({ ctx }): Promise<ExecutiveFraudDetectionTrendsResponse> => {
       requireExecutiveFraudTenantScope(ctx);
       throwP0B1FraudDecisionHold();
     }),
@@ -194,7 +229,7 @@ export const executiveRouter = router({
     }),
 
   getFraudRiskDistribution: executiveProcedure
-    .query(({ ctx }) => {
+    .query(({ ctx }): Promise<ExecutiveFraudRiskDistributionResponse> => {
       requireExecutiveFraudTenantScope(ctx);
       throwP0B1FraudDecisionHold();
     }),
@@ -538,9 +573,11 @@ export const executiveRouter = router({
    * financial threshold (ZAR 25,000 / 2,500,000 cents). These require
    * executive sign-off before settlement can proceed.
    * Sorted by amount descending so the highest-value claim appears first.
-   */
-  getEscalationQueue: executiveProcedure.query(({ ctx }) => {
-    requireExecutiveFraudTenantScope(ctx);
-    throwP0B1FraudDecisionHold();
-  }),
+  */
+  getEscalationQueue: executiveProcedure.query(
+    ({ ctx }): Promise<ExecutiveEscalationQueueResponse> => {
+      requireExecutiveFraudTenantScope(ctx);
+      throwP0B1FraudDecisionHold();
+    }
+  ),
 });

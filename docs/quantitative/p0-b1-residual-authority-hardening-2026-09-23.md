@@ -1,7 +1,7 @@
 # P0-B1 Residual Authority Hardening
 
 - **Date:** 23 September 2026
-- **Status:** Merge readiness complete; ready for owner-review PR
+- **Status:** Hosted type-contract correction validated locally; hosted revalidation pending
 - **Scope:** A narrow, independent hardening package. It is not P0-B1 integration or P0-B1-Client.
 
 ## Purpose
@@ -42,10 +42,14 @@ The executive regression covers each held fraud endpoint for a valid executive s
 
 The first independent review correctly blocked the executive endpoints for a shared-middleware interaction: `insurerDomainProcedure` permits a platform super-admin without a session tenant to reach an insurer procedure so routes with explicit cross-tenant selection can resolve that selection. The three fraud-only executive routes accept no tenant-selection input, so they could have returned a P0 hold to that unscoped admin before tenant authorization. `requireExecutiveFraudTenantScope()` now runs after the executive role guard and before the canonical hold for all three routes. It rejects the unscoped super-admin without a database call. `getOperationalClaimDetail` remains separate because it does support and validates explicit cross-tenant selection before its hold. The forensic regression now also proves the stored indicator, indicator finding, and recommendation label do not reach the direct renderer.
 
+### Hosted type-contract correction
+
+The first hosted Quality Gate correctly rejected six new browser diagnostics. Each occurred because a procedure whose executable branch now always throws inferred `never`, although its deliberately deferred executive-display consumer still accesses the former typed response shape. The correction retains the legacy TypeScript annotations for fraud trends, fraud distribution, and the escalation queue, exactly as the held System Drift route already preserves its legacy browser contract. These annotations never construct, query, or expose the former payloads: each executable route continues to scope-check and throw the canonical hold. The focused guarded authority matrix remains **7 files / 40 tests passed**, and direct local compilation shows none of the six hosted client paths or active residual package paths. A local full baseline comparison also reports eight unrelated pre-existing `claims-core` and `reports` diagnostics, so the hosted baseline run remains the authoritative revalidation.
+
 ## Deliberate exclusions
 
 This package does not modify schema, migrations, seed data, staging, production, credentials, deployment, P0-B1 integration, P0-B1-Client Package A, or deferred P0-B1-Client Packages B and C. Audit-export policy remains a separately tracked near-term policy item; it is not treated as a qualified fraud authority here.
 
 ## Merge-readiness requirements
 
-The required fresh adversarial review returned **APPROVE** after the tenantless-super-admin correction. The complete guarded full suite, production build, changed-path type-diagnostic confirmation, formatting and whitespace hygiene, and this evidence record now satisfy merge readiness. This narrow package may be committed, pushed, and opened as an owner-review PR, but it must not merge without owner approval. After the package merges, P0-B1 integration resumes from its preserved branch and must perform the owner-required shared-middleware/wrapper risk audit before its PR is opened.
+The required fresh adversarial review returned **APPROVE** after the tenantless-super-admin correction. The complete guarded full suite, production build, changed-path type-diagnostic confirmation, formatting and whitespace hygiene, and this evidence record satisfy the original merge-readiness gate. The follow-up hosted type-contract correction requires a clean replacement hosted Quality Gate before the package may merge. It must not merge without owner approval. After the package merges, P0-B1 integration resumes from its preserved branch and must perform the owner-required shared-middleware/wrapper risk audit before its PR is opened.
