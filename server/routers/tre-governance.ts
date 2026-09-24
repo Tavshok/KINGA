@@ -12,6 +12,7 @@ import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
 import { and, eq } from "drizzle-orm";
 import { claims, aiAssessments } from "../../drizzle/schema";
+import { GOVERNANCE_ALLOWED_ROLES, isAdminRole } from "../../shared/role-permissions";
 
 // TRE v3.0 module imports
 import { evaluateTruthRules, BUILT_IN_TRUTH_RULES, buildTruthRuleContext, type TruthRuleContext } from "../pipeline-v2/truthRuleEngine";
@@ -28,6 +29,22 @@ function requireTreTenant(ctx: { user?: { tenantId?: string | null } | null }): 
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
   return tenantId;
+}
+
+function requireTreGovernanceRole(ctx: { user?: { role?: string | null; insurerRole?: string | null } | null }): void {
+  const user = ctx.user;
+  const hasAccess = Boolean(
+    user &&
+      (isAdminRole(user.role) ||
+        (user.insurerRole &&
+          GOVERNANCE_ALLOWED_ROLES.includes(user.insurerRole as (typeof GOVERNANCE_ALLOWED_ROLES)[number])))
+  );
+  if (!hasAccess) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Governance access requires one of: ${GOVERNANCE_ALLOWED_ROLES.join(", ")}`,
+    });
+  }
 }
 
 async function requireTreClaim(claimId: number, tenantId: string): Promise<void> {
@@ -83,6 +100,7 @@ export const treGovernanceRouter = router({
   getClaimTruthObject: protectedProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }): Promise<any> => {
+      requireTreGovernanceRole(ctx);
       const tenantId = requireTreTenant(ctx);
       await requireTreClaim(input.claimId, tenantId);
       throwP0B1FraudDecisionHold();
@@ -91,6 +109,7 @@ export const treGovernanceRouter = router({
   getCanonicalValues: protectedProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }): Promise<any> => {
+      requireTreGovernanceRole(ctx);
       const tenantId = requireTreTenant(ctx);
       await requireTreClaim(input.claimId, tenantId);
       throwP0B1FraudDecisionHold();
@@ -99,6 +118,7 @@ export const treGovernanceRouter = router({
   verifyCertificate: protectedProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }): Promise<any> => {
+      requireTreGovernanceRole(ctx);
       const tenantId = requireTreTenant(ctx);
       await requireTreClaim(input.claimId, tenantId);
       throwP0B1FraudDecisionHold();
@@ -107,6 +127,7 @@ export const treGovernanceRouter = router({
   getGovernanceSummary: protectedProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }): Promise<any> => {
+      requireTreGovernanceRole(ctx);
       const tenantId = requireTreTenant(ctx);
       await requireTreClaim(input.claimId, tenantId);
       throwP0B1FraudDecisionHold();
@@ -115,6 +136,7 @@ export const treGovernanceRouter = router({
   evaluateTruthRules: protectedProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }): Promise<any> => {
+      requireTreGovernanceRole(ctx);
       const tenantId = requireTreTenant(ctx);
       await requireTreClaim(input.claimId, tenantId);
       throwP0B1FraudDecisionHold();
@@ -128,6 +150,7 @@ export const treGovernanceRouter = router({
       })
     )
     .query(async ({ input, ctx }): Promise<any> => {
+      requireTreGovernanceRole(ctx);
       const tenantId = requireTreTenant(ctx);
       await requireTreClaim(input.claimId, tenantId);
       throwP0B1FraudDecisionHold();
@@ -141,6 +164,7 @@ export const treGovernanceRouter = router({
       })
     )
     .query(async ({ input, ctx }): Promise<any> => {
+      requireTreGovernanceRole(ctx);
       const tenantId = requireTreTenant(ctx);
       await requireTreClaim(input.claimId, tenantId);
       throwP0B1FraudDecisionHold();
@@ -149,6 +173,7 @@ export const treGovernanceRouter = router({
   getTruthQualityIndex: protectedProcedure
     .input(z.object({ claimId: z.number() }))
     .query(async ({ input, ctx }): Promise<any> => {
+      requireTreGovernanceRole(ctx);
       const tenantId = requireTreTenant(ctx);
       await requireTreClaim(input.claimId, tenantId);
       throwP0B1FraudDecisionHold();
@@ -162,6 +187,7 @@ export const treGovernanceRouter = router({
       })
     )
     .query(async ({ input, ctx }): Promise<any> => {
+      requireTreGovernanceRole(ctx);
       const tenantId = requireTreTenant(ctx);
       void tenantId;
       void input;

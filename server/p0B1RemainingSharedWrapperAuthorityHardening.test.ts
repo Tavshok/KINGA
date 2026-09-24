@@ -74,6 +74,12 @@ const treTenantUser = callerContext({
   insurerRole: "claims_manager",
   tenantId,
 });
+const treWrongRoleUser = callerContext({
+  id: 41010,
+  role: "insurer",
+  insurerRole: "claims_processor",
+  tenantId,
+});
 const treTenantlessUser = callerContext({
   id: 41009,
   role: "insurer",
@@ -207,14 +213,28 @@ describe("P0-B1 remaining shared wrapper authority hardening", () => {
     ]) {
       const block = routeBlock(tre, route);
       expect(block).toContain(`${route}: protectedProcedure`);
+      expect(block).toContain("requireTreGovernanceRole(ctx)");
+      expect(block).toContain("requireTreTenant(ctx)");
       expect(block).toContain("throwP0B1FraudDecisionHold()");
       expect(block).not.toContain("getAssessmentCTO");
       expect(block).not.toContain("fraudRiskScore");
       if (route !== "getGovernanceDashboard") {
+        expect(block.indexOf("requireTreGovernanceRole(ctx)")).toBeLessThan(
+          block.indexOf("requireTreTenant(ctx)")
+        );
+        expect(block.indexOf("requireTreTenant(ctx)")).toBeLessThan(
+          block.indexOf("await requireTreClaim")
+        );
         expect(block.indexOf("await requireTreClaim")).toBeLessThan(
           block.indexOf("throwP0B1FraudDecisionHold()")
         );
       } else {
+        expect(block.indexOf("requireTreGovernanceRole(ctx)")).toBeLessThan(
+          block.indexOf("requireTreTenant(ctx)")
+        );
+        expect(block.indexOf("requireTreTenant(ctx)")).toBeLessThan(
+          block.indexOf("throwP0B1FraudDecisionHold()")
+        );
         expect(block).not.toContain("getDb()");
       }
     }
@@ -409,6 +429,39 @@ describe("P0-B1 remaining shared wrapper authority hardening", () => {
         claimId: 77,
       })
     ).rejects.toThrow("tenant-scoped session is required");
+    expect(mocks.getDb).not.toHaveBeenCalled();
+  });
+
+  it.each(treClaimCalls)(
+    "denies an unauthorized TRE role at %s before tenant or claim access",
+    async (procedure, input) => {
+      const caller = treGovernanceRouter.createCaller(treWrongRoleUser) as any;
+      const invoke = () => caller[procedure](input);
+
+      await expect(invoke()).rejects.toThrow(
+        "Governance access requires one of"
+      );
+      expect(mocks.getDb).not.toHaveBeenCalled();
+      expect(mocks.select).not.toHaveBeenCalled();
+    }
+  );
+
+  it("denies an unauthorized TRE role at the aggregate dashboard before tenant access", async () => {
+    await expect(
+      (
+        treGovernanceRouter.createCaller(treWrongRoleUser) as any
+      ).getGovernanceDashboard({})
+    ).rejects.toThrow("Governance access requires one of");
+    expect(mocks.getDb).not.toHaveBeenCalled();
+    expect(mocks.select).not.toHaveBeenCalled();
+  });
+
+  it("allows the established platform-admin exception to reach the held TRE dashboard", async () => {
+    await expect(
+      (
+        treGovernanceRouter.createCaller(platformSuperAdmin) as any
+      ).getGovernanceDashboard({})
+    ).rejects.toThrow(P0_B1_FRAUD_DECISION_HOLD.explanation);
     expect(mocks.getDb).not.toHaveBeenCalled();
   });
 
