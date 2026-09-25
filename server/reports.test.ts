@@ -30,42 +30,11 @@ describe('Reports Router', () => {
   });
 
   describe('generateExecutiveReport', () => {
-    it('should generate executive report with valid structure', async () => {
-      const result = await caller.reports.generateExecutiveReport({});
-
-      expect(result).toBeDefined();
-      expect(result.success).toBe(true);
-      expect(result.pdfBuffer).toBeDefined();
-      expect(result.metadata).toBeDefined();
-      expect(result.metadata.reportType).toBe('executive');
-      expect(result.metadata.generatedAt).toBeDefined();
-      expect(result.metadata.tenantId).toBe('test-tenant-id');
-    });
-
-    it('should complete DB query in < 100ms', async () => {
-      const result = await caller.reports.generateExecutiveReport({});
-
-      expect(result.metadata.dbQueryTime).toBeLessThan(100);
-      console.log(`Executive Report DB query time: ${result.metadata.dbQueryTime}ms`);
-    });
-
-    it('should return base64-encoded PDF buffer', async () => {
-      const result = await caller.reports.generateExecutiveReport({});
-
-      // Verify base64 encoding
-      expect(result.pdfBuffer).toMatch(/^[A-Za-z0-9+/]+=*$/);
-      
-      // Verify PDF signature (starts with %PDF)
-      const pdfBuffer = Buffer.from(result.pdfBuffer, 'base64');
-      expect(pdfBuffer.toString('utf-8', 0, 4)).toBe('%PDF');
-    });
-
-    it('should include performance metrics in metadata', async () => {
-      const result = await caller.reports.generateExecutiveReport({});
-
-      expect(result.metadata.totalClaims).toBeGreaterThanOrEqual(0);
-      expect(result.metadata.dbQueryTime).toBeGreaterThan(0);
-      expect(result.metadata.totalGenerationTime).toBeGreaterThan(0);
+    it('withholds executive fraud reporting after report-role and tenant authorization', async () => {
+      await expect(caller.reports.generateExecutiveReport({})).rejects.toMatchObject({
+        code: 'PRECONDITION_FAILED',
+        message: expect.stringContaining('Automated fraud scoring, risk classification, routing, certification, and publication are withheld'),
+      });
     });
   });
 
@@ -151,19 +120,18 @@ describe('Reports Router', () => {
   });
 
   describe('Performance Monitoring', () => {
-    it('should log generation time for all reports', async () => {
-      const executiveResult = await caller.reports.generateExecutiveReport({});
+    it('withholds executive fraud reporting while timing financial and audit reports', async () => {
       const financialResult = await caller.reports.generateFinancialSummary({});
       const auditResult = await caller.reports.generateAuditTrailReport({});
 
       console.log('\n=== Report Generation Performance ===');
-      console.log(`Executive Report: ${executiveResult.metadata.totalGenerationTime}ms (DB: ${executiveResult.metadata.dbQueryTime}ms)`);
       console.log(`Financial Summary: ${financialResult.metadata.totalGenerationTime}ms (DB: ${financialResult.metadata.dbQueryTime}ms)`);
       console.log(`Audit Trail Report: ${auditResult.metadata.totalGenerationTime}ms (DB: ${auditResult.metadata.dbQueryTime}ms)`);
       console.log('=====================================\n');
 
-      // All reports should complete in reasonable time
-      expect(executiveResult.metadata.totalGenerationTime).toBeLessThan(5000);
+      await expect(caller.reports.generateExecutiveReport({})).rejects.toMatchObject({
+        code: 'PRECONDITION_FAILED',
+      });
       expect(financialResult.metadata.totalGenerationTime).toBeLessThan(5000);
       expect(auditResult.metadata.totalGenerationTime).toBeLessThan(5000);
     });

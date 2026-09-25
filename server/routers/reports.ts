@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { protectedProcedure, router } from '../_core/trpc';
+import { executiveReportAuthorityProcedure, protectedProcedure, router } from '../_core/trpc';
 import { getDb } from '../db';
 import { assertRestrictedAgencyAssistedCapability } from '../agency/agencyAssistedClaimantIdentity';
 import { claims, users, workflowAuditTrail, claimInvolvementTracking } from '../../drizzle/schema';
@@ -14,7 +14,7 @@ import { TRPCError } from '@trpc/server';
 import { parsePhysicsAnalysis } from '../../shared/physics-types';
 import PDFDocument from 'pdfkit';
 import { canAccessReport } from './reporting';
-import { buildP0B1FraudAbstentionText } from '../reporting/p0FraudPresentation';
+import { throwP0B1FraudDecisionHold } from '../evidence-governance/p0FraudDecisionHold';
 
 /**
  * Helper function to safely convert any value to number
@@ -137,97 +137,19 @@ export const reportsRouter = router({
    * 
    * Comprehensive overview of claims processing, KPIs, and performance metrics.
    */
-  generateExecutiveReport: protectedProcedure
+  generateExecutiveReport: executiveReportAuthorityProcedure
    .input(
      z.object({
        startDate: z.string().optional(),
        endDate: z.string().optional(),
        tenantId: z.string().optional(),
      })
-   )
+  )
    .mutation(async ({ ctx, input }) => {
       requireAlternateReportAccess(ctx, "executive.portfolio_overview");
       assertRestrictedAgencyAssistedCapability(ctx.user, "report_access");
-      const startTime = Date.now();
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-
-      const tenantId = requireReportTenant(ctx.user.tenantId, input.tenantId);
-
-      console.log('[Reports] Generating Executive Report...');
-
-      try {
-        // Single comprehensive query for all executive metrics
-        const dbStartTime = Date.now();
-        
-        const metricsQuery = await db
-          .select({
-            totalClaims: sql<number>`COUNT(DISTINCT ${claims.id})`,
-            completedClaims: sql<number>`SUM(CASE WHEN ${claims.status} = 'closed' THEN 1 ELSE 0 END)`,
-            pendingClaims: sql<number>`SUM(CASE WHEN ${claims.status} IN ('submitted', 'under_review', 'pending_approval') THEN 1 ELSE 0 END)`,
-            avgProcessingDays: sql<number>`AVG(CASE WHEN ${claims.closedAt} IS NOT NULL THEN DATEDIFF(${claims.closedAt}, ${claims.createdAt}) ELSE NULL END)`,
-            totalApprovedAmount: sql<number>`SUM(CASE WHEN ${claims.status} = 'closed' THEN ${claims.finalApprovedAmount} ELSE 0 END)`,
-          })
-          .from(claims)
-          .where(eq(claims.tenantId, tenantId));
-
-        const dbEndTime = Date.now();
-        const dbTime = dbEndTime - dbStartTime;
-
-        console.log(`[Reports] DB query time: ${dbTime}ms`);
-
-        if (dbTime > 100) {
-          console.warn(`[Reports] WARNING: DB query time exceeded 100ms threshold: ${dbTime}ms`);
-        }
-
-        const metrics = metricsQuery[0];
-        const totalClaims = safeNumber(metrics.totalClaims);
-        const completedClaims = safeNumber(metrics.completedClaims);
-        const pendingClaims = safeNumber(metrics.pendingClaims);
-        const avgProcessingDays = safeNumber(metrics.avgProcessingDays, 0);
-        const totalApprovedAmount = safeNumber(metrics.totalApprovedAmount);
-
-        // Structured JSON payload
-        const reportData = {
-          totalClaims,
-          completedClaims,
-          pendingClaims,
-          avgProcessingDays: avgProcessingDays.toFixed(1),
-          totalApprovedAmount,
-          fraudDecisionNotice: buildP0B1FraudAbstentionText(),
-          kpis: [
-            { name: 'Completion Rate', value: totalClaims > 0 ? `${((completedClaims / totalClaims) * 100).toFixed(1)}%` : '0%' },
-            { name: 'Average Claim Value', value: formatCurrency(completedClaims > 0 ? totalApprovedAmount / completedClaims : 0) },
-            { name: 'Processing Efficiency', value: `${avgProcessingDays.toFixed(1)} days` },
-          ],
-        };
-
-        // Generate PDF
-        const pdfBuffer = await generatePDFBuffer(reportData, 'Executive Report');
-
-        const totalTime = Date.now() - startTime;
-        console.log(`[Reports] Executive Report generated in ${totalTime}ms (DB: ${dbTime}ms, PDF: ${totalTime - dbTime}ms)`);
-
-        return {
-          success: true,
-          pdfBuffer: pdfBuffer.toString('base64'),
-          metadata: {
-            reportType: 'executive',
-            generatedAt: new Date().toISOString(),
-            tenantId,
-            totalClaims,
-            dbQueryTime: dbTime,
-            totalGenerationTime: totalTime,
-          },
-        };
-      } catch (error) {
-        console.error('[Reports] Executive Report generation failed:', error);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to generate Executive Report',
-          cause: error,
-        });
-      }
+      requireReportTenant(ctx.user.tenantId, input.tenantId);
+      throwP0B1FraudDecisionHold();
     }),
 
   /**

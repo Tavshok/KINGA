@@ -41,6 +41,17 @@ const rejectRestrictedAgencyAssistedIdentity = t.middleware(async opts => {
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
 
+/**
+ * Narrow, route-specific authority seam for the terminal executive fraud-report hold.
+ *
+ * This intentionally authenticates without applying the global restricted-agency
+ * preemption, so `reports.generateExecutiveReport` can enforce its approved
+ * role -> report_access -> tenant -> canonical-hold sequence itself. Do not use
+ * this procedure for other routes; `protectedProcedure` remains the default
+ * fail-closed boundary everywhere else.
+ */
+export const executiveReportAuthorityProcedure = t.procedure.use(requireUser);
+
 export const protectedProcedure = t.procedure
   .use(requireUser)
   .use(rejectRestrictedAgencyAssistedIdentity);

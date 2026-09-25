@@ -82,7 +82,7 @@ describe("P0-B1 independent bypass hardening", () => {
     expect(dashboard).toContain("P0FraudValidationHold");
   });
 
-  it("withholds active claim-assessment and executive-PDF fraud metrics while preserving actionable guidance", () => {
+  it("withholds active claim-assessment and executive-report fraud metrics through the canonical hold", () => {
     const reports = source("server/reporting/reportDefinitions.ts");
     const claimAssessment = procedureBlock(
       reports,
@@ -92,7 +92,7 @@ describe("P0-B1 independent bypass hardening", () => {
     const pdfRouter = source("server/routers/reports.ts");
     const executive = procedureBlock(
       pdfRouter,
-      "generateExecutiveReport: protectedProcedure",
+      "generateExecutiveReport: executiveReportAuthorityProcedure",
       "generateFinancialSummary: protectedProcedure"
     );
 
@@ -100,9 +100,10 @@ describe("P0-B1 independent bypass hardening", () => {
     expect(claimAssessment).not.toContain("scoreCell(fraudScore");
     expect(claimAssessment).not.toContain("fraud_risk_level");
     expect(claimAssessment).not.toContain("quoteSimilarity");
-    expect(executive).toContain(
-      "fraudDecisionNotice: buildP0B1FraudAbstentionText()"
-    );
+    expect(executive).toContain("throwP0B1FraudDecisionHold();");
+    expect(executive).not.toContain("fraudDecisionNotice");
+    expect(executive).not.toContain("generatePDFBuffer(");
+    expect(executive).not.toContain("getDb()");
     expect(executive).not.toContain("fraudDetected");
     expect(executive).not.toContain("fraudDetectionRate");
   });
