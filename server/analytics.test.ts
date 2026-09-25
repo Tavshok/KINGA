@@ -39,7 +39,7 @@ describe("Analytics Endpoints", () => {
       await expect(caller.analytics.getKPIs({})).rejects.toMatchObject({
         code: "PRECONDITION_FAILED",
         message: expect.stringContaining(
-          "Automated fraud analytics are withheld"
+          "Automated fraud scoring, risk classification, routing, certification, and publication are withheld because current evidence has no qualified governing authority"
         ),
       });
     });
@@ -54,7 +54,7 @@ describe("Analytics Endpoints", () => {
       ).rejects.toMatchObject({
         code: "PRECONDITION_FAILED",
         message: expect.stringContaining(
-          "Automated fraud analytics are withheld"
+          "Automated fraud scoring, risk classification, routing, certification, and publication are withheld because current evidence has no qualified governing authority"
         ),
       });
     });

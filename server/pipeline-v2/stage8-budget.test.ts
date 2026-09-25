@@ -9,7 +9,7 @@
  *   1. The registry reports 180s for stage "8_fraud"
  *   2. The budget is sufficient for a 15-photo claim (worst case ~135s)
  *   3. The entity connection timeout is set to 5000ms
- *   4. The fallback comment now correctly says "medium risk" (not "low risk")
+ *   4. The fallback withholds fraud score and level and retains manual-review evidence
  */
 
 import { describe, it, expect } from "vitest";
@@ -60,11 +60,18 @@ describe("R-D-01: Stage 8 budget fix", () => {
     expect(budget).toBeGreaterThanOrEqual(worstCaseMs);
   });
 
-  it("Stage 8 fallback description no longer incorrectly says 'low risk'", () => {
+  it("Stage 8 fallback description withholds score and level and retains actionable manual-review evidence", () => {
     const contract = STAGE_CONTRACTS["8_fraud"];
     expect(contract.fallbackBehaviour).not.toContain("low risk");
-    // Score 30 maps to "medium" on the scoreToLevel scale (25-44 = medium)
-    expect(contract.fallbackBehaviour).toContain("medium risk");
+    expect(contract.fallbackBehaviour).toContain(
+      "Fraud score and level remain unavailable"
+    );
+    expect(contract.fallbackBehaviour).toContain(
+      "actionable manual-review evidence"
+    );
+    expect(contract.fallbackBehaviour).not.toMatch(
+      /\b(low|medium|high)\s+risk\b/i
+    );
   });
 
   it("Stage 8 budget equals Stage 7 budget (both use TIMEOUT_MULTI_LLM_MS)", () => {
@@ -102,7 +109,9 @@ describe("R-D-03: entityRegistry connection timeout fix", () => {
     const source = fs.readFileSync(filePath, "utf-8");
 
     // Verify the old string form is gone
-    const oldForm = source.match(/createConnection\(process\.env\.DATABASE_URL!/g);
+    const oldForm = source.match(
+      /createConnection\(process\.env\.DATABASE_URL!/g
+    );
     expect(oldForm).toBeNull();
 
     // Verify the new object form is present

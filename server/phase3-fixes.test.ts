@@ -39,7 +39,6 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Phase 3A: Input Fidelity Engine (IFE)", () => {
-
   it("returns 100% completeness when all critical fields are present", () => {
     const input: IFEInput = {
       extractedFields: {
@@ -82,10 +81,10 @@ describe("Phase 3A: Input Fidelity Engine (IFE)", () => {
         incidentDate: "2025-02-10",
         incidentDescription: "Single vehicle rollover",
         repairQuoteTotal: 120000,
-        agreedCost: null,       // Missing
-        policyNumber: null,     // Missing — insurer gap
-        insuredValue: null,     // Missing — insurer gap
-        excess: null,           // Missing — insurer gap
+        agreedCost: null, // Missing
+        policyNumber: null, // Missing — insurer gap
+        insuredValue: null, // Missing — insurer gap
+        excess: null, // Missing — insurer gap
         driverLicence: "DL-789",
       },
       extractionConfidence: 0.85,
@@ -96,23 +95,29 @@ describe("Phase 3A: Input Fidelity Engine (IFE)", () => {
     const result = computeIFE(input);
 
     // insuredValue and excess should be INSURER_DATA_GAP
-    const insurerGaps = result.attributedGaps.filter(g => g.attribution === "INSURER_DATA_GAP");
+    const insurerGaps = result.attributedGaps.filter(
+      g => g.attribution === "INSURER_DATA_GAP"
+    );
     expect(insurerGaps.length).toBeGreaterThanOrEqual(1);
 
     // insuredValue is in INSURER_POLICY_FIELDS
-    const insuredValueGap = result.attributedGaps.find(g => g.field === "insuredValue");
+    const insuredValueGap = result.attributedGaps.find(
+      g => g.field === "insuredValue"
+    );
     expect(insuredValueGap?.attribution).toBe("INSURER_DATA_GAP");
 
     // Attribution breakdown should include INSURER_DATA_GAP
-    expect(result.attributionBreakdown.INSURER_DATA_GAP).toBeGreaterThanOrEqual(1);
+    expect(result.attributionBreakdown.INSURER_DATA_GAP).toBeGreaterThanOrEqual(
+      1
+    );
   });
 
   it("attributes missing fields to SYSTEM_EXTRACTION_FAILURE when extraction confidence is high", () => {
     const input: IFEInput = {
       extractedFields: {
         claimantName: "Bob Moyo",
-        vehicleMake: null,      // Missing despite high confidence
-        vehicleModel: null,     // Missing despite high confidence
+        vehicleMake: null, // Missing despite high confidence
+        vehicleModel: null, // Missing despite high confidence
         vehicleYear: 2021,
         vehicleRegistration: "DEF 789 ZW",
         incidentDate: "2025-03-01",
@@ -131,7 +136,9 @@ describe("Phase 3A: Input Fidelity Engine (IFE)", () => {
 
     const result = computeIFE(input);
 
-    const vehicleMakeGap = result.attributedGaps.find(g => g.field === "vehicleMake");
+    const vehicleMakeGap = result.attributedGaps.find(
+      g => g.field === "vehicleMake"
+    );
     expect(vehicleMakeGap?.attribution).toBe("SYSTEM_EXTRACTION_FAILURE");
 
     // System failures should have non-zero FCDI adjustment
@@ -151,10 +158,10 @@ describe("Phase 3A: Input Fidelity Engine (IFE)", () => {
         incidentDescription: "Sideswipe collision",
         repairQuoteTotal: 95000,
         agreedCost: 95000,
-        policyNumber: null,     // In INSURER_POLICY_FIELDS → INSURER_DATA_GAP (more precise)
-        insuredValue: null,     // In INSURER_POLICY_FIELDS → INSURER_DATA_GAP
-        excess: null,           // In INSURER_POLICY_FIELDS → INSURER_DATA_GAP
-        driverLicence: null,    // documentLimited=true + repair_quote → DOCUMENT_LIMITATION
+        policyNumber: null, // In INSURER_POLICY_FIELDS → INSURER_DATA_GAP (more precise)
+        insuredValue: null, // In INSURER_POLICY_FIELDS → INSURER_DATA_GAP
+        excess: null, // In INSURER_POLICY_FIELDS → INSURER_DATA_GAP
+        driverLicence: null, // documentLimited=true + repair_quote → DOCUMENT_LIMITATION
       },
       extractionConfidence: 0.75,
       primaryDocumentType: "repair_quote", // Repair quotes don't have policy/driver fields
@@ -165,12 +172,16 @@ describe("Phase 3A: Input Fidelity Engine (IFE)", () => {
 
     // policyNumber is in INSURER_POLICY_FIELDS → INSURER_DATA_GAP takes priority
     // (more precise: the insurer's policy record is incomplete, not a doc limitation)
-    const policyGap = result.attributedGaps.find(g => g.field === "policyNumber");
+    const policyGap = result.attributedGaps.find(
+      g => g.field === "policyNumber"
+    );
     expect(policyGap?.attribution).toBe("INSURER_DATA_GAP");
 
     // driverLicence is documentLimited=true AND document is repair_quote → DOCUMENT_LIMITATION
     // (repair quotes structurally don't contain driver licence numbers)
-    const driverGap = result.attributedGaps.find(g => g.field === "driverLicence");
+    const driverGap = result.attributedGaps.find(
+      g => g.field === "driverLicence"
+    );
     expect(driverGap?.attribution).toBe("DOCUMENT_LIMITATION");
     // Document limitations don't affect FCDI
     expect(driverGap?.affectsFCDI).toBe(false);
@@ -203,7 +214,9 @@ describe("Phase 3A: Input Fidelity Engine (IFE)", () => {
     expect(result.completenessScore).toBeLessThan(55);
     expect(result.doeEligible).toBe(false);
     expect(result.doeIneligibilityReason).not.toBeNull();
-    expect(result.doeIneligibilityReason).toContain("below the minimum threshold");
+    expect(result.doeIneligibilityReason).toContain(
+      "below the minimum threshold"
+    );
   });
 
   it("attribution breakdown sums to total gap count", () => {
@@ -230,7 +243,10 @@ describe("Phase 3A: Input Fidelity Engine (IFE)", () => {
 
     const result = computeIFE(input);
 
-    const total = Object.values(result.attributionBreakdown).reduce((a, b) => a + b, 0);
+    const total = Object.values(result.attributionBreakdown).reduce(
+      (a, b) => a + b,
+      0
+    );
     expect(total).toBe(result.gapCount);
   });
 });
@@ -240,7 +256,6 @@ describe("Phase 3A: Input Fidelity Engine (IFE)", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Phase 3A: Image Quality Assessment", () => {
-
   it("scores a high-quality damage photo as usable", () => {
     const result = assessImageQuality("img-001", {
       width: 1920,
@@ -310,7 +325,6 @@ describe("Phase 3A: Image Quality Assessment", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Phase 3B: FEL Version Registry", () => {
-
   it("hashContent produces consistent deterministic hashes", () => {
     const obj = { claimId: 42, vehicleMake: "Toyota", cost: 85000 };
     const hash1 = hashContent(obj);
@@ -326,7 +340,8 @@ describe("Phase 3B: FEL Version Registry", () => {
   });
 
   it("hashPrompt produces consistent hash from prompt string", () => {
-    const prompt = "You are a forensic claims assessor. Extract the vehicle details.";
+    const prompt =
+      "You are a forensic claims assessor. Extract the vehicle details.";
     const h1 = hashPrompt(prompt);
     const h2 = hashPrompt(prompt);
     expect(h1).toBe(h2);
@@ -397,7 +412,11 @@ describe("Phase 3B: FEL Version Registry", () => {
       })
     );
 
-    const felSnapshot = buildFELVersionSnapshot(42, "2025-01-01T00:00:00Z", stageVersions);
+    const felSnapshot = buildFELVersionSnapshot(
+      42,
+      "2025-01-01T00:00:00Z",
+      stageVersions
+    );
 
     expect(felSnapshot.replaySupported).toBe(true);
     expect(felSnapshot.platformVersion).toBe(KINGA_PLATFORM_VERSION);
@@ -417,7 +436,11 @@ describe("Phase 3B: FEL Version Registry", () => {
       }),
     ];
 
-    const felSnapshot = buildFELVersionSnapshot(42, "2025-01-01T00:00:00Z", stageVersions);
+    const felSnapshot = buildFELVersionSnapshot(
+      42,
+      "2025-01-01T00:00:00Z",
+      stageVersions
+    );
 
     expect(felSnapshot.replaySupported).toBe(false);
     expect(felSnapshot.replayLimitation).toContain("missing prompt hash");
@@ -445,7 +468,7 @@ describe("Phase 3B: FEL Version Registry", () => {
         finalPipelineState: "REPORTED",
         stageRecords: [],
       },
-      stageVersions,
+      stageVersions
     );
 
     expect(record.versionSnapshot).toBeDefined();
@@ -459,7 +482,6 @@ describe("Phase 3B: FEL Version Registry", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Phase 3C: Decision Optimisation Engine (DOE)", () => {
-
   const goodCandidates: DOECandidate[] = [
     {
       panelBeater: "Alpha Auto Body",
@@ -478,16 +500,16 @@ describe("Phase 3C: Decision Optimisation Engine (DOE)", () => {
       totalCost: 78000,
       currency: "ZWL",
       structuralCompleteness: 0.85,
-      coverageRatio: 0.80,
+      coverageRatio: 0.8,
       turnaroundDays: 10,
-      reliabilityScore: 0.70,
+      reliabilityScore: 0.7,
       fraudRisk: "minimal",
       fraudSignal: null,
       confidence: "medium",
     },
   ];
 
-  it("returns OPTIMISED status with a selected panel beater for valid input", () => {
+  it("holds valid-looking inputs until qualified fraud evidence authorizes DOE", () => {
     const input: DOEInput = {
       candidates: goodCandidates,
       benchmarkCost: 82000,
@@ -499,19 +521,26 @@ describe("Phase 3C: Decision Optimisation Engine (DOE)", () => {
 
     const result = runDOE(input);
 
-    expect(result.status).toBe("OPTIMISED");
-    expect(result.selectedPanelBeater).not.toBeNull();
-    expect(result.selectedCost).toBeGreaterThan(0);
-    expect(result.decisionConfidence).toMatch(/^(high|medium|low)$/);
-    expect(result.scoreBreakdown).toHaveLength(2);
-    expect(result.disqualifications).toHaveLength(0);
+    expect(result).toMatchObject({
+      status: "GATED_FRAUD_EVIDENCE",
+      selectedPanelBeater: null,
+      selectedCost: null,
+      currency: null,
+      benchmarkDeviationPct: null,
+      qualityScore: null,
+      fraudRisk: null,
+      decisionConfidence: "low",
+    });
+    expect(result.scoreBreakdown).toEqual([]);
+    expect(result.disqualifications).toEqual([]);
+    expect(result.rationale).toMatch(/qualified fraud evidence|manual review/i);
   });
 
-  it("returns GATED_LOW_FCDI when FCDI score is below 40", () => {
+  it("holds low-FCDI inputs for fraud evidence before evaluating FCDI", () => {
     const input: DOEInput = {
       candidates: goodCandidates,
       benchmarkCost: 82000,
-      fcdiScore: 35, // Below 40 threshold
+      fcdiScore: 35,
       inputCompletenessScore: 85,
       doeEligible: true,
       doeIneligibilityReason: null,
@@ -519,41 +548,62 @@ describe("Phase 3C: Decision Optimisation Engine (DOE)", () => {
 
     const result = runDOE(input);
 
-    expect(result.status).toBe("GATED_LOW_FCDI");
-    expect(result.selectedPanelBeater).toBeNull();
-    expect(result.rationale).toContain("Forensic Confidence Degradation Index");
-    expect(result.rationale).toContain("35%");
+    expect(result).toMatchObject({
+      status: "GATED_FRAUD_EVIDENCE",
+      selectedPanelBeater: null,
+      selectedCost: null,
+      currency: null,
+      benchmarkDeviationPct: null,
+      qualityScore: null,
+      fraudRisk: null,
+      decisionConfidence: "low",
+    });
+    expect(result.scoreBreakdown).toEqual([]);
+    expect(result.disqualifications).toEqual([]);
+    expect(result.rationale).toMatch(/qualified fraud evidence|manual review/i);
   });
 
-  it("returns GATED_LOW_INPUT when input completeness is below 55%", () => {
+  it("holds low-completeness inputs for fraud evidence before evaluating completeness", () => {
     const input: DOEInput = {
       candidates: goodCandidates,
       benchmarkCost: 82000,
       fcdiScore: 75,
-      inputCompletenessScore: 45, // Below 55 threshold
+      inputCompletenessScore: 45,
       doeEligible: false,
-      doeIneligibilityReason: "Input completeness score (45%) is below the minimum threshold (55%).",
+      doeIneligibilityReason:
+        "Input completeness score (45%) is below the minimum threshold (55%).",
     };
 
     const result = runDOE(input);
 
-    expect(result.status).toBe("GATED_LOW_INPUT");
-    expect(result.selectedPanelBeater).toBeNull();
-    expect(result.rationale).toContain("completeness");
+    expect(result).toMatchObject({
+      status: "GATED_FRAUD_EVIDENCE",
+      selectedPanelBeater: null,
+      selectedCost: null,
+      currency: null,
+      benchmarkDeviationPct: null,
+      qualityScore: null,
+      fraudRisk: null,
+      decisionConfidence: "low",
+    });
+    expect(result.scoreBreakdown).toEqual([]);
+    expect(result.disqualifications).toEqual([]);
+    expect(result.rationale).toMatch(/qualified fraud evidence|manual review/i);
   });
 
-  it("disqualifies high-fraud-risk candidates and records audit trail", () => {
+  it("holds candidate fraud signals for manual review before scoring repairers", () => {
     const candidatesWithFraud: DOECandidate[] = [
       {
         panelBeater: "Dodgy Repairs Ltd",
-        totalCost: 50000, // Suspiciously cheap
+        totalCost: 50000,
         currency: "ZWL",
         structuralCompleteness: 0.6,
         coverageRatio: 0.5,
         turnaroundDays: 3,
         reliabilityScore: 0.3,
         fraudRisk: "high",
-        fraudSignal: "Quote is 45% below market benchmark; panel beater has 3 prior fraud flags",
+        fraudSignal:
+          "Quote is 45% below market benchmark; panel beater has 3 prior fraud flags",
         confidence: "low",
       },
       {
@@ -561,37 +611,40 @@ describe("Phase 3C: Decision Optimisation Engine (DOE)", () => {
         totalCost: 88000,
         currency: "ZWL",
         structuralCompleteness: 0.95,
-        coverageRatio: 0.90,
+        coverageRatio: 0.9,
         turnaroundDays: 8,
-        reliabilityScore: 0.80,
+        reliabilityScore: 0.8,
         fraudRisk: "low",
         fraudSignal: null,
         confidence: "high",
       },
     ];
 
-    const input: DOEInput = {
+    const result = runDOE({
       candidates: candidatesWithFraud,
       benchmarkCost: 85000,
       fcdiScore: 78,
       inputCompletenessScore: 80,
       doeEligible: true,
       doeIneligibilityReason: null,
-    };
+    });
 
-    const result = runDOE(input);
-
-    expect(result.status).toBe("OPTIMISED");
-    expect(result.selectedPanelBeater).toBe("Honest Panel Works");
-    expect(result.disqualifications).toHaveLength(1);
-    expect(result.disqualifications[0].panelBeater).toBe("Dodgy Repairs Ltd");
-    expect(result.disqualifications[0].triggeringSignal).toContain("45% below market benchmark");
-    // Rationale must mention the disqualification
-    expect(result.rationale).toContain("disqualified");
-    expect(result.rationale).toContain("Dodgy Repairs Ltd");
+    expect(result).toMatchObject({
+      status: "GATED_FRAUD_EVIDENCE",
+      selectedPanelBeater: null,
+      selectedCost: null,
+      currency: null,
+      benchmarkDeviationPct: null,
+      qualityScore: null,
+      fraudRisk: null,
+      decisionConfidence: "low",
+    });
+    expect(result.scoreBreakdown).toEqual([]);
+    expect(result.disqualifications).toEqual([]);
+    expect(result.rationale).toMatch(/qualified fraud evidence|manual review/i);
   });
 
-  it("returns ALL_DISQUALIFIED when every candidate has high/elevated fraud risk", () => {
+  it("holds all high-risk candidate inputs without publishing a fraud disposition", () => {
     const allFraudCandidates: DOECandidate[] = [
       {
         panelBeater: "Fraud A",
@@ -619,24 +672,31 @@ describe("Phase 3C: Decision Optimisation Engine (DOE)", () => {
       },
     ];
 
-    const input: DOEInput = {
+    const result = runDOE({
       candidates: allFraudCandidates,
       benchmarkCost: 85000,
       fcdiScore: 75,
       inputCompletenessScore: 80,
       doeEligible: true,
       doeIneligibilityReason: null,
-    };
+    });
 
-    const result = runDOE(input);
-
-    expect(result.status).toBe("ALL_DISQUALIFIED");
-    expect(result.selectedPanelBeater).toBeNull();
-    expect(result.disqualifications).toHaveLength(2);
-    expect(result.rationale).toContain("Manual assessor review");
+    expect(result).toMatchObject({
+      status: "GATED_FRAUD_EVIDENCE",
+      selectedPanelBeater: null,
+      selectedCost: null,
+      currency: null,
+      benchmarkDeviationPct: null,
+      qualityScore: null,
+      fraudRisk: null,
+      decisionConfidence: "low",
+    });
+    expect(result.scoreBreakdown).toEqual([]);
+    expect(result.disqualifications).toEqual([]);
+    expect(result.rationale).toMatch(/qualified fraud evidence|manual review/i);
   });
 
-  it("returns GATED_NO_QUOTES when candidates array is empty", () => {
+  it("holds empty quote inputs for fraud evidence before evaluating quote availability", () => {
     const input: DOEInput = {
       candidates: [],
       benchmarkCost: null,
@@ -648,15 +708,26 @@ describe("Phase 3C: Decision Optimisation Engine (DOE)", () => {
 
     const result = runDOE(input);
 
-    expect(result.status).toBe("GATED_NO_QUOTES");
-    expect(result.selectedPanelBeater).toBeNull();
+    expect(result).toMatchObject({
+      status: "GATED_FRAUD_EVIDENCE",
+      selectedPanelBeater: null,
+      selectedCost: null,
+      currency: null,
+      benchmarkDeviationPct: null,
+      qualityScore: null,
+      fraudRisk: null,
+      decisionConfidence: "low",
+    });
+    expect(result.scoreBreakdown).toEqual([]);
+    expect(result.disqualifications).toEqual([]);
+    expect(result.rationale).toMatch(/qualified fraud evidence|manual review/i);
   });
 
-  it("computes benchmark deviation correctly", () => {
+  it("withholds benchmark deviation until qualified fraud evidence authorizes DOE", () => {
     const candidates: DOECandidate[] = [
       {
         panelBeater: "Below Benchmark",
-        totalCost: 73000, // 12% below 83000 benchmark
+        totalCost: 73000,
         currency: "ZWL",
         structuralCompleteness: 1.0,
         coverageRatio: 1.0,
@@ -668,21 +739,28 @@ describe("Phase 3C: Decision Optimisation Engine (DOE)", () => {
       },
     ];
 
-    const input: DOEInput = {
+    const result = runDOE({
       candidates,
       benchmarkCost: 83000,
       fcdiScore: 85,
       inputCompletenessScore: 90,
       doeEligible: true,
       doeIneligibilityReason: null,
-    };
+    });
 
-    const result = runDOE(input);
-
-    expect(result.status).toBe("OPTIMISED");
-    expect(result.benchmarkDeviationPct).not.toBeNull();
-    // 73000 vs 83000 = -12.0%
-    expect(result.benchmarkDeviationPct).toBeCloseTo(-12.0, 0);
+    expect(result).toMatchObject({
+      status: "GATED_FRAUD_EVIDENCE",
+      selectedPanelBeater: null,
+      selectedCost: null,
+      currency: null,
+      benchmarkDeviationPct: null,
+      qualityScore: null,
+      fraudRisk: null,
+      decisionConfidence: "low",
+    });
+    expect(result.scoreBreakdown).toEqual([]);
+    expect(result.disqualifications).toEqual([]);
+    expect(result.rationale).toMatch(/qualified fraud evidence|manual review/i);
   });
 
   it("score breakdown sums correctly for multi-candidate evaluation", () => {
@@ -720,7 +798,7 @@ describe("Phase 3C: Decision Optimisation Engine (DOE)", () => {
         {
           panel_beater: "Beta Works",
           total_cost: 78000,
-          coverage_ratio: 0.80,
+          coverage_ratio: 0.8,
           structurally_complete: false,
           structural_gaps: ["front_bumper"],
           confidence: "medium",

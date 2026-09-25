@@ -7,13 +7,20 @@ vi.mock("mysql2/promise", () => ({
   default: { createConnection: vi.fn(async () => ({ execute, end })) },
 }));
 vi.mock("./evidenceGovernancePresentation", () => ({
-  loadEvidenceGovernanceReportData: vi.fn(async () => ({ findings: [], summary: null })),
+  loadEvidenceGovernanceReportData: vi.fn(async () => ({
+    findings: [],
+    summary: null,
+  })),
   renderEvidenceGovernancePanel: vi.fn(() => ""),
 }));
 
 const { generateReportHtml } = await import("./reportDefinitions");
-const { generateClaimsIntelligenceReport } = await import("./claimsIntelligenceReport");
-const { generateForensicDecisionReport } = await import("./forensicDecisionReport");
+const { generateClaimsIntelligenceReport } = await import(
+  "./claimsIntelligenceReport"
+);
+const { generateForensicDecisionReport } = await import(
+  "./forensicDecisionReport"
+);
 
 const tenantId = "tenant-report-consistency";
 const claimId = 990071;
@@ -45,7 +52,15 @@ const claim = {
   recommendation: "REVIEW",
   confidence_score: 90,
   model_version: "tier-consistency-test",
-  cost_intelligence_json: JSON.stringify({ compositeOptimisation: { isComplete: false, l2Status: "incomplete_scope", quoteReceiptStatus: "no_quotes", quoteScopeStatus: "incomplete_scope", canonicalQuoteLedger: [] } }),
+  cost_intelligence_json: JSON.stringify({
+    compositeOptimisation: {
+      isComplete: false,
+      l2Status: "incomplete_scope",
+      quoteReceiptStatus: "no_quotes",
+      quoteScopeStatus: "incomplete_scope",
+      canonicalQuoteLedger: [],
+    },
+  }),
   repair_intelligence_json: "{}",
   fraud_score_breakdown_json: "{}",
   physics_analysis: "{}",
@@ -63,15 +78,23 @@ const claim = {
 
 function extractSharedFields(html: string) {
   const fraud =
-    html.match(/Fraud (?:Score|Risk)[\s\S]{0,300}?class="value">(\d{1,3})/i)?.[1] ??
-    html.match(/font-family:monospace">(\d{1,3})<\/div>\s*<div[^>]*>Fraud Score<\/div>/i)?.[1];
-  const market = html.includes(shared.marketValue) ? shared.marketValue : undefined;
+    html.match(
+      /Fraud (?:Score|Risk)[\s\S]{0,300}?class="value">(\d{1,3})/i
+    )?.[1] ??
+    html.match(
+      /font-family:monospace">(\d{1,3})<\/div>\s*<div[^>]*>Fraud Score<\/div>/i
+    )?.[1];
+  const market = html.includes(shared.marketValue)
+    ? shared.marketValue
+    : undefined;
   const decision = html.match(/\b(REVIEW)\b/i)?.[1]?.toUpperCase();
   return { decision, fraud, market };
 }
 
 function extractCostState(html: string) {
-  return html.match(/<table class="kv cost-evidence-state"><tbody>[\s\S]*?<\/table>/)?.[0];
+  return html.match(
+    /<table class="kv cost-evidence-state"><tbody>[\s\S]*?<\/table>/
+  )?.[0];
 }
 
 describe("report tier shared-field consistency", () => {
@@ -80,13 +103,14 @@ describe("report tier shared-field consistency", () => {
     end.mockReset();
     execute.mockImplementation(async (query: string) => {
       if (query.includes("FROM claims c")) return [[claim], undefined];
-      if (query.includes("FROM ai_assessments a WHERE a.claim_id")) return [[{ damaged_components_json: "[]" }], undefined];
+      if (query.includes("FROM ai_assessments a WHERE a.claim_id"))
+        return [[{ damaged_components_json: "[]" }], undefined];
       if (query.includes("FROM panel_beater_quotes q")) return [[], undefined];
       return [[], undefined];
     });
   });
 
-  it("keeps shared decision and market evidence while Claim Assessment withholds fraud publication", async () => {
+  it("keeps shared decision and market evidence while every tier withholds fraud publication", async () => {
     const outputs = await Promise.all([
       generateReportHtml("claim.assessment", { claimId }, tenantId),
       generateClaimsIntelligenceReport(claimId, tenantId),
@@ -94,11 +118,27 @@ describe("report tier shared-field consistency", () => {
     ]);
 
     const actual = outputs.map(extractSharedFields);
-    expect(actual[0]).toEqual({ decision: shared.decisionStatus, fraud: undefined, market: shared.marketValue });
-    expect(actual[1]).toEqual({ decision: shared.decisionStatus, fraud: "57", market: shared.marketValue });
-    expect(actual[2]).toEqual({ decision: shared.decisionStatus, fraud: "57", market: shared.marketValue });
-    expect(outputs[0]).toContain('data-p0-fraud-decision="withheld"');
-    expect(outputs[0]).not.toContain("Fraud Score");
+    expect(actual[0]).toEqual({
+      decision: shared.decisionStatus,
+      fraud: undefined,
+      market: shared.marketValue,
+    });
+    expect(actual[1]).toEqual({
+      decision: shared.decisionStatus,
+      fraud: undefined,
+      market: shared.marketValue,
+    });
+    expect(actual[2]).toEqual({
+      decision: shared.decisionStatus,
+      fraud: undefined,
+      market: shared.marketValue,
+    });
+    for (const output of outputs) {
+      expect(output).toContain('data-p0-fraud-decision="withheld"');
+      expect(output).not.toContain("Fraud Score");
+      expect(output).not.toContain("Fraud Risk");
+      expect(extractSharedFields(output).fraud).toBeUndefined();
+    }
     // Claim Assessment and Claims Intelligence each resolve one canonical
     // report record. The Forensic tier resolves its own ForensicReportModel
     // connection in addition to its canonical report record: four scoped
@@ -107,18 +147,64 @@ describe("report tier shared-field consistency", () => {
   });
 
   it.each([
-    ["unavailable", { isComplete: false, l2Status: "incomplete_scope", canonicalQuoteLedger: [] }, "Unavailable — active comparison evidence is incomplete"],
-    ["partial evidence", { isComplete: false, l2Status: "evidence_qualified", l2EvidenceQualifiedComparisonUsd: 90, canonicalQuoteLedger: [{ panelBeater: "Repairer A", totalCostUsd: 100, currency: "USD", status: "active" }] }, "Partial evidence comparison"],
-    ["final L2", { isComplete: true, l2Status: "complete", l1LowestSubmittedCostUsd: 100, l2CompositeOptimisedCostUsd: 90, canonicalQuoteLedger: [{ panelBeater: "Repairer A", totalCostUsd: 100, currency: "USD", status: "active" }] }, "Final L2"],
-  ])("renders an identical canonical cost state across all tiers: %s", async (_name, composite, expected) => {
-    claim.cost_intelligence_json = JSON.stringify({ compositeOptimisation: composite });
-    const outputs = await Promise.all([
-      generateReportHtml("claim.assessment", { claimId }, tenantId),
-      generateClaimsIntelligenceReport(claimId, tenantId),
-      generateForensicDecisionReport(claimId, tenantId),
-    ]);
-    const states = outputs.map(extractCostState);
-    expect(states.every((state) => state === states[0])).toBe(true);
-    expect(states[0]).toContain(expected);
-  });
+    [
+      "unavailable",
+      {
+        isComplete: false,
+        l2Status: "incomplete_scope",
+        canonicalQuoteLedger: [],
+      },
+      "Unavailable — active comparison evidence is incomplete",
+    ],
+    [
+      "partial evidence",
+      {
+        isComplete: false,
+        l2Status: "evidence_qualified",
+        l2EvidenceQualifiedComparisonUsd: 90,
+        canonicalQuoteLedger: [
+          {
+            panelBeater: "Repairer A",
+            totalCostUsd: 100,
+            currency: "USD",
+            status: "active",
+          },
+        ],
+      },
+      "Partial evidence comparison",
+    ],
+    [
+      "final L2",
+      {
+        isComplete: true,
+        l2Status: "complete",
+        l1LowestSubmittedCostUsd: 100,
+        l2CompositeOptimisedCostUsd: 90,
+        canonicalQuoteLedger: [
+          {
+            panelBeater: "Repairer A",
+            totalCostUsd: 100,
+            currency: "USD",
+            status: "active",
+          },
+        ],
+      },
+      "Final L2",
+    ],
+  ])(
+    "renders an identical canonical cost state across all tiers: %s",
+    async (_name, composite, expected) => {
+      claim.cost_intelligence_json = JSON.stringify({
+        compositeOptimisation: composite,
+      });
+      const outputs = await Promise.all([
+        generateReportHtml("claim.assessment", { claimId }, tenantId),
+        generateClaimsIntelligenceReport(claimId, tenantId),
+        generateForensicDecisionReport(claimId, tenantId),
+      ]);
+      const states = outputs.map(extractCostState);
+      expect(states.every(state => state === states[0])).toBe(true);
+      expect(states[0]).toContain(expected);
+    }
+  );
 });

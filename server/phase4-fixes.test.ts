@@ -12,7 +12,10 @@ import { describe, it, expect } from "vitest";
 // ─── Phase 4A: IFE → DOE integration ─────────────────────────────────────────
 
 import { computeIFE } from "./pipeline-v2/inputFidelityEngine";
-import { buildDOECandidates, runDOE } from "./pipeline-v2/decisionOptimisationEngine";
+import {
+  buildDOECandidates,
+  runDOE,
+} from "./pipeline-v2/decisionOptimisationEngine";
 
 describe("Phase 4A: Stage 9 IFE → DOE wiring", () => {
   const fullFields = {
@@ -75,14 +78,16 @@ describe("Phase 4A: Stage 9 IFE → DOE wiring", () => {
     const costInUsd = zarQuoteCost / exchangeRateZarToUsd; // ~3513 USD
 
     const candidates = buildDOECandidates({
-      selectedQuotes: [{
-        panel_beater: "SA Panel Shop",
-        total_cost: costInUsd,
-        coverage_ratio: 0.95,
-        structurally_complete: true,
-        structural_gaps: [],
-        confidence: "high",
-      }],
+      selectedQuotes: [
+        {
+          panel_beater: "SA Panel Shop",
+          total_cost: costInUsd,
+          coverage_ratio: 0.95,
+          structurally_complete: true,
+          structural_gaps: [],
+          confidence: "high",
+        },
+      ],
       excludedQuotes: [],
       currency: "USD",
       overallFraudRisk: "low",
@@ -96,14 +101,13 @@ describe("Phase 4A: Stage 9 IFE → DOE wiring", () => {
     expect(candidates[0].currency).toBe("USD");
   });
 
-  it("DOE selects best candidate and returns structured result", () => {
+  it("DOE holds candidate selection until qualified fraud evidence exists", () => {
     const ife = computeIFE({
       extractedFields: fullFields,
       extractionConfidence: 0.85,
       primaryDocumentType: "repair_quote",
       documentHasOtherFields: true,
     });
-
     const candidates = buildDOECandidates({
       selectedQuotes: [
         {
@@ -114,14 +118,6 @@ describe("Phase 4A: Stage 9 IFE → DOE wiring", () => {
           structural_gaps: [],
           confidence: "high",
         },
-        {
-          panel_beater: "Panel B",
-          total_cost: 4100,
-          coverage_ratio: 0.88,
-          structurally_complete: true,
-          structural_gaps: ["bumper"],
-          confidence: "medium",
-        },
       ],
       excludedQuotes: [],
       currency: "USD",
@@ -129,7 +125,6 @@ describe("Phase 4A: Stage 9 IFE → DOE wiring", () => {
       fraudSignal: null,
       turnaroundDays: null,
     });
-
     const doe = runDOE({
       candidates,
       benchmarkCost: 3500,
@@ -139,45 +134,64 @@ describe("Phase 4A: Stage 9 IFE → DOE wiring", () => {
       doeIneligibilityReason: ife.doeIneligibilityReason,
     });
 
-    expect(doe.status).toBe("OPTIMISED");
-    expect(doe.selectedPanelBeater).toBe("Panel A");
-    expect(["high", "medium", "low"]).toContain(doe.decisionConfidence);
-    expect(doe.rationale).toBeTruthy();
-    expect(doe.scoreBreakdown).toBeDefined();
+    expect(doe).toMatchObject({
+      status: "GATED_FRAUD_EVIDENCE",
+      selectedPanelBeater: null,
+      selectedCost: null,
+      currency: null,
+      benchmarkDeviationPct: null,
+      qualityScore: null,
+      fraudRisk: null,
+      decisionConfidence: "low",
+    });
+    expect(doe.scoreBreakdown).toEqual([]);
+    expect(doe.disqualifications).toEqual([]);
+    expect(doe.rationale).toMatch(/qualified fraud evidence|manual review/i);
   });
 
-  it("DOE returns ineligible status when IFE gate fails", () => {
+  it("DOE holds IFE-ineligible inputs for fraud evidence before evaluating IFE", () => {
     const doe = runDOE({
       candidates: [],
       benchmarkCost: 3500,
-      fcdiScore: 25, // below minimum threshold
+      fcdiScore: 25,
       inputCompletenessScore: 25,
       doeEligible: false,
       doeIneligibilityReason: "FCDI score below minimum threshold",
     });
 
-    expect(["GATED_LOW_FCDI", "GATED_LOW_INPUT", "GATED_NO_QUOTES"]).toContain(doe.status);
-    expect(doe.selectedPanelBeater).toBeNull();
-    expect(doe.rationale).toBeTruthy();
+    expect(doe).toMatchObject({
+      status: "GATED_FRAUD_EVIDENCE",
+      selectedPanelBeater: null,
+      selectedCost: null,
+      currency: null,
+      benchmarkDeviationPct: null,
+      qualityScore: null,
+      fraudRisk: null,
+      decisionConfidence: "low",
+    });
+    expect(doe.scoreBreakdown).toEqual([]);
+    expect(doe.disqualifications).toEqual([]);
+    expect(doe.rationale).toMatch(/qualified fraud evidence|manual review/i);
   });
 
-  it("DOE disqualifies fraud-flagged candidates with audit trail entry", () => {
+  it("DOE holds fraud-flagged candidates for manual review before scoring", () => {
     const candidates = buildDOECandidates({
-      selectedQuotes: [{
-        panel_beater: "Suspicious Panel",
-        total_cost: 8500, // massively over benchmark
-        coverage_ratio: 0.6,
-        structurally_complete: false,
-        structural_gaps: ["frame", "engine", "transmission"],
-        confidence: "low",
-      }],
+      selectedQuotes: [
+        {
+          panel_beater: "Suspicious Panel",
+          total_cost: 8500,
+          coverage_ratio: 0.6,
+          structurally_complete: false,
+          structural_gaps: ["frame", "engine", "transmission"],
+          confidence: "low",
+        },
+      ],
       excludedQuotes: [],
       currency: "USD",
       overallFraudRisk: "high",
       fraudSignal: "quote_inflation",
       turnaroundDays: null,
     });
-
     const doe = runDOE({
       candidates,
       benchmarkCost: 3500,
@@ -187,13 +201,19 @@ describe("Phase 4A: Stage 9 IFE → DOE wiring", () => {
       doeIneligibilityReason: null,
     });
 
-    // With high fraud risk and massively inflated quote, DOE should either
-    // disqualify or produce a low-confidence result with audit trail
-    // With high fraud risk and massively inflated quote, DOE should disqualify or gate
-    expect(["ALL_DISQUALIFIED", "GATED_LOW_FCDI", "GATED_LOW_INPUT", "GATED_NO_QUOTES", "OPTIMISED"]).toContain(doe.status);
-    // DOE always returns disqualifications array (may be empty if gated before scoring)
-    expect(Array.isArray(doe.disqualifications)).toBe(true);
-    expect(doe.rationale).toBeTruthy();
+    expect(doe).toMatchObject({
+      status: "GATED_FRAUD_EVIDENCE",
+      selectedPanelBeater: null,
+      selectedCost: null,
+      currency: null,
+      benchmarkDeviationPct: null,
+      qualityScore: null,
+      fraudRisk: null,
+      decisionConfidence: "low",
+    });
+    expect(doe.scoreBreakdown).toEqual([]);
+    expect(doe.disqualifications).toEqual([]);
+    expect(doe.rationale).toMatch(/qualified fraud evidence|manual review/i);
   });
 });
 
@@ -207,7 +227,10 @@ import {
 } from "./pipeline-v2/felVersionRegistry";
 
 describe("Phase 4B: FEL Version Snapshot builder", () => {
-  const makeSnapshot = (stageId: string, status: "success" | "degraded" = "success") =>
+  const makeSnapshot = (
+    stageId: string,
+    status: "success" | "degraded" = "success"
+  ) =>
     buildStageVersionSnapshot({
       stageId,
       executedAt: "2024-01-15T10:00:00.000Z",
@@ -219,8 +242,14 @@ describe("Phase 4B: FEL Version Snapshot builder", () => {
   it("builds a valid FEL version snapshot with correct platform version", () => {
     // Use non-LLM stages only so replaySupported logic doesn't depend on prompt hashes
     // (replaySupported = true only when ALL LLM stages have prompt hashes)
-    const snapshots = ["stage-1", "stage-3", "stage-4"].map(id => makeSnapshot(id));
-    const fel = buildFELVersionSnapshot(42, "2024-01-15T10:00:00.000Z", snapshots);
+    const snapshots = ["stage-1", "stage-3", "stage-4"].map(id =>
+      makeSnapshot(id)
+    );
+    const fel = buildFELVersionSnapshot(
+      42,
+      "2024-01-15T10:00:00.000Z",
+      snapshots
+    );
 
     expect(fel.platformVersion).toBe(KINGA_PLATFORM_VERSION);
     expect(fel.stages).toHaveLength(3);
@@ -230,7 +259,9 @@ describe("Phase 4B: FEL Version Snapshot builder", () => {
 
   it("each stage snapshot has stageCodeVersion from STAGE_CODE_VERSIONS", () => {
     const snapshot = makeSnapshot("stage-2");
-    expect(snapshot.stageCodeVersion).toBe(STAGE_CODE_VERSIONS["stage-2"] ?? "1.0.0");
+    expect(snapshot.stageCodeVersion).toBe(
+      STAGE_CODE_VERSIONS["stage-2"] ?? "1.0.0"
+    );
   });
 
   it("stage snapshot has non-null inputHash and outputHash for successful stages", () => {
@@ -260,14 +291,24 @@ describe("Phase 4B: FEL Version Snapshot builder", () => {
       outputSnapshot: { text: "extracted" },
       promptTemplate: undefined, // no prompt → promptHash null
     });
-    const fel = buildFELVersionSnapshot(42, "2024-01-15T10:00:00.000Z", [llmSnapshot]);
+    const fel = buildFELVersionSnapshot(42, "2024-01-15T10:00:00.000Z", [
+      llmSnapshot,
+    ]);
     // stage-2 is an LLM stage with no prompt hash → replaySupported = false
     expect(fel.replaySupported).toBe(false);
     expect(fel.replayLimitation).toContain("missing prompt hash records");
   });
 
   it("STAGE_CODE_VERSIONS covers all major pipeline stages", () => {
-    const expectedStages = ["stage-1", "stage-2", "stage-3", "stage-6", "stage-7", "stage-8", "stage-9"];
+    const expectedStages = [
+      "stage-1",
+      "stage-2",
+      "stage-3",
+      "stage-6",
+      "stage-7",
+      "stage-8",
+      "stage-9",
+    ];
     for (const stage of expectedStages) {
       expect(STAGE_CODE_VERSIONS[stage]).toBeDefined();
     }
