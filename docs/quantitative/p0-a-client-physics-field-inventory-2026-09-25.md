@@ -5,6 +5,15 @@
 **Baseline:** branch `claude/kinga-physics-fields-inventory-b1lama` at `45010c9`.
 **Scope:** every `.ts`/`.tsx` file under `client/src`.
 
+## Erratum (added 2026-09-25, after the P0-B1-Client verification)
+
+The reachability test in this document counted any `import` statement as use. A second walk with the TypeScript compiler, which counts an import only when its binding is actually used (method in `p0-b1-client-inventory-verification-2026-09-25.md`), shows that the following files and code are **dead**. They are imported without being rendered or called, or they are never referenced at all:
+
+- **Files:** `ForensicDecisionPanel.tsx`, `ImpactVectorDiagram.tsx`, `IntelligenceEnforcementPanel.tsx`, `Phase3ReportComponents.tsx`, `ClaimDecisionReport.sections.tsx`, and `AdvancedAnalyticsPanel.tsx` (listed in the adjacent-files table).
+- **Code inside `InsurerComparisonView.tsx`:** `PhysicsValidationSection` (lines 1919–2491) is never rendered. That removes the browser crush-depth synthesis (2020–2034), the delta-V injury-risk classification (1945), and the path through `transformPhysicsAnalysisToValidation` (1820–1915) to its approve/review/reject recommendation. `PhysicsConfidenceDashboard` is rendered only from that dead function. `generateComparisonPDF` (`pdfExport.comparison.ts`) is imported but never called.
+
+The live physics findings still stand. They are the `AssessmentResults` fabrications and the `ExecutiveSummary` verdict, the `useVisualDataGuard` → `VehicleImpactVectorDiagram` fallbacks (through `AssessmentResults`), the `ClaimDecisionReport.page` snapshot persistence and `PhysicsAnalysisChart`, `pdfExport.damage`, `KingaClaimsReport`, and the Package C displays that are not listed above. The two cross-cutting findings about invented values and decision drivers should be read with the dead items above removed. The recommendation below overstates the live exposure accordingly.
+
 ## Recommendation
 
 The browser is not covered by P0-A or P0-A-2. No file under `client/src` references the P0 contract, `crush_depth_m` eligibility, or any physics hold or withheld marker. On the server, only the report renderers, `pdf-export.ts`, and `report-narrative-generator.ts` call `redactCollisionPhysics`. No tRPC read path does. Every browser consumer listed below therefore gets raw physics values from `aiAssessment.physicsAnalysis`, `enforcement.physicsEstimate`, `_physics`, or police-report records.
