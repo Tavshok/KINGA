@@ -22,7 +22,6 @@ import {
   getPipelineQueueLength,
 } from "../db";
 import {
-  getAiAssessmentByClaimId,
   getDecisionSnapshots,
   getLatestSnapshotJson,
   getQuoteLineItemsByQuoteId,
@@ -68,6 +67,7 @@ export const aiAssessmentsRouter = router({
       if (!tenantId) {
         throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       }
+      const { getAiAssessmentByClaimId } = await import("../db");
       const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
       if (!assessment) return null;
 
@@ -1561,16 +1561,25 @@ export const aiAssessmentsRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
-      const { getDb, getAiAssessmentByClaimId, createNotification } = await import("../db");
-      const { getUsersByInsurerRoles: _getByRoles } = await import("../db");
-      const { aiAssessments: aiAssessmentsTable } = await import("../../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
-      const { claims: claimsTable } = await import("../../drizzle/schema");
+      if (!isAdminRole(ctx.user.role) && ctx.user.role !== "insurer") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only insurer users or platform administrators can share assessment reports",
+        });
+      }
       const { tenantId } = await requireGovernedTenantClaim(String(input.claimId), ctx.user.tenantId);
+      if (p0B1FraudPolicyActive()) {
+        throwP0B1FraudDecisionHold();
+      }
+      const { getDb, createNotification } = await import("../db");
+      const { getUsersByInsurerRoles: _getByRoles } = await import("../db");
+      const { aiAssessments: aiAssessmentsTable, claims: claimsTable } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
       // Fetch the assessment to get its ID and verify it exists
+      const { getAiAssessmentByClaimId } = await import("../db");
       const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
       if (!assessment) throw new TRPCError({ code: "NOT_FOUND", message: "Assessment not found for this claim" });
 
@@ -1628,8 +1637,11 @@ export const aiAssessmentsRouter = router({
     .input(z.object({ claimId: z.number().int() }))
     .query(async ({ input, ctx }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
-      const { getAiAssessmentByClaimId } = await import("../db");
       const { tenantId } = await requireGovernedTenantClaim(String(input.claimId), ctx.user.tenantId);
+      if (p0B1FraudPolicyActive()) {
+        throwP0B1FraudDecisionHold();
+      }
+      const { getAiAssessmentByClaimId } = await import("../db");
       const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
       if (!assessment) return { sharedWithRoles: [] as string[] };
       let roles: string[] = [];

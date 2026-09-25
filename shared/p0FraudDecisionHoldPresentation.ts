@@ -42,6 +42,76 @@ export const P0_B1_FRAUD_DECISION_HOLD = Object.freeze({
 
 export type P0B1FraudDecisionHold = typeof P0_B1_FRAUD_DECISION_HOLD;
 
+type P0B1WithheldPayload =
+  | { status: "FRAUD_DECISION_WITHHELD" }
+  | { fraudDecision: { status: "FRAUD_DECISION_WITHHELD" } };
+
+/**
+ * A discriminated boundary for browser consumers of a potentially held P0-B1
+ * response. `AVAILABLE.value` deliberately excludes the direct and nested
+ * hold shapes, making any later legacy numeric access type-checkable only in
+ * the executable branch where the withheld sentinel has already stopped it.
+ */
+export type P0B1FraudDecisionResponse<T> =
+  | {
+      kind: "WITHHELD";
+      hold: P0B1FraudDecisionHold;
+      value: null;
+    }
+  | {
+      kind: "AVAILABLE";
+      hold: null;
+      value: Exclude<T, P0B1WithheldPayload>;
+    };
+
+/**
+ * Identifies the canonical P0-B1 withheld-decision sentinel at either a
+ * direct route boundary or a nested `fraudDecision` projection. The check is
+ * deliberately status-based: a malformed sentinel must still take the
+ * fail-closed rendering path, where the UI normalizes it to actionable shared
+ * guidance instead of treating absent legacy fields as zeroes or statistics.
+ */
+export function getP0B1FraudDecisionHold(
+  value: unknown
+): P0B1FraudDecisionHold | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  if (candidate.status === "FRAUD_DECISION_WITHHELD") {
+    return P0_B1_FRAUD_DECISION_HOLD;
+  }
+
+  const nested = candidate.fraudDecision;
+  if (
+    nested &&
+    typeof nested === "object" &&
+    (nested as Record<string, unknown>).status === "FRAUD_DECISION_WITHHELD"
+  ) {
+    return P0_B1_FRAUD_DECISION_HOLD;
+  }
+
+  return null;
+}
+
+export function discriminateP0B1FraudDecisionResponse<T>(
+  value: T
+): P0B1FraudDecisionResponse<T> {
+  const hold = getP0B1FraudDecisionHold(value);
+  if (hold) {
+    return {
+      kind: "WITHHELD",
+      hold,
+      value: null,
+    };
+  }
+
+  return {
+    kind: "AVAILABLE",
+    hold: null,
+    value: value as Exclude<T, P0B1WithheldPayload>,
+  };
+}
+
 /**
  * Returns a mutable per-use copy of the shared P0-B1 manual-review contract.
  * Shared constants remain immutable so neither browser nor server consumers can

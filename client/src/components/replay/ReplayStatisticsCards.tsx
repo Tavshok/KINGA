@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, PlayCircle, CheckCircle2, TrendingDown, Clock } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { getP0B1FraudDecisionHold } from "@shared/p0FraudDecisionHoldPresentation";
 
 export function ReplayStatisticsCards() {
   const { fmt: formatCurrency } = useTenantCurrency();
@@ -21,83 +22,35 @@ export function ReplayStatisticsCards() {
     );
   }
   
+  const fraudDecisionHold = getP0B1FraudDecisionHold(stats);
+  if (fraudDecisionHold) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Replay Statistics Withheld</CardTitle>
+          <CardDescription>{fraudDecisionHold.explanation}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">{fraudDecisionHold.resolver.unresolvedAction}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+      
   if (!stats) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p>No replay statistics available</p>
-      </div>
+          </div>
     );
   }
-  
+      
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {/* Total Replays */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Replays</CardTitle>
-          <PlayCircle className="h-4 w-4 text-muted-foreground" />
+      <CardHeader>
+        <CardTitle>Replay Statistics Unavailable</CardTitle>
+        <CardDescription>Replay statistics are not available without qualified governing fraud authority.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{stats.totalReplays}</div>
-          <p className="text-xs text-muted-foreground">
-            Historical claims processed
-          </p>
-        </CardContent>
       </Card>
-      
-      {/* Decision Match Rate */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Decision Match Rate</CardTitle>
-          <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{stats.decisionMatchRate.toFixed(1)}%</div>
-          <p className="text-xs text-muted-foreground">
-            {Math.round((stats.decisionMatchRate / 100) * stats.totalReplays)} of {stats.totalReplays} matched
-          </p>
-        </CardContent>
-      </Card>
-      
-      {/* Average Payout Variance */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Avg Payout Variance</CardTitle>
-          <TrendingDown className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {formatCurrency(Math.abs(stats.averagePayoutVariancePercentage))}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {stats.averagePayoutVariancePercentage < 0 ? 'Savings' : 'Cost increase'} ({stats.averagePayoutVariancePercentage.toFixed(1)}%)
-          </p>
-        </CardContent>
-      </Card>
-      
-      {/* Average Time Delta */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Avg Time Delta</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {stats.averageProcessingTimeDeltaPercentage !== null 
-              ? `${stats.averageProcessingTimeDeltaPercentage.toFixed(1)}%`
-              : 'N/A'
-            }
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {stats.averageProcessingTimeDeltaPercentage !== null && stats.averageProcessingTimeDeltaPercentage < 0
-              ? 'Faster processing'
-              : stats.averageProcessingTimeDeltaPercentage !== null && stats.averageProcessingTimeDeltaPercentage > 0
-              ? 'Slower processing'
-              : 'No data'
-            }
-          </p>
-        </CardContent>
-      </Card>
-    </div>
   );
 }
