@@ -66,6 +66,7 @@ jobs:
           node --test scripts/ci/verify-quality-gate-trigger-scope.test.mjs
           scripts/ci/typecheck-stacked-base.test.mjs
           scripts/ci/verify-p0-b1-client-hold-boundary.test.mjs
+          scripts/ci/verify-p0-b1-typed-hold-consumers.test.mjs
       - name: TypeScript baseline comparison
         env:
           STACKED_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref != 'main' && github.event.pull_request.base.sha || '' }}

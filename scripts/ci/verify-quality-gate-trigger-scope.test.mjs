@@ -40,7 +40,7 @@ test("rejects a shallow checkout that cannot prove the event base", () => {
 
 test("rejects removal of hosted stacked comparator guard tests", () => {
   const unsafe = workflow.replace(
-    "      - name: Verify Quality Gate guard regressions\n        run: >-\n          node --test scripts/ci/verify-quality-gate-trigger-scope.test.mjs\n          scripts/ci/typecheck-stacked-base.test.mjs\n          scripts/ci/verify-p0-b1-client-hold-boundary.test.mjs\n",
+    "      - name: Verify Quality Gate guard regressions\n        run: >-\n          node --test scripts/ci/verify-quality-gate-trigger-scope.test.mjs\n          scripts/ci/typecheck-stacked-base.test.mjs\n          scripts/ci/verify-p0-b1-client-hold-boundary.test.mjs\n          scripts/ci/verify-p0-b1-typed-hold-consumers.test.mjs\n",
     ""
   );
   assert.throws(
@@ -52,6 +52,17 @@ test("rejects removal of hosted stacked comparator guard tests", () => {
 test("rejects removal of the hosted P0-B1 client hold-boundary guard", () => {
   const unsafe = workflow.replace(
     "          scripts/ci/verify-p0-b1-client-hold-boundary.test.mjs\n",
+    ""
+  );
+  assert.throws(
+    () => verifyQualityGateStackedTypecheckRouting(unsafe),
+    /must run the approved trigger and stacked-comparator guard regression tests/
+  );
+});
+
+test("rejects removal of the hosted automatic fraud-hold inventory guard", () => {
+  const unsafe = workflow.replace(
+    "          scripts/ci/verify-p0-b1-typed-hold-consumers.test.mjs\n",
     ""
   );
   assert.throws(

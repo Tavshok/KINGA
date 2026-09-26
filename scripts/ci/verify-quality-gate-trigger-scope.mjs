@@ -28,6 +28,7 @@ export const expectedGuardRegressionBlock = `      - name: Verify Quality Gate g
           node --test scripts/ci/verify-quality-gate-trigger-scope.test.mjs
           scripts/ci/typecheck-stacked-base.test.mjs
           scripts/ci/verify-p0-b1-client-hold-boundary.test.mjs
+          scripts/ci/verify-p0-b1-typed-hold-consumers.test.mjs
 `;
 
 export const expectedTypecheckBlock = `      - name: TypeScript baseline comparison
