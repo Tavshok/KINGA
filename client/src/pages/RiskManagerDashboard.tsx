@@ -34,6 +34,8 @@ import {
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
+import { discriminateP0B1FraudDecisionResponse } from "@shared/p0FraudDecisionHoldPresentation";
 import { PortalHeroBand, ProtoAlertBar, ProtoTabBar, ProtoCard, P } from "@/components/PortalHeroBand";
 import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { GeographicRiskClustersPanel } from "@/components/risk/GeographicRiskClustersPanel";
@@ -128,9 +130,25 @@ export default function RiskManagerDashboard() {
   const { data: allClaims = [], isLoading: allLoading } =
     trpc.claims.getActiveClaims.useQuery({ from: analyticsFrom, to: analyticsTo });
 
-  // Risk Portfolio Analytics: fraud heatmap, risk distribution
-  const { data: riskAnalytics, isLoading: riskAnalyticsLoading } =
-    trpc.claims.getRiskPortfolioAnalytics.useQuery({ from: analyticsFrom, to: analyticsTo });
+  // Risk Portfolio Analytics: an explicit P0-B1 hold must remain distinct from
+  // absent analytics so a withheld response never renders as a zero-risk KPI.
+  const riskPortfolioQuery = trpc.claims.getRiskPortfolioAnalytics.useQuery({
+    from: analyticsFrom,
+    to: analyticsTo,
+  });
+  const riskPortfolioResponse = discriminateP0B1FraudDecisionResponse(
+    riskPortfolioQuery.data
+  );
+  const riskPortfolioHold = riskPortfolioResponse.hold;
+  const riskAnalytics = riskPortfolioResponse.value as
+    | {
+        kpis?: {
+          fraudRate?: number | null;
+          avgFraudScore?: number | null;
+        };
+      }
+    | undefined;
+  const riskAnalyticsLoading = riskPortfolioQuery.isLoading;
 
   // T4: Fraud Rule Accuracy — false positive rate from fraudRules table
   const { data: fraudRuleAccuracy, isLoading: fraudRuleAccuracyLoading } =
@@ -166,12 +184,6 @@ export default function RiskManagerDashboard() {
       : allClaims.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70 || c.fraudRiskLevel === "high" || c.workflowState === "disputed" || c.workflowState === "manual_review"),
     [escalationsData, allClaims]
   );
-
-  const avgRisk = useMemo(() => {
-    if (!allClaims.length) return 0;
-    const total = allClaims.reduce((s: number, c: any) => s + (c.fraudRiskScore ?? 0), 0);
-    return Math.round(total / allClaims.length);
-  }, [allClaims]);
 
   const filteredAll = useMemo(() => {
     if (!search) return allClaims;
@@ -295,7 +307,17 @@ export default function RiskManagerDashboard() {
         <div className="p11-kpi-grid">
           <div className="p11-kpi-tile headline">
             <div className="p11-kpi-label">Fraud Rate</div>
-            <div className="p11-kpi-value num">{riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.fraudRate ?? 0}%`}</div>
+            <div className="p11-kpi-value num">
+              {riskPortfolioHold ? (
+                <P0FraudValidationHold hold={riskPortfolioHold} compact />
+              ) : riskAnalyticsLoading ? (
+                '…'
+              ) : riskAnalytics?.kpis?.fraudRate != null ? (
+                `${riskAnalytics.kpis.fraudRate}%`
+              ) : (
+                '—'
+              )}
+            </div>
             <div className="p11-kpi-delta">Of total claims</div>
           </div>
           <div className="p11-kpi-tile">
@@ -320,7 +342,17 @@ export default function RiskManagerDashboard() {
           </div>
           <div className="p11-kpi-tile">
             <div className="p11-kpi-label">Avg Fraud Score</div>
-            <div className="p11-kpi-value num">{riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.avgFraudScore ?? avgRisk}%`}</div>
+            <div className="p11-kpi-value num">
+              {riskPortfolioHold ? (
+                <P0FraudValidationHold hold={riskPortfolioHold} compact />
+              ) : riskAnalyticsLoading ? (
+                '…'
+              ) : riskAnalytics?.kpis?.avgFraudScore != null ? (
+                `${riskAnalytics.kpis.avgFraudScore}%`
+              ) : (
+                '—'
+              )}
+            </div>
             <div className="p11-kpi-delta">Portfolio average</div>
           </div>
         </div>
