@@ -17,6 +17,8 @@ import { PlayCircle, Search, Loader2, CheckCircle2, XCircle } from "lucide-react
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
+import { discriminateP0B1FraudDecisionResponse } from "@shared/p0FraudDecisionHoldPresentation";
 
 export function ReplayTriggerForm() {
   const { fmt } = useTenantCurrency();
@@ -27,7 +29,11 @@ export function ReplayTriggerForm() {
   // tRPC mutations
   const replaySingle = trpc.claimReplay.replayHistoricalClaim.useMutation({
     onSuccess: (data: any) => {
-      toast.success(data.message);
+      const replaySingleSuccessResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (replaySingleSuccessResponse.hold) {
+        return;
+      }
+      toast.success(replaySingleSuccessResponse.value?.message ?? "Replay complete");
       setSingleClaimId("");
     },
     onError: (error: any) => {
@@ -37,13 +43,29 @@ export function ReplayTriggerForm() {
   
   const replayBatch = trpc.claimReplay.batchReplayHistoricalClaims.useMutation({
     onSuccess: (data: any) => {
-      toast.success(`Batch replay complete: ${data.successCount}/${data.totalProcessed} succeeded`);
+      const replayBatchSuccessResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (replayBatchSuccessResponse.hold) {
+        return;
+      }
+      const availableBatchReplay = replayBatchSuccessResponse.value as unknown as
+        | { successCount?: number; totalProcessed?: number }
+        | undefined;
+      toast.success(
+        `Batch replay complete: ${availableBatchReplay?.successCount ?? 0}/${availableBatchReplay?.totalProcessed ?? 0} succeeded`
+      );
       setBatchClaimIds("");
     },
     onError: (error: any) => {
       toast.error(error.message);
     },
   });
+  const replaySingleResponse = discriminateP0B1FraudDecisionResponse(replaySingle.data);
+  const replayBatchResponse = discriminateP0B1FraudDecisionResponse(replayBatch.data);
+  const replaySingleHold = replaySingleResponse.hold;
+  const replayBatchHold = replayBatchResponse.hold;
+  const availableBatchReplay = replayBatchResponse.value as unknown as
+    | { successCount: number; errorCount: number }
+    | undefined;
   
   // Query eligible claims
   const { data: eligibleClaims, isLoading: loadingClaims } = trpc.claimReplay.getEligibleHistoricalClaims.useQuery({
@@ -85,7 +107,15 @@ export function ReplayTriggerForm() {
     claim.claimReference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     claim.id.toString().includes(searchTerm)
   );
-  
+
+  if (replaySingleHold) {
+    return <P0FraudValidationHold hold={replaySingleHold} />;
+  }
+
+  if (replayBatchHold) {
+    return <P0FraudValidationHold hold={replayBatchHold} />;
+  }
+
   return (
     <Tabs defaultValue="single" className="space-y-6">
       <TabsList className="grid w-full grid-cols-2">
@@ -243,7 +273,7 @@ export function ReplayTriggerForm() {
               )}
             </Button>
             
-            {replayBatch.isSuccess && replayBatch.data && (
+            {replayBatch.isSuccess && availableBatchReplay && (
               <Alert>
                 <AlertDescription>
                   <div className="space-y-2">
@@ -251,12 +281,12 @@ export function ReplayTriggerForm() {
                     <div className="text-sm">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span>{replayBatch.data.successCount} claims succeeded</span>
+                        <span>{availableBatchReplay.successCount} claims succeeded</span>
                       </div>
-                      {replayBatch.data.errorCount > 0 && (
+                      {availableBatchReplay.errorCount > 0 && (
                         <div className="flex items-center gap-2">
                           <XCircle className="h-4 w-4 text-red-600" />
-                          <span>{replayBatch.data.errorCount} claims failed</span>
+                          <span>{availableBatchReplay.errorCount} claims failed</span>
                         </div>
                       )}
                     </div>
