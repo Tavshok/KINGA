@@ -2,7 +2,10 @@ name: KINGA Quality Gate
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - feat/p0-b1-composed-fraud-boundary-final
+      - test/p0-b1-canonical-report-flake
   push:
     branches: [main]
 
@@ -53,6 +56,8 @@ jobs:
         run: pnpm exec tsx scripts/ci/prove-workos-identity-migration.mts
       - name: Reject unresolved conflict markers
         run: pnpm run check:conflicts
+      - name: Verify Quality Gate trigger scope
+        run: node scripts/ci/verify-quality-gate-trigger-scope.mjs
       - name: TypeScript baseline comparison
         run: node scripts/ci/typecheck-baseline.mjs
       - name: Upload TypeScript baseline report
