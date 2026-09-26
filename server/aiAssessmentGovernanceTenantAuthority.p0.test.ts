@@ -138,13 +138,19 @@ describe("AI assessment governance tenant authority", () => {
 
   it("renders the canonical snapshot publication holds instead of assuming a historic array", () => {
     expect(claimDecisionReportSource).toContain(
-      "const snapshotHistory = Array.isArray(snapshotHistoryResponse)"
+      "const snapshotHistoryDecisionResponse = discriminateP0B1FraudDecisionResponse("
     );
     expect(claimDecisionReportSource).toContain(
-      "normalizeP0FraudValidationHold(snapshotHistoryResponse)"
+      "const snapshotHistoryHold = snapshotHistoryDecisionResponse.hold"
+    );
+    expect(claimDecisionReportSource).toContain(
+      "const snapshotHistory = Array.isArray(snapshotHistoryValue)"
     );
     expect(claimDecisionReportSource).toContain(
       "<P0FraudValidationHold hold={snapshotHistoryHold} />"
+    );
+    expect(claimDecisionReportSource).not.toContain(
+      "normalizeP0FraudValidationHold(snapshotHistoryResponse)"
     );
     expect(claimDecisionReportSource).toContain(
       "Collision Physics Withheld — Manual Review Required"

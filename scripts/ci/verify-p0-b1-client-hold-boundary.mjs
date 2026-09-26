@@ -53,6 +53,101 @@ export const P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS = Object.freeze([
     responseVariable: "riskPortfolioResponse",
     holdVariable: "riskPortfolioHold",
     valueVariable: "riskAnalytics",
+    allowEarlyHoldReturn: true,
+  }),
+  Object.freeze({
+    path: "client/src/pages/ClaimDecisionReport.page.tsx",
+    componentName: "ClaimDecisionReport",
+    queryCallee: "trpc.aiAssessments.byClaim.useQuery",
+    queryResultVariable: "aiAssessmentResponseData",
+    responseSourceExpression: "aiAssessmentResponseData",
+    responseVariable: "aiAssessmentResponse",
+    holdVariable: "aiAssessmentHold",
+    valueVariable: "aiAssessment",
+    allowEarlyHoldReturn: true,
+  }),
+  Object.freeze({
+    path: "client/src/pages/ClaimDecisionReport.page.tsx",
+    componentName: "ClaimDecisionReport",
+    queryCallee: "trpc.aiAssessments.getSnapshots.useQuery",
+    queryResultVariable: "snapshotHistoryResponse",
+    responseSourceExpression: "snapshotHistoryResponse",
+    responseVariable: "snapshotHistoryDecisionResponse",
+    holdVariable: "snapshotHistoryHold",
+    valueVariable: "snapshotHistoryValue",
+    allowEarlyHoldReturn: true,
+  }),
+  Object.freeze({
+    path: "client/src/pages/InternalAssessorDashboard.tsx",
+    componentName: "InternalAssessorDashboard",
+    queryCallee: "trpc.aiAssessments.byClaim.useQuery",
+    queryResultVariable: "aiContextResponseData",
+    responseSourceExpression: "aiContextResponseData",
+    responseVariable: "aiContextResponse",
+    holdVariable: "aiContextHold",
+    valueVariable: "aiContext",
+    allowEarlyHoldReturn: true,
+  }),
+  Object.freeze({
+    path: "client/src/pages/RiskManagerDashboard.tsx",
+    componentName: "RiskManagerDashboard",
+    queryCallee: "trpc.claims.getEscalations.useQuery",
+    queryResultVariable: "escalationsDataResponse",
+    responseSourceExpression: "escalationsDataResponse",
+    responseVariable: "escalationsResponse",
+    holdVariable: "escalationsHold",
+    valueVariable: "availableEscalations",
+    allowEarlyHoldReturn: true,
+  }),
+  Object.freeze({
+    path: "client/src/pages/ExecutiveDashboard.tsx",
+    componentName: "ExecutiveDashboard",
+    queryCallee: "trpc.analytics.globalSearch.useQuery",
+    queryResultVariable: "searchResultsResponse",
+    responseSourceExpression: "searchResultsResponse",
+    responseVariable: "globalSearchResponse",
+    holdVariable: "globalSearchHold",
+    valueVariable: "availableGlobalSearch",
+    allowEarlyHoldReturn: true,
+  }),
+]);
+
+export const P0_B1_HELD_MUTATION_BOUNDARY_TARGETS = Object.freeze([
+  Object.freeze({
+    path: "client/src/components/PoliceReportForm.tsx",
+    componentName: "PoliceReportForm",
+    mutationCallee: "trpc.policeReports.create.useMutation",
+    mutationVariable: "createReport",
+    successResponseVariable: "policeReportSuccessResponse",
+    responseVariable: "policeReportResponse",
+    holdVariable: "policeReportHold",
+  }),
+  Object.freeze({
+    path: "client/src/components/replay/ReplayTriggerForm.tsx",
+    componentName: "ReplayTriggerForm",
+    mutationCallee: "trpc.claimReplay.replayHistoricalClaim.useMutation",
+    mutationVariable: "replaySingle",
+    successResponseVariable: "replaySingleSuccessResponse",
+    responseVariable: "replaySingleResponse",
+    holdVariable: "replaySingleHold",
+  }),
+  Object.freeze({
+    path: "client/src/components/replay/ReplayTriggerForm.tsx",
+    componentName: "ReplayTriggerForm",
+    mutationCallee: "trpc.claimReplay.batchReplayHistoricalClaims.useMutation",
+    mutationVariable: "replayBatch",
+    successResponseVariable: "replayBatchSuccessResponse",
+    responseVariable: "replayBatchResponse",
+    holdVariable: "replayBatchHold",
+  }),
+  Object.freeze({
+    path: "client/src/pages/ClaimDecisionReport.page.tsx",
+    componentName: "ClaimDecisionReport",
+    mutationCallee: "trpc.aiAssessments.finaliseDecision.useMutation",
+    mutationVariable: "finaliseDecisionMutation",
+    successResponseVariable: "finaliseDecisionResponse",
+    responseVariable: "finaliseDecisionMutationResponse",
+    holdVariable: "finaliseDecisionMutationHold",
   }),
 ]);
 
@@ -266,6 +361,75 @@ function directComponentRender(component) {
     : null;
 }
 
+function statementContainsDirectReturn(statement) {
+  let found = false;
+  const visit = node => {
+    if (found || ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
+      return;
+    }
+    if (ts.isReturnStatement(node)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(statement);
+  return found;
+}
+
+function isTerminalHoldIf(statement) {
+  if (
+    !ts.isIfStatement(statement) ||
+    !ts.isIdentifier(unwrap(statement.expression)) ||
+    statement.elseStatement
+  ) {
+    return false;
+  }
+  const holdVariable = unwrap(statement.expression).text;
+  const branch = ts.isBlock(statement.thenStatement)
+    ? statement.thenStatement.statements
+    : [statement.thenStatement];
+  return branch.some(
+    candidate =>
+      ts.isReturnStatement(candidate) &&
+      candidate.expression &&
+      isDirectHoldRenderer(candidate.expression, holdVariable)
+  );
+}
+
+function hasDominatingEarlyHoldReturn(component, holdVariable) {
+  const holdIndex = component.body.statements.findIndex(statement => {
+    if (
+      !ts.isIfStatement(statement) ||
+      !ts.isIdentifier(unwrap(statement.expression)) ||
+      unwrap(statement.expression).text !== holdVariable
+    ) {
+      return false;
+    }
+
+    const branch = ts.isBlock(statement.thenStatement)
+      ? statement.thenStatement.statements
+      : [statement.thenStatement];
+    return branch.some(
+      candidate =>
+        ts.isReturnStatement(candidate) &&
+        candidate.expression &&
+        isDirectHoldRenderer(candidate.expression, holdVariable)
+    );
+  });
+
+  return (
+    holdIndex >= 0 &&
+    component.body.statements
+      .slice(0, holdIndex)
+      .every(
+        statement =>
+          !statementContainsDirectReturn(statement) ||
+          isTerminalHoldIf(statement)
+      )
+  );
+}
+
 function renderHasHoldBranch(render, holdVariable) {
   let found = false;
   const visit = node => {
@@ -434,6 +598,24 @@ function verifyClientBoundary(target, source, failures) {
   }
 
   const render = directComponentRender(component);
+  if (target.componentName === "RiskManagerDashboard" && render) {
+    const prohibitedZeroDefault = ["fraudRate", "avgFraudScore"].some(field =>
+      containsNullishNumericDefault(render, "riskAnalytics", field, "0")
+    );
+    if (prohibitedZeroDefault) {
+      failures.push(
+        `${target.path}: Risk Portfolio KPI retains a raw numeric zero fallback.`
+      );
+    }
+  }
+
+  if (
+    target.allowEarlyHoldReturn &&
+    hasDominatingEarlyHoldReturn(component, renderHoldVariable)
+  ) {
+    return;
+  }
+
   if (!render) {
     failures.push(
       `${target.path}: exported ${target.componentName} must retain exactly one direct render return.`
@@ -470,16 +652,104 @@ function verifyClientBoundary(target, source, failures) {
       );
     }
   }
+}
 
-  if (target.componentName === "RiskManagerDashboard" && render) {
-    const prohibitedZeroDefault = ["fraudRate", "avgFraudScore"].some(field =>
-      containsNullishNumericDefault(render, "riskAnalytics", field, "0")
+function findMutationSuccessCallback(component, target) {
+  const variables = directVariableDeclarations(component);
+  const mutation = variables.get(target.mutationVariable)?.initializer;
+  if (!isNamedCall(mutation, target.mutationCallee)) return null;
+
+  const candidate = unwrap(mutation);
+  const options = candidate.arguments.find(ts.isObjectLiteralExpression);
+  if (!options) return null;
+  const onSuccess = options.properties.filter(
+    property =>
+      ts.isPropertyAssignment(property) &&
+      propertyName(property) === "onSuccess"
+  );
+  if (onSuccess.length !== 1) return null;
+  const callback = unwrap(onSuccess[0].initializer);
+  return (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) &&
+    callback.parameters.length >= 1 &&
+    ts.isIdentifier(callback.parameters[0].name) &&
+    ts.isBlock(callback.body)
+    ? callback
+    : null;
+}
+
+function hasTerminalMutationHold(callback, target) {
+  const statements = callback.body.statements;
+  const responseIndex = statements.findIndex(statement => {
+    if (!ts.isVariableStatement(statement)) return false;
+    return statement.declarationList.declarations.some(
+      declaration =>
+        ts.isIdentifier(declaration.name) &&
+        declaration.name.text === target.successResponseVariable &&
+        declaration.initializer &&
+        isDiscriminatorCall(
+          declaration.initializer,
+          callback.parameters[0].name.getText()
+        )
     );
-    if (prohibitedZeroDefault) {
-      failures.push(
-        `${target.path}: Risk Portfolio KPI retains a raw numeric zero fallback.`
-      );
-    }
+  });
+  if (responseIndex !== 0) return false;
+
+  const terminalStatement = statements[responseIndex + 1];
+  if (
+    !terminalStatement ||
+    !ts.isIfStatement(terminalStatement) ||
+    !propertyAccessMatches(
+      terminalStatement.expression,
+      target.successResponseVariable,
+      "hold"
+    )
+  ) {
+    return false;
+  }
+
+  const branch = ts.isBlock(terminalStatement.thenStatement)
+    ? terminalStatement.thenStatement.statements
+    : [terminalStatement.thenStatement];
+  return branch.some(ts.isReturnStatement);
+}
+
+function verifyMutationBoundary(target, source, failures) {
+  const sourceFile = parseSource(target.path, source);
+  const component = findExportedFunction(sourceFile, target.componentName);
+  if (!component) {
+    failures.push(
+      `${target.path}: exported ${target.componentName} function is missing or ambiguous.`
+    );
+    return;
+  }
+
+  const callback = findMutationSuccessCallback(component, target);
+  if (!callback || !hasTerminalMutationHold(callback, target)) {
+    failures.push(
+      `${target.path}: ${target.mutationCallee} must begin its direct onSuccess callback with a terminal canonical hold branch.`
+    );
+  }
+
+  const variables = directVariableDeclarations(component);
+  const response = variables.get(target.responseVariable)?.initializer;
+  const hold = variables.get(target.holdVariable)?.initializer;
+  if (
+    !response ||
+    !isDiscriminatorCall(response, `${target.mutationVariable}.data`)
+  ) {
+    failures.push(
+      `${target.path}: ${target.responseVariable} must discriminate ${target.mutationVariable}.data directly.`
+    );
+  }
+  if (!hold || !propertyAccessMatches(hold, target.responseVariable, "hold")) {
+    failures.push(
+      `${target.path}: ${target.holdVariable} must bind ${target.responseVariable}.hold directly.`
+    );
+  }
+  if (!hasDominatingEarlyHoldReturn(component, target.holdVariable)) {
+    failures.push(
+      `${target.path}: ${target.holdVariable} must terminally render P0FraudValidationHold before legacy mutation output.`
+    );
   }
 }
 
@@ -606,6 +876,17 @@ export function verifyP0B1ClientHoldBoundary(sources) {
     verifyClientBoundary(target, source, failures);
   }
 
+  for (const target of P0_B1_HELD_MUTATION_BOUNDARY_TARGETS) {
+    const source = sources[target.path];
+    if (typeof source !== "string") {
+      failures.push(
+        `${target.path}: source is missing from the held-mutation boundary registry input.`
+      );
+      continue;
+    }
+    verifyMutationBoundary(target, source, failures);
+  }
+
   const riskRoute = sources[riskRoutePath];
   if (typeof riskRoute !== "string") {
     failures.push(
@@ -625,6 +906,7 @@ export function verifyP0B1ClientHoldBoundary(sources) {
 export async function readP0B1ClientHoldBoundarySources(root = repositoryRoot) {
   const paths = [
     ...P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS.map(target => target.path),
+    ...P0_B1_HELD_MUTATION_BOUNDARY_TARGETS.map(target => target.path),
     riskRoutePath,
   ];
   return Object.fromEntries(
@@ -640,6 +922,6 @@ export async function readP0B1ClientHoldBoundarySources(root = repositoryRoot) {
 if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   verifyP0B1ClientHoldBoundary(await readP0B1ClientHoldBoundarySources());
   console.log(
-    `P0-B1 client hold boundary verified for ${P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS.length} browser boundaries and one exported server route.`
+    `P0-B1 client hold boundary verified for ${P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS.length} query boundaries, ${P0_B1_HELD_MUTATION_BOUNDARY_TARGETS.length} mutation boundaries, and one exported server route.`
   );
 }

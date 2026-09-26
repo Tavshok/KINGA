@@ -123,8 +123,14 @@ export default function RiskManagerDashboard() {
   const { data: financialQueue = [], isLoading: finLoading, refetch: refetchFinancial } =
     trpc.claims.getFinancialDecisionQueue.useQuery({ from: analyticsFrom, to: analyticsTo });
 
-  const { data: escalationsData = [], isLoading: escalationsLoading } =
+  const { data: escalationsDataResponse, isLoading: escalationsLoading } =
     trpc.claims.getEscalations.useQuery({ from: analyticsFrom, to: analyticsTo });
+  const escalationsResponse = discriminateP0B1FraudDecisionResponse(
+    escalationsDataResponse
+  );
+  const escalationsHold = escalationsResponse.hold;
+  const availableEscalations = escalationsResponse.value;
+  const escalationsData = availableEscalations ?? [];
 
   // Replace allForTenant with getActiveClaims for Portfolio Oversight (filtered, not all claims)
   const { data: allClaims = [], isLoading: allLoading } =
@@ -266,6 +272,14 @@ export default function RiskManagerDashboard() {
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
+  if (riskPortfolioHold) {
+    return <P0FraudValidationHold hold={riskPortfolioHold} />;
+  }
+
+  if (escalationsHold) {
+    return <P0FraudValidationHold hold={escalationsHold} />;
+  }
+
   return (
     <div style={{ background: 'var(--body-bg)', fontFamily: 'Inter, sans-serif', minHeight: '100vh' }}>
          {/* ── IDENTITY STRIP ── */}
@@ -308,9 +322,7 @@ export default function RiskManagerDashboard() {
           <div className="p11-kpi-tile headline">
             <div className="p11-kpi-label">Fraud Rate</div>
             <div className="p11-kpi-value num">
-              {riskPortfolioHold ? (
-                <P0FraudValidationHold hold={riskPortfolioHold} compact />
-              ) : riskAnalyticsLoading ? (
+              {riskAnalyticsLoading ? (
                 '…'
               ) : riskAnalytics?.kpis?.fraudRate != null ? (
                 `${riskAnalytics.kpis.fraudRate}%`
@@ -343,9 +355,7 @@ export default function RiskManagerDashboard() {
           <div className="p11-kpi-tile">
             <div className="p11-kpi-label">Avg Fraud Score</div>
             <div className="p11-kpi-value num">
-              {riskPortfolioHold ? (
-                <P0FraudValidationHold hold={riskPortfolioHold} compact />
-              ) : riskAnalyticsLoading ? (
+              {riskAnalyticsLoading ? (
                 '…'
               ) : riskAnalytics?.kpis?.avgFraudScore != null ? (
                 `${riskAnalytics.kpis.avgFraudScore}%`
