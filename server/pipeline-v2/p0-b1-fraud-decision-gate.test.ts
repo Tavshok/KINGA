@@ -632,9 +632,13 @@ describe("P0-B1 fraud and automated-decision boundary", () => {
       estimated_cost: 20000,
     });
 
-    expect(JSON.stringify(presentation)).not.toMatch(
-      /99|elevated|ESCALATE|FRAUD-SENTINEL/i
-    );
+    expect(presentation).toMatchObject({
+      claim: { fraudScore: null, fraudRiskLevel: null, fraudIndicators: [] },
+      report: {
+        fraud: { score: null, level: null, derivedFromJson: false },
+        verdict: { verdict: "PENDING", source: "fallback" },
+      },
+    });
     expect(buildP0B1FraudDecisionHold().requiredEvidence).toHaveLength(3);
   });
 });
