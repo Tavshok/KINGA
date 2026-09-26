@@ -57,6 +57,8 @@ import {
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
+import { getP0B1FraudDecisionHold } from "@shared/p0FraudDecisionHoldPresentation";
 
 ChartJS.register(
   CategoryScale,
@@ -122,12 +124,29 @@ function statusBadge(status: string) {
   );
 }
 
-function ExpandableClaimRow({ claim }: { claim: any }) {
-  const [expanded, setExpanded] = useState(false);
+type AvailableAssessmentSummary = {
+  fraudScore?: number | null;
+  estimatedPartsCost?: number | string | null;
+  estimatedRepairCost?: number | string | null;
+  recommendation?: string | null;
+};
+
+export function ExpandableClaimRow({
+  claim,
+  initialExpanded = false,
+}: {
+  claim: any;
+  initialExpanded?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(initialExpanded);
   const { data: aiData } = trpc.aiAssessments.byClaim.useQuery(
     { claimId: claim.id },
     { enabled: expanded }
   );
+  const fraudDecisionHold = getP0B1FraudDecisionHold(aiData);
+  const availableAiData = fraudDecisionHold
+    ? null
+    : (aiData as unknown as AvailableAssessmentSummary | undefined);
 
   return (
     <>
@@ -167,20 +186,22 @@ function ExpandableClaimRow({ claim }: { claim: any }) {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   KINGA Assessment
                 </p>
-                {aiData ? (
+                {fraudDecisionHold ? (
+                  <P0FraudValidationHold hold={fraudDecisionHold} />
+                ) : availableAiData ? (
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Fraud Score</span>
                       <span
                         className={`font-semibold ${
-                          (aiData.fraudScore ?? 0) > 70
+                          (availableAiData.fraudScore ?? 0) > 70
                             ? "text-red-600"
-                            : (aiData.fraudScore ?? 0) > 40
+                            : (availableAiData.fraudScore ?? 0) > 40
                             ? "text-orange-500"
                             : "text-green-600"
                         }`}
                       >
-                        {aiData.fraudScore ?? "—"}/100
+                        {availableAiData.fraudScore ?? "—"}/100
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -188,8 +209,8 @@ function ExpandableClaimRow({ claim }: { claim: any }) {
                         Estimated Cost
                       </span>
                       <span className="font-semibold">
-                        {(aiData as any).estimatedPartsCost ?? (aiData as any).estimatedRepairCost
-                          ? `R ${Number((aiData as any).estimatedPartsCost ?? (aiData as any).estimatedRepairCost).toLocaleString()}`
+                        {availableAiData.estimatedPartsCost ?? availableAiData.estimatedRepairCost
+                          ? `R ${Number(availableAiData.estimatedPartsCost ?? availableAiData.estimatedRepairCost).toLocaleString()}`
                           : "—"}
                       </span>
                     </div>
@@ -198,7 +219,7 @@ function ExpandableClaimRow({ claim }: { claim: any }) {
                         Recommendation
                       </span>
                       <span className="font-semibold capitalize">
-                        {aiData.recommendation ?? "—"}
+                        {availableAiData.recommendation ?? "—"}
                       </span>
                     </div>
                   </div>
