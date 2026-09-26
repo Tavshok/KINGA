@@ -12,6 +12,7 @@ export const expectedTriggerBlock = `on:
       - main
       - feat/p0-b1-composed-fraud-boundary-final
       - test/p0-b1-canonical-report-flake
+      - ci/p0-b1-stacked-quality-gate-routing
   push:
     branches: [main]
 
@@ -80,6 +81,7 @@ export function verifyQualityGateTriggerScope(workflow) {
     "main",
     "feat/p0-b1-composed-fraud-boundary-final",
     "test/p0-b1-canonical-report-flake",
+    "ci/p0-b1-stacked-quality-gate-routing",
   ];
 }
 

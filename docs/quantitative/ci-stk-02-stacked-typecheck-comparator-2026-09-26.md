@@ -20,6 +20,8 @@ The checkout is intentionally full-depth. A shallow checkout cannot prove that t
 
 The branch-aware path is used only for pull requests whose base is not `main`. Pull requests to `main` and pushes to `main` continue to use the committed baseline. A base SHA must come from the GitHub pull-request event; an arbitrary branch name or moving remote reference is not accepted. The wrapper fails before comparison if the base is unavailable, not an ancestor, package metadata changes, the dependency tree is absent, or the temporary baseline is absent.
 
+The trigger allowlist adds one additional exact base, `ci/p0-b1-stacked-quality-gate-routing`, solely so CI-STK-02 can receive its own hosted Quality Gate while stacked on CI-STK-01. It is not a wildcard or a new general integration policy. Once CI-STK-02 merges to that branch, the same push updates CI-STK-01, which then receives its own hosted check against the final integration base. The verifier pins this one branch alongside the previously approved integration and test-fix bases.
+
 This package does not add typecheck exceptions. It does not add the deferred Group B manifest, which remains blocked until all newly identified runtime-risk paths are fixed and the safe set is re-verified.
 
 ## Review correction

@@ -19,6 +19,7 @@ test("accepts exactly the approved Quality Gate trigger block", () => {
     "main",
     "feat/p0-b1-composed-fraud-boundary-final",
     "test/p0-b1-canonical-report-flake",
+    "ci/p0-b1-stacked-quality-gate-routing",
   ]);
 });
 
@@ -101,8 +102,8 @@ test("rejects an explicit duplicate YAML root trigger key", () => {
 
 test("rejects a broadened pull-request base", () => {
   const broadened = workflow.replace(
-    "      - test/p0-b1-canonical-report-flake\n",
-    "      - test/p0-b1-canonical-report-flake\n      - feature/unreviewed\n"
+    "      - ci/p0-b1-stacked-quality-gate-routing\n",
+    "      - ci/p0-b1-stacked-quality-gate-routing\n      - feature/unreviewed\n"
   );
   assert.throws(
     () => verifyQualityGateTriggerScope(broadened),
