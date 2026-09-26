@@ -9,6 +9,11 @@
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
+import {
+  getP0B1FraudDecisionHold,
+  P0_B1_FRAUD_DECISION_HOLD,
+} from "@shared/p0FraudDecisionHoldPresentation";
 import {
   AlertTriangle,
   BookOpen,
@@ -91,6 +96,34 @@ interface VehiclePassportPanelProps {
   vehicleRegistration?: string;
 }
 
+type AvailableFraudSignals = {
+  totalSignals: number;
+  totalAlerts: number;
+  alerts: Array<{
+    id: string | number;
+    alertType?: string | null;
+    alertSeverity?: string | null;
+    alertDescription?: string | null;
+  }>;
+  signals: Array<{
+    id: string | number;
+    signalLabel?: string | null;
+    signalType?: string | null;
+    confidence?: number | null;
+  }>;
+};
+
+type VehicleTimelineEvent = {
+  eventType?: string | null;
+  eventDate?: string | null;
+  description?: string | null;
+  sourceTable?: string | null;
+};
+
+function isFraudDerivedTimelineEvent(event: VehicleTimelineEvent): boolean {
+  return event.eventType === "fraud_alert" || event.sourceTable === "fraud_alerts";
+}
+
 export function VehiclePassportPanel({ vehicleRegistryId, vehicleRegistration }: VehiclePassportPanelProps) {
   // ID-based queries (enabled only when vehicleRegistryId is provided)
   const byId = trpc.vehiclePassport.getPassport.useQuery(
@@ -110,14 +143,30 @@ export function VehiclePassportPanel({ vehicleRegistryId, vehicleRegistration }:
     (byReg.data as any)?.vehicle?.id ??
     undefined;
 
-  const { data: fraudData } = trpc.vehiclePassport.getFraudSignals.useQuery(
+  const {
+    data: fraudData,
+    isLoading: isFraudSignalsLoading,
+    isError: isFraudSignalsError,
+  } = trpc.vehiclePassport.getFraudSignals.useQuery(
     { vehicleRegistryId: resolvedId! },
     { staleTime: 5 * 60 * 1000, enabled: !!resolvedId }
   );
+  const fraudDecisionHold = getP0B1FraudDecisionHold(fraudData);
+  const fraudPresentationHold = fraudDecisionHold ??
+    (isFraudSignalsLoading || isFraudSignalsError || !fraudData
+      ? P0_B1_FRAUD_DECISION_HOLD
+      : null);
+  const fraudSignals = fraudPresentationHold
+    ? null
+    : (fraudData as unknown as AvailableFraudSignals | undefined);
   const { data: timeline } = trpc.vehiclePassport.getTimeline.useQuery(
     { vehicleRegistryId: resolvedId!, limit: 10 },
     { staleTime: 5 * 60 * 1000, enabled: !!resolvedId }
   );
+  const timelineEvents = (timeline?.events ?? []) as VehicleTimelineEvent[];
+  const visibleTimelineEvents = fraudPresentationHold
+    ? timelineEvents.filter(event => !isFraudDerivedTimelineEvent(event))
+    : timelineEvents;
 
   if (isLoading) {
     return (
@@ -147,16 +196,20 @@ export function VehiclePassportPanel({ vehicleRegistryId, vehicleRegistration }:
     <div className="space-y-4">
       {/* Header band */}
       <div className="flex items-center gap-3 flex-wrap">
-        <Badge className={riskLevelColor(intelligence?.riskLevel)}>
-          {(intelligence?.riskLevel ?? "unknown").toUpperCase()} RISK
-        </Badge>
+        {fraudPresentationHold ? (
+          <P0FraudValidationHold hold={fraudPresentationHold} compact />
+        ) : (
+          <Badge className={riskLevelColor(intelligence?.riskLevel)}>
+            {(intelligence?.riskLevel ?? "unknown").toUpperCase()} RISK
+          </Badge>
+        )}
         <span className="text-xs text-gray-400">
           Passport v{passport.dataVersion} · Generated {fmtDate(passport.generatedAt)}
         </span>
-        {fraudData && fraudData.totalAlerts > 0 && (
+        {fraudSignals && fraudSignals.totalAlerts > 0 && (
           <Badge className="bg-red-900 border border-red-700 text-red-300 text-xs">
             <AlertTriangle className="h-3 w-3 mr-1" />
-            {fraudData.totalAlerts} fraud alert{fraudData.totalAlerts !== 1 ? "s" : ""}
+            {fraudSignals.totalAlerts} fraud alert{fraudSignals.totalAlerts !== 1 ? "s" : ""}
           </Badge>
         )}
       </div>
@@ -168,8 +221,14 @@ export function VehiclePassportPanel({ vehicleRegistryId, vehicleRegistration }:
         <SectionCard title="Intelligence Summary" icon={<Shield className="h-3.5 w-3.5" />}>
           <div className="space-y-0">
             <StatRow label="Total Claims" value={intelligence?.totalClaims ?? "—"} />
-            <StatRow label="Repeat Zone Claims" value={intelligence?.repeatZoneCount ?? 0} />
-            <StatRow label="Fraud Alerts" value={intelligence?.fraudAlertCount ?? 0} />
+            {fraudPresentationHold ? (
+              <P0FraudValidationHold hold={fraudPresentationHold} compact />
+            ) : (
+              <>
+                <StatRow label="Repeat Zone Claims" value={intelligence?.repeatZoneCount ?? 0} />
+                <StatRow label="Fraud Alerts" value={intelligence?.fraudAlertCount ?? 0} />
+              </>
+            )}
             <StatRow label="Avg Confidence" value={
               intelligence?.avgConfidenceScore != null
                 ? `${Math.round(Number(intelligence.avgConfidenceScore))}%`
@@ -182,7 +241,9 @@ export function VehiclePassportPanel({ vehicleRegistryId, vehicleRegistration }:
 
         {/* Column 2: Renewal Risk */}
         <SectionCard title="Predictive Renewal Risk" icon={<TrendingUp className="h-3.5 w-3.5" />}>
-          {renewalRisk ? (
+          {fraudPresentationHold ? (
+            <P0FraudValidationHold hold={fraudPresentationHold} compact />
+          ) : renewalRisk ? (
             <div className="space-y-3">
               <div className="text-center py-2">
                 <div className={`text-4xl font-bold ${renewalRiskColor(rrScore)}`}>
@@ -225,19 +286,21 @@ export function VehiclePassportPanel({ vehicleRegistryId, vehicleRegistration }:
 
         {/* Column 3: Fraud Signals */}
         <SectionCard title="Fraud Signals" icon={<ShieldAlert className="h-3.5 w-3.5" />}>
-          {fraudData && (fraudData.totalSignals > 0 || fraudData.totalAlerts > 0) ? (
+          {fraudPresentationHold ? (
+            <P0FraudValidationHold hold={fraudPresentationHold} />
+          ) : fraudSignals && (fraudSignals.totalSignals > 0 || fraudSignals.totalAlerts > 0) ? (
             <div className="space-y-2">
               <div className="flex gap-3 mb-2">
                 <div className="text-center flex-1">
-                  <div className="text-2xl font-bold text-orange-400">{fraudData.totalSignals}</div>
+                  <div className="text-2xl font-bold text-orange-400">{fraudSignals.totalSignals}</div>
                   <div className="text-xs text-gray-400">Signals</div>
                 </div>
                 <div className="text-center flex-1">
-                  <div className="text-2xl font-bold text-red-400">{fraudData.totalAlerts}</div>
+                  <div className="text-2xl font-bold text-red-400">{fraudSignals.totalAlerts}</div>
                   <div className="text-xs text-gray-400">Alerts</div>
                 </div>
               </div>
-              {fraudData.alerts.slice(0, 3).map((a: any) => (
+              {fraudSignals.alerts.slice(0, 3).map(a => (
                 <div key={a.id} className="bg-red-900/20 border border-red-800/50 rounded p-2">
                   <div className="flex items-center gap-1 mb-0.5">
                     <AlertTriangle className="h-3 w-3 text-red-400 flex-shrink-0" />
@@ -251,7 +314,7 @@ export function VehiclePassportPanel({ vehicleRegistryId, vehicleRegistration }:
                   <p className="text-xs text-gray-400 leading-snug">{a.alertDescription}</p>
                 </div>
               ))}
-              {fraudData.signals.slice(0, 3).map((s: any) => (
+              {fraudSignals.signals.slice(0, 3).map(s => (
                 <div key={s.id} className="bg-orange-900/20 border border-orange-800/50 rounded p-2">
                   <div className="flex items-center gap-1">
                     <Zap className="h-3 w-3 text-orange-400 flex-shrink-0" />
@@ -263,22 +326,27 @@ export function VehiclePassportPanel({ vehicleRegistryId, vehicleRegistration }:
                 </div>
               ))}
             </div>
-          ) : (
+          ) : fraudSignals ? (
             <div className="text-center py-4">
               <Shield className="mx-auto h-8 w-8 text-green-600 mb-2" />
               <p className="text-xs text-green-400">No fraud signals detected</p>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <ShieldAlert className="mx-auto h-8 w-8 text-amber-500 mb-2" />
+              <p className="text-xs text-amber-300">Fraud signals unavailable</p>
             </div>
           )}
         </SectionCard>
       </div>
 
       {/* Timeline */}
-      {timeline && timeline.events && timeline.events.length > 0 && (
+      {visibleTimelineEvents.length > 0 && (
         <SectionCard title="Vehicle Timeline" icon={<Clock className="h-3.5 w-3.5" />}>
           <div className="relative pl-4">
             <div className="absolute left-1.5 top-0 bottom-0 w-px bg-gray-700" />
             <div className="space-y-3">
-              {timeline.events.map((event: any, i: number) => (
+              {visibleTimelineEvents.map((event, i) => (
                 <div key={i} className="relative">
                   <div className="absolute -left-3 top-1.5 w-2 h-2 rounded-full bg-blue-500 border border-gray-900" />
                   <div className="text-xs">
