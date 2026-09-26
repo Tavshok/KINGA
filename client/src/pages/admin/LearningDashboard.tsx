@@ -42,6 +42,7 @@ import {
   Search,
   AlertCircle,
 } from "lucide-react";
+import { getP0B1FraudDecisionHold } from "@shared/p0FraudDecisionHoldPresentation";
 
 // ─── Scenario options ──────────────────────────────────────────────────────────
 const SCENARIOS = [
@@ -84,11 +85,13 @@ export default function LearningDashboard() {
 
   const scenarioParam = scenarioFilter === "all" ? undefined : scenarioFilter;
 
-  const { data: calibrationDrift, isLoading: calibrationLoading, refetch: refetchCalibration } =
+  const { data: calibrationDriftResponse, isLoading: calibrationLoading, refetch: refetchCalibration } =
     trpc.learning.getCalibrationDrift.useQuery(
       { scenario_filter: scenarioParam },
       { enabled: activeTab === "calibration" }
     );
+  const calibrationFraudDecisionHold = getP0B1FraudDecisionHold(calibrationDriftResponse);
+  const calibrationDrift = calibrationFraudDecisionHold ? null : (calibrationDriftResponse as any);
 
   const { data: jurisdictionResult, isLoading: jurisdictionLoading, refetch: refetchJurisdiction } =
     trpc.learning.getJurisdictionCalibration.useQuery(
@@ -149,6 +152,8 @@ export default function LearningDashboard() {
     confidence: number;
     jurisdiction: string;
   } | null>(null);
+  const [calibFeedbackFraudDecisionHold, setCalibFeedbackFraudDecisionHold] =
+    useState<ReturnType<typeof getP0B1FraudDecisionHold>>(null);
 
   const evaluateCalibration = trpc.learning.evaluateCalibrationFeedback.useQuery(
     { jurisdiction: calibFeedbackJurisdiction },
@@ -156,22 +161,32 @@ export default function LearningDashboard() {
   );
   const triggerEvaluation = () => {
     evaluateCalibration.refetch().then((result) => {
-      if (result.data) setCalibFeedbackResult(result.data as typeof calibFeedbackResult);
+      const hold = getP0B1FraudDecisionHold(result.data);
+      setCalibFeedbackFraudDecisionHold(hold);
+      setCalibFeedbackResult(hold ? null : (result.data as typeof calibFeedbackResult));
     }).catch((err: any) => alert(`Evaluation failed: ${err.message}`));
   };
 
   const applyCalibration = trpc.learning.applyCalibrationUpdate.useMutation({
-    onSuccess: () => {
+    onSuccess: (result) => {
+      const hold = getP0B1FraudDecisionHold(result);
+      if (hold) {
+        setCalibFeedbackFraudDecisionHold(hold);
+        setCalibFeedbackResult(null);
+        return;
+      }
       alert("Calibration update applied successfully!");
       setCalibFeedbackResult(null);
     },
     onError: (err) => alert(`Apply failed: ${err.message}`),
   });
 
-  const { data: calibrationHistory } = trpc.learning.getCalibrationHistory.useQuery(
+  const { data: calibrationHistoryResponse } = trpc.learning.getCalibrationHistory.useQuery(
     { jurisdiction: undefined },
     { enabled: activeTab === "calibration" }
   );
+  const calibrationHistoryFraudDecisionHold = getP0B1FraudDecisionHold(calibrationHistoryResponse);
+  const calibrationHistory = calibrationHistoryFraudDecisionHold ? null : (calibrationHistoryResponse as any);
 
   const utils = trpc.useUtils();
   const handleRefresh = () => {
@@ -182,7 +197,8 @@ export default function LearningDashboard() {
 
   const stats = statsQuery.data;
   const cost = costQuery.data;
-  const fraud = fraudQuery.data;
+  const fraudPatternDecisionHold = getP0B1FraudDecisionHold(fraudQuery.data);
+  const fraud = fraudPatternDecisionHold ? null : (fraudQuery.data as any);
   const isLoading = statsQuery.isLoading || costQuery.isLoading || fraudQuery.isLoading;
 
   return (
@@ -445,6 +461,16 @@ export default function LearningDashboard() {
               </div>
             )}
 
+            {!fraudQuery.isLoading && fraudPatternDecisionHold && (
+              <Card className="border-amber-500/50 bg-amber-500/5">
+                <CardHeader><CardTitle>Fraud Pattern Analysis Withheld</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  <p className="text-sm">{fraudPatternDecisionHold.explanation}</p>
+                  <p className="text-sm text-muted-foreground">{fraudPatternDecisionHold.resolver.unresolvedAction}</p>
+                </CardContent>
+              </Card>
+            )}
+
             {!fraudQuery.isLoading && fraud && (
               <>
                 {/* Summary */}
@@ -649,6 +675,14 @@ export default function LearningDashboard() {
                   <RefreshCw className="w-8 h-8 mx-auto mb-3 animate-spin opacity-50" />
                   <p className="text-sm">Analysing calibration drift…</p>
                 </div>
+              ) : calibrationFraudDecisionHold ? (
+                <Card className="border-amber-500/50 bg-amber-500/5">
+                  <CardHeader><CardTitle>Calibration Analysis Withheld</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    <p className="text-sm">{calibrationFraudDecisionHold.explanation}</p>
+                    <p className="text-sm text-muted-foreground">{calibrationFraudDecisionHold.resolver.unresolvedAction}</p>
+                  </CardContent>
+                </Card>
               ) : calibrationDrift ? (
                 <>
                   {/* Status Banner */}
@@ -871,6 +905,13 @@ export default function LearningDashboard() {
                 </div>
 
                 {/* Evaluation result */}
+                {calibFeedbackFraudDecisionHold && (
+                  <div className="rounded-lg border border-amber-500/50 bg-amber-500/5 p-3 space-y-2">
+                    <p className="text-sm font-medium">Calibration Recommendation Withheld</p>
+                    <p className="text-xs text-muted-foreground">{calibFeedbackFraudDecisionHold.explanation}</p>
+                    <p className="text-xs text-muted-foreground">{calibFeedbackFraudDecisionHold.resolver.unresolvedAction}</p>
+                  </div>
+                )}
                 {calibFeedbackResult && (
                   <div className={`rounded-lg border p-3 space-y-2 ${
                     !calibFeedbackResult.apply_update
@@ -953,6 +994,15 @@ export default function LearningDashboard() {
             </Card>
 
             {/* Calibration Override History */}
+            {calibrationHistoryFraudDecisionHold && (
+              <Card className="border-amber-500/50 bg-amber-500/5">
+                <CardHeader><CardTitle>Calibration History Withheld</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  <p className="text-sm">{calibrationHistoryFraudDecisionHold.explanation}</p>
+                  <p className="text-sm text-muted-foreground">{calibrationHistoryFraudDecisionHold.resolver.unresolvedAction}</p>
+                </CardContent>
+              </Card>
+            )}
             {calibrationHistory && calibrationHistory.length > 0 && (
               <Card>
                 <CardHeader className="pb-2">
@@ -963,7 +1013,7 @@ export default function LearningDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {calibrationHistory.slice(0, 10).map((override) => (
+                    {calibrationHistory.slice(0, 10).map((override: any) => (
                       <div key={override.id} className="flex items-center justify-between text-xs border rounded px-3 py-2">
                         <div>
                           <span className="font-medium">{override.jurisdiction}</span>
