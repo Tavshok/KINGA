@@ -33,6 +33,37 @@ const canonicalHelperOrigins = new Map([
   ],
 ]);
 
+const trustedProcedureBuilderOrigins = new Map([
+  [
+    "server/_core/trpc.ts",
+    new Set([
+      "publicProcedure",
+      "executiveReportAuthorityProcedure",
+      "protectedProcedure",
+      "adminProcedure",
+      "superAdminProcedure",
+      "executiveOnlyProcedure",
+      "insurerDomainProcedure",
+    ]),
+  ],
+  [
+    "server/_core/domain-middleware.ts",
+    new Set([
+      "platformProcedure",
+      "agencyDomainProcedure",
+      "insurerDomainProcedure",
+      "insurerTenantProcedure",
+      "fleetDomainProcedure",
+      "marketplaceDomainProcedure",
+      "portalDomainProcedure",
+      "customerDomainProcedure",
+      "engineerDomainProcedure",
+    ]),
+  ],
+]);
+
+const trustedProcedureBuilderMethods = new Set(["input", "use"]);
+
 export const manifestRelativePath =
   "scripts/ci/p0-b1-typed-hold-consumer-manifest.json";
 
@@ -133,14 +164,38 @@ function directTypeAlias(sourceFile, name) {
   return aliases.length === 1 ? aliases[0] : null;
 }
 
-function resolveObjectLiteral(expression, checker, seen = new Set()) {
+function isTrustedRouterFactory(expression, checker, root) {
+  const declaration = symbolDeclaration(
+    checker.getSymbolAtLocation(expression),
+    checker
+  );
+  return Boolean(
+    declaration &&
+      canonicalPath(relative(root, declaration.getSourceFile().fileName)) ===
+        "server/_core/trpc.ts" &&
+      declarationName(declaration) === "router"
+  );
+}
+
+function resolveRouterObjectLiteral(
+  expression,
+  checker,
+  root,
+  seen = new Set()
+) {
   const candidate = unwrap(expression);
   if (seen.has(candidate)) return null;
   seen.add(candidate);
 
   if (ts.isObjectLiteralExpression(candidate)) return candidate;
   if (ts.isCallExpression(candidate)) {
-    return candidate.arguments.find(ts.isObjectLiteralExpression) ?? null;
+    if (!isTrustedRouterFactory(candidate.expression, checker, root)) {
+      return null;
+    }
+    return candidate.arguments.length === 1 &&
+      ts.isObjectLiteralExpression(candidate.arguments[0])
+      ? candidate.arguments[0]
+      : null;
   }
   if (!ts.isIdentifier(candidate)) return null;
 
@@ -149,7 +204,12 @@ function resolveObjectLiteral(expression, checker, seen = new Set()) {
     checker
   );
   if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
-    return resolveObjectLiteral(declaration.initializer, checker, seen);
+    return resolveRouterObjectLiteral(
+      declaration.initializer,
+      checker,
+      root,
+      seen
+    );
   }
   return null;
 }
@@ -170,6 +230,107 @@ function canonicalHelperSymbol(symbol, checker, root) {
   );
   const helpers = canonicalHelperOrigins.get(origin);
   return Boolean(helpers?.has(declarationName(declaration)));
+}
+
+function isTrustedProcedureDeclaration(declaration, root) {
+  if (!declaration) return false;
+  const origin = canonicalPath(
+    relative(root, declaration.getSourceFile().fileName)
+  );
+  return Boolean(
+    trustedProcedureBuilderOrigins
+      .get(origin)
+      ?.has(declarationName(declaration))
+  );
+}
+
+function isTrustedProcedureBuilder(
+  expression,
+  checker,
+  root,
+  seen = new Set()
+) {
+  const candidate = unwrap(expression);
+  if (seen.has(candidate)) return false;
+  seen.add(candidate);
+
+  if (ts.isIdentifier(candidate)) {
+    const declaration = symbolDeclaration(
+      checker.getSymbolAtLocation(candidate),
+      checker
+    );
+    if (isTrustedProcedureDeclaration(declaration, root)) return true;
+    if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
+      return isTrustedProcedureBuilder(
+        declaration.initializer,
+        checker,
+        root,
+        seen
+      );
+    }
+    return false;
+  }
+
+  if (ts.isCallExpression(candidate)) {
+    const callee = unwrap(candidate.expression);
+    return (
+      ts.isPropertyAccessExpression(callee) &&
+      trustedProcedureBuilderMethods.has(callee.name.text) &&
+      isTrustedProcedureBuilder(callee.expression, checker, root, seen)
+    );
+  }
+
+  return false;
+}
+
+function isTrustedProcedureValue(expression, checker, root, seen = new Set()) {
+  const candidate = unwrap(expression);
+  if (seen.has(candidate)) return false;
+  seen.add(candidate);
+
+  if (ts.isIdentifier(candidate)) {
+    const declaration = symbolDeclaration(
+      checker.getSymbolAtLocation(candidate),
+      checker
+    );
+    if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
+      return isTrustedProcedureValue(
+        declaration.initializer,
+        checker,
+        root,
+        seen
+      );
+    }
+    return false;
+  }
+
+  if (!ts.isCallExpression(candidate)) return false;
+  const callee = unwrap(candidate.expression);
+  return (
+    ts.isPropertyAccessExpression(callee) &&
+    ["query", "mutation", "subscription"].includes(callee.name.text) &&
+    isTrustedProcedureBuilder(callee.expression, checker, root)
+  );
+}
+
+function trustedProcedureCallbackProducesCanonicalHold(
+  expression,
+  checker,
+  root
+) {
+  const candidate = unwrap(expression);
+  if (!ts.isCallExpression(candidate)) return false;
+  const callee = unwrap(candidate.expression);
+  if (
+    !ts.isPropertyAccessExpression(callee) ||
+    !["query", "mutation", "subscription"].includes(callee.name.text) ||
+    !isTrustedProcedureBuilder(callee.expression, checker, root)
+  ) {
+    return false;
+  }
+  return candidate.arguments.some(argument =>
+    expressionProducesCanonicalHold(argument, checker, root)
+  );
 }
 
 function objectContainsCanonicalStatus(expression, checker, root, seen) {
@@ -210,6 +371,28 @@ function objectContainsCanonicalStatus(expression, checker, root, seen) {
   return false;
 }
 
+function isStandardArrayMapCall(call, checker) {
+  const callee = unwrap(call.expression);
+  if (!ts.isPropertyAccessExpression(callee) || callee.name.text !== "map") {
+    return false;
+  }
+  const receiverType = checker.getTypeAtLocation(callee.expression);
+  if (checker.isArrayType(receiverType) || checker.isTupleType(receiverType)) {
+    return true;
+  }
+  const declaration = symbolDeclaration(
+    checker.getSymbolAtLocation(callee.name),
+    checker
+  );
+  if (!declaration?.getSourceFile().isDeclarationFile) return false;
+  const sourcePath = canonicalPath(declaration.getSourceFile().fileName);
+  return (
+    /\/lib\.[^/]+\.d\.ts$/.test(sourcePath) &&
+    ts.isInterfaceDeclaration(declaration.parent) &&
+    declaration.parent.name.text === "Array"
+  );
+}
+
 function declarationProducesCanonicalHold(declaration, checker, root, seen) {
   if (seen.has(declaration)) return false;
   seen.add(declaration);
@@ -248,6 +431,88 @@ function declarationProducesCanonicalHold(declaration, checker, root, seen) {
     return blockProducesCanonicalHold(declaration.body, checker, root, seen);
   }
   return false;
+}
+
+function expressionPassesParameterAsCanonicalHold(expression, parameterName) {
+  const candidate = unwrap(expression);
+  if (ts.isIdentifier(candidate)) return candidate.text === parameterName;
+  if (ts.isConditionalExpression(candidate)) {
+    return (
+      expressionPassesParameterAsCanonicalHold(
+        candidate.whenTrue,
+        parameterName
+      ) ||
+      expressionPassesParameterAsCanonicalHold(
+        candidate.whenFalse,
+        parameterName
+      )
+    );
+  }
+  if (!ts.isObjectLiteralExpression(candidate)) return false;
+  return candidate.properties.some(property => {
+    if (ts.isShorthandPropertyAssignment(property)) {
+      return (
+        ["data", "fraudDecision", "decision_hold"].includes(
+          property.name.text
+        ) && property.name.text === parameterName
+      );
+    }
+    if (!ts.isPropertyAssignment(property)) return false;
+    const name = propertyName(property);
+    return (
+      ["data", "fraudDecision", "decision_hold"].includes(name) &&
+      expressionPassesParameterAsCanonicalHold(
+        property.initializer,
+        parameterName
+      )
+    );
+  });
+}
+
+function declarationPassesCanonicalArgument(declaration, argumentIndex) {
+  if (
+    !(
+      ts.isFunctionDeclaration(declaration) ||
+      ts.isFunctionExpression(declaration) ||
+      ts.isArrowFunction(declaration) ||
+      ts.isMethodDeclaration(declaration)
+    )
+  ) {
+    return false;
+  }
+  const parameter = declaration.parameters[argumentIndex];
+  if (!parameter || !ts.isIdentifier(parameter.name) || !declaration.body) {
+    return false;
+  }
+  if (!ts.isBlock(declaration.body)) {
+    return expressionPassesParameterAsCanonicalHold(
+      declaration.body,
+      parameter.name.text
+    );
+  }
+  let found = false;
+  const visit = node => {
+    if (found) return;
+    if (
+      node !== declaration.body &&
+      (ts.isFunctionDeclaration(node) ||
+        ts.isFunctionExpression(node) ||
+        ts.isArrowFunction(node) ||
+        ts.isMethodDeclaration(node))
+    ) {
+      return;
+    }
+    if (ts.isReturnStatement(node) && node.expression) {
+      found = expressionPassesParameterAsCanonicalHold(
+        node.expression,
+        parameter.name.text
+      );
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(declaration.body);
+  return found;
 }
 
 function expressionProducesCanonicalHold(
@@ -307,10 +572,24 @@ function expressionProducesCanonicalHold(
     ) {
       return true;
     }
-    // Promise.resolve and equivalent wrappers do not change the actual value.
-    return candidate.arguments?.some(argument =>
-      expressionProducesCanonicalHold(argument, checker, root, seen)
-    );
+    if (
+      ts.isCallExpression(candidate) &&
+      isStandardArrayMapCall(candidate, checker)
+    ) {
+      return candidate.arguments.some(
+        argument =>
+          (ts.isArrowFunction(argument) || ts.isFunctionExpression(argument)) &&
+          expressionProducesCanonicalHold(argument, checker, root, seen)
+      );
+    }
+    if (ts.isCallExpression(candidate) && declaration) {
+      return candidate.arguments.some(
+        (argument, index) =>
+          expressionProducesCanonicalHold(argument, checker, root, seen) &&
+          declarationPassesCanonicalArgument(declaration, index)
+      );
+    }
+    return false;
   }
 
   if (ts.isConditionalExpression(candidate)) {
@@ -381,9 +660,10 @@ function assertExportedAppRouter(program, root) {
   const appRouterSymbol = checker.getSymbolAtLocation(
     appRouterBinding.declaration.name
   );
-  const appRouter = resolveObjectLiteral(
+  const appRouter = resolveRouterObjectLiteral(
     appRouterBinding.declaration.initializer,
-    checker
+    checker,
+    root
   );
   if (!appRouter || !appRouterSymbol) {
     throw new Error(
@@ -474,28 +754,122 @@ function assertClientUsesAppRouter(
   return { checker, trpcSymbol };
 }
 
+function sourceLocation(node, root) {
+  const sourceFile = node.getSourceFile();
+  const position = sourceFile.getLineAndCharacterOfPosition(
+    node.getStart(sourceFile)
+  );
+  return `${canonicalPath(relative(root, sourceFile.fileName))}:${position.line + 1}:${position.character + 1}`;
+}
+
+function rejectUnresolvableRouterStructure(node, scope, root, reason) {
+  throw new Error(
+    `${sourceLocation(node, root)}: ${scope} must use a direct named property assignment or a resolvable shorthand so P0-B1 hold discovery cannot omit a consumer (${reason}).`
+  );
+}
+
+function routerPropertyName(property) {
+  if (ts.isPropertyAssignment(property)) return propertyName(property);
+  if (ts.isShorthandPropertyAssignment(property)) return property.name.text;
+  return null;
+}
+
+function shorthandValueDeclaration(property, checker) {
+  if (!ts.isShorthandPropertyAssignment(property)) return null;
+  return symbolDeclaration(
+    checker.getShorthandAssignmentValueSymbol(property),
+    checker
+  );
+}
+
+function routerObjectForProperty(property, checker, root) {
+  if (ts.isPropertyAssignment(property)) {
+    return resolveRouterObjectLiteral(property.initializer, checker, root);
+  }
+  const declaration = shorthandValueDeclaration(property, checker);
+  if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
+    return resolveRouterObjectLiteral(declaration.initializer, checker, root);
+  }
+  return null;
+}
+
+function propertyProducesCanonicalHold(property, checker, root) {
+  if (ts.isPropertyAssignment(property)) {
+    return expressionProducesCanonicalHold(property.initializer, checker, root);
+  }
+  const declaration = shorthandValueDeclaration(property, checker);
+  return Boolean(
+    declaration &&
+      declarationProducesCanonicalHold(declaration, checker, root, new Set())
+  );
+}
+
+function procedureValueExpression(property, checker) {
+  if (ts.isPropertyAssignment(property)) return property.initializer;
+  const declaration = shorthandValueDeclaration(property, checker);
+  if (declaration && ts.isVariableDeclaration(declaration)) {
+    return declaration.initializer ?? null;
+  }
+  return null;
+}
+
+function procedurePropertyProducesCanonicalHold(property, checker, root) {
+  const value = procedureValueExpression(property, checker);
+  return Boolean(
+    propertyProducesCanonicalHold(property, checker, root) ||
+      (value &&
+        trustedProcedureCallbackProducesCanonicalHold(value, checker, root))
+  );
+}
+
 function serverProcedureMap(program, root = repositoryRoot) {
   const { checker, appRouter } = assertExportedAppRouter(program, root);
   const procedures = new Map();
   for (const namespaceProperty of appRouter.properties) {
-    if (!ts.isPropertyAssignment(namespaceProperty)) continue;
-    const namespace = propertyName(namespaceProperty);
-    if (!namespace) continue;
-    const router = resolveObjectLiteral(namespaceProperty.initializer, checker);
-    if (!router) continue;
+    const namespace = routerPropertyName(namespaceProperty);
+    if (!namespace) {
+      rejectUnresolvableRouterStructure(
+        namespaceProperty,
+        "appRouter namespace",
+        root,
+        "spread, method, accessor, non-literal key, or other unsupported members are not allowed"
+      );
+    }
+    const router = routerObjectForProperty(namespaceProperty, checker, root);
+    if (!router) {
+      rejectUnresolvableRouterStructure(
+        namespaceProperty,
+        `appRouter namespace ${namespace}`,
+        root,
+        "the namespace router cannot be resolved"
+      );
+    }
 
     for (const procedureProperty of router.properties) {
-      if (!ts.isPropertyAssignment(procedureProperty)) continue;
-      const procedure = propertyName(procedureProperty);
-      if (!procedure) continue;
+      const procedure = routerPropertyName(procedureProperty);
+      const procedureValue = procedureValueExpression(
+        procedureProperty,
+        checker
+      );
+      if (!procedure || !procedureValue) {
+        rejectUnresolvableRouterStructure(
+          procedureProperty,
+          `router namespace ${namespace}`,
+          root,
+          "spread, method, accessor, non-literal key, or other unsupported members are not allowed"
+        );
+      }
       if (
-        expressionProducesCanonicalHold(
-          procedureProperty.initializer,
-          checker,
-          root
-        )
+        procedurePropertyProducesCanonicalHold(procedureProperty, checker, root)
       ) {
         procedures.set(`${namespace}.${procedure}`, procedureProperty);
+      } else if (!isTrustedProcedureValue(procedureValue, checker, root)) {
+        rejectUnresolvableRouterStructure(
+          procedureProperty,
+          `router procedure ${namespace}.${procedure}`,
+          root,
+          "the procedure value cannot be statically proven to be a trusted tRPC procedure or a canonical hold"
+        );
       }
     }
   }

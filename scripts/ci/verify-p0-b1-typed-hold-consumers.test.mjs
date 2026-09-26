@@ -40,11 +40,18 @@ function sampleEntry(overrides = {}) {
 
 async function makeFixture({
   appRouterExported = true,
+  appRouterExpression = "router({ test: testRouter })",
+  appRouterImport = 'import { testRouter } from "./test-router.js";',
+  appRouterPreamble = "",
   procedureBody = "withhold();",
   hookExpression = 'trpc["test"]["get"].useQuery()',
   hookBody = null,
   clientRouterType = "AppRouter",
   clientRouterModule = "../../../server/routers.js",
+  testRouterImport = "",
+  testRouterExpression = null,
+  testRouterPreamble = "",
+  noLib = true,
 } = {}) {
   const fixture = await mkdtemp(join(tmpdir(), "p0-bg1-fixture-"));
   const files = {
@@ -54,7 +61,7 @@ async function makeFixture({
           target: "ES2022",
           module: "NodeNext",
           moduleResolution: "NodeNext",
-          noLib: true,
+          noLib,
           skipLibCheck: true,
         },
         include: [
@@ -75,20 +82,30 @@ export function buildP0B1FraudDecisionHold() {
     "server/evidence-governance/p0FraudDecisionHold.ts": `
 export function throwP0B1FraudDecisionHold(): never { throw { status: "FRAUD_DECISION_WITHHELD" as const }; }
 `,
+    "server/_core/trpc.ts": `
+export const router = value => value;
+export const protectedProcedure = { query: callback => ({ callback }) };
+export const rogueProcedure = { query: callback => ({ callback }) };
+`,
+    "server/imported-procedure.ts": `
+import { protectedProcedure } from "./_core/trpc.js";
+export const importedProcedure = protectedProcedure.query(async () => ({ ok: true }));
+`,
     "server/test-router.ts": `
 import { throwP0B1FraudDecisionHold as withhold } from "./evidence-governance/p0FraudDecisionHold.js";
-const router = value => value;
-const procedure = { query: callback => ({ callback }) };
+import { protectedProcedure, router } from "./_core/trpc.js";
+${testRouterImport}
+const procedure = protectedProcedure;
 function makeRealCanonicalHold() { return { status: "FRAUD_DECISION_WITHHELD" as const }; }
 function throwP0B1FraudDecisionHold() { return { ok: true }; }
-export const testRouter = router({
-  get: procedure.query(async () => { ${procedureBody} }),
-});
+${testRouterPreamble}
+export const testRouter = ${testRouterExpression ?? `router({ get: procedure.query(async () => { ${procedureBody} }) })`};
 `,
     "server/routers.ts": `
-import { testRouter } from "./test-router.js";
-const router = value => value;
-${appRouterExported ? "export " : ""}const appRouter = router({ test: testRouter });
+${appRouterImport}
+import { router } from "./_core/trpc.js";
+${appRouterPreamble}
+${appRouterExported ? "export " : ""}const appRouter = ${appRouterExpression};
 export type AppRouter = typeof appRouter;
 `,
     "server/not-app-router.ts": `
@@ -126,6 +143,22 @@ async function scanFixture(options) {
     return scanTypedFraudHoldConsumers(
       createProgramForRepository(fixture),
       fixture
+    );
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+}
+
+async function assertFixtureRejects(options, expected) {
+  const fixture = await makeFixture(options);
+  try {
+    assert.throws(
+      () =>
+        scanTypedFraudHoldConsumers(
+          createProgramForRepository(fixture),
+          fixture
+        ),
+      expected
     );
   } finally {
     await rm(fixture, { recursive: true, force: true });
@@ -253,7 +286,26 @@ test("discovers a transitive helper whose semantic return is the canonical statu
   assert.equal(result[0].detection, "server-canonical-hold");
 });
 
-test("rejects a same-spelling local helper decoy without a canonical result", async () => {
+test("discovers a canonical hold projected through standard Array.map", async () => {
+  const result = await scanFixture({
+    noLib: false,
+    procedureBody:
+      'return [{}].map(() => ({ status: "FRAUD_DECISION_WITHHELD" }));',
+  });
+  assert.equal(result.length, 1);
+  assert.equal(result[0].detection, "server-canonical-hold");
+});
+
+test("does not mistake a typed-array map projection for a canonical hold", async () => {
+  const result = await scanFixture({
+    noLib: false,
+    procedureBody:
+      'return new Uint8Array([1]).map(() => ({ status: "FRAUD_DECISION_WITHHELD" } as any));',
+  });
+  assert.deepEqual(result, []);
+});
+
+test("does not mistake a same-spelling local helper for a canonical hold", async () => {
   const result = await scanFixture({
     procedureBody: "return throwP0B1FraudDecisionHold();",
   });
@@ -349,4 +401,149 @@ test("fails closed when a dynamic procedure key follows a destructured trpc name
   } finally {
     await rm(fixture, { recursive: true, force: true });
   }
+});
+
+test("fails closed when an appRouter namespace router is unresolvable", async () => {
+  await assertFixtureRejects(
+    {
+      appRouterPreamble: "function makeTestNamespace() { return testRouter; }",
+      appRouterExpression: "router({ test: makeTestNamespace() })",
+    },
+    /appRouter namespace test must use a direct named property assignment or a resolvable shorthand.*namespace router cannot be resolved/
+  );
+});
+
+test("fails closed when an untrusted namespace wrapper receives an object argument", async () => {
+  await assertFixtureRejects(
+    {
+      appRouterPreamble:
+        "function disguiseNamespace(_config) { return testRouter; }",
+      appRouterExpression:
+        "router({ test: disguiseNamespace({ safe: { value: true } }) })",
+    },
+    /appRouter namespace test must use a direct named property assignment or a resolvable shorthand.*namespace router cannot be resolved/
+  );
+});
+
+test("fails closed when appRouter spreads a namespace", async () => {
+  await assertFixtureRejects(
+    {
+      appRouterPreamble: "const routerNamespaces = { test: testRouter };",
+      appRouterExpression: "router({ ...routerNamespaces })",
+    },
+    /appRouter namespace must use a direct named property assignment or a resolvable shorthand.*spread/
+  );
+});
+
+test("fails closed when appRouter uses a namespace method", async () => {
+  await assertFixtureRejects(
+    {
+      appRouterExpression: "router({ test() { return testRouter; } })",
+    },
+    /appRouter namespace must use a direct named property assignment or a resolvable shorthand.*unsupported members/
+  );
+});
+
+test("fails closed when a namespace router spreads a procedure", async () => {
+  await assertFixtureRejects(
+    {
+      testRouterPreamble:
+        "const procedures = { get: procedure.query(async () => { withhold(); }) };",
+      testRouterExpression: "router({ ...procedures })",
+    },
+    /router namespace test must use a direct named property assignment or a resolvable shorthand.*spread/
+  );
+});
+
+test("fails closed when a namespace router uses a procedure method", async () => {
+  await assertFixtureRejects(
+    {
+      testRouterExpression:
+        "router({ get() { return procedure.query(async () => { withhold(); }); } })",
+    },
+    /router namespace test must use a direct named property assignment or a resolvable shorthand.*unsupported members/
+  );
+});
+
+test("fails closed when a procedure value is an opaque wrapper call", async () => {
+  await assertFixtureRejects(
+    {
+      testRouterPreamble: "function makeProcedure() { return {}; }",
+      testRouterExpression: "router({ get: makeProcedure() })",
+    },
+    /router procedure test\.get must use a direct named property assignment or a resolvable shorthand.*cannot be statically proven/
+  );
+});
+
+test("fails closed when an opaque procedure receives a canonical-looking argument", async () => {
+  await assertFixtureRejects(
+    {
+      testRouterPreamble: "function opaqueProcedure(_value) { return {}; }",
+      testRouterExpression:
+        'router({ get: opaqueProcedure({ status: "FRAUD_DECISION_WITHHELD" }) })',
+    },
+    /router procedure test\.get must use a direct named property assignment or a resolvable shorthand.*cannot be statically proven/
+  );
+});
+
+test("fails closed when a local map lookalike projects a canonical-looking value", async () => {
+  await assertFixtureRejects(
+    {
+      testRouterPreamble:
+        "const opaqueCollection = { map: callback => callback({}) };",
+      testRouterExpression:
+        'router({ get: opaqueCollection.map(() => ({ status: "FRAUD_DECISION_WITHHELD" })) })',
+    },
+    /router procedure test\.get must use a direct named property assignment or a resolvable shorthand.*cannot be statically proven/
+  );
+});
+
+test("resolves an imported procedure built from a trusted tRPC builder", async () => {
+  const result = await scanFixture({
+    testRouterImport:
+      'import { importedProcedure } from "./imported-procedure.js";',
+    testRouterExpression: "router({ get: importedProcedure })",
+  });
+  assert.equal(result.length, 0);
+});
+
+test("fails closed when an unapproved procedure builder is added beside trusted builders", async () => {
+  await assertFixtureRejects(
+    {
+      testRouterImport: 'import { rogueProcedure } from "./_core/trpc.js";',
+      testRouterExpression:
+        "router({ get: rogueProcedure.query(async () => ({ ok: true })) })",
+    },
+    /router procedure test\.get must use a direct named property assignment or a resolvable shorthand.*cannot be statically proven/
+  );
+});
+
+test("fails closed when an unapproved fluent method follows a trusted procedure builder", async () => {
+  await assertFixtureRejects(
+    {
+      testRouterImport: 'import { protectedProcedure } from "./_core/trpc.js";',
+      testRouterExpression:
+        "router({ get: (protectedProcedure as any).rogue().query(async () => ({ ok: true })) })",
+    },
+    /router procedure test\.get must use a direct named property assignment or a resolvable shorthand.*cannot be statically proven/
+  );
+});
+
+test("resolves an imported shorthand namespace without accepting a spread", async () => {
+  const result = await scanFixture({
+    appRouterImport: 'import { testRouter as test } from "./test-router.js";',
+    appRouterExpression: "router({ test })",
+  });
+  assert.equal(result.length, 1);
+  assert.equal(result[0].callee, "trpc.test.get.useQuery");
+});
+
+test("resolves a direct shorthand procedure without accepting a spread", async () => {
+  const result = await scanFixture({
+    testRouterPreamble:
+      "const get = procedure.query(async () => { withhold(); });",
+    testRouterExpression: "router({ get })",
+  });
+  assert.equal(result.length, 1);
+  assert.equal(result[0].detection, "server-canonical-hold");
 });
