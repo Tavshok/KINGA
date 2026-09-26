@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   expectedTriggerBlock,
+  verifyQualityGateStackedTypecheckRouting,
   verifyQualityGateTriggerScope,
 } from "./verify-quality-gate-trigger-scope.mjs";
 
@@ -18,7 +19,45 @@ test("accepts exactly the approved Quality Gate trigger block", () => {
     "main",
     "feat/p0-b1-composed-fraud-boundary-final",
     "test/p0-b1-canonical-report-flake",
+    "ci/p0-b1-stacked-quality-gate-routing",
   ]);
+});
+
+test("accepts the approved main-or-exact-stacked-base typecheck routing", () => {
+  assert.doesNotThrow(() => verifyQualityGateStackedTypecheckRouting(workflow));
+});
+
+test("rejects a shallow checkout that cannot prove the event base", () => {
+  const shallow = workflow.replace(
+    "          fetch-depth: 0 # exact immutable pull-request base is required for stacked typecheck comparison\n",
+    "          fetch-depth: 1\n"
+  );
+  assert.throws(
+    () => verifyQualityGateStackedTypecheckRouting(shallow),
+    /full immutable history/
+  );
+});
+
+test("rejects removal of hosted stacked comparator guard tests", () => {
+  const unsafe = workflow.replace(
+    "      - name: Verify Quality Gate guard regressions\n        run: >-\n          node --test scripts/ci/verify-quality-gate-trigger-scope.test.mjs\n          scripts/ci/typecheck-stacked-base.test.mjs\n",
+    ""
+  );
+  assert.throws(
+    () => verifyQualityGateStackedTypecheckRouting(unsafe),
+    /must run the approved trigger and stacked-comparator guard regression tests/
+  );
+});
+
+test("rejects a stack branch routed to the committed main baseline", () => {
+  const unsafe = workflow.replace(
+    '            node scripts/ci/typecheck-stacked-base.mjs --base-sha "$STACKED_BASE_SHA"\n',
+    "            node scripts/ci/typecheck-baseline.mjs\n"
+  );
+  assert.throws(
+    () => verifyQualityGateStackedTypecheckRouting(unsafe),
+    /main-or-exact-stacked-base/
+  );
 });
 
 test("rejects an added top-level trigger", () => {
@@ -63,8 +102,8 @@ test("rejects an explicit duplicate YAML root trigger key", () => {
 
 test("rejects a broadened pull-request base", () => {
   const broadened = workflow.replace(
-    "      - test/p0-b1-canonical-report-flake\n",
-    "      - test/p0-b1-canonical-report-flake\n      - feature/unreviewed\n"
+    "      - ci/p0-b1-stacked-quality-gate-routing\n",
+    "      - ci/p0-b1-stacked-quality-gate-routing\n      - feature/unreviewed\n"
   );
   assert.throws(
     () => verifyQualityGateTriggerScope(broadened),
