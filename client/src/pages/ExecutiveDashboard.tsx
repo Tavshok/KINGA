@@ -48,7 +48,10 @@ import { GovernanceExceptionsRegister } from "@/components/executive/GovernanceE
 import { CrossClaimIntelligencePanel } from "@/components/executive/CrossClaimIntelligencePanel";
 import { P0B1GlobalSearchResults } from "@/components/P0B1GlobalSearchResults";
 import { P0FraudValidationHold } from "@/components/ValidationGate";
-import { P0_B1_FRAUD_DECISION_HOLD } from "@shared/p0FraudDecisionHoldPresentation";
+import {
+  discriminateP0B1FraudDecisionResponse,
+  P0_B1_FRAUD_DECISION_HOLD,
+} from "@shared/p0FraudDecisionHoldPresentation";
 import {
   exportKPIsToPDF,
   exportAssessorPerformanceToExcel,
@@ -290,7 +293,12 @@ export default function ExecutiveDashboard() {
   const _financialsRaw = financialsResponse?.data?.summaryMetrics;
   const financials = _financialsRaw ?? null;
 
-  const searchResults = searchResultsResponse?.data;
+  const globalSearchResponse = discriminateP0B1FraudDecisionResponse(
+    searchResultsResponse
+  );
+  const globalSearchHold = globalSearchResponse.hold;
+  const availableGlobalSearch = globalSearchResponse.value;
+  const searchResults = availableGlobalSearch?.data;
 
   const handleSearch = async () => {
     if (searchQuery.trim()) {
@@ -378,6 +386,10 @@ export default function ExecutiveDashboard() {
     setReviewRole("");
     setReviewNotes("");
   };
+
+  if (globalSearchHold) {
+    return <P0FraudValidationHold hold={globalSearchHold} />;
+  }
 
   if (kpisLoading && !kpisError) {
     return (
@@ -918,7 +930,9 @@ export default function ExecutiveDashboard() {
                     {searchLoading ? <Activity className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   </Button>
                 </div>
-                {searchResults && (
+                {globalSearchHold ? (
+                  <P0FraudValidationHold hold={globalSearchHold} />
+                ) : searchResults && (
                   <div className="mt-4 space-y-2">
                     {searchResults.claims?.length > 0 && (
                       <div>

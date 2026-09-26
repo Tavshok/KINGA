@@ -49,6 +49,8 @@ import { NotificationsInbox, NotificationsTabBadge } from "@/components/Notifica
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 import { PortalHeroBand, ProtoAlertBar, ProtoTabBar } from "@/components/PortalHeroBand";
 import { Download } from "lucide-react";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
+import { discriminateP0B1FraudDecisionResponse } from "@shared/p0FraudDecisionHoldPresentation";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -198,9 +200,13 @@ function ClaimRow({ claim, actions, showWorkflow = true }: {
  * Fetches aiAssessments.byClaim lazily (only when expanded).
  * Shows: fraud score breakdown, cost intelligence, damage summary, panel beater quotes.
  */
-function AiContextPanel({ claimId }: { claimId: number }) {
-  const { data: ai, isLoading } = trpc.aiAssessments.byClaim.useQuery({ claimId });
-
+export function AiContextPanel({
+  ai,
+  isLoading,
+}: {
+  ai: any;
+  isLoading: boolean;
+}) {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 py-3 px-4 text-sm text-muted-foreground">
@@ -602,7 +608,7 @@ export default function InternalAssessorDashboard() {
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [search, setSearch] = useState("");
-    const [expandedClaimId, setExpandedClaimId] = useState<number | null>(null);
+  const [expandedClaimId, setExpandedClaimId] = useState<number | null>(null);
   const [authPaymentClaimId, setAuthPaymentClaimId] = useState<number | null>(null);
   const [authPaymentNotes, setAuthPaymentNotes] = useState("");
   const authorizePayment = trpc.claims.authorizePayment.useMutation({
@@ -636,6 +642,16 @@ export default function InternalAssessorDashboard() {
     period: perfPeriod,
     tenantId: selectedInsurerId,
   });
+  const { data: aiContextResponseData, isLoading: aiContextLoading } =
+    trpc.aiAssessments.byClaim.useQuery(
+      { claimId: expandedClaimId ?? 0 },
+      { enabled: expandedClaimId !== null }
+    );
+  const aiContextResponse = discriminateP0B1FraudDecisionResponse(
+    aiContextResponseData
+  );
+  const aiContextHold = aiContextResponse.hold;
+  const aiContext = aiContextResponse.value;
   // ── Derived data ───────────────────────────────────────────────────────────
 
   // Queue: also include under_assessment workflowState claims from myAssignments
@@ -707,6 +723,10 @@ export default function InternalAssessorDashboard() {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
+
+  if (aiContextHold) {
+    return <P0FraudValidationHold hold={aiContextHold} />;
+  }
 
   const p11Tabs = [
     { id: 'queue', label: 'Assessment Queue', badge: assessmentQueue.length || undefined },
@@ -836,7 +856,7 @@ export default function InternalAssessorDashboard() {
                   {/* Expandable KINGA context panel */}
                   {expandedClaimId === claim.id && (
                     <div className="px-4 pb-4 bg-muted/20 border-t border-border">
-                      <AiContextPanel claimId={claim.id} />
+                      <AiContextPanel ai={aiContext} isLoading={aiContextLoading} />
                     </div>
                   )}
                 </div>

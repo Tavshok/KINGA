@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS,
+  P0_B1_HELD_MUTATION_BOUNDARY_TARGETS,
   readP0B1ClientHoldBoundarySources,
   verifyP0B1ClientHoldBoundary,
 } from "./verify-p0-b1-client-hold-boundary.mjs";
@@ -11,6 +12,9 @@ const sources = await readP0B1ClientHoldBoundarySources();
 const executiveAlertsPath =
   "client/src/components/executive/ExecutiveAlertsCenter.tsx";
 const claimsCorePath = "server/routers/claims-core.ts";
+const policeReportPath = "client/src/components/PoliceReportForm.tsx";
+const decisionReportPath = "client/src/pages/ClaimDecisionReport.page.tsx";
+const riskManagerPath = "client/src/pages/RiskManagerDashboard.tsx";
 
 function withRiskPortfolioRawAuthority(source) {
   const start = source.indexOf(
@@ -27,7 +31,85 @@ function withRiskPortfolioRawAuthority(source) {
 
 test("accepts every registered live P0-B1 hold boundary", () => {
   assert.doesNotThrow(() => verifyP0B1ClientHoldBoundary(sources));
-  assert.equal(P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS.length, 4);
+  assert.equal(P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS.length, 9);
+  assert.equal(P0_B1_HELD_MUTATION_BOUNDARY_TARGETS.length, 4);
+});
+
+test("rejects a Police Report success callback that continues after a hold", () => {
+  const unsafe = {
+    ...sources,
+    [policeReportPath]: sources[policeReportPath].replace(
+      "if (policeReportSuccessResponse.hold) {\n        return;\n      }",
+      "if (policeReportSuccessResponse.hold) {\n        toast.success('Unsafe continuation');\n      }"
+    ),
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /policeReports\.create\.useMutation must begin its direct onSuccess callback with a terminal canonical hold branch/
+  );
+});
+
+test("rejects a Claim Decision Report held-render bypass", () => {
+  const unsafe = {
+    ...sources,
+    [decisionReportPath]: sources[decisionReportPath].replace(
+      "if (aiAssessmentHold) {\n    return <P0FraudValidationHold hold={aiAssessmentHold} />;\n  }",
+      "if (false && aiAssessmentHold) {\n    return <P0FraudValidationHold hold={aiAssessmentHold} />;\n  }"
+    ),
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /aiAssessmentHold does not control a P0FraudValidationHold branch/
+  );
+});
+
+test("rejects a Claim Decision Report hold branch appended after live output", () => {
+  const liveBranch =
+    "if (aiAssessmentHold) {\n    return <P0FraudValidationHold hold={aiAssessmentHold} />;\n  }";
+  const unsafe = {
+    ...sources,
+    [decisionReportPath]: `${sources[decisionReportPath].replace(
+      liveBranch,
+      ""
+    )}\n${liveBranch}\n`,
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /must retain exactly one direct render return|does not control a P0FraudValidationHold branch/
+  );
+});
+
+test("rejects a prior hold branch whose else arm returns live output", () => {
+  const unsafe = {
+    ...sources,
+    [riskManagerPath]: sources[riskManagerPath].replace(
+      "if (riskPortfolioHold) {\n    return <P0FraudValidationHold hold={riskPortfolioHold} />;\n  }",
+      "if (escalationsHold) {\n    return <P0FraudValidationHold hold={escalationsHold} />;\n  } else {\n    return <div>Unsafe live workflow</div>;\n  }\n\n  if (riskPortfolioHold) {\n    return <P0FraudValidationHold hold={riskPortfolioHold} />;\n  }"
+    ),
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /riskPortfolioHold does not control a P0FraudValidationHold branch|must retain exactly one direct render return/
+  );
+});
+
+test("rejects a Claim Decision finalisation callback that continues after a hold", () => {
+  const unsafe = {
+    ...sources,
+    [decisionReportPath]: sources[decisionReportPath].replace(
+      "if (finaliseDecisionResponse.hold) {\n        return;\n      }",
+      "if (finaliseDecisionResponse.hold) {\n        toast.success('Unsafe continuation');\n      }"
+    ),
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /finaliseDecision\.useMutation must begin its direct onSuccess callback with a terminal canonical hold branch/
+  );
 });
 
 test("rejects a commented-out Executive Alerts hold binding", () => {
@@ -144,8 +226,22 @@ test("rejects an unreachable held-render decoy when the live held branch says al
   );
 });
 
+test("rejects a Risk Portfolio inline hold in place of terminal workflow containment", () => {
+  const unsafe = {
+    ...sources,
+    [riskManagerPath]: sources[riskManagerPath].replace(
+      "if (riskPortfolioHold) {\n    return <P0FraudValidationHold hold={riskPortfolioHold} />;\n  }",
+      "if (riskPortfolioHold) {\n    return <div>Portfolio hold</div>;\n  }"
+    ),
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /riskPortfolioHold does not control a P0FraudValidationHold branch/
+  );
+});
+
 test("rejects a nested Risk Portfolio numeric zero fallback", () => {
-  const riskManagerPath = "client/src/pages/RiskManagerDashboard.tsx";
   const unsafe = {
     ...sources,
     [riskManagerPath]: sources[riskManagerPath].replace(

@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, FileText, Loader2, CheckCircle2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
+import { discriminateP0B1FraudDecisionResponse } from "@shared/p0FraudDecisionHoldPresentation";
 
 interface PoliceReportFormProps {
   claimId: number;
@@ -38,8 +40,18 @@ export default function PoliceReportForm({ claimId }: PoliceReportFormProps) {
   // Create police report mutation
   const createReport = trpc.policeReports.create.useMutation({
     onSuccess: (data) => {
-      if (data.speedDiscrepancy && data.speedDiscrepancy > 10) {
-        toast.warning(`Police report added with speed discrepancy: ${data.speedDiscrepancy} km/h`, {
+      const policeReportSuccessResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (policeReportSuccessResponse.hold) {
+        return;
+      }
+      const availablePoliceReport = policeReportSuccessResponse.value as unknown as
+        | { speedDiscrepancy?: number | null }
+        | undefined;
+      if (
+        availablePoliceReport?.speedDiscrepancy &&
+        availablePoliceReport.speedDiscrepancy > 10
+      ) {
+        toast.warning(`Police report added with speed discrepancy: ${availablePoliceReport.speedDiscrepancy} km/h`, {
           description: "This has been flagged for fraud investigation",
         });
       } else {
@@ -51,6 +63,8 @@ export default function PoliceReportForm({ claimId }: PoliceReportFormProps) {
       toast.error(`Failed to add police report: ${error.message}`);
     },
   });
+  const policeReportResponse = discriminateP0B1FraudDecisionResponse(createReport.data);
+  const policeReportHold = policeReportResponse.hold;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +87,10 @@ export default function PoliceReportForm({ claimId }: PoliceReportFormProps) {
       accidentDescription: formData.accidentDescription || undefined,
     });
   };
+
+  if (policeReportHold) {
+    return <P0FraudValidationHold hold={policeReportHold} />;
+  }
 
   if (existingReport) {
     return (

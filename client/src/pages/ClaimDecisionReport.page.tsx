@@ -59,9 +59,11 @@ import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import { RepairReplacePanel } from "@/components/RepairReplacePanel";
 import { ClaimCommentThread } from "@/components/ClaimCommentThread";
 import {
-  normalizeP0FraudValidationHold,
   P0FraudValidationHold,
 } from "@/components/ValidationGate";
+import {
+  discriminateP0B1FraudDecisionResponse,
+} from "@shared/p0FraudDecisionHoldPresentation";
 
 import type { EnforcementResult } from './ClaimDecisionReport.sections';
 import {
@@ -95,13 +97,16 @@ export default function ClaimDecisionReport() {
       refetchInterval: isPollingForPipeline ? 5000 : false,
     }
   );
-  const { data: aiAssessment, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery(
+  const { data: aiAssessmentResponseData, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery(
     { claimId },
     {
       enabled: !!claimId,
       refetchInterval: isPollingForPipeline ? 5000 : false,
     }
   );
+  const aiAssessmentResponse = discriminateP0B1FraudDecisionResponse(aiAssessmentResponseData);
+  const aiAssessmentHold = aiAssessmentResponse.hold;
+  const aiAssessment = aiAssessmentResponse.value;
   const { data: enforcement, isLoading: enforcementLoading } = trpc.aiAssessments.getEnforcement.useQuery(
     { claimId },
     {
@@ -148,16 +153,17 @@ export default function ClaimDecisionReport() {
     { claimId: String(claimId) },
     { enabled: !!claimId }
   );
-  const snapshotHistory = Array.isArray(snapshotHistoryResponse)
-    ? snapshotHistoryResponse
+  const snapshotHistoryDecisionResponse = discriminateP0B1FraudDecisionResponse(
+    snapshotHistoryResponse
+  );
+  const snapshotHistoryHold = snapshotHistoryDecisionResponse.hold;
+  const snapshotHistoryValue = snapshotHistoryDecisionResponse.value;
+  const snapshotHistory = Array.isArray(snapshotHistoryValue)
+    ? snapshotHistoryValue
     : [];
-  const snapshotHistoryHold =
-    snapshotHistoryResponse && !Array.isArray(snapshotHistoryResponse)
-      ? normalizeP0FraudValidationHold(snapshotHistoryResponse)
-      : null;
   const snapshotCollisionPhysicsHold =
-    snapshotHistoryResponse && !Array.isArray(snapshotHistoryResponse)
-      ? (snapshotHistoryResponse as any).collisionPhysics
+    snapshotHistoryValue && !Array.isArray(snapshotHistoryValue)
+      ? (snapshotHistoryValue as any).collisionPhysics
       : null;
   const { data: latestSnapshot } = trpc.aiAssessments.getLatestSnapshot.useQuery(
     { claimId: String(claimId) },
@@ -289,17 +295,37 @@ export default function ClaimDecisionReport() {
 
   const finaliseDecisionMutation = trpc.aiAssessments.finaliseDecision.useMutation({
     onSuccess: (data) => {
+      const finaliseDecisionResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (finaliseDecisionResponse.hold) {
+        return;
+      }
       refetchLifecycle();
       refetchAuditLog();
-      if (!data.action_allowed) {
-        toast.error(`Governance blocked: ${data.validation_errors.join('; ')}`);
+      const availableFinaliseDecision = finaliseDecisionResponse.value as unknown as {
+        action_allowed?: boolean;
+        validation_errors?: string[];
+        override_flag?: boolean;
+        authoritative_snapshot_id?: number;
+      };
+      if (!availableFinaliseDecision.action_allowed) {
+        toast.error(
+          `Governance blocked: ${(availableFinaliseDecision.validation_errors ?? []).join('; ')}`
+        );
       } else {
-        const overrideMsg = data.override_flag ? ' ⚠️ Override recorded.' : '';
-        toast.success(`Decision FINALISED — Snapshot #${data.authoritative_snapshot_id} created.${overrideMsg}`);
+        const overrideMsg = availableFinaliseDecision.override_flag
+          ? " ⚠️ Override recorded."
+          : "";
+        toast.success(
+          `Decision FINALISED — Snapshot #${availableFinaliseDecision.authoritative_snapshot_id} created.${overrideMsg}`
+        );
       }
     },
     onError: (err) => toast.error(`Finalise failed: ${err.message}`),
   });
+  const finaliseDecisionMutationResponse = discriminateP0B1FraudDecisionResponse(
+    finaliseDecisionMutation.data
+  );
+  const finaliseDecisionMutationHold = finaliseDecisionMutationResponse.hold;
 
   const lockDecisionMutation = trpc.aiAssessments.lockDecision.useMutation({
     onSuccess: (data) => {
@@ -493,6 +519,18 @@ export default function ClaimDecisionReport() {
   }, [reportView]);
 
   const isLoading = claimLoading || aiLoading || enforcementLoading || quotesLoading;
+
+  if (finaliseDecisionMutationHold) {
+    return <P0FraudValidationHold hold={finaliseDecisionMutationHold} />;
+  }
+
+  if (aiAssessmentHold) {
+    return <P0FraudValidationHold hold={aiAssessmentHold} />;
+  }
+
+  if (snapshotHistoryHold) {
+    return <P0FraudValidationHold hold={snapshotHistoryHold} />;
+  }
 
   if (isLoading) {
     return (
