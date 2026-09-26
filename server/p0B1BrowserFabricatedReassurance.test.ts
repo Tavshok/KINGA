@@ -178,6 +178,44 @@ describe("P0-B1 fabricated-reassurance browser containment", () => {
     expect(html).not.toContain("No alerts at this time");
   });
 
+  it("does not describe pending Executive Alerts authority as an empty alert state", () => {
+    mocks.executiveAlerts.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+
+    const html = renderToStaticMarkup(
+      React.createElement(ExecutiveAlertsCenter)
+    );
+
+    expect(html).toContain("Loading fraud alert status");
+    expect(html).not.toContain("No active alerts");
+    expect(html).not.toContain("All clear");
+    expect(html).not.toContain("No alerts at this time");
+  });
+
+  it("renders the canonical direct Executive Alerts hold instead of all-clear", () => {
+    mocks.executiveAlerts.mockReturnValue({
+      data: manualReviewHold,
+      isLoading: false,
+      isError: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+
+    const html = renderToStaticMarkup(
+      React.createElement(ExecutiveAlertsCenter)
+    );
+
+    expect(html).toContain("Fraud decision withheld");
+    expect(html).toContain("manual review required");
+    expect(html).not.toContain("All clear");
+    expect(html).not.toContain("No alerts at this time");
+  });
+
   it("renders the nested assessment hold instead of green styling for a withheld fraud score", () => {
     mocks.assessmentByClaim.mockReturnValue({
       data: {

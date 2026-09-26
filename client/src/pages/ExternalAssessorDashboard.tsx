@@ -58,7 +58,7 @@ import {
 import { Bar, Line } from "react-chartjs-2";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 import { P0FraudValidationHold } from "@/components/ValidationGate";
-import { getP0B1FraudDecisionHold } from "@shared/p0FraudDecisionHoldPresentation";
+import { discriminateP0B1FraudDecisionResponse } from "@shared/p0FraudDecisionHoldPresentation";
 
 ChartJS.register(
   CategoryScale,
@@ -143,10 +143,9 @@ export function ExpandableClaimRow({
     { claimId: claim.id },
     { enabled: expanded }
   );
-  const fraudDecisionHold = getP0B1FraudDecisionHold(aiData);
-  const availableAiData = fraudDecisionHold
-    ? null
-    : (aiData as unknown as AvailableAssessmentSummary | undefined);
+  const fraudDecisionResponse = discriminateP0B1FraudDecisionResponse(aiData);
+  const fraudDecisionHold = fraudDecisionResponse.hold;
+  const availableAiData = fraudDecisionResponse.value as AvailableAssessmentSummary | undefined;
 
   return (
     <>

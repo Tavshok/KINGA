@@ -1486,96 +1486,11 @@ export const claimsRouter = router({
     .query(async ({ ctx, input }) => {
       void ctx;
       void input;
+      // P0-B1: no stored fraud level, score, aggregate, trend, or heatmap has
+      // governing authority. This route intentionally returns only the
+      // canonical actionable hold; do not reintroduce a numeric fallback.
       return buildP0B1FraudOutputHold();
 
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
-      const now = new Date();
-      const toDate = input?.to ? new Date(input.to) : now;
-      const fromDate = input?.from ? new Date(input.from) : new Date(now.getTime() - 90 * 86400000);
-      const fmt = (d: Date) => d.toISOString().slice(0, 10);
-
-      const rows = await db.select({
-        id: claims.id,
-        fraudRiskLevel: claims.fraudRiskLevel,
-        fraudRiskScore: claims.fraudRiskScore,
-        incidentType: claims.incidentType,
-        approvedAmount: claims.approvedAmount,
-        estimatedClaimValue: claims.estimatedClaimValue,
-        finalApprovedAmount: claims.finalApprovedAmount,
-        createdAt: claims.createdAt,
-        status: claims.status,
-      })
-      .from(claims)
-      .where(and(
-        eq(claims.tenantId, ctx.insurerTenantId),
-        gte(claims.createdAt, fmt(fromDate)),
-        lte(claims.createdAt, fmt(toDate) + ' 23:59:59'),
-      ))
-      .limit(3000);
-
-      // Incident type × risk level heatmap
-      const incidentTypes = ['collision','theft','hail','fire','vandalism','flood','hijacking','other'];
-      const riskLevels = ['low','medium','high','critical','elevated'];
-      const heatmap: Record<string, Record<string, number>> = {};
-      for (const it of incidentTypes) {
-        heatmap[it] = {};
-        for (const rl of riskLevels) heatmap[it][rl] = 0;
-      }
-
-      // Weekly fraud rate trend
-      const weekMap: Record<string, { total: number; fraud: number }> = {};
-      // Frequency vs severity scatter (one point per incident type)
-      const scatterMap: Record<string, { count: number; totalAmt: number }> = {};
-
-      for (const r of rows) {
-        const it = r.incidentType ?? 'other';
-        const rl = r.fraudRiskLevel ?? 'low';
-        if (heatmap[it]) heatmap[it][rl] = (heatmap[it][rl] ?? 0) + 1;
-
-        // Weekly bucket
-        const d = new Date(r.createdAt ?? '');
-        const week = `${d.getFullYear()}-W${String(Math.ceil(d.getDate() / 7)).padStart(2,'0')}`;
-        if (!weekMap[week]) weekMap[week] = { total: 0, fraud: 0 };
-        weekMap[week].total++;
-        if (['high','critical','elevated'].includes(rl)) weekMap[week].fraud++;
-
-        // Scatter
-        if (!scatterMap[it]) scatterMap[it] = { count: 0, totalAmt: 0 };
-        scatterMap[it].count++;
-        scatterMap[it].totalAmt += parseFloat(String(r.estimatedClaimValue ?? 0));
-      }
-
-      const fraudRateTrend = Object.entries(weekMap)
-        .sort(([a],[b]) => a.localeCompare(b))
-        .map(([week, v]) => ({ week, fraudRate: v.total > 0 ? Math.round((v.fraud / v.total) * 100) : 0, total: v.total }));
-
-      const scatter = Object.entries(scatterMap).map(([incidentType, v]) => ({
-        incidentType,
-        frequency: v.count,
-        avgSeverity: v.count > 0 ? Math.round(v.totalAmt / v.count) : 0,
-      }));
-
-      const totalFraud = rows.filter(r => ['high','critical','elevated'].includes(r.fraudRiskLevel ?? '')).length;
-      const fraudExposure = rows
-        .filter(r => ['high','critical','elevated'].includes(r.fraudRiskLevel ?? ''))
-        .reduce((sum, r) => sum + parseFloat(String(r.estimatedClaimValue ?? 0)), 0);
-
-      return {
-        period: { from: fmt(fromDate), to: fmt(toDate) },
-        kpis: {
-          totalClaims: rows.length,
-          fraudCount: totalFraud,
-          fraudRate: rows.length > 0 ? Math.round((totalFraud / rows.length) * 100) : 0,
-          fraudExposure: Math.round(fraudExposure),
-          avgFraudScore: rows.length > 0
-            ? Math.round(rows.reduce((s, r) => s + (r.fraudRiskScore ?? 0), 0) / rows.length)
-            : 0,
-        },
-        heatmap,
-        fraudRateTrend,
-        scatter,
-      };
     }),
 
   // ─── Risk Manager: Fraud Rule Accuracy (False Positive Rate) ───────────────

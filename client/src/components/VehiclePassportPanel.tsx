@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { P0FraudValidationHold } from "@/components/ValidationGate";
 import {
-  getP0B1FraudDecisionHold,
+  discriminateP0B1FraudDecisionResponse,
   P0_B1_FRAUD_DECISION_HOLD,
 } from "@shared/p0FraudDecisionHoldPresentation";
 import {
@@ -151,14 +151,13 @@ export function VehiclePassportPanel({ vehicleRegistryId, vehicleRegistration }:
     { vehicleRegistryId: resolvedId! },
     { staleTime: 5 * 60 * 1000, enabled: !!resolvedId }
   );
-  const fraudDecisionHold = getP0B1FraudDecisionHold(fraudData);
+  const fraudDecisionResponse = discriminateP0B1FraudDecisionResponse(fraudData);
+  const fraudDecisionHold = fraudDecisionResponse.hold;
   const fraudPresentationHold = fraudDecisionHold ??
     (isFraudSignalsLoading || isFraudSignalsError || !fraudData
       ? P0_B1_FRAUD_DECISION_HOLD
       : null);
-  const fraudSignals = fraudPresentationHold
-    ? null
-    : (fraudData as unknown as AvailableFraudSignals | undefined);
+  const fraudSignals = fraudDecisionResponse.value as AvailableFraudSignals | undefined;
   const { data: timeline } = trpc.vehiclePassport.getTimeline.useQuery(
     { vehicleRegistryId: resolvedId!, limit: 10 },
     { staleTime: 5 * 60 * 1000, enabled: !!resolvedId }

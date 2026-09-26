@@ -1,5 +1,7 @@
 import { trpc } from "@/lib/trpc";
 import { AlertTriangle, Clock, Scale, TrendingUp, RefreshCw, CheckCircle } from "lucide-react";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
+import { discriminateP0B1FraudDecisionResponse } from "@shared/p0FraudDecisionHoldPresentation";
 
 const SEVERITY_CONFIG = {
   critical: {
@@ -39,7 +41,12 @@ export function ExecutiveAlertsCenter() {
     refetchInterval: 5 * 60 * 1000, // refresh every 5 min
   });
 
-  const alerts = (data?.alerts ?? []) as AvailableExecutiveAlert[];
+  const executiveAlertsResponse = discriminateP0B1FraudDecisionResponse(data);
+  const fraudDecisionHold = executiveAlertsResponse.hold;
+  const availableExecutiveAlerts = executiveAlertsResponse.value as { alerts?: AvailableExecutiveAlert[] } | undefined;
+  const alerts = fraudDecisionHold
+    ? []
+    : (availableExecutiveAlerts?.alerts ?? []);
 
   return (
     <div
@@ -67,7 +74,11 @@ export function ExecutiveAlertsCenter() {
               Executive Alerts
             </h3>
             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-              {isError
+              {isLoading
+                ? 'Loading fraud alert status'
+                : fraudDecisionHold
+                ? 'Fraud decision status withheld — manual review required'
+                : isError
                 ? 'Fraud alert status unavailable'
                 : alerts.length === 0
                 ? 'No active alerts'
@@ -94,6 +105,8 @@ export function ExecutiveAlertsCenter() {
               <div key={i} className="h-16 rounded-md animate-pulse" style={{ background: 'var(--muted)' }} />
             ))}
           </div>
+        ) : fraudDecisionHold ? (
+          <P0FraudValidationHold hold={fraudDecisionHold} compact />
         ) : isError ? (
           <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
             <AlertTriangle className="h-8 w-8" style={{ color: '#F59E0B' }} />
