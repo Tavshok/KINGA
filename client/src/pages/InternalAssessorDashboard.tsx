@@ -612,13 +612,21 @@ export default function InternalAssessorDashboard() {
   const [authPaymentClaimId, setAuthPaymentClaimId] = useState<number | null>(null);
   const [authPaymentNotes, setAuthPaymentNotes] = useState("");
   const authorizePayment = trpc.claims.authorizePayment.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const paymentResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (paymentResponse.hold) {
+        return;
+      }
       toast.success("Payment authorised — settlement offer sent to claimant");
       setAuthPaymentClaimId(null);
       setAuthPaymentNotes("");
     },
     onError: (err) => toast.error(err.message),
   });
+  const authorizePaymentResponse = discriminateP0B1FraudDecisionResponse(
+    authorizePayment.data
+  );
+  const authorizePaymentHold = authorizePaymentResponse.hold;
   // ── Data fetching ──────────────────────────────────────────────────────────
 
   // Tab 1: Assessment queue — claims in assessment_pending status
@@ -723,6 +731,10 @@ export default function InternalAssessorDashboard() {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
+
+  if (authorizePaymentHold) {
+    return <P0FraudValidationHold hold={authorizePaymentHold} />;
+  }
 
   if (aiContextHold) {
     return <P0FraudValidationHold hold={aiContextHold} />;

@@ -38,6 +38,10 @@ describe("AI assessment governance tenant authority", () => {
       "lockDecision: protectedProcedure",
       "getAuditLog:"
     );
+    const replayLogs = procedureBlock(
+      "getReplayLogs: protectedProcedure",
+      "validate: protectedProcedure"
+    );
     const auditReads = procedureBlock(
       "getAuditLog: protectedProcedure",
       "validate: protectedProcedure"
@@ -51,27 +55,40 @@ describe("AI assessment governance tenant authority", () => {
       "}),\n});"
     );
 
+    for (const [procedure, protectedCapability] of [
+      [snapshot, /await import\((['"])\.\.\/db\1\)/],
+      [replay, /await import\((['"])\.\.\/db\1\)/],
+      [review, /await import\((['"])\.\.\/decision-governance\1\)/],
+      [finalise, /await import\((['"])\.\.\/decision-governance\1\)/],
+      [lock, /await import\((['"])\.\.\/decision-lifecycle\1\)/],
+      [replayLogs, /await import\((['"])\.\.\/decision-lifecycle\1\)/],
+      [auditReads, /await import\((['"])\.\.\/decision-governance\1\)/],
+    ]) {
+      const protectedCapabilityIndex = procedure.search(protectedCapability);
+      expect(procedure.indexOf("if (p0B1FraudPolicyActive())")).toBeGreaterThan(
+        procedure.indexOf("requireGovernedTenantClaim")
+      );
+      expect(procedure.indexOf("if (p0B1FraudPolicyActive())")).toBeLessThan(
+        protectedCapabilityIndex
+      );
+    }
+
     expect(all).toContain("eq(aiAssessments.tenantId, tenantId)");
-    expect(snapshot).toContain(
-      "requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)"
-    );
-    expect(replay).toContain(
-      "requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)"
-    );
-    expect(review).toContain(
-      "requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)"
-    );
-    expect(finalise).toContain(
-      "requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)"
-    );
-    expect(lock).toContain(
-      "requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)"
-    );
-    expect(auditReads).toContain(
-      "requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)"
-    );
-    expect(validation).toContain(
-      "requireGovernedTenantClaim(String(input.claimId), ctx.user.tenantId)"
+    for (const procedure of [
+      snapshot,
+      replay,
+      review,
+      finalise,
+      lock,
+      replayLogs,
+      auditReads,
+    ]) {
+      expect(procedure).toContain("requireGovernedTenantClaim(");
+      expect(procedure).toContain("input.claimId");
+      expect(procedure).toContain("ctx.user?.tenantId");
+    }
+    expect(validation).toMatch(
+      /requireGovernedTenantClaim\(\s*String\(input\.claimId\),\s*ctx\.user\.tenantId\s*\)/
     );
     expect(validation).toContain(
       "buildP0B1FraudDecisionHold({ claimId: input.claimId })"
@@ -121,6 +138,10 @@ describe("AI assessment governance tenant authority", () => {
       "getSharedWithMe: protectedProcedure",
       "resolvePdfPhotoUrls:"
     );
+    const auditReads = procedureBlock(
+      "getAuditLog: protectedProcedure",
+      "validate: protectedProcedure"
+    );
 
     expect(source).toContain(
       'from "../evidence-governance/p0FraudDecisionHold"'
@@ -131,8 +152,9 @@ describe("AI assessment governance tenant authority", () => {
     expect(enforcement).toContain("buildP0B1FraudDecisionHold()");
     expect(snapshot).toContain("buildP0B1FraudDecisionHold()");
     expect(latestSnapshot).toContain("buildP0B1FraudDecisionHold()");
-    expect(replay).toContain("throwP0B1FraudDecisionHold()");
+    expect(replay).toContain("buildP0B1FraudDecisionHold()");
     expect(finalise).toContain("buildP0B1FraudDecisionHold()");
+    expect(auditReads).toContain("buildP0B1FraudDecisionHold()");
     expect(shared).toContain("buildP0B1FraudDecisionHold()");
   });
 

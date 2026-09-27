@@ -7,7 +7,6 @@ import { FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, insurerDomainProcedure, router } from "../_core/trpc";
-import { getDb } from "../db";
 import { assertRestrictedAgencyAssistedCapability } from "../agency/agencyAssistedClaimantIdentity";
 import { parsePhysicsAnalysis } from "../types/physics-validation";
 import {
@@ -61,6 +60,11 @@ import {
   P0_B1_FRAUD_DECISION_HOLD,
   throwP0B1FraudDecisionHold,
 } from "../evidence-governance/p0FraudDecisionHold";
+
+async function getClaimsDb() {
+  const { getDb } = await import("../db");
+  return getDb();
+}
 
 async function requireTenantScopedClaim(
   ctx: { user: { tenantId?: string | null } | null },
@@ -271,6 +275,10 @@ function assertP0B1FraudCommandHold(): never {
   return throwP0B1FraudDecisionHold();
 }
 
+function p0B1FraudPolicyActive(): boolean {
+  return true;
+}
+
 export const claimsRouter = router({
   /**
    * Extract Claim Form Data from Document
@@ -405,7 +413,7 @@ export const claimsRouter = router({
       }
       
       // Find or create claimant user
-      const _claimDb3 = await getDb();
+      const _claimDb3 = await getClaimsDb();
       if (!_claimDb3) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const { users: _usersTable3 } = await import("../../drizzle/schema");
       const { eq: _eqEmail3 } = await import("drizzle-orm");
@@ -614,7 +622,7 @@ export const claimsRouter = router({
       // The active assignment must own the stated vehicle registration.
       let fleetDriverId: number | null = null;
       if (input.claimantType === "company" && ctx.user.role === "fleet_driver") {
-        const db = await getDb();
+        const db = await getClaimsDb();
         if (db) {
           const [assignment] = await db
             .select({ id: fleetDrivers.id })
@@ -753,7 +761,7 @@ export const claimsRouter = router({
   // Get claims for panel beater (claims where this panel beater was selected)
   myQuoteRequests: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user) throw new Error("Not authenticated");
-    const db = await getDb();
+    const db = await getClaimsDb();
     if (!db) return [];
     // Look up the panel beater record linked to this user account
     const { panelBeaters: pbTable } = await import('../../drizzle/schema');
@@ -766,7 +774,7 @@ export const claimsRouter = router({
   // Get quote history for the logged-in panel beater
   myQuoteHistory: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user) throw new Error("Not authenticated");
-    const db = await getDb();
+    const db = await getClaimsDb();
     if (!db) return [];
     const { panelBeaters: pbTable } = await import('../../drizzle/schema');
     const { eq: _pbEq } = await import('drizzle-orm');
@@ -778,7 +786,7 @@ export const claimsRouter = router({
   // Get the panel beater profile for the logged-in user
   myPanelBeaterProfile: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user) throw new Error("Not authenticated");
-    const db = await getDb();
+    const db = await getClaimsDb();
     if (!db) return null;
     const { panelBeaters: pbTable } = await import('../../drizzle/schema');
     const { eq: _pbEq } = await import('drizzle-orm');
@@ -794,7 +802,7 @@ export const claimsRouter = router({
     }).optional())
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { panelBeaters: pbTable2, panelBeaterQuotes: pbqTable, claims: claimsTable } = await import('../../drizzle/schema');
       const { eq: _eq3, and: _and3, gte: _gte3, lte: _lte3, desc: _desc3 } = await import('drizzle-orm');
@@ -885,7 +893,7 @@ export const claimsRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { panelBeaters: pbTable, panelBeaterQuotes: pbqTable, claims: claimsTable, insurerTenants: tenantsTable } = await import('../../drizzle/schema');
       const { eq: _eq, desc: _desc, and: _and } = await import('drizzle-orm');
@@ -984,7 +992,7 @@ export const claimsRouter = router({
   byStatus: insurerDomainProcedure
     .input(z.object({ status: z.string() }))
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       // ctx.insurerTenantId guaranteed non-null by insurerDomainProcedure middleware
       const rows = await db
@@ -1034,7 +1042,7 @@ export const claimsRouter = router({
   // Get all claims for the insurer tenant (no status filter) — used by Risk Manager Dashboard
   allForTenant: insurerDomainProcedure
     .query(async ({ ctx }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const rows = await db
         .select()
@@ -1092,7 +1100,7 @@ export const claimsRouter = router({
       search: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const terminalStatuses = ['completed', 'rejected', 'closed'] as const;
       const conditions: any[] = [
@@ -1175,7 +1183,7 @@ export const claimsRouter = router({
       to: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       // All claims for tenant within optional date range
       const conditions: any[] = [eq(claims.tenantId, ctx.insurerTenantId)];
@@ -1269,7 +1277,7 @@ export const claimsRouter = router({
       void input;
       return buildP0B1FraudOutputHold();
 
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const conditions: any[] = [
         eq(claims.tenantId, ctx.insurerTenantId),
@@ -1324,7 +1332,7 @@ export const claimsRouter = router({
       search: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const conditions: any[] = [
         eq(claims.tenantId, ctx.insurerTenantId),
@@ -1379,7 +1387,7 @@ export const claimsRouter = router({
       to: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const now = new Date();
       // Default: last 30 days
@@ -1505,7 +1513,7 @@ export const claimsRouter = router({
    * Source: fraudRules table. No schema changes required.
    */
   getFraudRuleAccuracy: insurerDomainProcedure.query(async ({ ctx }) => {
-    const db = await getDb();
+    const db = await getClaimsDb();
     if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
 
     const rows = await db
@@ -1566,7 +1574,7 @@ export const claimsRouter = router({
       to: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const now = new Date();
       const toDate = input?.to ? new Date(input.to) : now;
@@ -1608,7 +1616,7 @@ export const claimsRouter = router({
       to: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const now = new Date();
       const toDate = input?.to ? new Date(input.to) : now;
@@ -1709,7 +1717,7 @@ export const claimsRouter = router({
       priority: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const conditions: any[] = [
         eq(claims.tenantId, ctx.insurerTenantId),
@@ -1770,7 +1778,7 @@ export const claimsRouter = router({
   // Returns the current tenant's pricing tier and feature flags
   getTierConfig: insurerDomainProcedure
     .query(async ({ ctx }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const [tenant] = await db
         .select({
@@ -1817,7 +1825,7 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (ctx.user?.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const updates: Record<string, any> = {};
       if (input.pricingTier) updates.pricingTier = input.pricingTier;
@@ -1870,7 +1878,7 @@ export const claimsRouter = router({
         // Priority: claim.currencyCode → insurer_tenant.primaryCurrency → "USD"
         let resolvedCurrencyCode = claim.currencyCode ?? null;
         if (!resolvedCurrencyCode && claim.tenantId) {
-          const db = await getDb();
+          const db = await getClaimsDb();
           if (db) {
             const [insurerRow] = await db
               .select({ primaryCurrency: insurerTenants.primaryCurrency })
@@ -1886,7 +1894,7 @@ export const claimsRouter = router({
         // Fetch PDF URL from source document if available
         let sourcePdfUrl: string | null = null;
         if (claim.sourceDocumentId) {
-          const db = await getDb();
+          const db = await getClaimsDb();
           if (db) {
             const [sourceDoc] = await db
               .select({ s3Url: ingestionDocuments.s3Url })
@@ -2159,7 +2167,7 @@ export const claimsRouter = router({
       // ai_assessment_triggered=1 prevents the resetStuckClaim guard from
       // incorrectly resetting a claim that is genuinely in-flight.
       try {
-        const dbPreflight = await getDb();
+        const dbPreflight = await getClaimsDb();
         if (dbPreflight) {
           await dbPreflight.update(claims).set({
             aiAssessmentTriggered: 1,
@@ -2237,7 +2245,7 @@ export const claimsRouter = router({
           // NOTE: The claims table does NOT have a 'notes' or 'aiAssessmentStatus' column.
           // Store error info in the audit trail instead.
           try {
-            const dbFail = await getDb();
+            const dbFail = await getClaimsDb();
             if (dbFail) {
               await dbFail.update(claims).set({
                 documentProcessingStatus: "failed",
@@ -2290,7 +2298,7 @@ export const claimsRouter = router({
       }
       const { tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
 
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new Error("Database not available");
 
       await db.update(claims).set({
@@ -2330,7 +2338,7 @@ export const claimsRouter = router({
       }
 
       const { runDebugPipeline } = await import("../pipeline-v2/debug-runner");
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new Error("Database not available");
 
       const { claim } = await requireTenantScopedClaim(ctx, input.claimId);
@@ -2447,7 +2455,7 @@ export const claimsRouter = router({
       });
       
       // Update additional approval fields (not part of workflow state)
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new Error("Database not available");
       
       await db.update(claims).set({
@@ -2717,7 +2725,7 @@ export const claimsRouter = router({
           ...(input.finalApprovedAmount ? { approvedAmount: input.finalApprovedAmount } : {}),
         },
       });
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const updateData: any = { updatedAt: new Date() };
       if (input.finalApprovedAmount) updateData.totalClaimAmount = input.finalApprovedAmount;
@@ -2898,7 +2906,7 @@ export const claimsRouter = router({
       }
       
       // Update claim with financial approval
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new Error("Database not available");
       
       await db.update(claims).set({
@@ -2942,7 +2950,7 @@ export const claimsRouter = router({
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
 
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
       const { marketplaceProfiles, insurerMarketplaceRelationships } = await import("../../drizzle/schema");
@@ -3058,7 +3066,7 @@ export const claimsRouter = router({
       // Verify claim exists and belongs to tenant
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
 
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
       const { aiAssessments: aiAssessmentsTable, panelBeaterQuotes: panelBeaterQuotesTable } = await import("../../drizzle/schema");
@@ -3110,7 +3118,7 @@ export const claimsRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
       const { auditTrail: auditTrailTable, users: usersTable } = await import('../../drizzle/schema');
       const rows = await db
@@ -3178,7 +3186,7 @@ export const claimsRouter = router({
         overriddenAt: new Date().toISOString(),
       };
 
-      const _db = await getDb();
+      const _db = await getClaimsDb();
       if (!_db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const { aiAssessments: _aiAssessments } = await import("../../drizzle/schema");
       await _db.update(_aiAssessments)
@@ -3221,7 +3229,7 @@ export const claimsRouter = router({
       await requireTenantScopedClaim(ctx, input.claimId);
       const { adjusterSignOffs } = await import('../../drizzle/schema');
       const now = Date.now();
-      const _adjDb = await getDb();
+      const _adjDb = await getClaimsDb();
       if (!_adjDb) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const existing = await _adjDb
         .select({ id: adjusterSignOffs.id })
@@ -3266,7 +3274,7 @@ export const claimsRouter = router({
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       await requireTenantScopedClaim(ctx, input.claimId);
       const { adjusterSignOffs } = await import('../../drizzle/schema');
-      const _adjDb = await getDb();
+      const _adjDb = await getClaimsDb();
       if (!_adjDb) return null;
       const rows = await _adjDb
         .select()
@@ -3286,7 +3294,7 @@ export const claimsRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       assertRestrictedAgencyAssistedCapability(ctx.user, "settlement_instruction");
-      const _settleDb = await getDb();
+      const _settleDb = await getClaimsDb();
       if (!_settleDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       // Only the claimant who owns the claim may accept
@@ -3391,7 +3399,7 @@ export const claimsRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       assertRestrictedAgencyAssistedCapability(ctx.user, "dispute_instruction");
-      const _disputeDb = await getDb();
+      const _disputeDb = await getClaimsDb();
       if (!_disputeDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       if (claim.claimantId !== ctx.user.id && ctx.user.role !== 'admin') {
@@ -3439,7 +3447,7 @@ export const claimsRouter = router({
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       await requireTenantScopedClaim(ctx, input.claimId);
       const { auditTrail } = await import('../../drizzle/schema');
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const entry = await db
         .select({
@@ -3473,9 +3481,12 @@ export const claimsRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       assertRestrictedAgencyAssistedCapability(ctx.user, "payment_authority");
-      const _authDb = await getDb();
-      if (!_authDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
+      if (p0B1FraudPolicyActive()) {
+        return buildP0B1FraudDecisionHold();
+      }
+      const _authDb = await getClaimsDb();
+      if (!_authDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       if (claim.workflowState !== 'financial_decision') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: `Payment can only be authorised from financial_decision state (current: ${claim.workflowState})` });
       }
@@ -3534,7 +3545,7 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
-      const _rejectDb = await getDb();
+      const _rejectDb = await getClaimsDb();
       if (!_rejectDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       const nonRejectableStates = ['closed', 'completed', 'rejected'];
@@ -3604,7 +3615,7 @@ export const claimsRouter = router({
       if (!allowedRoles.includes(ctx.user.subRole || '') && ctx.user.role !== 'admin') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only Insurer Administrators can override claim decisions' });
       }
-      const _overrideDb = await getDb();
+      const _overrideDb = await getClaimsDb();
       if (!_overrideDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       const terminalStates = ['closed', 'completed'];

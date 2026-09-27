@@ -15,6 +15,7 @@ const claimsCorePath = "server/routers/claims-core.ts";
 const policeReportPath = "client/src/components/PoliceReportForm.tsx";
 const decisionReportPath = "client/src/pages/ClaimDecisionReport.page.tsx";
 const riskManagerPath = "client/src/pages/RiskManagerDashboard.tsx";
+const externalAssessorPath = "client/src/pages/ExternalAssessorDashboard.tsx";
 
 function withRiskPortfolioRawAuthority(source) {
   const start = source.indexOf(
@@ -31,8 +32,8 @@ function withRiskPortfolioRawAuthority(source) {
 
 test("accepts every registered live P0-B1 hold boundary", () => {
   assert.doesNotThrow(() => verifyP0B1ClientHoldBoundary(sources));
-  assert.equal(P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS.length, 9);
-  assert.equal(P0_B1_HELD_MUTATION_BOUNDARY_TARGETS.length, 4);
+  assert.equal(P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS.length, 12);
+  assert.equal(P0_B1_HELD_MUTATION_BOUNDARY_TARGETS.length, 9);
 });
 
 test("rejects a Police Report success callback that continues after a hold", () => {
@@ -62,6 +63,28 @@ test("rejects a Claim Decision Report held-render bypass", () => {
   assert.throws(
     () => verifyP0B1ClientHoldBoundary(unsafe),
     /aiAssessmentHold does not control a P0FraudValidationHold branch/
+  );
+});
+
+test("rejects a Claim Decision governance audit hold binding bypass", () => {
+  const decisionReportSource = sources[decisionReportPath];
+  const unsafeDecisionReportSource = decisionReportSource.replace(
+    /const auditLogHold = auditLogDecisionResponse\.hold;/,
+    "const auditLogHold = null;"
+  );
+  assert.notEqual(
+    unsafeDecisionReportSource,
+    decisionReportSource,
+    "audit-log hold attack fixture must replace the direct hold binding"
+  );
+  const unsafe = {
+    ...sources,
+    [decisionReportPath]: unsafeDecisionReportSource,
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /auditLogHold is not directly bound to auditLogDecisionResponse\.hold/
   );
 });
 
@@ -101,14 +124,58 @@ test("rejects a Claim Decision finalisation callback that continues after a hold
   const unsafe = {
     ...sources,
     [decisionReportPath]: sources[decisionReportPath].replace(
-      "if (finaliseDecisionResponse.hold) {\n        return;\n      }",
-      "if (finaliseDecisionResponse.hold) {\n        toast.success('Unsafe continuation');\n      }"
+      /if \(finaliseDecisionResponse\.hold\) \{\n\s+return;\n\s+\}/,
+      "if (finaliseDecisionResponse.hold) {\n          toast.success('Unsafe continuation');\n          return;\n        }"
     ),
   };
 
   assert.throws(
     () => verifyP0B1ClientHoldBoundary(unsafe),
     /finaliseDecision\.useMutation must begin its direct onSuccess callback with a terminal canonical hold branch/
+  );
+});
+
+test("rejects a Claim Decision replay callback that continues after a hold", () => {
+  const replaySource = sources[decisionReportPath];
+  const unsafeReplaySource = replaySource.replace(
+    /if \(replayResponse\.hold\) return;/,
+    "if (replayResponse.hold) toast.success('Unsafe replay continuation');"
+  );
+  assert.notEqual(
+    unsafeReplaySource,
+    replaySource,
+    "replay continuation attack fixture must replace the terminal hold branch"
+  );
+  const unsafe = {
+    ...sources,
+    [decisionReportPath]: unsafeReplaySource,
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /replayDecision\.useMutation must begin its direct onSuccess callback with a terminal canonical hold branch/
+  );
+});
+
+test("rejects an External Assessor action branch that remains live for a held assessment", () => {
+  const externalAssessorSource = sources[externalAssessorPath];
+  const unsafeExternalAssessorSource = externalAssessorSource.replace(
+    /if \(fraudDecisionHold\) \{\n\s+return \(/,
+    "if (fraudDecisionHold) {\n    toast.success('Unsafe action state');\n    return ("
+  );
+  assert.notEqual(
+    unsafeExternalAssessorSource,
+    externalAssessorSource,
+    "External Assessor action attack fixture must replace the held action branch"
+  );
+  const unsafe = {
+    ...sources,
+    [externalAssessorPath]: unsafeExternalAssessorSource,
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /does not control a P0FraudValidationHold branch/
   );
 });
 
