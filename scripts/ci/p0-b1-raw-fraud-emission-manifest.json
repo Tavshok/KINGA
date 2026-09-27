@@ -1,0 +1,952 @@
+[
+  {
+    "key": "vehicleDamageHistory.getRepeatZones",
+    "path": "server/routers/vehicle-damage-history.ts",
+    "line": 65,
+    "column": 3,
+    "fields": ["fraudRiskScore"],
+    "fingerprint": "0243eaaa1a0308a1f06c7b8da6d0a05af244bc23df24f9ce2ee1fdd6068a23de"
+  },
+  {
+    "key": "vehicleDamageHistory.stats",
+    "path": "server/routers/vehicle-damage-history.ts",
+    "line": 72,
+    "column": 3,
+    "fields": ["UNRESOLVED_RAW_FRAUD_SQL_OUTPUT"],
+    "fingerprint": "0be2406d925f4ccbe6d7420fa3ee5f745f0af3c20674c83d3c296c1815d01ecb"
+  },
+  {
+    "key": "quotes.submit",
+    "path": "server/routers/quotes-core.ts",
+    "line": 72,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "199430b3351a0caf2693595cfb8e0ea9d386f7768227910438dbc3bdd76343f8"
+  },
+  {
+    "key": "intakeGate.getIntakeQueue",
+    "path": "server/routers/intake-gate.ts",
+    "line": 140,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "1ade879616a6290620b812534a3a5610bae09de2e45d1dcf07a7577143d5b08c"
+  },
+  {
+    "key": "aiReanalysis.getVersionHistory",
+    "path": "server/routers/ai-reanalysis.ts",
+    "line": 244,
+    "column": 3,
+    "fields": [
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "1ae4a10cfbb571f376d473ea6d7202426ec10ee1a5263b72b00a10321ae2f647"
+  },
+  {
+    "key": "platformOperations.getOperationsSummary",
+    "path": "server/routers/platform-operations.ts",
+    "line": 370,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "1bb32280f8b9776b8ebda4abcb5af1cc02e85852bf96bd423184205f383cec64"
+  },
+  {
+    "key": "vehicleValuation.trigger",
+    "path": "server/routers/vehicle-valuation-core.ts",
+    "line": 58,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "1daa0dd5b4f3aa1749bc035de6adf7802720a19147781ac1a441b7ead36fef6a"
+  },
+  {
+    "key": "exceptionIntelligence.getExceptionAggregates",
+    "path": "server/routers/exception-intelligence.ts",
+    "line": 177,
+    "column": 3,
+    "fields": [
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "2012775480873ff9d5f63f2eb1042b4c66cf4230bf33cdc42e8cec8cb5708237"
+  },
+  {
+    "key": "aiReanalysis.getReanalysisStats",
+    "path": "server/routers/ai-reanalysis.ts",
+    "line": 402,
+    "column": 3,
+    "fields": [
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "217b9f97cce69254e8b6cdc6c602d8287f326943edd11c6aa840cd0501269d4d"
+  },
+  {
+    "key": "platformObservability.getAllClaims",
+    "path": "server/routers/platform-observability.ts",
+    "line": 44,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "22cd5b500e22b2c17c372f258d0a96ec08a84fd4cff00774aaed3853a7e6fdb0"
+  },
+  {
+    "key": "platformObservability.getClaimTrace",
+    "path": "server/routers/platform-observability.ts",
+    "line": 95,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudRiskScore",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "2b72db6275af652f209130b6a4309c69d356860914616cb2cfd050006986a3ac"
+  },
+  {
+    "key": "portfolioIntelligence.getOperationalMetrics",
+    "path": "server/routers/intelligence-platform.ts",
+    "line": 877,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "2b78dca3a21aba7ed52da54eca5ea75eb6e9c76f8bdd43e4c6358c6e052f48cc"
+  },
+  {
+    "key": "incidentType.override",
+    "path": "server/routers.ts",
+    "line": 1594,
+    "column": 5,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "2fb4afb7de68435dd5f43ea2c778a78a47f1b58a85a0bd008bcedfa2238e43c6"
+  },
+  {
+    "key": "repairReplace.scoreComponents",
+    "path": "server/repair-intelligence/repair-replace-router.ts",
+    "line": 32,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "37b56799673ff705808aca1934b3f78608ae4139883a69cd37e3b8a66806f225"
+  },
+  {
+    "key": "portfolioIntelligence.getFinancialMetrics",
+    "path": "server/routers/intelligence-platform.ts",
+    "line": 929,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "3dc897e6d6108e32ee274001e382ef835e8021deef81e6cdfd21d26ddd4cb98a"
+  },
+  {
+    "key": "claims.allForTenant",
+    "path": "server/routers/claims-core.ts",
+    "line": 1134,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "3e63fa1f56a8d34e2cbe4f5fd30d30820cea4297f6eb1d7a9bbd0bdc38bd5e8e"
+  },
+  {
+    "key": "intakeGate.getAutoAssignStats",
+    "path": "server/routers/intake-gate.ts",
+    "line": 398,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "3fa53dd291469d59b6471abc85b1336338edb69db40d4f20dbcce91d6a372f01"
+  },
+  {
+    "key": "incidentType.getOverrideStatus",
+    "path": "server/routers.ts",
+    "line": 1696,
+    "column": 5,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "404c78b69e2a8b893b0f38f3244ac25897bb33139390ea2309cf6eab9838de2c"
+  },
+  {
+    "key": "fleetAccounts.getFleetCostBreakdown",
+    "path": "server/routers/fleet-accounts.ts",
+    "line": 968,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "4115502e05d92a69deb032fc42a098246d4db80fd2f4b80950f6e04a35b5fd25"
+  },
+  {
+    "key": "platformObservability.getAIConfidenceBreakdown",
+    "path": "server/routers/platform-observability.ts",
+    "line": 113,
+    "column": 3,
+    "fields": [
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudRiskScore",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "44bc2327ad157ba2821e56a20184c5fae4c16efab6bfd17314796fb2ed8de9f7"
+  },
+  {
+    "key": "decision.getDecisionSummary",
+    "path": "server/routers/decision.ts",
+    "line": 187,
+    "column": 3,
+    "fields": ["fraudRiskLevel", "fraudScoreBreakdownJson"],
+    "fingerprint": "452d9a9f4c5aae7bba728ff27b4f79ab1defc462f636ec6f11d012c603d7ba79"
+  },
+  {
+    "key": "claims.myQuoteRequests",
+    "path": "server/routers/claims-core.ts",
+    "line": 843,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "46649bca6ac353f44cb54c90609e824e4fd35d5eb1e91bf471c1db246dbaa044"
+  },
+  {
+    "key": "quotes.getWithLineItems",
+    "path": "server/routers/quotes-core.ts",
+    "line": 373,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "4a2bd9cefce5ab598e35acb25258ce88d80b74eec141765c889fd019d258f634"
+  },
+  {
+    "key": "reportingEngine.getReportReadiness",
+    "path": "server/routers/reporting.ts",
+    "line": 527,
+    "column": 3,
+    "fields": ["UNRESOLVED_RAW_FRAUD_SQL_OUTPUT"],
+    "fingerprint": "4ed35d7327aee3e9b94086a70291eb9c25037e8850fdb54d8f7dc9ae269886c5"
+  },
+  {
+    "key": "claims.getActiveClaims",
+    "path": "server/routers/claims-core.ts",
+    "line": 1185,
+    "column": 3,
+    "fields": ["fraudRiskLevel", "fraudRiskScore"],
+    "fingerprint": "4fca4645025f62a2ee8e46431c870baadabb2f081b82c51ba2aac4b1222d2ee5"
+  },
+  {
+    "key": "claimsManager.getCapacityForecast",
+    "path": "server/routers/claims-manager.ts",
+    "line": 166,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "5025f6defa65a80b3f2d98c709815f133734c0fe95fee5b8c7c35f72a97a052d"
+  },
+  {
+    "key": "portfolioIntelligence.getPortfolioSummary",
+    "path": "server/routers/intelligence-platform.ts",
+    "line": 1025,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore",
+      "fraudScore",
+      "isFraudConfirmed"
+    ],
+    "fingerprint": "515700ce2654c018a262881c61d8b2506f29e1c3b7d776a9b7f2626a0d89f775"
+  },
+  {
+    "key": "governance.getExecutiveOverrides",
+    "path": "server/routers/governance.ts",
+    "line": 248,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "56417cfb46c1cbae59a6d8dcc60300a5857cd953b738b2450bab790d3856ee74"
+  },
+  {
+    "key": "aiAnalysis.getVersionHistory",
+    "path": "server/routers/ai-analysis.ts",
+    "line": 212,
+    "column": 3,
+    "fields": [
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "565c0784eb21d8776248a092eacb983375f368aba7b0761c0192a28b42cc734d"
+  },
+  {
+    "key": "aiAssessments.getEnforcement",
+    "path": "server/routers/ai-assessments-core.ts",
+    "line": 437,
+    "column": 3,
+    "fields": [
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "65a4ecd270f0cbde8105aebd7e6a3db6ed05b740627fc5e7df348b04186688e4"
+  },
+  {
+    "key": "aiReanalysis.reRunAiAnalysis",
+    "path": "server/routers/ai-reanalysis.ts",
+    "line": 37,
+    "column": 3,
+    "fields": [
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "6860034bedfc0b7d41052803792f4dee5c5ed9620ec125b19a6fde550d527eaa"
+  },
+  {
+    "key": "aiAssessments.all",
+    "path": "server/routers/ai-assessments-core.ts",
+    "line": 422,
+    "column": 3,
+    "fields": [
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "6de6a24c532b4cb5c0be030de5b80909fe4e6d006d98eb73df51e5fbfad2981f"
+  },
+  {
+    "key": "claims.myClaims",
+    "path": "server/routers/claims-core.ts",
+    "line": 805,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "7423a54ff271ced457d79a6b95a65408f29239ef27de6ba13d4f72e4016a5bad"
+  },
+  {
+    "key": "workflowAudit.updateClaimState",
+    "path": "server/routers/workflow-audit.ts",
+    "line": 93,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "77cbebeb98d05f212f85e63611c53b3c64d945537a92e101ef18d48d9c451639"
+  },
+  {
+    "key": "claimsManager.getWorkloadDistribution",
+    "path": "server/routers/claims-manager.ts",
+    "line": 253,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "77fdaac3bf13ad70fd4076346482839d9726b04908ae243bf1b1fe8870d503a5"
+  },
+  {
+    "key": "integrity.getMetrics",
+    "path": "server/routers.ts",
+    "line": 196,
+    "column": 3,
+    "fields": ["fraudScore"],
+    "fingerprint": "7def0cb1873a2108d036a77344fc03fefc0fd863c9c59dd999475851ae2ce35c"
+  },
+  {
+    "key": "aiReanalysis.compareVersions",
+    "path": "server/routers/ai-reanalysis.ts",
+    "line": 311,
+    "column": 3,
+    "fields": [
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "7e60efe0d04b2f5505d3f8cc4caf7c21c7fcb8ba3d3918f6cc4bf50910323b79"
+  },
+  {
+    "key": "platformMarketplace.verifyClaimIntegrity",
+    "path": "server/routers/platform-marketplace.ts",
+    "line": 361,
+    "column": 3,
+    "fields": [
+      "aiFraudScore",
+      "earlyFraudSuspicion",
+      "finalFraudOutcome",
+      "fraudEvidence",
+      "fraudFlags",
+      "fraudIndicators",
+      "fraudProbabilityScore",
+      "fraudRiskLevel",
+      "fraudRiskScore",
+      "fraudScore",
+      "fraudScoreBreakdownJson",
+      "isFraudConfirmed",
+      "overallFraudScore"
+    ],
+    "fingerprint": "8107d039ce3caa6cba1135d5f2f0109ec210a179fcbe6795f5b6eef02b0a53c0"
+  },
+  {
+    "key": "claims.getReviewView",
+    "path": "server/routers/claims-core.ts",
+    "line": 1949,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "8386ec385e3c55fb099167a80fc9d79e255e8e158f65fd3c643edb107d8eae23"
+  },
+  {
+    "key": "crossModuleIntelligence.getPlatformSignalSummary",
+    "path": "server/routers/intelligence-platform.ts",
+    "line": 196,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "868619a898c65c56b2cc149931daae054767bd617c7579a56e3a5cfa530e6479"
+  },
+  {
+    "key": "decision.getReadinessSummary",
+    "path": "server/routers/decision.ts",
+    "line": 595,
+    "column": 3,
+    "fields": ["fraudRiskLevel"],
+    "fingerprint": "86d015453aeaa62d8a0f126430e1735e4e1b97eb8e6fde1be314fefb1be2e5a8"
+  },
+  {
+    "key": "claims.byAssessor",
+    "path": "server/routers/claims-core.ts",
+    "line": 834,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "8e81c7342afc6676573f65413a9d57262c6b4282148ce45e91c0129da5eb5f95"
+  },
+  {
+    "key": "platformObservability.getOverview",
+    "path": "server/routers/platform-observability.ts",
+    "line": 28,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "8f46a7e9c03a050057180b8335ff89eaee61134bfaa0a302f24f8ead3001ec72"
+  },
+  {
+    "key": "claims.byStatus",
+    "path": "server/routers/claims-core.ts",
+    "line": 1073,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "90ee3696d197c32da81312a991e7e8fdc8edf214ac52f9f0dccb5f3831cc6364"
+  },
+  {
+    "key": "admin.getInsurerNetwork",
+    "path": "server/routers/admin.ts",
+    "line": 956,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "922863f22e8457020371917868a5be6e7bc5104a6ff031587e71aab7a4b8cc00"
+  },
+  {
+    "key": "vehicleDamageHistory.getByZone",
+    "path": "server/routers/vehicle-damage-history.ts",
+    "line": 53,
+    "column": 3,
+    "fields": ["fraudRiskScore"],
+    "fingerprint": "93fae39c0a79901b11ef3b8937a10c3f1310f29435610d873ac7d9fdc788ec88"
+  },
+  {
+    "key": "claims.getEscalations",
+    "path": "server/routers/claims-core.ts",
+    "line": 1412,
+    "column": 3,
+    "fields": ["fraudRiskLevel", "fraudRiskScore"],
+    "fingerprint": "94a58b71cb13de4430650636491e972bdb2f5731064c5088fe9b3ac9600693ef"
+  },
+  {
+    "key": "platformObservability.searchClaims",
+    "path": "server/routers/platform-observability.ts",
+    "line": 68,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "95a15f56d2aa35cbaef4795c60a04afe15023a9587076966a1df2e661b9c2d3a"
+  },
+  {
+    "key": "approval.getDefaultTemplate",
+    "path": "server/routers/approval.ts",
+    "line": 209,
+    "column": 3,
+    "fields": [
+      "aiFraudScore",
+      "earlyFraudSuspicion",
+      "finalFraudOutcome",
+      "fraudEvidence",
+      "fraudFlags",
+      "fraudIndicators",
+      "fraudProbabilityScore",
+      "fraudRiskLevel",
+      "fraudRiskScore",
+      "fraudScore",
+      "fraudScoreBreakdownJson",
+      "isFraudConfirmed",
+      "overallFraudScore"
+    ],
+    "fingerprint": "98920f161370efd8208d4d65f55fd7accfec9e6103ea921cebff07009e1d5920"
+  },
+  {
+    "key": "decision.routeClaimById",
+    "path": "server/routers/decision.ts",
+    "line": 855,
+    "column": 3,
+    "fields": ["fraudRiskLevel", "fraudScoreBreakdownJson"],
+    "fingerprint": "9bcd4d171114797b4b5e43701dbed7e55d796063d9b5ed2a22d58eb20a839354"
+  },
+  {
+    "key": "learning.evaluateCalibrationFeedback",
+    "path": "server/routers/learning.ts",
+    "line": 671,
+    "column": 3,
+    "fields": ["fraudRiskLevel", "fraudScoreBreakdownJson"],
+    "fingerprint": "9dd727207ec994eded6d68e57e799cc62e151a4cafe296ce6c1b4c4eb27823df"
+  },
+  {
+    "key": "decision.getEscalationSummary",
+    "path": "server/routers/decision.ts",
+    "line": 920,
+    "column": 3,
+    "fields": ["fraudRiskLevel"],
+    "fingerprint": "9e71791b3019098af2509305d2604f73ad88cb0ca06e5ba4e32bc07d12bb9037"
+  },
+  {
+    "key": "vehicleDamageHistory.getByVehicle",
+    "path": "server/routers/vehicle-damage-history.ts",
+    "line": 33,
+    "column": 3,
+    "fields": ["fraudRiskScore"],
+    "fingerprint": "9ee2325c88b8555a0ac5c70a03e00031b0497cc7ceebb83968b6f44e5a3946fa"
+  },
+  {
+    "key": "recovery.generateDemandLetter",
+    "path": "server/routers/recovery.ts",
+    "line": 207,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "9fd0a7b66db5d5ce4afdec7a4fa4a9853cc3588f547524a99e8774618d024485"
+  },
+  {
+    "key": "fleetAccounts.getFraudFlaggedVehicles",
+    "path": "server/routers/fleet-accounts.ts",
+    "line": 913,
+    "column": 3,
+    "fields": ["fraudScore"],
+    "fingerprint": "a328ecad3724bbd30f6eacb65021b441f3239e29ade16254766a8e767a3656c4"
+  },
+  {
+    "key": "aiAnalysis.triggerRerun",
+    "path": "server/routers/ai-analysis.ts",
+    "line": 39,
+    "column": 3,
+    "fields": [
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "a5ec970609b8415d11c63bb7d881d93894e964bd8f005487fdaf5448f7082757"
+  },
+  {
+    "key": "claims.createOnBehalfOf",
+    "path": "server/routers/claims-core.ts",
+    "line": 448,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "bf5d5a8332d44027d6dbfef824798d7fac7ce3cbfd8917989626d9d3708993d4"
+  },
+  {
+    "key": "aiAssessments.getSnapshots",
+    "path": "server/routers/ai-assessments-core.ts",
+    "line": 1564,
+    "column": 3,
+    "fields": ["fraudScore"],
+    "fingerprint": "c367b62fa64498d7f2e376e4dc1b3b4197fe693e22942366b3bb6a7c5734ede7"
+  },
+  {
+    "key": "fleet.getFleetById",
+    "path": "server/routers/fleet-core.ts",
+    "line": 105,
+    "column": 3,
+    "fields": [
+      "aiFraudScore",
+      "earlyFraudSuspicion",
+      "finalFraudOutcome",
+      "fraudEvidence",
+      "fraudFlags",
+      "fraudIndicators",
+      "fraudProbabilityScore",
+      "fraudRiskLevel",
+      "fraudRiskScore",
+      "fraudScore",
+      "fraudScoreBreakdownJson",
+      "isFraudConfirmed",
+      "overallFraudScore"
+    ],
+    "fingerprint": "c3ba1e9c00c263a157de5f51120bc89742e0af5386f91c2efe4023a060dc70cc"
+  },
+  {
+    "key": "aiAssessments.byClaim",
+    "path": "server/routers/ai-assessments-core.ts",
+    "line": 90,
+    "column": 3,
+    "fields": ["fraudRiskLevel", "fraudScore", "fraudScoreBreakdownJson"],
+    "fingerprint": "c5e8f20c6738b02d3ba9fe0e1c978ce36cb89fb03aa25cd749e7ac1638f4307a"
+  },
+  {
+    "key": "decision.getClaimExplanation",
+    "path": "server/routers/decision.ts",
+    "line": 718,
+    "column": 3,
+    "fields": ["fraudIndicators", "fraudRiskLevel"],
+    "fingerprint": "c9a9ce258a34e7b6ae60c24c209557b522901a36b5fd4334a3c23f7b10ef9ef3"
+  },
+  {
+    "key": "quotes.byClaim",
+    "path": "server/routers/quotes-core.ts",
+    "line": 359,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "cade57028565fb60eba27161a6b9d53356b14b811d90f60994e1e5fd7dabfb42"
+  },
+  {
+    "key": "aiAnalysis.recalculateConfidence",
+    "path": "server/routers/ai-analysis.ts",
+    "line": 98,
+    "column": 3,
+    "fields": [
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "cbd4f63423c38d7060a94aa5b8eb730d2914169934321e6f265867dcdf462551"
+  },
+  {
+    "key": "predictiveAnalytics.getPortfolioLossForecast",
+    "path": "server/routers/intelligence-platform.ts",
+    "line": 1650,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "cfa7abe5ecb8c965e2a0448b6cc74aab12fb8251d21cdb139d195a6097fb4445"
+  },
+  {
+    "key": "governance.getGovernanceSummary",
+    "path": "server/routers/governance.ts",
+    "line": 36,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "d157a9841bfa2981ebc16e78ad2375804b7ae435488f575dc3affbc7dfc5cb33"
+  },
+  {
+    "key": "claims.myAssignments",
+    "path": "server/routers/claims-core.ts",
+    "line": 827,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "d6980dd1d85537e8f6be227803ef4d609ef94cadf5cda1c034eb943db5c001ef"
+  },
+  {
+    "key": "assessorEvaluations.byClaim",
+    "path": "server/routers.ts",
+    "line": 923,
+    "column": 5,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "d851d8a15adf672f297b31a3591a9fd3836ba5dc17d39da9a214bdbd2821108b"
+  },
+  {
+    "key": "insurers.getCostOptimization",
+    "path": "server/routers.ts",
+    "line": 795,
+    "column": 5,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "da469f2c11dfd961403f68f1d972222b8bff3d19352a26506035f18c59154ac0"
+  },
+  {
+    "key": "workflowQueries.getClaimsByState",
+    "path": "server/routers/workflow-queries.ts",
+    "line": 115,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "dafc7bd7fa9c9d83090d7320b5d913403d728e04221de1a17b80794cdd5ee77f"
+  },
+  {
+    "key": "vehicleDamageHistory.getByClaim",
+    "path": "server/routers/vehicle-damage-history.ts",
+    "line": 40,
+    "column": 3,
+    "fields": ["fraudRiskScore"],
+    "fingerprint": "e43522df7e47e89c322b51d8264a6d81269562d8a0fbce312e745cd63839f229"
+  },
+  {
+    "key": "portfolioIntelligence.getExposureSummary",
+    "path": "server/routers/intelligence-platform.ts",
+    "line": 794,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "e44975395888ccef7d2d60c0dce5df44956ea8122c4dfd0060609a2c37344ebf"
+  },
+  {
+    "key": "portfolioIntelligence.getFraudSummary",
+    "path": "server/routers/intelligence-platform.ts",
+    "line": 829,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudRiskScore",
+      "fraudScore",
+      "fraudScoreBreakdownJson",
+      "isFraudConfirmed"
+    ],
+    "fingerprint": "e8e3e04bfa439bda55f763b31e00b880a89bca0978dc62a3881f6f14b0121b6d"
+  },
+  {
+    "key": "vehicleRegistry.getClaimHistory",
+    "path": "server/routers/vehicle-registry.ts",
+    "line": 64,
+    "column": 3,
+    "fields": ["fraudRiskScore"],
+    "fingerprint": "e954990a1272d43eb5fc077da637185248e3055d38dcadd66660ca3d96cb2217"
+  },
+  {
+    "key": "approval.getClaimApprovalStatus",
+    "path": "server/routers/approval.ts",
+    "line": 351,
+    "column": 3,
+    "fields": [
+      "aiFraudScore",
+      "earlyFraudSuspicion",
+      "finalFraudOutcome",
+      "fraudEvidence",
+      "fraudFlags",
+      "fraudIndicators",
+      "fraudProbabilityScore",
+      "fraudRiskLevel",
+      "fraudRiskScore",
+      "fraudScore",
+      "fraudScoreBreakdownJson",
+      "isFraudConfirmed",
+      "overallFraudScore"
+    ],
+    "fingerprint": "eb972b4b8a22df75f0a05aae4dce17bf1ba1eae8840318940c0b0165ada6c850"
+  },
+  {
+    "key": "compliance.generateReport",
+    "path": "server/routers/compliance.ts",
+    "line": 16,
+    "column": 3,
+    "fields": ["fraudFlags", "fraudScore"],
+    "fingerprint": "f573999b33c7e954aa0a2e70e14fd543418c72cc74bbe54694905cb9191719ab"
+  },
+  {
+    "key": "workflowQueries.getClaimsByStatus",
+    "path": "server/routers/workflow-queries.ts",
+    "line": 193,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudRiskLevel",
+      "fraudRiskScore"
+    ],
+    "fingerprint": "f5c998888c42461302802c6743afcaa2663c640897572515b760429ca79b6a58"
+  },
+  {
+    "key": "operationalHealth.getHealth",
+    "path": "server/routers/operational-health.ts",
+    "line": 33,
+    "column": 3,
+    "fields": [
+      "earlyFraudSuspicion",
+      "fraudFlags",
+      "fraudIndicators",
+      "fraudRiskLevel",
+      "fraudRiskScore",
+      "fraudScore",
+      "fraudScoreBreakdownJson"
+    ],
+    "fingerprint": "ff0a55a09a60c455e48ce8a3fa2e4f7eb711f351515a573f646771f9e7f09517"
+  }
+]

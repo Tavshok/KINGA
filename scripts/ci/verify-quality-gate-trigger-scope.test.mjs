@@ -71,6 +71,17 @@ test("rejects removal of the hosted automatic fraud-hold inventory guard", () =>
   );
 });
 
+test("rejects removal of the hosted raw-fraud emission guard", () => {
+  const unsafe = workflow.replace(
+    "          scripts/ci/verify-p0-b1-raw-fraud-emissions.test.mjs\n",
+    ""
+  );
+  assert.throws(
+    () => verifyQualityGateStackedTypecheckRouting(unsafe),
+    /must run the approved trigger and stacked-comparator guard regression tests/
+  );
+});
+
 test("rejects a stack branch routed to the committed main baseline", () => {
   const unsafe = workflow.replace(
     '            node scripts/ci/typecheck-stacked-base.mjs --base-sha "$STACKED_BASE_SHA"\n',
