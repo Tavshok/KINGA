@@ -120,9 +120,6 @@ export default function ClaimsProcessorDashboard() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, [searchStr]);
 
-  // Processor queue from dedicated procedure (enriched with priority scoring)
-  const { data: processorQueueData } = trpc.claims.getProcessorQueue.useQuery(undefined, { refetchInterval: 60000 }); // eslint-disable-line react-hooks/rules-of-hooks
-
   // Role validation — allow admin users to bypass for testing
   if (user?.role !== "admin" && user?.insurerRole !== "claims_processor") {
     return (
@@ -708,12 +705,6 @@ export default function ClaimsProcessorDashboard() {
                   <Badge variant="outline" className="flex items-center gap-1" style={{ color: KINGA_GREEN, borderColor: KINGA_GREEN_BORDER }}>
                     <TrendingUp className="h-3 w-3" />
                     KINGA: {claim.aiConfidenceScore}%
-                  </Badge>
-                )}
-                {claim.fraudRiskScore > 0 && (
-                  <Badge variant={claim.fraudRiskScore >= 70 ? "destructive" : "outline"} className="flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    {claim.fraudRiskScore >= 70 ? "High Risk" : claim.fraudRiskScore >= 40 ? "Medium Risk" : "Low Risk"} ({claim.fraudRiskScore}%)
                   </Badge>
                 )}
                 {/* SLA Chip */}

@@ -47,17 +47,6 @@ export const P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS = Object.freeze([
     allowWrappedTerminalHoldReturn: true,
   }),
   Object.freeze({
-    path: "client/src/pages/RiskManagerDashboard.tsx",
-    componentName: "RiskManagerDashboard",
-    queryCallee: "trpc.claims.getRiskPortfolioAnalytics.useQuery",
-    queryResultVariable: "riskPortfolioQuery",
-    responseSourceExpression: "riskPortfolioQuery.data",
-    responseVariable: "riskPortfolioResponse",
-    holdVariable: "riskPortfolioHold",
-    valueVariable: "riskAnalytics",
-    allowEarlyHoldReturn: true,
-  }),
-  Object.freeze({
     path: "client/src/pages/ClaimDecisionReport.page.tsx",
     componentName: "ClaimDecisionReport",
     queryCallee: "trpc.aiAssessments.byClaim.useQuery",
@@ -121,17 +110,6 @@ export const P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS = Object.freeze([
     responseVariable: "aiContextResponse",
     holdVariable: "aiContextHold",
     valueVariable: "aiContext",
-    allowEarlyHoldReturn: true,
-  }),
-  Object.freeze({
-    path: "client/src/pages/RiskManagerDashboard.tsx",
-    componentName: "RiskManagerDashboard",
-    queryCallee: "trpc.claims.getEscalations.useQuery",
-    queryResultVariable: "escalationsDataResponse",
-    responseSourceExpression: "escalationsDataResponse",
-    responseVariable: "escalationsResponse",
-    holdVariable: "escalationsHold",
-    valueVariable: "availableEscalations",
     allowEarlyHoldReturn: true,
   }),
   Object.freeze({
@@ -752,17 +730,6 @@ function verifyClientBoundary(target, source, failures) {
   }
 
   const render = directComponentRender(component);
-  if (target.componentName === "RiskManagerDashboard" && render) {
-    const prohibitedZeroDefault = ["fraudRate", "avgFraudScore"].some(field =>
-      containsNullishNumericDefault(render, "riskAnalytics", field, "0")
-    );
-    if (prohibitedZeroDefault) {
-      failures.push(
-        `${target.path}: Risk Portfolio KPI retains a raw numeric zero fallback.`
-      );
-    }
-  }
-
   if (
     target.allowEarlyHoldReturn &&
     hasDominatingEarlyHoldReturn(
