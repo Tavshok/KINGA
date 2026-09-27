@@ -19,7 +19,6 @@ const mocks = vi.hoisted(() => ({
   getReplayLogs: vi.fn(),
   createAuditEntry: vi.fn(),
   createNotification: vi.fn(),
-  assertRestrictedAgencyAssistedCapability: vi.fn(),
 }));
 
 vi.mock("./db", () => ({
@@ -79,11 +78,6 @@ vi.mock("./decision-replay", () => ({
   replayDecision: mocks.replayDecision,
 }));
 
-vi.mock("./agency/agencyAssistedClaimantIdentity", () => ({
-  assertRestrictedAgencyAssistedCapability:
-    mocks.assertRestrictedAgencyAssistedCapability,
-}));
-
 import { aiAssessmentsRouter } from "./routers/ai-assessments-core";
 import { claimsRouter } from "./routers/claims-core";
 
@@ -110,7 +104,9 @@ function contextFor(
   } as any;
 }
 
-const authorizedContext = contextFor();
+const authorizedContext = contextFor(tenantId, {
+  insurerRole: "claims_manager",
+});
 
 const saveSnapshotInput = {
   claimId,
@@ -360,7 +356,7 @@ describe("P0-B1 B-T1 executable decision-action authority proof", () => {
     ["claims manager", { insurerRole: "claims_manager" }],
     ["platform administrator", { role: "admin", insurerRole: null }],
   ] as const) {
-    it(`allows the authorized ${name} class to reach the governed hold boundary`, async () => {
+    it(`allows the authorized ${name} class to reach the governed decision hold boundary`, async () => {
       const caller = aiAssessmentsRouter.createCaller(
         contextFor(tenantId, overrides)
       ) as any;
@@ -375,6 +371,86 @@ describe("P0-B1 B-T1 executable decision-action authority proof", () => {
       expectNoProtectedCapabilityCall();
     });
   }
+
+  for (const [name, insurerRole] of [
+    ["claims manager", "claims_manager"],
+    ["executive", "executive"],
+  ] as const) {
+    it(`allows the authorized payment ${name} to reach the tenant-owned hold boundary`, async () => {
+      const context = contextFor(tenantId, { insurerRole });
+      const caller = claimsRouter.createCaller(context) as any;
+
+      const result = await caller.authorizePayment({ claimId: numericClaimId });
+
+      expectCanonicalHold(result);
+      expect(mocks.getClaimById).toHaveBeenCalledWith(numericClaimId, tenantId);
+      expectNoProtectedCapabilityCall();
+    });
+  }
+
+  for (const insurerRole of [
+    "claims_processor",
+    "assessor_internal",
+    "assessor_external",
+    "risk_manager",
+    "insurer_admin",
+  ] as const) {
+    it(`denies same-tenant ${insurerRole} before payment claim lookup, hold, or protected capability`, async () => {
+      const context = contextFor(tenantId, { insurerRole });
+      const caller = claimsRouter.createCaller(context) as any;
+
+      await expect(
+        caller.authorizePayment({ claimId: numericClaimId })
+      ).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message:
+          "Payment authorization requires claims_manager or executive insurer role",
+      });
+      expect(mocks.getClaimById).not.toHaveBeenCalled();
+      expectNoProtectedCapabilityCall();
+    });
+  }
+
+  for (const [role, insurerRole] of [
+    ["admin", "claims_manager"],
+    ["admin", "executive"],
+    ["platform_super_admin", "claims_manager"],
+    ["platform_super_admin", "executive"],
+  ] as const) {
+    it(`denies ${role} despite an otherwise allowed ${insurerRole} insurer role`, async () => {
+      const context = contextFor(tenantId, { role, insurerRole });
+      const caller = claimsRouter.createCaller(context) as any;
+
+      await expect(
+        caller.authorizePayment({ claimId: numericClaimId })
+      ).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message:
+          "Payment authorization requires claims_manager or executive insurer role",
+      });
+      expect(mocks.getClaimById).not.toHaveBeenCalled();
+      expectNoProtectedCapabilityCall();
+    });
+  }
+
+  it("denies an ordinary claimant before payment claim lookup or a P0 hold", async () => {
+    const context = contextFor(tenantId, {
+      role: "claimant",
+      insurerRole: null,
+    });
+    const caller = claimsRouter.createCaller(context) as any;
+
+    await expect(
+      caller.authorizePayment({ claimId: numericClaimId })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message:
+        "Payment authorization requires claims_manager or executive insurer role",
+    });
+
+    expect(mocks.getClaimById).not.toHaveBeenCalled();
+    expectNoProtectedCapabilityCall();
+  });
 
   it("preserves the global restricted-agency denial before decision actor or claim resolution", async () => {
     const restrictedContext = contextFor(tenantId, {
@@ -394,6 +470,26 @@ describe("P0-B1 B-T1 executable decision-action authority proof", () => {
     expectNoProtectedCapabilityCall();
   });
 
+  it("preserves the global restricted-agency denial before payment actor or claim resolution", async () => {
+    const restrictedContext = contextFor(tenantId, {
+      role: "claimant",
+      insurerRole: null,
+      isUnregisteredClaimant: 1,
+    });
+    const caller = claimsRouter.createCaller(restrictedContext) as any;
+
+    await expect(
+      caller.authorizePayment({ claimId: numericClaimId })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message:
+        "This agency-assisted claim identity is restricted to the agency claim workflow until it is verified and linked to My Portal.",
+    });
+
+    expect(mocks.getClaimById).not.toHaveBeenCalled();
+    expectNoProtectedCapabilityCall();
+  });
+
   it("returns the canonical payment hold after tenant-owned claim validation without a database write, audit, or notification", async () => {
     const caller = claimsRouter.createCaller(authorizedContext) as any;
 
@@ -404,10 +500,6 @@ describe("P0-B1 B-T1 executable decision-action authority proof", () => {
     });
 
     expectCanonicalHold(result);
-    expect(mocks.assertRestrictedAgencyAssistedCapability).toHaveBeenCalledWith(
-      authorizedContext.user,
-      "payment_authority"
-    );
     expect(mocks.getClaimById).toHaveBeenCalledWith(numericClaimId, tenantId);
     expectNoProtectedCapabilityCall();
   });
@@ -419,28 +511,20 @@ describe("P0-B1 B-T1 executable decision-action authority proof", () => {
     await expect(
       caller.authorizePayment({ claimId: numericClaimId })
     ).rejects.toThrow("Claim not found");
-
-    expect(mocks.assertRestrictedAgencyAssistedCapability).toHaveBeenCalledWith(
-      authorizedContext.user,
-      "payment_authority"
-    );
     expect(mocks.getClaimById).toHaveBeenCalledWith(numericClaimId, tenantId);
     expectNoProtectedCapabilityCall();
   });
 
   it("denies a foreign payment claim using the caller tenant before returning a hold or opening the payment database", async () => {
     mocks.getClaimById.mockResolvedValue(null);
-    const foreignContext = contextFor(foreignTenantId);
+    const foreignContext = contextFor(foreignTenantId, {
+      insurerRole: "claims_manager",
+    });
     const caller = claimsRouter.createCaller(foreignContext) as any;
 
     await expect(
       caller.authorizePayment({ claimId: numericClaimId })
     ).rejects.toThrow("Claim not found");
-
-    expect(mocks.assertRestrictedAgencyAssistedCapability).toHaveBeenCalledWith(
-      foreignContext.user,
-      "payment_authority"
-    );
     expect(mocks.getClaimById).toHaveBeenCalledWith(
       numericClaimId,
       foreignTenantId

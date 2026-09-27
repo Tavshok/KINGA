@@ -277,6 +277,32 @@ function assertP0B1FraudCommandHold(): never {
   return throwP0B1FraudDecisionHold();
 }
 
+/**
+ * Payment authorization is the financial_decision -> payment_authorized
+ * transition. This route must use the same narrow actor policy as the
+ * workflow transition engine; a generic insurer session, tenant ownership, or
+ * lower-trust claimant denial is not a payment-command grant.
+ */
+const PAYMENT_COMMAND_ACTOR_ROLES = ["claims_manager", "executive"] as const;
+
+function requirePaymentCommandActor(ctx: {
+  user?: { role?: string | null; insurerRole?: string | null } | null;
+}): void {
+  const user = ctx.user;
+  const insurerRole = user?.insurerRole;
+  if (
+    user?.role !== "insurer" ||
+    !PAYMENT_COMMAND_ACTOR_ROLES.includes(
+      insurerRole as (typeof PAYMENT_COMMAND_ACTOR_ROLES)[number]
+    )
+  ) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Payment authorization requires claims_manager or executive insurer role",
+    });
+  }
+}
+
 function p0B1FraudPolicyActive(): boolean {
   return true;
 }
@@ -3560,6 +3586,7 @@ export const claimsRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       assertRestrictedAgencyAssistedCapability(ctx.user, "payment_authority");
+      requirePaymentCommandActor(ctx);
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       if (p0B1FraudPolicyActive()) {
         return buildP0B1FraudDecisionHold();

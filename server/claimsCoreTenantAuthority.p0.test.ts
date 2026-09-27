@@ -35,6 +35,15 @@ describe("claims-core tenant authority", () => {
     for (const mutation of [settlement, dispute, payment, rejection, override]) {
       expect(mutation).toContain("eq(claims.tenantId, tenantId)");
     }
+    expect(source).toContain("PAYMENT_COMMAND_ACTOR_ROLES");
+    expect(source).toContain('user?.role !== "insurer"');
+    expect(payment).toContain("requirePaymentCommandActor(ctx)");
+    expect(payment.indexOf("requirePaymentCommandActor(ctx)")).toBeGreaterThan(
+      payment.indexOf('assertRestrictedAgencyAssistedCapability(ctx.user, "payment_authority")'),
+    );
+    expect(payment.indexOf("requirePaymentCommandActor(ctx)")).toBeLessThan(
+      payment.indexOf("requireTenantScopedClaim(ctx, input.claimId)"),
+    );
     expect(payment).toContain("buildP0B1FraudDecisionHold()");
     expect(payment.indexOf("if (p0B1FraudPolicyActive())")).toBeGreaterThan(
       payment.indexOf("requireTenantScopedClaim(ctx, input.claimId)"),
