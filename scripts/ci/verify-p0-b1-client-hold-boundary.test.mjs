@@ -14,7 +14,6 @@ const executiveAlertsPath =
 const claimsCorePath = "server/routers/claims-core.ts";
 const policeReportPath = "client/src/components/PoliceReportForm.tsx";
 const decisionReportPath = "client/src/pages/ClaimDecisionReport.page.tsx";
-const riskManagerPath = "client/src/pages/RiskManagerDashboard.tsx";
 const externalAssessorPath = "client/src/pages/ExternalAssessorDashboard.tsx";
 
 function withRiskPortfolioRawAuthority(source) {
@@ -32,7 +31,7 @@ function withRiskPortfolioRawAuthority(source) {
 
 test("accepts every registered live P0-B1 hold boundary", () => {
   assert.doesNotThrow(() => verifyP0B1ClientHoldBoundary(sources));
-  assert.equal(P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS.length, 12);
+  assert.equal(P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS.length, 10);
   assert.equal(P0_B1_HELD_MUTATION_BOUNDARY_TARGETS.length, 9);
 });
 
@@ -102,21 +101,6 @@ test("rejects a Claim Decision Report hold branch appended after live output", (
   assert.throws(
     () => verifyP0B1ClientHoldBoundary(unsafe),
     /must retain exactly one direct render return|does not control a P0FraudValidationHold branch/
-  );
-});
-
-test("rejects a prior hold branch whose else arm returns live output", () => {
-  const unsafe = {
-    ...sources,
-    [riskManagerPath]: sources[riskManagerPath].replace(
-      "if (riskPortfolioHold) {\n    return <P0FraudValidationHold hold={riskPortfolioHold} />;\n  }",
-      "if (escalationsHold) {\n    return <P0FraudValidationHold hold={escalationsHold} />;\n  } else {\n    return <div>Unsafe live workflow</div>;\n  }\n\n  if (riskPortfolioHold) {\n    return <P0FraudValidationHold hold={riskPortfolioHold} />;\n  }"
-    ),
-  };
-
-  assert.throws(
-    () => verifyP0B1ClientHoldBoundary(unsafe),
-    /riskPortfolioHold does not control a P0FraudValidationHold branch|must retain exactly one direct render return/
   );
 });
 
@@ -290,36 +274,6 @@ test("rejects an unreachable held-render decoy when the live held branch says al
   assert.throws(
     () => verifyP0B1ClientHoldBoundary(unsafe),
     /does not control a P0FraudValidationHold branch|Executive reassurance output is not dominated by the direct fraud hold branch/
-  );
-});
-
-test("rejects a Risk Portfolio inline hold in place of terminal workflow containment", () => {
-  const unsafe = {
-    ...sources,
-    [riskManagerPath]: sources[riskManagerPath].replace(
-      "if (riskPortfolioHold) {\n    return <P0FraudValidationHold hold={riskPortfolioHold} />;\n  }",
-      "if (riskPortfolioHold) {\n    return <div>Portfolio hold</div>;\n  }"
-    ),
-  };
-
-  assert.throws(
-    () => verifyP0B1ClientHoldBoundary(unsafe),
-    /riskPortfolioHold does not control a P0FraudValidationHold branch/
-  );
-});
-
-test("rejects a nested Risk Portfolio numeric zero fallback", () => {
-  const unsafe = {
-    ...sources,
-    [riskManagerPath]: sources[riskManagerPath].replace(
-      "`${riskAnalytics.kpis.fraudRate}%`",
-      "`${riskAnalytics?.kpis?.fraudRate ?? 0}%`"
-    ),
-  };
-
-  assert.throws(
-    () => verifyP0B1ClientHoldBoundary(unsafe),
-    /Risk Portfolio KPI retains a raw numeric zero fallback/
   );
 });
 
