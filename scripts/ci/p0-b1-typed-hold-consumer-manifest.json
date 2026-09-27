@@ -198,6 +198,15 @@
     "fingerprint": "458a07bc488f9e0dcd010fd48b813e6f67d03d05847f4342ac4619717fbe86fd"
   },
   {
+    "path": "client/src/components/EscalationCentre.tsx",
+    "line": 100,
+    "column": 28,
+    "kind": "query",
+    "callee": "trpc.claims.getEscalations.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "46b1b5c5a4a13690d3d1ac00c7634c2c8f5e8dc7552b7be289bd667f21bbd1fd"
+  },
+  {
     "path": "client/src/pages/InternalAssessorDashboard.tsx",
     "line": 614,
     "column": 28,
@@ -376,15 +385,6 @@
     "callee": "trpc.executive.getFraudRiskDistribution.useQuery",
     "detection": "server-canonical-hold",
     "fingerprint": "97eab332f8efecc57d5b4e77176ce4f8e16ec53931283148ba21384c3d10c1ce"
-  },
-  {
-    "path": "client/src/components/EscalationCentre.tsx",
-    "line": 98,
-    "column": 44,
-    "kind": "query",
-    "callee": "trpc.claims.getEscalations.useQuery",
-    "detection": "typed-and-server",
-    "fingerprint": "990e6b3c158d58e50660c16cb08415dd376a625333237c8b9fc10eb7ca7bd2c7"
   },
   {
     "path": "client/src/pages/AssessorPerformance.tsx",
