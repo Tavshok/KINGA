@@ -27,15 +27,6 @@
     "fingerprint": "128a2202b879b3fbadcf1555ff96b6d550c039c5e9bffe47ed486d7c24db6ac8"
   },
   {
-    "path": "client/src/pages/RiskManagerDashboard.tsx",
-    "line": 141,
-    "column": 30,
-    "kind": "query",
-    "callee": "trpc.claims.getRiskPortfolioAnalytics.useQuery",
-    "detection": "typed-and-server",
-    "fingerprint": "15cb14eb819e2b074281eb836f5e1fd67bd2a832f7653564e5bd6f7d0ba1f9c8"
-  },
-  {
     "path": "client/src/components/VehiclePassportPanel.tsx",
     "line": 150,
     "column": 7,
@@ -198,6 +189,15 @@
     "fingerprint": "458a07bc488f9e0dcd010fd48b813e6f67d03d05847f4342ac4619717fbe86fd"
   },
   {
+    "path": "client/src/components/EscalationCentre.tsx",
+    "line": 100,
+    "column": 28,
+    "kind": "query",
+    "callee": "trpc.claims.getEscalations.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "46b1b5c5a4a13690d3d1ac00c7634c2c8f5e8dc7552b7be289bd667f21bbd1fd"
+  },
+  {
     "path": "client/src/pages/InternalAssessorDashboard.tsx",
     "line": 614,
     "column": 28,
@@ -232,15 +232,6 @@
     "callee": "trpc.aiAssessments.byClaim.useQuery",
     "detection": "typed-and-server",
     "fingerprint": "5b4e340809e07a458e77c65543c52b9b24ae8d0a1dc00d6f0d190a70e69fd07d"
-  },
-  {
-    "path": "client/src/pages/ClaimsProcessorDashboard.tsx",
-    "line": 124,
-    "column": 40,
-    "kind": "query",
-    "callee": "trpc.claims.getProcessorQueue.useQuery",
-    "detection": "server-canonical-hold",
-    "fingerprint": "5ca01e875e34f4b2b7112710f080c85862b838dcee802027bca450f702a40d90"
   },
   {
     "path": "client/src/pages/InsurerComparisonView.tsx",
@@ -378,15 +369,6 @@
     "fingerprint": "97eab332f8efecc57d5b4e77176ce4f8e16ec53931283148ba21384c3d10c1ce"
   },
   {
-    "path": "client/src/components/EscalationCentre.tsx",
-    "line": 98,
-    "column": 44,
-    "kind": "query",
-    "callee": "trpc.claims.getEscalations.useQuery",
-    "detection": "typed-and-server",
-    "fingerprint": "990e6b3c158d58e50660c16cb08415dd376a625333237c8b9fc10eb7ca7bd2c7"
-  },
-  {
     "path": "client/src/pages/AssessorPerformance.tsx",
     "line": 15,
     "column": 40,
@@ -475,15 +457,6 @@
     "callee": "trpc.aiAssessments.all.useQuery",
     "detection": "typed-and-server",
     "fingerprint": "a85982b1ed2baf73f1801a1a4c9a95a7b1ecadaa13511fa5e5bc4f22f65cb324"
-  },
-  {
-    "path": "client/src/pages/RiskManagerDashboard.tsx",
-    "line": 127,
-    "column": 5,
-    "kind": "query",
-    "callee": "trpc.claims.getEscalations.useQuery",
-    "detection": "typed-and-server",
-    "fingerprint": "aada5ffcdeb8ead5d062acb23cda02cdfdb13b70784ac7d469b0b7f8f447096a"
   },
   {
     "path": "client/src/pages/FleetManagerDashboard.tsx",
@@ -664,15 +637,6 @@
     "callee": "trpc.claims.getReviewView.useQuery",
     "detection": "typed-and-server",
     "fingerprint": "ed58dcc055fb327f917ea0d257ab2cf1b557042f10df1c47afe4477cb010b4d3"
-  },
-  {
-    "path": "client/src/pages/RiskManagerDashboard.tsx",
-    "line": 163,
-    "column": 28,
-    "kind": "mutation",
-    "callee": "trpc.claims.approveClaim.useMutation",
-    "detection": "server-canonical-hold",
-    "fingerprint": "f1e231a281f7b5c77642e59b6c01a005ed2c8ed7e8ff4e10c8089052931d12f6"
   },
   {
     "path": "client/src/pages/ClaimDecisionReport.page.tsx",

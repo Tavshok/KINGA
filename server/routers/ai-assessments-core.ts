@@ -28,7 +28,7 @@ import { validateAiAssessmentResponse } from "../apiResponseValidator";
 import { validateClaimAnalysisResponse } from "../services/apiResponseValidator";
 import { sanitiseReportNarrative, buildBlockError } from "../services/externalReportSanitiser";
 import { logger } from "../logger";
-import { isAdminRole } from "@shared/role-permissions";
+import { GOVERNANCE_ALLOWED_ROLES, isAdminRole } from "@shared/role-permissions";
 import { requireGovernedTenantClaim } from "../services/governedClaimAuthority";
 import { buildP0B1FraudDecisionHold, throwP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 import { buildP0A2CollisionPhysicsHold } from "../reporting/p0PhysicsPresentation";
@@ -57,6 +57,33 @@ function p0B1FraudPolicyActive(): boolean {
 async function getAiAssessmentsDb() {
   const { getDb } = await import("../db");
   return getDb();
+}
+
+/**
+ * Decision lifecycle records are insurer governance records. Authentication and
+ * tenant ownership alone do not authorize a caller to read, replay, finalise,
+ * or lock them. Keep this role boundary ahead of any claim resolution so an
+ * ineligible same-tenant actor receives FORBIDDEN without learning whether the
+ * requested claim exists or receiving the canonical P0-B1 evidence hold.
+ */
+function requireDecisionActionActor(ctx: {
+  user?: { role?: string | null; insurerRole?: string | null } | null;
+}): void {
+  const user = ctx.user;
+  const hasDecisionAuthority = Boolean(
+    user &&
+      (isAdminRole(user.role) ||
+        (user.insurerRole &&
+          GOVERNANCE_ALLOWED_ROLES.includes(
+            user.insurerRole as (typeof GOVERNANCE_ALLOWED_ROLES)[number]
+          )))
+  );
+  if (!hasDecisionAuthority) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Decision lifecycle access requires one of: ${GOVERNANCE_ALLOWED_ROLES.join(", ")}`,
+    });
+  }
 }
 
 export const aiAssessmentsRouter = router({
@@ -1076,6 +1103,7 @@ export const aiAssessmentsRouter = router({
       }),
     }))
     .mutation(async ({ input, ctx }) => {
+      requireDecisionActionActor(ctx);
       const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         return {
@@ -1111,6 +1139,7 @@ export const aiAssessmentsRouter = router({
   getLatestSnapshot: protectedProcedure
     .input(z.object({ claimId: z.string() }))
     .query(async ({ input, ctx }) => {
+      requireDecisionActionActor(ctx);
       await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         return buildP0B1FraudDecisionHold();
@@ -1135,6 +1164,7 @@ export const aiAssessmentsRouter = router({
       }).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
+      requireDecisionActionActor(ctx);
       const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         return buildP0B1FraudDecisionHold();
@@ -1190,6 +1220,7 @@ export const aiAssessmentsRouter = router({
   getLifecycle: protectedProcedure
     .input(z.object({ claimId: z.string() }))
     .query(async ({ input, ctx }) => {
+      requireDecisionActionActor(ctx);
       const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         return {
@@ -1210,6 +1241,7 @@ export const aiAssessmentsRouter = router({
       reason: z.string().min(10, 'Reason must be at least 10 characters'),
     }))
     .mutation(async ({ input, ctx }) => {
+      requireDecisionActionActor(ctx);
       const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         const fraudDecision = buildP0B1FraudDecisionHold();
@@ -1270,6 +1302,7 @@ export const aiAssessmentsRouter = router({
       aiDecision: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
+      requireDecisionActionActor(ctx);
       const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         const fraudDecision = buildP0B1FraudDecisionHold();
@@ -1352,6 +1385,7 @@ export const aiAssessmentsRouter = router({
       reason: z.string().min(10, 'Reason must be at least 10 characters'),
     }))
     .mutation(async ({ input, ctx }) => {
+      requireDecisionActionActor(ctx);
       const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         const fraudDecision = buildP0B1FraudDecisionHold();
@@ -1406,6 +1440,7 @@ export const aiAssessmentsRouter = router({
   getAuditLog: protectedProcedure
     .input(z.object({ claimId: z.string() }))
     .query(async ({ input, ctx }) => {
+      requireDecisionActionActor(ctx);
       await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         return buildP0B1FraudDecisionHold();
@@ -1506,6 +1541,7 @@ export const aiAssessmentsRouter = router({
   getReplayLogs: protectedProcedure
     .input(z.object({ claimId: z.string() }))
     .query(async ({ input, ctx }) => {
+      requireDecisionActionActor(ctx);
       await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         return buildP0B1FraudDecisionHold();
@@ -1528,6 +1564,7 @@ export const aiAssessmentsRouter = router({
   getSnapshots: protectedProcedure
     .input(z.object({ claimId: z.string() }))
     .query(async ({ input, ctx }) => {
+      requireDecisionActionActor(ctx);
       await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         return buildP0B1FraudDecisionHold({

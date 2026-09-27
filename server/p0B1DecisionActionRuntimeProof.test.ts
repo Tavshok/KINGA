@@ -274,6 +274,22 @@ describe("P0-B1 B-T1 executable decision-action authority proof", () => {
   });
 
   for (const action of decisionActions) {
+    it(`denies a same-tenant non-governance actor before claim lookup, hold, or protected capability for ${action.name}`, async () => {
+      const ineligibleContext = contextFor(tenantId, {
+        insurerRole: "claims_processor",
+      });
+      const caller = aiAssessmentsRouter.createCaller(ineligibleContext) as any;
+
+      await expect(action.invoke(caller)).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message:
+          "Decision lifecycle access requires one of: insurer_admin, executive, risk_manager, claims_manager",
+      });
+
+      expect(mocks.requireGovernedTenantClaim).not.toHaveBeenCalled();
+      expectNoProtectedCapabilityCall();
+    });
+
     it(`awaits governed claim authority before returning the canonical hold for authorized ${action.name}`, async () => {
       const authority = deferred<{ tenantId: string }>();
       mocks.requireGovernedTenantClaim.mockReturnValueOnce(authority.promise);
@@ -331,6 +347,29 @@ describe("P0-B1 B-T1 executable decision-action authority proof", () => {
         expectNoProtectedCapabilityCall();
       });
     }
+  }
+
+  for (const [name, overrides] of [
+    ["insurer administrator", { insurerRole: "insurer_admin" }],
+    ["executive", { insurerRole: "executive" }],
+    ["risk manager", { insurerRole: "risk_manager" }],
+    ["claims manager", { insurerRole: "claims_manager" }],
+    ["platform administrator", { role: "admin", insurerRole: null }],
+  ] as const) {
+    it(`allows the authorized ${name} class to reach the governed decision hold boundary`, async () => {
+      const caller = aiAssessmentsRouter.createCaller(
+        contextFor(tenantId, overrides)
+      ) as any;
+
+      const result = await caller.getLifecycle({ claimId });
+
+      expectCanonicalHold(result);
+      expect(mocks.requireGovernedTenantClaim).toHaveBeenCalledWith(
+        claimId,
+        tenantId
+      );
+      expectNoProtectedCapabilityCall();
+    });
   }
 
   for (const [name, insurerRole] of [
@@ -413,7 +452,25 @@ describe("P0-B1 B-T1 executable decision-action authority proof", () => {
     expectNoProtectedCapabilityCall();
   });
 
-  it("preserves global restricted-agency denial before payment actor or claim resolution", async () => {
+  it("preserves the global restricted-agency denial before decision actor or claim resolution", async () => {
+    const restrictedContext = contextFor(tenantId, {
+      role: "claimant",
+      insurerRole: null,
+      isUnregisteredClaimant: 1,
+    });
+    const caller = aiAssessmentsRouter.createCaller(restrictedContext) as any;
+
+    await expect(caller.getLifecycle({ claimId })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message:
+        "This agency-assisted claim identity is restricted to the agency claim workflow until it is verified and linked to My Portal.",
+    });
+
+    expect(mocks.requireGovernedTenantClaim).not.toHaveBeenCalled();
+    expectNoProtectedCapabilityCall();
+  });
+
+  it("preserves the global restricted-agency denial before payment actor or claim resolution", async () => {
     const restrictedContext = contextFor(tenantId, {
       role: "claimant",
       insurerRole: null,
