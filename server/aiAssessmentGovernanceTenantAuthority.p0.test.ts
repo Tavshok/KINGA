@@ -22,9 +22,17 @@ describe("AI assessment governance tenant authority", () => {
       "saveSnapshot: protectedProcedure",
       "getLatestSnapshot:"
     );
+    const latestSnapshot = procedureBlock(
+      "getLatestSnapshot: protectedProcedure",
+      "replayDecision:"
+    );
     const replay = procedureBlock(
       "replayDecision: protectedProcedure",
       "getLifecycle:"
+    );
+    const lifecycle = procedureBlock(
+      "getLifecycle: protectedProcedure",
+      "markReviewed:"
     );
     const review = procedureBlock(
       "markReviewed: protectedProcedure",
@@ -76,16 +84,22 @@ describe("AI assessment governance tenant authority", () => {
     expect(all).toContain("eq(aiAssessments.tenantId, tenantId)");
     for (const procedure of [
       snapshot,
+      latestSnapshot,
       replay,
+      lifecycle,
       review,
       finalise,
       lock,
       replayLogs,
       auditReads,
     ]) {
+      expect(procedure).toContain("requireDecisionActionActor(ctx)");
       expect(procedure).toContain("requireGovernedTenantClaim(");
       expect(procedure).toContain("input.claimId");
       expect(procedure).toContain("ctx.user?.tenantId");
+      expect(procedure.indexOf("requireDecisionActionActor(ctx)")).toBeLessThan(
+        procedure.indexOf("requireGovernedTenantClaim(")
+      );
     }
     expect(validation).toMatch(
       /requireGovernedTenantClaim\(\s*String\(input\.claimId\),\s*ctx\.user\.tenantId\s*\)/
@@ -98,6 +112,10 @@ describe("AI assessment governance tenant authority", () => {
     expect(validation).not.toContain("ctx.user.role === 'admin' ? undefined");
     expect(snapshots).toContain(
       "requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId)"
+    );
+    expect(snapshots).toContain("requireDecisionActionActor(ctx)");
+    expect(snapshots.indexOf("requireDecisionActionActor(ctx)")).toBeLessThan(
+      snapshots.indexOf("requireGovernedTenantClaim(")
     );
     const heldSnapshotBranch = snapshots.slice(
       snapshots.indexOf("if (p0B1FraudPolicyActive())"),
