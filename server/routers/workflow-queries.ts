@@ -69,6 +69,44 @@ function canAccessState(role: InsurerRole, state: WorkflowState): boolean {
   return allowedStates.includes(state);
 }
 
+type P0B1ClaimsProcessorRawFraudFields = {
+  fraudRiskScore?: unknown;
+  fraudRiskLevel?: unknown;
+  fraudFlags?: unknown;
+  earlyFraudSuspicion?: unknown;
+};
+
+/**
+ * Removes every stored claim fraud field from the Claims Processor's active
+ * status-feed response. The old route remains directly callable through tRPC,
+ * so this server projection is the authority boundary rather than a browser
+ * convention.
+ */
+export function projectP0B1ClaimsProcessorStatusRows<
+  T extends P0B1ClaimsProcessorRawFraudFields,
+>(rows: readonly T[]): Array<Omit<T, keyof P0B1ClaimsProcessorRawFraudFields>> {
+  return rows.map(row => {
+    const {
+      fraudRiskScore: _fraudRiskScore,
+      fraudRiskLevel: _fraudRiskLevel,
+      fraudFlags: _fraudFlags,
+      earlyFraudSuspicion: _earlyFraudSuspicion,
+      ...operationalRow
+    } = row;
+    return operationalRow;
+  });
+}
+
+function requiresP0B1ClaimsProcessorProjection(ctx: {
+  user: { role?: string | null; insurerRole?: string | null } | null;
+}) {
+  return (
+    isAdminRole(ctx.user?.role) ||
+    (ctx.user?.role === "insurer" &&
+      ctx.user.insurerRole === "claims_processor")
+  );
+}
+
 export const workflowQueriesRouter = router({
   /**
    * Get claims by workflow state with pagination and role-based filtering.
@@ -193,9 +231,13 @@ export const workflowQueriesRouter = router({
         .limit(input.limit)
         .offset(input.offset);
 
+      const publishedClaims = requiresP0B1ClaimsProcessorProjection(ctx)
+        ? projectP0B1ClaimsProcessorStatusRows(claimsList)
+        : claimsList;
+
       return {
-        claims: claimsList,
-        items: claimsList,
+        claims: publishedClaims,
+        items: publishedClaims,
         total,
         limit: input.limit,
         offset: input.offset,

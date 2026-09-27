@@ -12,7 +12,9 @@
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
 import { AlertOctagon, Scale, FileQuestion, ShieldAlert, Gavel, AlertTriangle, Loader2 } from "lucide-react";
+import { discriminateP0B1FraudDecisionResponse } from "@shared/p0FraudDecisionHoldPresentation";
 
 interface EscalationCategory {
   label: string;
@@ -95,13 +97,26 @@ function EscalationRow({ label, count, icon, severity, topClaims }: EscalationCa
 }
 
 export function EscalationCentre() {
-  const { data: escalations, isLoading } = trpc.claims.getEscalations.useQuery(undefined, {
+  const escalationsQuery = trpc.claims.getEscalations.useQuery(undefined, {
     refetchInterval: 60000,
     staleTime: 30000,
   });
+  const escalationsResponse = discriminateP0B1FraudDecisionResponse(
+    escalationsQuery.data
+  );
+  const escalationsHold = escalationsResponse.hold;
+  const availableEscalations = escalationsResponse.value;
+
+  // A canonical withheld response must stop here—before array operations or a
+  // reassuring empty state can mischaracterize unavailable fraud authority.
+  if (escalationsHold) {
+    return <P0FraudValidationHold hold={escalationsHold} />;
+  }
+
+  const escalations = availableEscalations ?? [];
+  const { isLoading } = escalationsQuery;
 
   const categories: EscalationCategory[] = (() => {
-    if (!escalations) return [];
     const rows = escalations as any[];
 
     const highValue = rows.filter(r => (r.totalClaimAmount ?? r.estimatedClaimValue ?? 0) >= 10000000);

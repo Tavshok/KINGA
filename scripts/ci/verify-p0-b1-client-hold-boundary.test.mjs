@@ -14,8 +14,8 @@ const executiveAlertsPath =
 const claimsCorePath = "server/routers/claims-core.ts";
 const policeReportPath = "client/src/components/PoliceReportForm.tsx";
 const decisionReportPath = "client/src/pages/ClaimDecisionReport.page.tsx";
-const riskManagerPath = "client/src/pages/RiskManagerDashboard.tsx";
 const externalAssessorPath = "client/src/pages/ExternalAssessorDashboard.tsx";
+const escalationCentrePath = "client/src/components/EscalationCentre.tsx";
 
 function withRiskPortfolioRawAuthority(source) {
   const start = source.indexOf(
@@ -32,8 +32,130 @@ function withRiskPortfolioRawAuthority(source) {
 
 test("accepts every registered live P0-B1 hold boundary", () => {
   assert.doesNotThrow(() => verifyP0B1ClientHoldBoundary(sources));
-  assert.equal(P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS.length, 12);
+  // The integration branch removed three retired Risk Manager bindings; this
+  // package adds the one live Escalation Centre boundary.
+  assert.equal(P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS.length, 11);
   assert.equal(P0_B1_HELD_MUTATION_BOUNDARY_TARGETS.length, 9);
+});
+
+test("rejects an Escalation Centre hold-binding bypass before array operations", () => {
+  const unsafe = {
+    ...sources,
+    [escalationCentrePath]: sources[escalationCentrePath].replace(
+      "const escalationsHold = escalationsResponse.hold;",
+      "const escalationsHold = null;"
+    ),
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /EscalationCentre\.tsx: escalationsHold is not directly bound to escalationsResponse\.hold/
+  );
+});
+
+test("rejects an Escalation Centre false-reassurance branch after a hold", () => {
+  const unsafe = {
+    ...sources,
+    [escalationCentrePath]: sources[escalationCentrePath].replace(
+      "if (escalationsHold) {\n    return <P0FraudValidationHold hold={escalationsHold} />;\n  }",
+      "if (false && escalationsHold) {\n    return <P0FraudValidationHold hold={escalationsHold} />;\n  }"
+    ),
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /EscalationCentre\.tsx: escalationsHold does not control a P0FraudValidationHold branch/
+  );
+});
+
+test("rejects Escalation Centre array processing before its terminal hold", () => {
+  const unsafe = {
+    ...sources,
+    [escalationCentrePath]: sources[escalationCentrePath].replace(
+      "if (escalationsHold) {\n    return <P0FraudValidationHold hold={escalationsHold} />;\n  }",
+      "const preHoldRows = escalationsResponse.value as any[];\n  preHoldRows.filter(row => row.fraudRiskLevel === 'critical');\n\n  if (escalationsHold) {\n    return <P0FraudValidationHold hold={escalationsHold} />;\n  }"
+    ),
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /EscalationCentre\.tsx: availableEscalations, escalationsResponse\.value, or escalationsQuery\.data cannot be processed before the terminal escalationsHold return/
+  );
+});
+
+test("rejects Escalation Centre pre-hold processing hidden in an invoked callback", () => {
+  const unsafe = {
+    ...sources,
+    [escalationCentrePath]: sources[escalationCentrePath].replace(
+      "if (escalationsHold) {\n    return <P0FraudValidationHold hold={escalationsHold} />;\n  }",
+      "(() => {\n    const preHoldRows = escalationsResponse.value as any[];\n    preHoldRows.filter(row => row.fraudRiskLevel === 'critical');\n  })();\n\n  if (escalationsHold) {\n    return <P0FraudValidationHold hold={escalationsHold} />;\n  }"
+    ),
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /EscalationCentre\.tsx: availableEscalations, escalationsResponse\.value, or escalationsQuery\.data cannot be processed before the terminal escalationsHold return/
+  );
+});
+
+test("rejects Escalation Centre destructured, bracketed, and aliased pre-hold values", () => {
+  const holdBranch =
+    "if (escalationsHold) {\n    return <P0FraudValidationHold hold={escalationsHold} />;\n  }";
+  const unsafePrefixes = [
+    "const { value: preHoldRows } = escalationsResponse;\n  preHoldRows.filter(row => row.fraudRiskLevel === 'critical');\n\n",
+    "const preHoldRows = escalationsResponse['value'] as any[];\n  preHoldRows.filter(row => row.fraudRiskLevel === 'critical');\n\n",
+    "const preHoldResponse = escalationsResponse;\n  preHoldResponse.value.filter(row => row.fraudRiskLevel === 'critical');\n\n",
+  ];
+
+  for (const unsafePrefix of unsafePrefixes) {
+    const unsafe = {
+      ...sources,
+      [escalationCentrePath]: sources[escalationCentrePath].replace(
+        holdBranch,
+        `${unsafePrefix}${holdBranch}`
+      ),
+    };
+    assert.throws(
+      () => verifyP0B1ClientHoldBoundary(unsafe),
+      /EscalationCentre\.tsx: availableEscalations, escalationsResponse\.value, or escalationsQuery\.data cannot be processed before the terminal escalationsHold return/
+    );
+  }
+});
+
+test("rejects Escalation Centre query-option callbacks before the terminal hold", () => {
+  const unsafe = {
+    ...sources,
+    [escalationCentrePath]: sources[escalationCentrePath].replace(
+      "refetchInterval: 60000,",
+      "refetchInterval: query => {\n      const held = query.state.data;\n      String(held);\n      return 60000;\n    },"
+    ),
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /EscalationCentre\.tsx: availableEscalations, escalationsResponse\.value, or escalationsQuery\.data cannot be processed before the terminal escalationsHold return/
+  );
+});
+
+test("rejects Escalation Centre inline-only hold rendering after pre-hold processing", () => {
+  const directHold =
+    "if (escalationsHold) {\n    return <P0FraudValidationHold hold={escalationsHold} />;\n  }";
+  const withoutEarlyHold = sources[escalationCentrePath].replace(
+    directHold,
+    "const preHoldRows = availableEscalations as any[];\n  preHoldRows.filter(row => row.fraudRiskLevel === 'critical');"
+  );
+  const unsafe = {
+    ...sources,
+    [escalationCentrePath]: withoutEarlyHold.replace(
+      "return (\n    <Card",
+      "return escalationsHold ? <P0FraudValidationHold hold={escalationsHold} /> : (\n    <Card"
+    ),
+  };
+
+  assert.throws(
+    () => verifyP0B1ClientHoldBoundary(unsafe),
+    /EscalationCentre\.tsx: escalationsHold must retain a direct terminal return before any availableEscalations processing/
+  );
 });
 
 test("rejects a Police Report success callback that continues after a hold", () => {
@@ -102,21 +224,6 @@ test("rejects a Claim Decision Report hold branch appended after live output", (
   assert.throws(
     () => verifyP0B1ClientHoldBoundary(unsafe),
     /must retain exactly one direct render return|does not control a P0FraudValidationHold branch/
-  );
-});
-
-test("rejects a prior hold branch whose else arm returns live output", () => {
-  const unsafe = {
-    ...sources,
-    [riskManagerPath]: sources[riskManagerPath].replace(
-      "if (riskPortfolioHold) {\n    return <P0FraudValidationHold hold={riskPortfolioHold} />;\n  }",
-      "if (escalationsHold) {\n    return <P0FraudValidationHold hold={escalationsHold} />;\n  } else {\n    return <div>Unsafe live workflow</div>;\n  }\n\n  if (riskPortfolioHold) {\n    return <P0FraudValidationHold hold={riskPortfolioHold} />;\n  }"
-    ),
-  };
-
-  assert.throws(
-    () => verifyP0B1ClientHoldBoundary(unsafe),
-    /riskPortfolioHold does not control a P0FraudValidationHold branch|must retain exactly one direct render return/
   );
 });
 
@@ -290,36 +397,6 @@ test("rejects an unreachable held-render decoy when the live held branch says al
   assert.throws(
     () => verifyP0B1ClientHoldBoundary(unsafe),
     /does not control a P0FraudValidationHold branch|Executive reassurance output is not dominated by the direct fraud hold branch/
-  );
-});
-
-test("rejects a Risk Portfolio inline hold in place of terminal workflow containment", () => {
-  const unsafe = {
-    ...sources,
-    [riskManagerPath]: sources[riskManagerPath].replace(
-      "if (riskPortfolioHold) {\n    return <P0FraudValidationHold hold={riskPortfolioHold} />;\n  }",
-      "if (riskPortfolioHold) {\n    return <div>Portfolio hold</div>;\n  }"
-    ),
-  };
-
-  assert.throws(
-    () => verifyP0B1ClientHoldBoundary(unsafe),
-    /riskPortfolioHold does not control a P0FraudValidationHold branch/
-  );
-});
-
-test("rejects a nested Risk Portfolio numeric zero fallback", () => {
-  const unsafe = {
-    ...sources,
-    [riskManagerPath]: sources[riskManagerPath].replace(
-      "`${riskAnalytics.kpis.fraudRate}%`",
-      "`${riskAnalytics?.kpis?.fraudRate ?? 0}%`"
-    ),
-  };
-
-  assert.throws(
-    () => verifyP0B1ClientHoldBoundary(unsafe),
-    /Risk Portfolio KPI retains a raw numeric zero fallback/
   );
 });
 

@@ -35,6 +35,18 @@ export const P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS = Object.freeze([
     valueVariable: "availableExecutiveAlerts",
   }),
   Object.freeze({
+    path: "client/src/components/EscalationCentre.tsx",
+    componentName: "EscalationCentre",
+    queryCallee: "trpc.claims.getEscalations.useQuery",
+    queryResultVariable: "escalationsQuery",
+    responseSourceExpression: "escalationsQuery.data",
+    responseVariable: "escalationsResponse",
+    holdVariable: "escalationsHold",
+    valueVariable: "availableEscalations",
+    allowEarlyHoldReturn: true,
+    forbidPreHoldValueUse: true,
+  }),
+  Object.freeze({
     path: "client/src/pages/ExternalAssessorDashboard.tsx",
     componentName: "ExpandableClaimRow",
     queryCallee: "trpc.aiAssessments.byClaim.useQuery",
@@ -45,17 +57,6 @@ export const P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS = Object.freeze([
     valueVariable: "availableAiData",
     allowEarlyHoldReturn: true,
     allowWrappedTerminalHoldReturn: true,
-  }),
-  Object.freeze({
-    path: "client/src/pages/RiskManagerDashboard.tsx",
-    componentName: "RiskManagerDashboard",
-    queryCallee: "trpc.claims.getRiskPortfolioAnalytics.useQuery",
-    queryResultVariable: "riskPortfolioQuery",
-    responseSourceExpression: "riskPortfolioQuery.data",
-    responseVariable: "riskPortfolioResponse",
-    holdVariable: "riskPortfolioHold",
-    valueVariable: "riskAnalytics",
-    allowEarlyHoldReturn: true,
   }),
   Object.freeze({
     path: "client/src/pages/ClaimDecisionReport.page.tsx",
@@ -121,17 +122,6 @@ export const P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS = Object.freeze([
     responseVariable: "aiContextResponse",
     holdVariable: "aiContextHold",
     valueVariable: "aiContext",
-    allowEarlyHoldReturn: true,
-  }),
-  Object.freeze({
-    path: "client/src/pages/RiskManagerDashboard.tsx",
-    componentName: "RiskManagerDashboard",
-    queryCallee: "trpc.claims.getEscalations.useQuery",
-    queryResultVariable: "escalationsDataResponse",
-    responseSourceExpression: "escalationsDataResponse",
-    responseVariable: "escalationsResponse",
-    holdVariable: "escalationsHold",
-    valueVariable: "availableEscalations",
     allowEarlyHoldReturn: true,
   }),
   Object.freeze({
@@ -525,12 +515,12 @@ function isTerminalHoldIf(statement, allowWrappedTerminalHoldReturn = false) {
   );
 }
 
-function hasDominatingEarlyHoldReturn(
+function directTerminalHoldIndex(
   component,
   holdVariable,
   allowWrappedTerminalHoldReturn = false
 ) {
-  const holdIndex = component.body.statements.findIndex(statement => {
+  return component.body.statements.findIndex(statement => {
     if (
       !ts.isIfStatement(statement) ||
       !ts.isIdentifier(unwrap(statement.expression)) ||
@@ -553,7 +543,18 @@ function hasDominatingEarlyHoldReturn(
       )
     );
   });
+}
 
+function hasDominatingEarlyHoldReturn(
+  component,
+  holdVariable,
+  allowWrappedTerminalHoldReturn = false
+) {
+  const holdIndex = directTerminalHoldIndex(
+    component,
+    holdVariable,
+    allowWrappedTerminalHoldReturn
+  );
   return (
     holdIndex >= 0 &&
     component.body.statements
@@ -564,6 +565,96 @@ function hasDominatingEarlyHoldReturn(
           isTerminalHoldIf(statement, allowWrappedTerminalHoldReturn)
       )
   );
+}
+
+function containsFunctionBody(node) {
+  let found = false;
+  const visit = candidate => {
+    if (found) return;
+    if (ts.isArrowFunction(candidate) || ts.isFunctionExpression(candidate)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(candidate, visit);
+  };
+  visit(node);
+  return found;
+}
+
+function isExactApprovedPreHoldBinding(declaration, target) {
+  if (!ts.isIdentifier(declaration.name) || !declaration.initializer) {
+    return false;
+  }
+  const name = declaration.name.text;
+  const initializer = declaration.initializer;
+  if (name === target.queryResultVariable) {
+    return (
+      isNamedCall(initializer, target.queryCallee) &&
+      !containsFunctionBody(initializer)
+    );
+  }
+  if (name === target.responseVariable) {
+    return isDiscriminatorCall(initializer, target.responseSourceExpression);
+  }
+  if (name === target.holdVariable) {
+    return propertyAccessMatches(initializer, target.responseVariable, "hold");
+  }
+  if (name === target.valueVariable) {
+    return propertyAccessMatches(initializer, target.responseVariable, "value");
+  }
+  return false;
+}
+
+function isApprovedPreHoldBoundaryBinding(statement, target) {
+  return (
+    ts.isVariableStatement(statement) &&
+    statement.declarationList.declarations.length > 0 &&
+    statement.declarationList.declarations.every(declaration =>
+      isExactApprovedPreHoldBinding(declaration, target)
+    )
+  );
+}
+
+function statementUsesPreHoldValue(statement, target) {
+  const protectedNames = new Set([
+    target.queryResultVariable,
+    target.responseVariable,
+    target.holdVariable,
+    target.valueVariable,
+  ]);
+  if (ts.isVariableStatement(statement)) {
+    const declaresProtectedName = statement.declarationList.declarations.some(
+      declaration =>
+        ts.isIdentifier(declaration.name) &&
+        protectedNames.has(declaration.name.text)
+    );
+    if (declaresProtectedName && !isApprovedPreHoldBoundaryBinding(statement, target)) {
+      return true;
+    }
+  }
+  if (isApprovedPreHoldBoundaryBinding(statement, target)) return false;
+
+  let unsafe = false;
+  const visit = node => {
+    if (unsafe) return;
+    const candidate = unwrap(node);
+    if (
+      (ts.isIdentifier(candidate) &&
+        [
+          target.valueVariable,
+          target.responseVariable,
+          target.queryResultVariable,
+        ].includes(candidate.text)) ||
+      propertyAccessMatches(candidate, target.responseVariable, "value") ||
+      propertyAccessMatches(candidate, target.queryResultVariable, "data")
+    ) {
+      unsafe = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(statement);
+  return unsafe;
 }
 
 function renderHasHoldBranch(render, holdVariable) {
@@ -751,18 +842,28 @@ function verifyClientBoundary(target, source, failures) {
     }
   }
 
-  const render = directComponentRender(component);
-  if (target.componentName === "RiskManagerDashboard" && render) {
-    const prohibitedZeroDefault = ["fraudRate", "avgFraudScore"].some(field =>
-      containsNullishNumericDefault(render, "riskAnalytics", field, "0")
+  if (target.forbidPreHoldValueUse) {
+    const holdIndex = directTerminalHoldIndex(
+      component,
+      renderHoldVariable,
+      target.allowWrappedTerminalHoldReturn
     );
-    if (prohibitedZeroDefault) {
+    if (holdIndex < 0) {
       failures.push(
-        `${target.path}: Risk Portfolio KPI retains a raw numeric zero fallback.`
+        `${target.path}: ${renderHoldVariable} must retain a direct terminal return before any ${target.valueVariable} processing.`
+      );
+    } else if (
+      component.body.statements
+        .slice(0, holdIndex)
+        .some(statement => statementUsesPreHoldValue(statement, target))
+    ) {
+      failures.push(
+        `${target.path}: ${target.valueVariable}, ${target.responseVariable}.value, or ${target.queryResultVariable}.data cannot be processed before the terminal ${renderHoldVariable} return.`
       );
     }
   }
 
+  const render = directComponentRender(component);
   if (
     target.allowEarlyHoldReturn &&
     hasDominatingEarlyHoldReturn(
