@@ -93,4 +93,25 @@ describe("P0-B1 B-R2 held action runtime containment", () => {
     expect(html).not.toContain("Claims assigned to you");
     expect(html).not.toContain("Authorise Payment");
   });
+
+  it("terminally withholds Internal Assessor payment workflow after a held payment response", () => {
+    mocks.assessmentByClaim.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    });
+    mocks.authorizePayment.mockReturnValue({
+      data: buildP0B1FraudDecisionHold({ scope: "payment_authorization" }),
+      mutate: vi.fn(),
+      isPending: false,
+    });
+
+    const html = renderToStaticMarkup(
+      React.createElement(InternalAssessorDashboard)
+    );
+
+    expect(html).toContain("Fraud Decision Withheld");
+    expect(html).toContain("Manual Review Required");
+    expect(html).not.toContain("Claims assigned to you");
+    expect(html).not.toContain("Authorise Payment");
+  });
 });
