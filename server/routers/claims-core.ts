@@ -51,7 +51,7 @@ import { validateClaimDetailResponse } from "../apiResponseValidator";
 import { exportClaimPDF } from "../claim-pdf-export";
 import { logger } from "../logger";
 import { nanoid } from "nanoid";
-import { isAdminRole } from "@shared/role-permissions";
+import { GOVERNANCE_ALLOWED_ROLES, isAdminRole } from "@shared/role-permissions";
 import { isExternalAssessor } from "../assessor-role-authority";
 import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment } from "../services/canonicalClaimIntake";
 import { submitPortalCanonicalIntake } from "../services/canonicalIntakeAdapters";
@@ -81,7 +81,9 @@ async function requireTenantScopedClaim(
   return { claim, tenantId };
 }
 
-function requireSessionTenant(ctx: { user: { tenantId?: string | null } | null }) {
+function requireSessionTenant(
+  ctx: { user: { tenantId?: string | null } | null }
+): string {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
@@ -277,6 +279,59 @@ function assertP0B1FraudCommandHold(): never {
 
 function p0B1FraudPolicyActive(): boolean {
   return true;
+}
+
+const P0_B1_RISK_MANAGER_OPERATIONAL_ALLOWED_ROLES = new Set(
+  GOVERNANCE_ALLOWED_ROLES
+);
+const P0_B1_CLAIM_APPROVAL_ALLOWED_ROLES = new Set([
+  "claims_manager",
+  "executive",
+]);
+
+function isP0B1RiskManagerSession(ctx: {
+  user: { role?: string | null; insurerRole?: string | null } | null;
+}) {
+  return ctx.user?.role === "insurer" && ctx.user.insurerRole === "risk_manager";
+}
+
+function requireP0B1RiskManagerOperationalAuthority(ctx: {
+  user: { role?: string | null; insurerRole?: string | null; tenantId?: string | null } | null;
+}) {
+  const user = ctx.user;
+  const permitted = Boolean(
+    user &&
+      (isAdminRole(user.role) ||
+        (user.role === "insurer" &&
+          user.insurerRole &&
+          P0_B1_RISK_MANAGER_OPERATIONAL_ALLOWED_ROLES.has(user.insurerRole as never)))
+  );
+  if (!permitted) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Risk Manager operational access requires a governance role.",
+    });
+  }
+  // Platform administrators must still name a concrete tenant before this
+  // tenant-scoped operational projection can be read.
+  return requireSessionTenant(ctx);
+}
+
+function requireP0B1ClaimApprovalAuthority(user: {
+  role?: string | null;
+  insurerRole?: string | null;
+} | null) {
+  if (
+    !user ||
+    user.role !== "insurer" ||
+    !user.insurerRole ||
+    !P0_B1_CLAIM_APPROVAL_ALLOWED_ROLES.has(user.insurerRole)
+  ) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Claim approval requires a claims_manager or executive role.",
+    });
+  }
 }
 
 export const claimsRouter = router({
@@ -992,6 +1047,16 @@ export const claimsRouter = router({
   byStatus: insurerDomainProcedure
     .input(z.object({ status: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Risk Manager may not obtain a raw whole-claim response through this
+      // shared legacy endpoint. Its dedicated operational projection below is
+      // the only supported dashboard data source.
+      if (isP0B1RiskManagerSession(ctx)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Risk Manager must use the approved operational claims projection.",
+        });
+      }
       const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       // ctx.insurerTenantId guaranteed non-null by insurerDomainProcedure middleware
@@ -1100,6 +1165,13 @@ export const claimsRouter = router({
       search: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
+      if (isP0B1RiskManagerSession(ctx)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Risk Manager must use the approved operational claims projection.",
+        });
+      }
       const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const terminalStatuses = ['completed', 'rejected', 'closed'] as const;
@@ -1156,6 +1228,51 @@ export const claimsRouter = router({
         );
       }
       return rows;
+    }),
+
+  /**
+   * P0-B1 Risk Manager operational projection. This route intentionally exposes
+   * only independently supported claim/workflow information; stored fraud
+   * scores, levels, flags, and early-suspicion fields are not selected.
+   */
+  getRiskManagerOperationalClaims: insurerDomainProcedure
+    .input(z.object({
+      from: z.string().optional(),
+      to: z.string().optional(),
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      const tenantId = requireP0B1RiskManagerOperationalAuthority(ctx);
+      const db = await getClaimsDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const terminalStatuses = ["completed", "rejected", "closed"] as const;
+      const conditions: any[] = [
+        eq(claims.tenantId, tenantId),
+        notInArray(claims.status, [...terminalStatuses] as any[]),
+      ];
+      if (input?.from) conditions.push(gte(claims.createdAt, input.from));
+      if (input?.to) conditions.push(lte(claims.createdAt, input.to + " 23:59:59"));
+
+      return db
+        .select({
+          id: claims.id,
+          claimNumber: claims.claimNumber,
+          status: claims.status,
+          workflowState: claims.workflowState,
+          approvedAmount: claims.approvedAmount,
+          estimatedClaimValue: claims.estimatedClaimValue,
+          vehicleMake: claims.vehicleMake,
+          vehicleModel: claims.vehicleModel,
+          vehicleRegistration: claims.vehicleRegistration,
+          currencyCode: claims.currencyCode,
+          priority: claims.priority,
+          createdAt: claims.createdAt,
+          updatedAt: claims.updatedAt,
+        })
+        .from(claims)
+        .where(and(...conditions))
+        .orderBy(desc(claims.createdAt))
+        .limit(500);
     }),
 
   // ─── Claims Manager: Fraud Alerts ───────────────────────────────────────────
@@ -1323,8 +1440,10 @@ export const claimsRouter = router({
       }
       return rows;
     }),
-  // ─── Risk Manager: Financial Decision Queue ──────────────────────────────────────────
-  // Claims awaiting financial approval, ordered by amount descending
+  // ─── Risk Manager: Financial Decision Queue ──────────────────────────────────
+  // Historic fraud fields are withheld from this legacy queue. The Risk Manager
+  // route now uses getRiskManagerOperationalClaims instead of attempting a
+  // parallel financial/fraud projection.
   getFinancialDecisionQueue: insurerDomainProcedure
     .input(z.object({
       from: z.string().optional(),
@@ -1332,50 +1451,9 @@ export const claimsRouter = router({
       search: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getClaimsDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      const conditions: any[] = [
-        eq(claims.tenantId, ctx.insurerTenantId),
-        eq(claims.workflowState, 'financial_decision' as any),
-      ];
-      if (input?.from) conditions.push(gte(claims.createdAt, input.from));
-      if (input?.to) conditions.push(lte(claims.createdAt, input.to + ' 23:59:59'));
-      const rows = await db
-        .select({
-          id: claims.id,
-          claimNumber: claims.claimNumber,
-          status: claims.status,
-          workflowState: claims.workflowState,
-          fraudRiskLevel: claims.fraudRiskLevel,
-          fraudRiskScore: claims.fraudRiskScore,
-          approvedAmount: claims.approvedAmount,
-          estimatedClaimValue: claims.estimatedClaimValue,
-          finalApprovedAmount: claims.finalApprovedAmount,
-          incidentType: claims.incidentType,
-          vehicleMake: claims.vehicleMake,
-          vehicleModel: claims.vehicleModel,
-          vehicleYear: claims.vehicleYear,
-          vehicleRegistration: claims.vehicleRegistration,
-          claimantName: claims.lodgerName,
-          claimantEmail: claims.claimantEmail,
-          incidentDate: claims.incidentDate,
-          createdAt: claims.createdAt,
-          updatedAt: claims.updatedAt,
-          currencyCode: claims.currencyCode,
-          priority: claims.priority,
-        })
-        .from(claims)
-        .where(and(...conditions))
-        .orderBy(desc(claims.estimatedClaimValue))
-        .limit(300);
-      if (input?.search) {
-        const q = input.search.toLowerCase();
-        return rows.filter(r =>
-          r.claimNumber?.toLowerCase().includes(q) ||
-          r.claimantName?.toLowerCase().includes(q)
-        );
-      }
-      return rows;
+      void input;
+      requireP0B1RiskManagerOperationalAuthority(ctx);
+      return buildP0B1FraudOutputHold();
     }),
 
   // ─── Analytics: Manager Overview ─────────────────────────────────────────────
@@ -2402,8 +2480,9 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      
-      // Get claim and quote details
+      requireP0B1ClaimApprovalAuthority(ctx.user);
+
+      // Actor authority precedes tenant/resource lookup and the canonical hold.
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       assertP0B1FraudCommandHold();
       
