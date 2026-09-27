@@ -45,15 +45,6 @@
     "fingerprint": "162e972ee4f6f23e925c0d6814278696c8a554e4a4d5a022d1264b7f0939a0c9"
   },
   {
-    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
-    "line": 366,
-    "column": 26,
-    "kind": "mutation",
-    "callee": "trpc.aiAssessments.replayDecision.useMutation",
-    "detection": "server-canonical-hold",
-    "fingerprint": "1687a62591c6384a522744ff12d3befbda0dc80f0ca9574614dd3df18b24e6a7"
-  },
-  {
     "path": "client/src/components/DecisionAuthorityPanel.tsx",
     "line": 98,
     "column": 38,
@@ -79,15 +70,6 @@
     "callee": "trpc.analytics.getKPIs.useQuery",
     "detection": "server-canonical-hold",
     "fingerprint": "211fd1353255c43c768f9f60e47d62db0d88ebe1ae98443d015b2e0ff3dbc7a7"
-  },
-  {
-    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
-    "line": 168,
-    "column": 36,
-    "kind": "query",
-    "callee": "trpc.aiAssessments.getLatestSnapshot.useQuery",
-    "detection": "server-canonical-hold",
-    "fingerprint": "23a0605add8bfffd31eaa4d4f7ac648cf9931fa20c5d69cbc7ed97b294d47db0"
   },
   {
     "path": "client/src/pages/ClaimsManagerComparisonView.tsx",
@@ -126,13 +108,13 @@
     "fingerprint": "2ac44ce287bb078e5175300dd7e7c9583948d97d2ffc6972754c09d45b8852e7"
   },
   {
-    "path": "client/src/pages/InternalAssessorDashboard.tsx",
-    "line": 646,
-    "column": 5,
-    "kind": "query",
-    "callee": "trpc.aiAssessments.byClaim.useQuery",
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 300,
+    "column": 32,
+    "kind": "mutation",
+    "callee": "trpc.aiAssessments.markReviewed.useMutation",
     "detection": "typed-and-server",
-    "fingerprint": "2af537b1274983e964a2860944dcf8cd4fd8c1bc022829007047fea8cc3775cd"
+    "fingerprint": "2bb9e70cf214e0a48f9d1d83720c0c462bc0dcc7ab5c44aa3a671da2a2cf09bf"
   },
   {
     "path": "client/src/pages/RelationshipIntelligence.tsx",
@@ -198,6 +180,15 @@
     "fingerprint": "4235e8fbf2e0fa9aa477d505ad41934da7eaf92ed688423b20029d92d5da189f"
   },
   {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 242,
+    "column": 64,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.getAuditLog.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "458549256b976d8873728551b554c637ebf54de8d6450e9ae4fbfb792b9c1fdc"
+  },
+  {
     "path": "client/src/pages/InsurerComparisonView.tsx",
     "line": 200,
     "column": 30,
@@ -205,6 +196,15 @@
     "callee": "trpc.aiAssessments.pushReportToRole.useMutation",
     "detection": "server-canonical-hold",
     "fingerprint": "458a07bc488f9e0dcd010fd48b813e6f67d03d05847f4342ac4619717fbe86fd"
+  },
+  {
+    "path": "client/src/pages/InternalAssessorDashboard.tsx",
+    "line": 614,
+    "column": 28,
+    "kind": "mutation",
+    "callee": "trpc.claims.authorizePayment.useMutation",
+    "detection": "server-canonical-hold",
+    "fingerprint": "48c097104ce589770ef0813a0a880a2401ef0b99bb9eb8707fef8a32fa4153f9"
   },
   {
     "path": "client/src/pages/ClaimsManagerDashboard.tsx",
@@ -252,6 +252,24 @@
     "fingerprint": "5dce13db387d3b0cd650ae9e3f3399dfd2dabd6e765b07a5f7337f674a6dc1eb"
   },
   {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 321,
+    "column": 36,
+    "kind": "mutation",
+    "callee": "trpc.aiAssessments.finaliseDecision.useMutation",
+    "detection": "typed-and-server",
+    "fingerprint": "5e29c220e55b774153275d734bb3be845eca3c8b4cd96b71fe57478151d7abc6"
+  },
+  {
+    "path": "client/src/pages/InternalAssessorDashboard.tsx",
+    "line": 654,
+    "column": 5,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.byClaim.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "630fe7223c6ae42a389e17ddab31fd678dafa46ab2d52c1ff28197470e8184aa"
+  },
+  {
     "path": "client/src/components/executive/EscalationsDashboard.tsx",
     "line": 18,
     "column": 40,
@@ -286,15 +304,6 @@
     "callee": "trpc.claims.approveClaim.useMutation",
     "detection": "server-canonical-hold",
     "fingerprint": "75ca7ec98ee31b8f3b46ae9e71ae2a56cf59f68b87e55b63832d5282890f9e0e"
-  },
-  {
-    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
-    "line": 296,
-    "column": 36,
-    "kind": "mutation",
-    "callee": "trpc.aiAssessments.finaliseDecision.useMutation",
-    "detection": "typed-and-server",
-    "fingerprint": "7999cc00b69368740885f852ed87d02041317dc62fbde2090af415727992451d"
   },
   {
     "path": "client/src/components/ReportGenerationDialog.tsx",
@@ -387,6 +396,15 @@
     "fingerprint": "9bbee5d1c55eba22795867d68f750f6b8662e6d8d07979d8d2f05d7f33124ec5"
   },
   {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 159,
+    "column": 45,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.getSnapshots.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "9ca48f2b4aa787a145b0ab0fcf9e6f22a3a3ecacdb552a7b8782c991449bfacc"
+  },
+  {
     "path": "client/src/pages/RiskManagerAnalytics.tsx",
     "line": 821,
     "column": 47,
@@ -477,6 +495,15 @@
     "fingerprint": "ac6a2ab75c1423986c9a31b5c189aa7af4a620a2eaf1441252a90727ddb489b9"
   },
   {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 199,
+    "column": 70,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.getLifecycle.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "b09ab878a25b171c84e42156e71ff4a587bfd32309cfd8e8e645f55da48e9d5f"
+  },
+  {
     "path": "client/src/components/executive/ExecutiveAlertsCenter.tsx",
     "line": 40,
     "column": 61,
@@ -559,12 +586,12 @@
   },
   {
     "path": "client/src/pages/ClaimDecisionReport.page.tsx",
-    "line": 152,
-    "column": 45,
+    "line": 175,
+    "column": 48,
     "kind": "query",
-    "callee": "trpc.aiAssessments.getSnapshots.useQuery",
-    "detection": "typed-and-server",
-    "fingerprint": "ccdf83a6bfc82608f4ddf394029adc831af48deec0da80ecbca24ff298ce9b80"
+    "callee": "trpc.aiAssessments.getLatestSnapshot.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "da3aba6b166cb299212697cd3ad30a8081c098afd64a6c77c789314716976851"
   },
   {
     "path": "client/src/components/IntelligenceEnforcementPanel.tsx",
@@ -603,6 +630,15 @@
     "fingerprint": "e397c7a8c09f9b564d6684d8e8af93e33363a55e84321d3d2d449a54991c3f9c"
   },
   {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 399,
+    "column": 26,
+    "kind": "mutation",
+    "callee": "trpc.aiAssessments.replayDecision.useMutation",
+    "detection": "server-canonical-hold",
+    "fingerprint": "e3ba478781bbc5e83eb199f297d109bcd94d76e50fc3b93480a5be66444c80ee"
+  },
+  {
     "path": "client/src/pages/ClaimsManagerDashboard.tsx",
     "line": 156,
     "column": 34,
@@ -637,6 +673,15 @@
     "callee": "trpc.claims.approveClaim.useMutation",
     "detection": "server-canonical-hold",
     "fingerprint": "f1e231a281f7b5c77642e59b6c01a005ed2c8ed7e8ff4e10c8089052931d12f6"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 355,
+    "column": 32,
+    "kind": "mutation",
+    "callee": "trpc.aiAssessments.lockDecision.useMutation",
+    "detection": "typed-and-server",
+    "fingerprint": "f9a31696d4a25519f44ccd08524db3fc8b8ed36db45c15acf684ad4876981af8"
   },
   {
     "path": "client/src/components/replay/ReplayTriggerForm.tsx",

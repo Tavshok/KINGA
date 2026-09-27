@@ -43,6 +43,8 @@ export const P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS = Object.freeze([
     responseVariable: "fraudDecisionResponse",
     holdVariable: "fraudDecisionHold",
     valueVariable: "availableAiData",
+    allowEarlyHoldReturn: true,
+    allowWrappedTerminalHoldReturn: true,
   }),
   Object.freeze({
     path: "client/src/pages/RiskManagerDashboard.tsx",
@@ -75,6 +77,39 @@ export const P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS = Object.freeze([
     responseVariable: "snapshotHistoryDecisionResponse",
     holdVariable: "snapshotHistoryHold",
     valueVariable: "snapshotHistoryValue",
+    allowEarlyHoldReturn: true,
+  }),
+  Object.freeze({
+    path: "client/src/pages/ClaimDecisionReport.page.tsx",
+    componentName: "ClaimDecisionReport",
+    queryCallee: "trpc.aiAssessments.getLifecycle.useQuery",
+    queryResultVariable: "lifecycleResponseData",
+    responseSourceExpression: "lifecycleResponseData",
+    responseVariable: "lifecycleDecisionResponse",
+    holdVariable: "lifecycleHold",
+    valueVariable: "lifecycle",
+    allowEarlyHoldReturn: true,
+  }),
+  Object.freeze({
+    path: "client/src/pages/ClaimDecisionReport.page.tsx",
+    componentName: "ClaimDecisionReport",
+    queryCallee: "trpc.aiAssessments.getAuditLog.useQuery",
+    queryResultVariable: "auditLogResponse",
+    responseSourceExpression: "auditLogResponse",
+    responseVariable: "auditLogDecisionResponse",
+    holdVariable: "auditLogHold",
+    valueVariable: "auditLogValue",
+    allowEarlyHoldReturn: true,
+  }),
+  Object.freeze({
+    path: "client/src/pages/ClaimDecisionReport.page.tsx",
+    componentName: "ClaimDecisionReport",
+    queryCallee: "trpc.aiAssessments.getLatestSnapshot.useQuery",
+    queryResultVariable: "latestSnapshotResponseData",
+    responseSourceExpression: "latestSnapshotResponseData",
+    responseVariable: "latestSnapshotResponse",
+    holdVariable: "latestSnapshotHold",
+    valueVariable: "latestSnapshot",
     allowEarlyHoldReturn: true,
   }),
   Object.freeze({
@@ -114,6 +149,24 @@ export const P0_B1_CLIENT_HOLD_BOUNDARY_TARGETS = Object.freeze([
 
 export const P0_B1_HELD_MUTATION_BOUNDARY_TARGETS = Object.freeze([
   Object.freeze({
+    path: "client/src/pages/ClaimDecisionReport.page.tsx",
+    componentName: "ClaimDecisionReport",
+    mutationCallee: "trpc.aiAssessments.saveSnapshot.useMutation",
+    mutationVariable: "saveSnapshotMutation",
+    successResponseVariable: "snapshotResponse",
+    responseVariable: "saveSnapshotMutationResponse",
+    holdVariable: "saveSnapshotMutationHold",
+  }),
+  Object.freeze({
+    path: "client/src/pages/ClaimDecisionReport.page.tsx",
+    componentName: "ClaimDecisionReport",
+    mutationCallee: "trpc.aiAssessments.markReviewed.useMutation",
+    mutationVariable: "markReviewedMutation",
+    successResponseVariable: "markReviewedResponse",
+    responseVariable: "markReviewedMutationResponse",
+    holdVariable: "markReviewedMutationHold",
+  }),
+  Object.freeze({
     path: "client/src/components/PoliceReportForm.tsx",
     componentName: "PoliceReportForm",
     mutationCallee: "trpc.policeReports.create.useMutation",
@@ -148,6 +201,33 @@ export const P0_B1_HELD_MUTATION_BOUNDARY_TARGETS = Object.freeze([
     successResponseVariable: "finaliseDecisionResponse",
     responseVariable: "finaliseDecisionMutationResponse",
     holdVariable: "finaliseDecisionMutationHold",
+  }),
+  Object.freeze({
+    path: "client/src/pages/ClaimDecisionReport.page.tsx",
+    componentName: "ClaimDecisionReport",
+    mutationCallee: "trpc.aiAssessments.lockDecision.useMutation",
+    mutationVariable: "lockDecisionMutation",
+    successResponseVariable: "lockDecisionResponse",
+    responseVariable: "lockDecisionMutationResponse",
+    holdVariable: "lockDecisionMutationHold",
+  }),
+  Object.freeze({
+    path: "client/src/pages/ClaimDecisionReport.page.tsx",
+    componentName: "ClaimDecisionReport",
+    mutationCallee: "trpc.aiAssessments.replayDecision.useMutation",
+    mutationVariable: "replayMutation",
+    successResponseVariable: "replayResponse",
+    responseVariable: "replayMutationResponse",
+    holdVariable: "replayMutationHold",
+  }),
+  Object.freeze({
+    path: "client/src/pages/InternalAssessorDashboard.tsx",
+    componentName: "InternalAssessorDashboard",
+    mutationCallee: "trpc.claims.authorizePayment.useMutation",
+    mutationVariable: "authorizePayment",
+    successResponseVariable: "paymentResponse",
+    responseVariable: "authorizePaymentResponse",
+    holdVariable: "authorizePaymentHold",
   }),
 ]);
 
@@ -354,6 +434,50 @@ function isDirectHoldRenderer(node, holdVariable) {
   );
 }
 
+function nonWhitespaceJsxChildren(element) {
+  return element.children.filter(
+    child => !ts.isJsxText(child) || child.getText().trim().length > 0
+  );
+}
+
+function isTableWrappedTerminalHoldRenderer(node, holdVariable) {
+  const tableRow = unwrap(node);
+  if (
+    !ts.isJsxElement(tableRow) ||
+    tableRow.openingElement.tagName.getText() !== "TableRow"
+  ) {
+    return false;
+  }
+
+  const rowChildren = nonWhitespaceJsxChildren(tableRow);
+  if (rowChildren.length !== 1 || !ts.isJsxElement(rowChildren[0])) {
+    return false;
+  }
+
+  const tableCell = rowChildren[0];
+  if (tableCell.openingElement.tagName.getText() !== "TableCell") {
+    return false;
+  }
+
+  const cellChildren = nonWhitespaceJsxChildren(tableCell);
+  return (
+    cellChildren.length === 1 &&
+    isDirectHoldRenderer(cellChildren[0], holdVariable)
+  );
+}
+
+function isTerminalHoldRenderer(
+  node,
+  holdVariable,
+  allowWrappedTerminalHoldReturn
+) {
+  return (
+    isDirectHoldRenderer(node, holdVariable) ||
+    (allowWrappedTerminalHoldReturn &&
+      isTableWrappedTerminalHoldRenderer(node, holdVariable))
+  );
+}
+
 function directComponentRender(component) {
   const returns = component.body.statements.filter(ts.isReturnStatement);
   return returns.length === 1 && returns[0].expression
@@ -377,7 +501,7 @@ function statementContainsDirectReturn(statement) {
   return found;
 }
 
-function isTerminalHoldIf(statement) {
+function isTerminalHoldIf(statement, allowWrappedTerminalHoldReturn = false) {
   if (
     !ts.isIfStatement(statement) ||
     !ts.isIdentifier(unwrap(statement.expression)) ||
@@ -393,11 +517,19 @@ function isTerminalHoldIf(statement) {
     candidate =>
       ts.isReturnStatement(candidate) &&
       candidate.expression &&
-      isDirectHoldRenderer(candidate.expression, holdVariable)
+      isTerminalHoldRenderer(
+        candidate.expression,
+        holdVariable,
+        allowWrappedTerminalHoldReturn
+      )
   );
 }
 
-function hasDominatingEarlyHoldReturn(component, holdVariable) {
+function hasDominatingEarlyHoldReturn(
+  component,
+  holdVariable,
+  allowWrappedTerminalHoldReturn = false
+) {
   const holdIndex = component.body.statements.findIndex(statement => {
     if (
       !ts.isIfStatement(statement) ||
@@ -410,11 +542,15 @@ function hasDominatingEarlyHoldReturn(component, holdVariable) {
     const branch = ts.isBlock(statement.thenStatement)
       ? statement.thenStatement.statements
       : [statement.thenStatement];
-    return branch.some(
-      candidate =>
-        ts.isReturnStatement(candidate) &&
-        candidate.expression &&
-        isDirectHoldRenderer(candidate.expression, holdVariable)
+    return (
+      branch.length === 1 &&
+      ts.isReturnStatement(branch[0]) &&
+      branch[0].expression &&
+      isTerminalHoldRenderer(
+        branch[0].expression,
+        holdVariable,
+        allowWrappedTerminalHoldReturn
+      )
     );
   });
 
@@ -425,7 +561,7 @@ function hasDominatingEarlyHoldReturn(component, holdVariable) {
       .every(
         statement =>
           !statementContainsDirectReturn(statement) ||
-          isTerminalHoldIf(statement)
+          isTerminalHoldIf(statement, allowWrappedTerminalHoldReturn)
       )
   );
 }
@@ -449,6 +585,24 @@ function renderHasHoldBranch(render, holdVariable) {
   };
   visit(render);
   return found;
+}
+
+function directHoldRenderBranchCount(render, holdVariable) {
+  let count = 0;
+  const visit = node => {
+    if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) return;
+    if (
+      ts.isConditionalExpression(node) &&
+      ts.isIdentifier(unwrap(node.condition)) &&
+      unwrap(node.condition).text === holdVariable &&
+      isDirectHoldRenderer(node.whenTrue, holdVariable)
+    ) {
+      count += 1;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(render);
+  return count;
 }
 
 function stringLiteralValue(node) {
@@ -611,7 +765,11 @@ function verifyClientBoundary(target, source, failures) {
 
   if (
     target.allowEarlyHoldReturn &&
-    hasDominatingEarlyHoldReturn(component, renderHoldVariable)
+    hasDominatingEarlyHoldReturn(
+      component,
+      renderHoldVariable,
+      target.allowWrappedTerminalHoldReturn
+    )
   ) {
     return;
   }
@@ -623,6 +781,17 @@ function verifyClientBoundary(target, source, failures) {
   } else if (!renderHasHoldBranch(render, renderHoldVariable)) {
     failures.push(
       `${target.path}: ${renderHoldVariable} does not control a P0FraudValidationHold branch in the exported ${target.componentName} render.`
+    );
+  }
+
+  if (
+    render &&
+    target.minimumDirectHoldRenderBranches !== undefined &&
+    directHoldRenderBranchCount(render, renderHoldVariable) <
+      target.minimumDirectHoldRenderBranches
+  ) {
+    failures.push(
+      `${target.path}: ${renderHoldVariable} must directly contain every guarded action surface with a P0FraudValidationHold branch.`
     );
   }
 
@@ -710,7 +879,7 @@ function hasTerminalMutationHold(callback, target) {
   const branch = ts.isBlock(terminalStatement.thenStatement)
     ? terminalStatement.thenStatement.statements
     : [terminalStatement.thenStatement];
-  return branch.some(ts.isReturnStatement);
+  return branch.length === 1 && ts.isReturnStatement(branch[0]);
 }
 
 function verifyMutationBoundary(target, source, failures) {

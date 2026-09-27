@@ -35,6 +35,13 @@ describe("claims-core tenant authority", () => {
     for (const mutation of [settlement, dispute, payment, rejection, override]) {
       expect(mutation).toContain("eq(claims.tenantId, tenantId)");
     }
+    expect(payment).toContain("buildP0B1FraudDecisionHold()");
+    expect(payment.indexOf("if (p0B1FraudPolicyActive())")).toBeGreaterThan(
+      payment.indexOf("requireTenantScopedClaim(ctx, input.claimId)"),
+    );
+    expect(payment.indexOf("if (p0B1FraudPolicyActive())")).toBeLessThan(
+      payment.indexOf("await getClaimsDb()"),
+    );
   });
 
   it("requires a session tenant or tenant-owned claim across remaining direct claim reads and workflow actions", () => {

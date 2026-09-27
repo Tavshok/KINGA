@@ -6,7 +6,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, insurerDomainProcedure, router, superAdminProcedure } from "../_core/trpc";
-import { getDb } from "../db";
 import {
   claims, aiAssessments as aiAssessmentsTable, ingestionDocuments,
 } from "../../drizzle/schema";
@@ -22,11 +21,8 @@ import {
   getPipelineQueueLength,
 } from "../db";
 import {
-  getDecisionSnapshots,
-  getLatestSnapshotJson,
   getQuoteLineItemsByQuoteId,
   getQuotesByClaimId,
-  saveDecisionSnapshot
 } from "../db";
 import { validateAiAssessmentResponse } from "../apiResponseValidator";
 import { validateClaimAnalysisResponse } from "../services/apiResponseValidator";
@@ -56,6 +52,11 @@ export function projectP0B1AssessmentHold<T extends Record<string, unknown>>(ass
 
 function p0B1FraudPolicyActive(): boolean {
   return true;
+}
+
+async function getAiAssessmentsDb() {
+  const { getDb } = await import("../db");
+  return getDb();
 }
 
 export const aiAssessmentsRouter = router({
@@ -400,7 +401,7 @@ export const aiAssessmentsRouter = router({
       // Fetch this tenant's AI assessments for batch export.
       const { getDb } = await import("../db");
       const { aiAssessments } = await import("../../drizzle/schema");
-      const db = await getDb();
+      const db = await getAiAssessmentsDb();
       if (!db) throw new Error("Database not available");
       const assessments = await db.select().from(aiAssessments).where(eq(aiAssessments.tenantId, tenantId));
       return assessments.map(assessment => projectP0B1AssessmentHold(assessment as Record<string, unknown>));
@@ -436,7 +437,7 @@ export const aiAssessmentsRouter = router({
         const { getDb } = await import('../db');
         const { claimantHistory, claims: claimsTable } = await import('../../drizzle/schema');
         const { eq } = await import('drizzle-orm');
-        const db = await getDb();
+        const db = await getAiAssessmentsDb();
         if (db) {
           // Get the claimantId from the claims table for this claim
           const [claimRow] = await db.select({ claimantId: claimsTable.claimantId, kingaRef: claimsTable.kingaRef })
@@ -592,7 +593,7 @@ export const aiAssessmentsRouter = router({
       try {
         const { costLearningRecords } = await import('../../drizzle/schema');
         const { sql: sqlFn } = await import('drizzle-orm');
-        const dbConn = await getDb();
+        const dbConn = await getAiAssessmentsDb();
         if (dbConn && assessment.vehicleMake) {
           const vehicleDesc = `${(assessment.vehicleMake ?? '').toLowerCase()} ${(assessment.vehicleModel ?? '').toLowerCase()}`.trim();
           if (vehicleDesc) {
@@ -724,7 +725,7 @@ export const aiAssessmentsRouter = router({
       try {
         const { claims: claimsTable } = await import('../../drizzle/schema');
         const { eq, and: andEq, ne } = await import('drizzle-orm');
-        const db2 = await getDb();
+        const db2 = await getAiAssessmentsDb();
         if (db2) {
           const [claimRow] = await db2.select({
             vehicleMarketValue: claimsTable.vehicleMarketValue,
@@ -788,7 +789,7 @@ export const aiAssessmentsRouter = router({
         try {
           const { claimDocuments: claimDocsTable } = await import('../../drizzle/schema');
           const { and: andOp } = await import('drizzle-orm');
-          const db2Far = await getDb();
+          const db2Far = await getAiAssessmentsDb();
           if (db2Far) {
             const docs = await db2Far
               .select({ fileUrl: claimDocsTable.fileUrl })
@@ -1075,8 +1076,6 @@ export const aiAssessmentsRouter = router({
       }),
     }))
     .mutation(async ({ input, ctx }) => {
-      const { saveDecisionSnapshot } = await import('../db');
-      const { getOrCreateLifecycle } = await import('../decision-lifecycle');
       const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         return {
@@ -1089,6 +1088,8 @@ export const aiAssessmentsRouter = router({
           ...buildP0B1FraudDecisionHold(),
         };
       }
+      const { saveDecisionSnapshot } = await import('../db');
+      const { getOrCreateLifecycle } = await import('../decision-lifecycle');
       const result = await saveDecisionSnapshot({
         ...input,
         tenantId,
@@ -1110,11 +1111,11 @@ export const aiAssessmentsRouter = router({
   getLatestSnapshot: protectedProcedure
     .input(z.object({ claimId: z.string() }))
     .query(async ({ input, ctx }) => {
-      const { getLatestSnapshotJson } = await import('../db');
       await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         return buildP0B1FraudDecisionHold();
       }
+      const { getLatestSnapshotJson } = await import('../db');
       const snapshot = await getLatestSnapshotJson(input.claimId);
       return snapshot ?? null;
     }),
@@ -1134,13 +1135,13 @@ export const aiAssessmentsRouter = router({
       }).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
+      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
+      if (p0B1FraudPolicyActive()) {
+        return buildP0B1FraudDecisionHold();
+      }
       const { getLatestSnapshotJson } = await import('../db');
       const { replayDecision } = await import('../decision-replay');
       const { getOrCreateLifecycle, isReplayAllowed, saveReplayLog } = await import('../decision-lifecycle');
-      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
-      if (p0B1FraudPolicyActive()) {
-        throwP0B1FraudDecisionHold();
-      }
 
       // Fetch the original immutable snapshot
       const originalSnapshot = await getLatestSnapshotJson(input.claimId);
@@ -1189,8 +1190,16 @@ export const aiAssessmentsRouter = router({
   getLifecycle: protectedProcedure
     .input(z.object({ claimId: z.string() }))
     .query(async ({ input, ctx }) => {
-      const { getOrCreateLifecycle } = await import('../decision-lifecycle');
       const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
+      if (p0B1FraudPolicyActive()) {
+        return {
+          lifecycle_state: 'DRAFT' as const,
+          is_final: false,
+          is_locked: false,
+          ...buildP0B1FraudDecisionHold(),
+        };
+      }
+      const { getOrCreateLifecycle } = await import('../decision-lifecycle');
       return getOrCreateLifecycle(input.claimId, tenantId);
     }),
 
@@ -1201,9 +1210,22 @@ export const aiAssessmentsRouter = router({
       reason: z.string().min(10, 'Reason must be at least 10 characters'),
     }))
     .mutation(async ({ input, ctx }) => {
+      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
+      if (p0B1FraudPolicyActive()) {
+        const fraudDecision = buildP0B1FraudDecisionHold();
+        return {
+          success: false,
+          lifecycle_state: 'DRAFT' as const,
+          is_final: false,
+          is_locked: false,
+          action_allowed: false,
+          validation_errors: [fraudDecision.explanation],
+          override_flag: false,
+          ...fraudDecision,
+        };
+      }
       const { transitionLifecycle } = await import('../decision-lifecycle');
       const { enforceGovernance } = await import('../decision-governance');
-      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
 
       // Rule 1 + Rule 5: validate reason and write audit entry
       const governance = await enforceGovernance({
@@ -1248,9 +1270,6 @@ export const aiAssessmentsRouter = router({
       aiDecision: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const { transitionLifecycle, markAuthoritativeSnapshot } = await import('../decision-lifecycle');
-      const { getDecisionSnapshots } = await import('../db');
-      const { enforceGovernance } = await import('../decision-governance');
       const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
       if (p0B1FraudPolicyActive()) {
         const fraudDecision = buildP0B1FraudDecisionHold();
@@ -1267,6 +1286,9 @@ export const aiAssessmentsRouter = router({
           ...fraudDecision,
         };
       }
+      const { transitionLifecycle, markAuthoritativeSnapshot } = await import('../decision-lifecycle');
+      const { getDecisionSnapshots } = await import('../db');
+      const { enforceGovernance } = await import('../decision-governance');
 
       // Rule 1 + Rule 2 + Rule 5: validate, detect override, write audit
       const governance = await enforceGovernance({
@@ -1330,9 +1352,22 @@ export const aiAssessmentsRouter = router({
       reason: z.string().min(10, 'Reason must be at least 10 characters'),
     }))
     .mutation(async ({ input, ctx }) => {
+      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
+      if (p0B1FraudPolicyActive()) {
+        const fraudDecision = buildP0B1FraudDecisionHold();
+        return {
+          success: false,
+          lifecycle_state: 'FINALISED' as const,
+          is_final: true,
+          is_locked: false,
+          action_allowed: false,
+          validation_errors: [fraudDecision.explanation],
+          override_flag: false,
+          ...fraudDecision,
+        };
+      }
       const { transitionLifecycle } = await import('../decision-lifecycle');
       const { enforceGovernance } = await import('../decision-governance');
-      const { tenantId } = await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
 
       // Rule 1 + Rule 3 + Rule 5: validate reason, verify lock conditions, write audit
       const governance = await enforceGovernance({
@@ -1371,8 +1406,11 @@ export const aiAssessmentsRouter = router({
   getAuditLog: protectedProcedure
     .input(z.object({ claimId: z.string() }))
     .query(async ({ input, ctx }) => {
-      const { getAuditLog } = await import('../decision-governance');
       await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
+      if (p0B1FraudPolicyActive()) {
+        return buildP0B1FraudDecisionHold();
+      }
+      const { getAuditLog } = await import('../decision-governance');
       return getAuditLog(input.claimId);
     }),
 
@@ -1468,8 +1506,11 @@ export const aiAssessmentsRouter = router({
   getReplayLogs: protectedProcedure
     .input(z.object({ claimId: z.string() }))
     .query(async ({ input, ctx }) => {
-      const { getReplayLogs } = await import('../decision-lifecycle');
       await requireGovernedTenantClaim(input.claimId, ctx.user?.tenantId);
+      if (p0B1FraudPolicyActive()) {
+        return buildP0B1FraudDecisionHold();
+      }
+      const { getReplayLogs } = await import('../decision-lifecycle');
       return getReplayLogs(input.claimId);
     }),
 
@@ -1575,7 +1616,7 @@ export const aiAssessmentsRouter = router({
       const { getUsersByInsurerRoles: _getByRoles } = await import("../db");
       const { aiAssessments: aiAssessmentsTable, claims: claimsTable } = await import("../../drizzle/schema");
       const { eq } = await import("drizzle-orm");
-      const db = await getDb();
+      const db = await getAiAssessmentsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
       // Fetch the assessment to get its ID and verify it exists

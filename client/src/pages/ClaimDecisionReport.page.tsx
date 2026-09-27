@@ -148,7 +148,14 @@ export default function ClaimDecisionReport() {
   const utils = trpc.useUtils();
   // ── Snapshot auto-save: fires once when enforcement data first loads ───────
   const snapshotSaved = useRef(false);
-  const saveSnapshotMutation = trpc.aiAssessments.saveSnapshot.useMutation();
+  const saveSnapshotMutation = trpc.aiAssessments.saveSnapshot.useMutation({
+    onSuccess: (data) => {
+      const snapshotResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (snapshotResponse.hold) return;
+    },
+  });
+  const saveSnapshotMutationResponse = discriminateP0B1FraudDecisionResponse(saveSnapshotMutation.data);
+  const saveSnapshotMutationHold = saveSnapshotMutationResponse.hold;
   const { data: snapshotHistoryResponse } = trpc.aiAssessments.getSnapshots.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId }
@@ -165,10 +172,13 @@ export default function ClaimDecisionReport() {
     snapshotHistoryValue && !Array.isArray(snapshotHistoryValue)
       ? (snapshotHistoryValue as any).collisionPhysics
       : null;
-  const { data: latestSnapshot } = trpc.aiAssessments.getLatestSnapshot.useQuery(
+  const { data: latestSnapshotResponseData } = trpc.aiAssessments.getLatestSnapshot.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId }
   );
+  const latestSnapshotResponse = discriminateP0B1FraudDecisionResponse(latestSnapshotResponseData);
+  const latestSnapshotHold = latestSnapshotResponse.hold;
+  const latestSnapshot = latestSnapshotResponse.value;
   const [showSnapshotHistory, setShowSnapshotHistory] = useState(false);
   const [showSpecJson, setShowSpecJson] = useState(false);
   const [showReplay, setShowReplay] = useState(false);
@@ -186,10 +196,13 @@ export default function ClaimDecisionReport() {
   }>(null);
 
   // Lifecycle state
-  const { data: lifecycle, refetch: refetchLifecycle } = trpc.aiAssessments.getLifecycle.useQuery(
+  const { data: lifecycleResponseData, refetch: refetchLifecycle } = trpc.aiAssessments.getLifecycle.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId }
   );
+  const lifecycleDecisionResponse = discriminateP0B1FraudDecisionResponse(lifecycleResponseData);
+  const lifecycleHold = lifecycleDecisionResponse.hold;
+  const lifecycle = lifecycleDecisionResponse.value;
   const isLocked = lifecycle?.is_locked ?? false;
   const isFinal = lifecycle?.is_final ?? false;
   const lifecycleState = (lifecycle?.lifecycle_state ?? 'DRAFT') as string;
@@ -226,10 +239,14 @@ export default function ClaimDecisionReport() {
     }
     window.print();
   };
-  const { data: auditLog = [], refetch: refetchAuditLog } = trpc.aiAssessments.getAuditLog.useQuery(
+  const { data: auditLogResponse, refetch: refetchAuditLog } = trpc.aiAssessments.getAuditLog.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId && showAuditLog }
   );
+  const auditLogDecisionResponse = discriminateP0B1FraudDecisionResponse(auditLogResponse);
+  const auditLogHold = auditLogDecisionResponse.hold;
+  const auditLogValue = auditLogDecisionResponse.value;
+  const auditLog = Array.isArray(auditLogValue) ? auditLogValue : [];
   const [isExporting, setIsExporting] = useState(false);
   const [exportValidationErrors, setExportValidationErrors] = useState<Array<{check: string; passed: boolean; detail: string}> | null>(null);
   const [showExportValidation, setShowExportValidation] = useState(false);
@@ -282,16 +299,24 @@ export default function ClaimDecisionReport() {
 
   const markReviewedMutation = trpc.aiAssessments.markReviewed.useMutation({
     onSuccess: (data) => {
+      const markReviewedResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (markReviewedResponse.hold) return;
+      const availableData = markReviewedResponse.value as {
+        action_allowed: boolean;
+        validation_errors: string[];
+      };
       refetchLifecycle();
       refetchAuditLog();
-      if (!data.action_allowed) {
-        toast.error(`Governance blocked: ${data.validation_errors.join('; ')}`);
+      if (!availableData.action_allowed) {
+        toast.error(`Governance blocked: ${availableData.validation_errors.join('; ')}`);
       } else {
         toast.success("Decision marked as Reviewed");
       }
     },
     onError: (err) => toast.error(`Failed to mark reviewed: ${err.message}`),
   });
+  const markReviewedMutationResponse = discriminateP0B1FraudDecisionResponse(markReviewedMutation.data);
+  const markReviewedMutationHold = markReviewedMutationResponse.hold;
 
   const finaliseDecisionMutation = trpc.aiAssessments.finaliseDecision.useMutation({
     onSuccess: (data) => {
@@ -329,16 +354,24 @@ export default function ClaimDecisionReport() {
 
   const lockDecisionMutation = trpc.aiAssessments.lockDecision.useMutation({
     onSuccess: (data) => {
+      const lockDecisionResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (lockDecisionResponse.hold) return;
+      const availableData = lockDecisionResponse.value as {
+        action_allowed: boolean;
+        validation_errors: string[];
+      };
       refetchLifecycle();
       refetchAuditLog();
-      if (!data.action_allowed) {
-        toast.error(`Governance blocked: ${data.validation_errors.join('; ')}`);
+      if (!availableData.action_allowed) {
+        toast.error(`Governance blocked: ${availableData.validation_errors.join('; ')}`);
       } else {
         toast.success("Claim LOCKED — This is now an immutable legal record");
       }
     },
     onError: (err) => toast.error(`Lock failed: ${err.message}`),
   });
+  const lockDecisionMutationResponse = discriminateP0B1FraudDecisionResponse(lockDecisionMutation.data);
+  const lockDecisionMutationHold = lockDecisionMutationResponse.hold;
 
   // Submit reason dialog
   const submitReasonDialog = () => {
@@ -365,17 +398,22 @@ export default function ClaimDecisionReport() {
 
   const replayMutation = trpc.aiAssessments.replayDecision.useMutation({
     onSuccess: (data) => {
-      setReplayResult(data);
+      const replayResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (replayResponse.hold) return;
+      const availableData = replayResponse.value as NonNullable<typeof replayResult>;
+      setReplayResult(availableData);
       setShowReplay(true);
       refetchLifecycle();
-      if (data.changed) {
-        toast.warning(`Logic drift detected — ${data.differences.length} field(s) changed`);
+      if (availableData.changed) {
+        toast.warning(`Logic drift detected — ${availableData.differences.length} field(s) changed`);
       } else {
         toast.success("No drift detected — decision is consistent with current logic");
       }
     },
     onError: (err) => toast.error(`Replay failed: ${err.message}`),
   });
+  const replayMutationResponse = discriminateP0B1FraudDecisionResponse(replayMutation.data);
+  const replayMutationHold = replayMutationResponse.hold;
 
   useEffect(() => {
     if (!enforcement || !aiAssessment || snapshotSaved.current) return;
@@ -522,6 +560,34 @@ export default function ClaimDecisionReport() {
 
   if (finaliseDecisionMutationHold) {
     return <P0FraudValidationHold hold={finaliseDecisionMutationHold} />;
+  }
+
+  if (latestSnapshotHold) {
+    return <P0FraudValidationHold hold={latestSnapshotHold} />;
+  }
+
+  if (lifecycleHold) {
+    return <P0FraudValidationHold hold={lifecycleHold} />;
+  }
+
+  if (auditLogHold) {
+    return <P0FraudValidationHold hold={auditLogHold} />;
+  }
+
+  if (saveSnapshotMutationHold) {
+    return <P0FraudValidationHold hold={saveSnapshotMutationHold} />;
+  }
+
+  if (markReviewedMutationHold) {
+    return <P0FraudValidationHold hold={markReviewedMutationHold} />;
+  }
+
+  if (lockDecisionMutationHold) {
+    return <P0FraudValidationHold hold={lockDecisionMutationHold} />;
+  }
+
+  if (replayMutationHold) {
+    return <P0FraudValidationHold hold={replayMutationHold} />;
   }
 
   if (aiAssessmentHold) {

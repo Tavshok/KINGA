@@ -147,6 +147,16 @@ export function ExpandableClaimRow({
   const fraudDecisionHold = fraudDecisionResponse.hold;
   const availableAiData = fraudDecisionResponse.value as AvailableAssessmentSummary | undefined;
 
+  if (fraudDecisionHold) {
+    return (
+      <TableRow>
+        <TableCell colSpan={6} className="p-4">
+          <P0FraudValidationHold hold={fraudDecisionHold} />
+        </TableCell>
+      </TableRow>
+    );
+  }
+
   return (
     <>
       <TableRow
@@ -185,9 +195,7 @@ export function ExpandableClaimRow({
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   KINGA Assessment
                 </p>
-                {fraudDecisionHold ? (
-                  <P0FraudValidationHold hold={fraudDecisionHold} />
-                ) : availableAiData ? (
+                {availableAiData ? (
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Fraud Score</span>
