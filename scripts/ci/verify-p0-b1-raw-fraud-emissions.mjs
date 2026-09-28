@@ -1,13 +1,86 @@
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, relative, resolve, sep } from "node:path";
+import { promisify } from "node:util";
 import ts from "typescript";
+
+const execFileAsync = promisify(execFile);
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 const routersRelativePath = "server/routers.ts";
 export const manifestRelativePath =
   "scripts/ci/p0-b1-raw-fraud-emission-manifest.json";
+export const baselineManifestRelativePath =
+  "scripts/ci/p0-b1-raw-fraud-emission-baseline.json";
+export const P0_B1_RAW_FRAUD_EMISSION_BASELINE_COUNT = 77;
+export const P0_B1_RAW_FRAUD_BASELINE_APPROVAL_LABEL =
+  "p0-b1-raw-fraud-baseline-approved";
+
+const rawFraudEmissionGroups = new Map([
+  [
+    "claims_workflow_intake_approval",
+    new Set([
+      "approval",
+      "assessorEvaluations",
+      "claims",
+      "claimsManager",
+      "incidentType",
+      "intakeGate",
+      "quotes",
+      "workflowAudit",
+      "workflowQueries",
+    ]),
+  ],
+  [
+    "decision_assessment_reporting_intelligence",
+    new Set([
+      "aiAnalysis",
+      "aiAssessments",
+      "aiReanalysis",
+      "compliance",
+      "crossModuleIntelligence",
+      "decision",
+      "exceptionIntelligence",
+      "integrity",
+      "learning",
+      "operationalHealth",
+      "portfolioIntelligence",
+      "predictiveAnalytics",
+      "repairReplace",
+      "reportingEngine",
+      "vehicleValuation",
+    ]),
+  ],
+  [
+    "vehicle_fleet_platform_governance",
+    new Set([
+      "fleet",
+      "fleetAccounts",
+      "governance",
+      "insurers",
+      "platformMarketplace",
+      "platformObservability",
+      "platformOperations",
+      "recovery",
+      "vehicleDamageHistory",
+      "vehicleRegistry",
+    ]),
+  ],
+  ["other_exported_surface", new Set(["admin"])],
+]);
+
+function rawFraudEmissionGroup(key) {
+  const namespace = key.split(".", 1)[0];
+  for (const [group, namespaces] of rawFraudEmissionGroups) {
+    if (namespaces.has(namespace)) return group;
+  }
+  // An unrecognised namespace still fails the exact baseline/manifest check.
+  // Retaining this explicit tag lets the same scanner assess an older lineage
+  // without silently treating its unknown surface as reviewed.
+  return "unclassified_requires_owner";
+}
 
 /**
  * Stored fraud evidence may be read internally only when it does not cross a
@@ -1318,6 +1391,7 @@ export function scanRawFraudProcedureEmissions(program, root = repositoryRoot) {
       line: entry.location.line,
       column: entry.location.column,
       fields: [...fields].sort(),
+      group: rawFraudEmissionGroup(entry.key),
     };
     emissions.push({
       ...entryWithoutFingerprint,
@@ -1367,6 +1441,7 @@ export function fingerprintRawFraudEmission(entry) {
         String(entry.line),
         String(entry.column),
         ...entry.fields,
+        entry.group,
       ].join("\u0000")
     )
     .digest("hex");
@@ -1379,6 +1454,7 @@ function canonicalManifestEntry(entry) {
     line: entry.line,
     column: entry.column,
     fields: [...entry.fields].sort(),
+    group: entry.group,
     fingerprint: entry.fingerprint,
   };
 }
@@ -1389,6 +1465,7 @@ const manifestFields = new Set([
   "line",
   "column",
   "fields",
+  "group",
   "fingerprint",
 ]);
 
@@ -1423,6 +1500,8 @@ function exactManifestMap(entries, label) {
       !Array.isArray(entry.fields) ||
       entry.fields.length === 0 ||
       entry.fields.some(field => typeof field !== "string" || !field) ||
+      typeof entry.group !== "string" ||
+      entry.group !== rawFraudEmissionGroup(entry.key) ||
       typeof entry.fingerprint !== "string" ||
       !/^[a-f0-9]{64}$/.test(entry.fingerprint)
     ) {
@@ -1444,6 +1523,68 @@ function exactManifestMap(entries, label) {
     result.set(canonical.fingerprint, canonical);
   }
   return result;
+}
+
+export function assertShrinkOnlyRawFraudEmissionManifest(expected, baseline) {
+  const expectedByFingerprint = exactManifestMap(expected, "committed");
+  const baselineByFingerprint = exactManifestMap(baseline, "baseline");
+  if (baselineByFingerprint.size !== P0_B1_RAW_FRAUD_EMISSION_BASELINE_COUNT) {
+    throw new Error(
+      `P0-B1 raw-fraud baseline must retain exactly ${P0_B1_RAW_FRAUD_EMISSION_BASELINE_COUNT} entries.`
+    );
+  }
+  if (expectedByFingerprint.size > baselineByFingerprint.size) {
+    throw new Error(
+      "P0-B1 raw-fraud quarantine is shrink-only: committed inventory exceeds its approved baseline."
+    );
+  }
+  for (const [fingerprint, entry] of expectedByFingerprint) {
+    if (!baselineByFingerprint.has(fingerprint)) {
+      throw new Error(
+        `P0-B1 raw-fraud quarantine is shrink-only: new entry requires explicit owner-approved baseline change: ${entry.key} at ${entry.path}:${entry.line}:${entry.column}.`
+      );
+    }
+  }
+}
+
+export function assertRawFraudBaselineChangeAuthorization({
+  baseline,
+  baseBaseline,
+  baseSha,
+  approvalLabelPresent,
+}) {
+  if (!baseSha) return;
+  const currentByFingerprint = exactManifestMap(baseline, "baseline");
+  const baseByFingerprint = exactManifestMap(baseBaseline, "base baseline");
+  const unchanged =
+    currentByFingerprint.size === baseByFingerprint.size &&
+    [...currentByFingerprint.keys()].every(fingerprint =>
+      baseByFingerprint.has(fingerprint)
+    );
+  if (unchanged) return;
+  if (approvalLabelPresent) return;
+  throw new Error(
+    `P0-B1 raw-fraud baseline changed without the required ${P0_B1_RAW_FRAUD_BASELINE_APPROVAL_LABEL} pull-request label.`
+  );
+}
+
+async function readBaselineFromGitBase(root, baseSha) {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["-C", root, "show", `${baseSha}:${baselineManifestRelativePath}`],
+      { maxBuffer: 2 * 1024 * 1024 }
+    );
+    return JSON.parse(stdout);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/does not exist in|exists on disk, but not in/i.test(message)) {
+      return [];
+    }
+    throw new Error(
+      `P0-B1 raw-fraud baseline cannot prove its pull-request base ${baseSha}: ${message}`
+    );
+  }
 }
 
 export function compareExactRawFraudEmissionManifest(actual, expected) {
@@ -1476,11 +1617,32 @@ export function compareExactRawFraudEmissionManifest(actual, expected) {
 
 export async function verifyRawFraudEmissionManifest(
   root = repositoryRoot,
-  manifest = null
+  manifest = null,
+  {
+    baseSha = process.env.RAW_FRAUD_BASELINE_BASE_SHA ?? "",
+    approvalLabelPresent = process.env.RAW_FRAUD_BASELINE_CHANGE_APPROVED ===
+      "true",
+    readBaseBaseline = null,
+  } = {}
 ) {
   const expected =
     manifest ??
     JSON.parse(await readFile(resolve(root, manifestRelativePath), "utf8"));
+  const baseline = JSON.parse(
+    await readFile(resolve(root, baselineManifestRelativePath), "utf8")
+  );
+  assertShrinkOnlyRawFraudEmissionManifest(expected, baseline);
+  if (baseSha) {
+    const baseBaseline = readBaseBaseline
+      ? await readBaseBaseline(baseSha)
+      : await readBaselineFromGitBase(root, baseSha);
+    assertRawFraudBaselineChangeAuthorization({
+      baseline,
+      baseBaseline,
+      baseSha,
+      approvalLabelPresent,
+    });
+  }
   const actual = scanRawFraudProcedureEmissions(
     createProgramForRepository(root),
     root

@@ -32,6 +32,13 @@ export const expectedGuardRegressionBlock = `      - name: Verify Quality Gate g
           scripts/ci/verify-p0-b1-raw-fraud-emissions.test.mjs
 `;
 
+export const expectedRawFraudBaselineApprovalBlock = `      - name: Verify P0-B1 raw-fraud shrink-only quarantine
+        env:
+          RAW_FRAUD_BASELINE_BASE_SHA: \${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+          RAW_FRAUD_BASELINE_CHANGE_APPROVED: \${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'p0-b1-raw-fraud-baseline-approved') && 'true' || 'false' }}
+        run: node scripts/ci/verify-p0-b1-raw-fraud-emissions.mjs
+`;
+
 export const expectedTypecheckBlock = `      - name: TypeScript baseline comparison
         env:
           STACKED_BASE_SHA: \${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref != 'main' && github.event.pull_request.base.sha || '' }}
@@ -98,8 +105,17 @@ export function verifyQualityGateStackedTypecheckRouting(workflow) {
     );
   }
 
+  const rawFraudBaselineApprovalBlock = workflow.match(
+    /^      - name: Verify P0-B1 raw-fraud shrink-only quarantine\n[\s\S]*?(?=^      - name: TypeScript baseline comparison)/m
+  )?.[0];
+  if (rawFraudBaselineApprovalBlock !== expectedRawFraudBaselineApprovalBlock) {
+    throw new Error(
+      "Quality Gate must prove B-G3 baseline changes against the immutable pull-request base and its explicit approval label."
+    );
+  }
+
   const guardRegressionBlock = workflow.match(
-    /^      - name: Verify Quality Gate guard regressions\n[\s\S]*?(?=^      - name: TypeScript baseline comparison)/m
+    /^      - name: Verify Quality Gate guard regressions\n[\s\S]*?(?=^      - name: Verify P0-B1 raw-fraud shrink-only quarantine)/m
   )?.[0];
   if (guardRegressionBlock !== expectedGuardRegressionBlock) {
     throw new Error(

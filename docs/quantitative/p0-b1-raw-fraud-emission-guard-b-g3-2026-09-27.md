@@ -4,7 +4,7 @@
 
 **Date:** 2026-09-27
 
-**Status:** APPROVED and merge-ready. The discovery/enforcement guard is complete; the 77-route inventory remains an unremediated quarantine pending separately authorized remediation packages.
+**Status:** Owner-approved; `p0-b1-raw-fraud-baseline-approved` is applied to PR #174. A fresh hosted Quality Gate for this amended commit remains required before merge. The discovery/enforcement guard is complete; the 77-route inventory remains an unremediated quarantine pending separately authorized remediation packages.
 
 > This is **not** remediation authorization. The inventory is an exact quarantine of candidate public tRPC outputs, not a safe list and not an approved exception list. No candidate product route is changed, disabled, or sanitized in B-G3.
 
@@ -29,9 +29,16 @@ For SQL, the verifier recognizes `.execute()` / `.query()` only where the receiv
 ### Exact quarantine enforcement
 
 - Fingerprints bind procedure key, source path, line, column, and sorted detected field set with SHA-256.
-- CI fails on additions, removals/moves, changed fields, malformed hashes, duplicates, and wildcard fingerprints.
+- Every entry carries one reviewed remediation group tag: `claims_workflow_intake_approval` (25), `decision_assessment_reporting_intelligence` (31), `vehicle_fleet_platform_governance` (20), or `other_exported_surface` (1).
+- `p0-b1-raw-fraud-emission-baseline.json` is the immutable **77-entry** approved baseline. The working quarantine manifest is **shrink-only**: a remediation may remove a reviewed entry, but an added or moved fingerprint fails CI unless the baseline itself is changed under a separate explicit owner decision.
+- Hosted CI reads the immutable pull-request-base version of that baseline through Git. Any baseline diff—including a same-count replacement—fails unless the PR carries the dedicated `p0-b1-raw-fraud-baseline-approved` label. The Quality Gate step and workflow-shape regression are both pinned against removal or label-input weakening.
+- CI fails on additions, removals/moves, changed fields, malformed hashes, duplicates, wildcard fingerprints, a baseline count other than 77, a group tag inconsistent with the procedure namespace, or a baseline change without that explicit approval label.
 - This is an **unremediated quarantine**, never an allow-list. The future zero-tolerance `assertNoRawFraudProcedureEmissions()` intentionally fails until remediation closes every candidate.
 - The hosted KINGA Quality Gate runs B-G3 tests, and the existing workflow-shape verifier plus its own regressions prevent silent removal.
+
+### Approval-control assumptions and boundary
+
+This control trusts GitHub’s pull-request event metadata: specifically, the immutable event base SHA and the PR label state. It assumes that only the owner (or a separately authorized repository administrator) can apply or remove `p0-b1-raw-fraud-baseline-approved`, and that branch protection requires the hosted KINGA Quality Gate before merge. The base-comparison is intentionally a pull-request control; a `main` push has no PR base and does not authorize a baseline rewrite. These are repository-governance assumptions, not claims that a source-only verifier can prevent a privileged administrator from changing both code and repository policy.
 
 ## 3. Corrected discovery result
 
@@ -41,9 +48,34 @@ The revised source-provenance inventory contains **77 exact candidate fingerprin
 - **20** have no direct hook text match; they remain exported server-side review candidates, not exemptions.
 - **2** are opaque public callbacks with actual raw-fraud SQL execution (`UNRESOLVED_RAW_FRAUD_SQL_OUTPUT`).
 
-Frozen manifest SHA-256: `65b3a031ff0e51199f892a0b044b831e63cb10367a39221f4ec735f6352593d0`
+The 77 is a trend-to-zero target, not a tolerance threshold. It remains nonzero only while individual routes await separately approved remediation.
 
-The original 39-candidate prototype is superseded. The first adversarial review closed status-lookalike masking, identifier-procedure omission, and callback-wide raw-string false candidates; the second closed receiver-provenance and direct-SQL-return defects; the third expanded logical result forwarding, bound database method aliases, and direct `sql.raw(...)` statement aliases; the fourth closed logical/conditional SQL-statement forwarding, builder aliases, raw-result method-receiver transforms, imported/local accessor aliases, and unbound method aliases; the fifth closed direct raw-builder callable aliases, assignment-forwarded results, `.call(...)` invocations, and name-only accessor trust; the sixth closed literal-computed raw/call forms, exact Drizzle package provenance, arbitrary-name real-database wrappers, and `.apply(...)` forwarding; and the seventh closed stored raw-value forwarding through later plain assignment. That final correction exposed the live `aiAssessments.getEnforcement` raw output, raising the quarantine from 76 to **77**. This inventory is the current exact quarantine; it is not remediation approval.
+## 3A. Reconciliation: unversioned prototype estimate to 77-route quarantine
+
+The intermediate **21**, **23**, and **39** candidate counts were unversioned discovery estimates. No exact procedure list or reproducible artifact survives for any of the three. Each is therefore **non-evidentiary** and must not be used for a route-by-route comparison, lineage attribution, or trend calculation. The final reviewed quarantine is **77**, generated from the versioned source/provenance detector and exact manifest; it is the only authoritative inventory.
+
+The prototype could not reliably see:
+
+- conditional actor-specific projections whose generic inferred return type hides a raw branch;
+- raw fields forwarded through spreads, computed keys, local/helper aliases, generic transforms, logical/conditional expressions, and later assignments;
+- identifier-exported procedure values unless the router binding was resolved;
+- raw SQL selected through real database accessors, local/dynamic wrappers, statement/method aliases, `bind`/`call`/`apply`, and opaque result transforms; or
+- the difference between a real canonical-hold return branch and a status-shaped lookalike or sibling raw return.
+
+The final detector resolves the actual exported `appRouter` and follows source/provenance. It is therefore the authoritative current quarantine. The gap from the unversioned estimate is an **unknown undercount**, not a claim about integration-lineage emissions.
+
+## 3B. Main-lineage comparison
+
+The identical B-G3 semantics were applied read-only to the authoritative remote `github/main` snapshot **`7a77adcabdca24ded73d28c088631fac5b7e358e`** and the merged P0-B1 integration lineage **`798f57c348959576f3ae039595b743b89149d466`**. “Current” is intentionally not used for a mutable local `main` reference.
+
+| Lineage                    | Exact raw-emission candidates | Comparison result                                                                     |
+| -------------------------- | ----------------------------: | ------------------------------------------------------------------------------------- |
+| `github/main` at `7a77adc` |                           112 | Historical raw-output baseline                                                        |
+| P0-B1 integration lineage  |                            77 | **0 introduced**, **0 worsened**, 77 pre-existing and not worsened, **35 eliminated** |
+
+All 77 quarantined procedure keys existed on that pinned `github/main` snapshot with the same or a broader raw-field set. No integration candidate adds a field absent on that snapshot; no integration-only candidate exists. The 35 `github/main` candidates absent from the integration are reductions, not an assertion that the remaining 77 are safe.
+
+The early prototype is superseded. The final detector’s adversarial review closed status-lookalike masking, identifier-procedure omission, callback-wide raw-string false candidates, receiver-provenance and direct-SQL-return defects, logical result forwarding, bound/unbound database method aliases, direct and computed `sql.raw(...)` aliases, raw-result receiver transforms, imported/local accessors, `call`/`apply`, exact Drizzle package provenance, arbitrary-name real-database wrappers, and stored raw-value forwarding through later plain assignment. That last correction exposed the live `aiAssessments.getEnforcement` raw output, raising the reviewed quarantine from 76 to **77**. This inventory is the current exact quarantine; it is not remediation approval.
 
 ## 4. Grouped candidate inventory
 
@@ -158,7 +190,7 @@ A remediation package may reduce only reviewed fingerprints, must prove canonica
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Detector syntax and formatting                     | Passed on final 77-route candidate                                                                                      |
 | Exact quarantine comparison                        | Passed — 77 exact fingerprints                                                                                          |
-| B-G3 adversarial regressions                       | Passed — 47/47                                                                                                          |
+| B-G3 adversarial regressions                       | Passed — 48/48                                                                                                          |
 | B-G0 / B-G1 / Quality Gate combined focused matrix | Passed — 71/71; combined with B-G3: 118/118                                                                             |
 | Fresh independent B-G3 adversarial review          | APPROVE — no current-source runnable bypass found                                                                       |
 | Guarded full suite                                 | Passed — 633 eligible files / 64 serial shards / 0 failed; 632 passed / 1 skipped files; 9,965 passed / 4 skipped tests |

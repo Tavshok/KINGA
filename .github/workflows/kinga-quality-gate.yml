@@ -68,6 +68,11 @@ jobs:
           scripts/ci/verify-p0-b1-client-hold-boundary.test.mjs
           scripts/ci/verify-p0-b1-typed-hold-consumers.test.mjs
           scripts/ci/verify-p0-b1-raw-fraud-emissions.test.mjs
+      - name: Verify P0-B1 raw-fraud shrink-only quarantine
+        env:
+          RAW_FRAUD_BASELINE_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+          RAW_FRAUD_BASELINE_CHANGE_APPROVED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'p0-b1-raw-fraud-baseline-approved') && 'true' || 'false' }}
+        run: node scripts/ci/verify-p0-b1-raw-fraud-emissions.mjs
       - name: TypeScript baseline comparison
         env:
           STACKED_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref != 'main' && github.event.pull_request.base.sha || '' }}

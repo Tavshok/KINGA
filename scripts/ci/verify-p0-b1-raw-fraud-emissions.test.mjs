@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 
 import {
   assertNoRawFraudProcedureEmissions,
+  assertRawFraudBaselineChangeAuthorization,
+  assertShrinkOnlyRawFraudEmissionManifest,
   compareExactRawFraudEmissionManifest,
   createProgramForRepository,
   fingerprintRawFraudEmission,
@@ -18,6 +20,12 @@ const root = fileURLToPath(new URL("../..", import.meta.url));
 const manifest = JSON.parse(
   await readFile(resolve(root, manifestRelativePath), "utf8")
 );
+const baseline = JSON.parse(
+  await readFile(
+    resolve(root, "scripts/ci/p0-b1-raw-fraud-emission-baseline.json"),
+    "utf8"
+  )
+);
 
 function sampleEntry(overrides = {}) {
   const entry = {
@@ -26,6 +34,7 @@ function sampleEntry(overrides = {}) {
     line: 10,
     column: 3,
     fields: ["fraudRiskScore"],
+    group: "claims_workflow_intake_approval",
     ...overrides,
   };
   return {
@@ -125,7 +134,9 @@ test("matches the exact current unremediated raw-emission inventory", () => {
     root
   );
   assert.deepEqual(actual, manifest);
-  assert.ok(actual.length >= 39);
+  assert.equal(actual.length, 77);
+  assert.equal(baseline.length, 77);
+  assertShrinkOnlyRawFraudEmissionManifest(manifest, baseline);
 });
 
 test("discovers raw fraud fields returned through a shared database helper", async () => {
@@ -745,6 +756,59 @@ test("rejects a stale manifest fingerprint and does not permit a wildcard", () =
         []
       ),
     /invalid exact fingerprint shape/
+  );
+});
+
+test("permits only shrinkage from the approved raw-emission baseline", () => {
+  const approvedBaseline = baseline;
+  assert.doesNotThrow(() =>
+    assertShrinkOnlyRawFraudEmissionManifest(
+      approvedBaseline.slice(1),
+      approvedBaseline
+    )
+  );
+  assert.throws(
+    () =>
+      assertShrinkOnlyRawFraudEmissionManifest(
+        [...approvedBaseline, sampleEntry({ key: "claims.new", line: 12 })],
+        approvedBaseline
+      ),
+    /shrink-only: committed inventory exceeds its approved baseline/
+  );
+  assert.throws(
+    () =>
+      assertShrinkOnlyRawFraudEmissionManifest(
+        [sampleEntry({ key: "claims.moved", line: 12 })],
+        approvedBaseline
+      ),
+    /new entry requires explicit owner-approved baseline change: claims\.moved/
+  );
+});
+
+test("requires the dedicated owner-approval label when the immutable baseline changes", () => {
+  const alteredEntry = {
+    ...baseline[0],
+    fields: [...baseline[0].fields, "fraudProbabilityScore"].sort(),
+  };
+  alteredEntry.fingerprint = fingerprintRawFraudEmission(alteredEntry);
+  const alteredBaseline = [alteredEntry, ...baseline.slice(1)];
+  assert.throws(
+    () =>
+      assertRawFraudBaselineChangeAuthorization({
+        baseline: alteredBaseline,
+        baseBaseline: baseline,
+        baseSha: "base-sha",
+        approvalLabelPresent: false,
+      }),
+    /p0-b1-raw-fraud-baseline-approved/
+  );
+  assert.doesNotThrow(() =>
+    assertRawFraudBaselineChangeAuthorization({
+      baseline: alteredBaseline,
+      baseBaseline: baseline,
+      baseSha: "base-sha",
+      approvalLabelPresent: true,
+    })
   );
 });
 
