@@ -71,6 +71,39 @@ test("rejects removal of the hosted automatic fraud-hold inventory guard", () =>
   );
 });
 
+test("rejects removal of the hosted raw-fraud emission guard", () => {
+  const unsafe = workflow.replace(
+    "          scripts/ci/verify-p0-b1-raw-fraud-emissions.test.mjs\n",
+    ""
+  );
+  assert.throws(
+    () => verifyQualityGateStackedTypecheckRouting(unsafe),
+    /must run the approved trigger and stacked-comparator guard regression tests/
+  );
+});
+
+test("rejects removal of the hosted B-G3 baseline approval step", () => {
+  const unsafe = workflow.replace(
+    /^      - name: Verify P0-B1 raw-fraud shrink-only quarantine\n[\s\S]*?(?=^      - name: TypeScript baseline comparison)/m,
+    ""
+  );
+  assert.throws(
+    () => verifyQualityGateStackedTypecheckRouting(unsafe),
+    /must prove B-G3 baseline changes/
+  );
+});
+
+test("rejects B-G3 baseline verification without approval-label input", () => {
+  const unsafe = workflow.replace(
+    "          RAW_FRAUD_BASELINE_CHANGE_APPROVED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'p0-b1-raw-fraud-baseline-approved') && 'true' || 'false' }}\n",
+    ""
+  );
+  assert.throws(
+    () => verifyQualityGateStackedTypecheckRouting(unsafe),
+    /must prove B-G3 baseline changes/
+  );
+});
+
 test("rejects a stack branch routed to the committed main baseline", () => {
   const unsafe = workflow.replace(
     '            node scripts/ci/typecheck-stacked-base.mjs --base-sha "$STACKED_BASE_SHA"\n',
