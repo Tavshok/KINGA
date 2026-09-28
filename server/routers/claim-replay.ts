@@ -13,6 +13,7 @@ import { historicalClaims, historicalReplayResults } from "../../drizzle/schema"
 import { eq, and, desc } from "drizzle-orm";
 import { getDb } from "../db";
 import { replayHistoricalClaim } from "../services/claim-replay-comparison";
+import { buildP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 
 // Middleware for replay operations (requires insurer_admin or executive role)
 const replayProcedure = protectedProcedure.use(async ({ ctx, next }) => {
@@ -42,6 +43,14 @@ async function requireTenantHistoricalClaim(historicalClaimId: number, tenantId:
   if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Historical claim not found" });
 }
 
+function buildReplayP0B1Hold() {
+  return buildP0B1FraudDecisionHold({
+    status: "FRAUD_DECISION_WITHHELD" as const,
+    replayAvailable: false,
+    operation: "HISTORICAL_REPLAY_WITHHELD" as const,
+  });
+}
+
 export const claimReplayRouter = router({
   /**
    * Replay a single historical claim
@@ -51,19 +60,10 @@ export const claimReplayRouter = router({
       historicalClaimId: z.number().int().positive(),
     }))
     .mutation(async ({ input, ctx }) => {
-      await requireTenantHistoricalClaim(input.historicalClaimId, ctx.user.tenantId!);
-      const result = await replayHistoricalClaim(
-        input.historicalClaimId,
-        ctx.user.tenantId!,
-        ctx.user.id
-      );
-      
-      return {
-        success: true,
-        replayResultId: result.replayResultId,
-        metrics: result.metrics,
-        message: `Replay completed: ${result.metrics.performanceSummary}`,
-      };
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+      await requireTenantHistoricalClaim(input.historicalClaimId, tenantId);
+      return buildReplayP0B1Hold();
     }),
   
   /**
@@ -74,21 +74,10 @@ export const claimReplayRouter = router({
       historicalClaimId: z.number().int().positive(),
     }))
     .query(async ({ input, ctx }) => {
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      
-      const results = await db
-        .select()
-        .from(historicalReplayResults)
-        .where(
-          and(
-            eq(historicalReplayResults.historicalClaimId, input.historicalClaimId),
-            eq(historicalReplayResults.tenantId, ctx.user.tenantId!)
-          )
-        )
-        .orderBy(desc(historicalReplayResults.replayVersion));
-      
-      return results;
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+      await requireTenantHistoricalClaim(input.historicalClaimId, tenantId);
+      return buildReplayP0B1Hold();
     }),
   
   /**
@@ -99,22 +88,10 @@ export const claimReplayRouter = router({
       historicalClaimId: z.number().int().positive(),
     }))
     .query(async ({ input, ctx }) => {
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      
-      const [result] = await db
-        .select()
-        .from(historicalReplayResults)
-        .where(
-          and(
-            eq(historicalReplayResults.historicalClaimId, input.historicalClaimId),
-            eq(historicalReplayResults.tenantId, ctx.user.tenantId!)
-          )
-        )
-        .orderBy(desc(historicalReplayResults.replayVersion))
-        .limit(1);
-      
-      return result || null;
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
+      await requireTenantHistoricalClaim(input.historicalClaimId, tenantId);
+      return buildReplayP0B1Hold();
     }),
   
   /**
@@ -125,77 +102,13 @@ export const claimReplayRouter = router({
       limit: z.number().int().positive().optional().default(100),
       offset: z.number().int().nonnegative().optional().default(0),
     }))
-    .query(async ({ input, ctx }) => {
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      
-      const results = await db
-        .select()
-        .from(historicalReplayResults)
-        .where(eq(historicalReplayResults.tenantId, ctx.user.tenantId!))
-        .orderBy(desc(historicalReplayResults.replayedAt))
-        .limit(input.limit)
-        .offset(input.offset);
-      
-      return results;
-    }),
+    .query(() => buildReplayP0B1Hold()),
   
   /**
    * Get replay statistics for tenant
    */
   getReplayStatistics: replayProcedure
-    .query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      
-      const results = await db
-        .select()
-        .from(historicalReplayResults)
-        .where(eq(historicalReplayResults.tenantId, ctx.user.tenantId!));
-      
-      if (results.length === 0) {
-        return {
-          totalReplays: 0,
-          decisionMatchRate: 0,
-          averagePayoutVariancePercentage: 0,
-          averageProcessingTimeDeltaPercentage: 0,
-          recommendedActions: {
-            adopt_kinga: 0,
-            review_policy: 0,
-            manual_review: 0,
-            no_action: 0,
-          },
-        };
-      }
-      
-      const decisionMatches = results.filter((r: any) => r.decisionMatch === 1).length;
-      const decisionMatchRate = (decisionMatches / results.length) * 100;
-      
-      const totalPayoutVariance = results.reduce((sum: number, r: any) => 
-        sum + Math.abs(Number(r.payoutVariancePercentage) || 0), 0
-      );
-      const averagePayoutVariancePercentage = totalPayoutVariance / results.length;
-      
-      const totalProcessingTimeDelta = results.reduce((sum: number, r: any) => 
-        sum + Math.abs(Number(r.processingTimeDeltaPercentage) || 0), 0
-      );
-      const averageProcessingTimeDeltaPercentage = totalProcessingTimeDelta / results.length;
-      
-      const recommendedActions = {
-        adopt_kinga: results.filter((r: any) => r.recommendedAction === "adopt_kinga").length,
-        review_policy: results.filter((r: any) => r.recommendedAction === "review_policy").length,
-        manual_review: results.filter((r: any) => r.recommendedAction === "manual_review").length,
-        no_action: results.filter((r: any) => r.recommendedAction === "no_action").length,
-      };
-      
-      return {
-        totalReplays: results.length,
-        decisionMatchRate,
-        averagePayoutVariancePercentage,
-        averageProcessingTimeDeltaPercentage,
-        recommendedActions,
-      };
-    }),
+    .query(() => buildReplayP0B1Hold()),
   
   /**
    * Batch replay multiple historical claims
@@ -205,35 +118,12 @@ export const claimReplayRouter = router({
       historicalClaimIds: z.array(z.number().int().positive()).max(100), // Max 100 claims per batch
     }))
     .mutation(async ({ input, ctx }) => {
-      const results = [];
-      const errors = [];
-      
+      const tenantId = ctx.user?.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
       for (const historicalClaimId of input.historicalClaimIds) {
-        try {
-          await requireTenantHistoricalClaim(historicalClaimId, ctx.user.tenantId!);
-          const result = await replayHistoricalClaim(historicalClaimId, ctx.user.tenantId!, ctx.user.id);
-          results.push({
-            historicalClaimId,
-            success: true,
-            replayResultId: result.replayResultId,
-            metrics: result.metrics,
-          });
-        } catch (error) {
-          errors.push({
-            historicalClaimId,
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+        await requireTenantHistoricalClaim(historicalClaimId, tenantId);
       }
-      
-      return {
-        totalProcessed: input.historicalClaimIds.length,
-        successCount: results.length,
-        errorCount: errors.length,
-        results,
-        errors,
-      };
+      return buildReplayP0B1Hold();
     }),
   
   /**
@@ -250,8 +140,8 @@ export const claimReplayRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       
       const whereClause = input.onlyUnreplayed
-        ? and(eq(historicalClaims.tenantId, ctx.user.tenantId!), eq(historicalClaims.replayMode, 0))
-        : eq(historicalClaims.tenantId, ctx.user.tenantId!);
+        ? and(eq(historicalClaims.tenantId, ctx.user!.tenantId!), eq(historicalClaims.replayMode, 0))
+        : eq(historicalClaims.tenantId, ctx.user!.tenantId!);
       
       const claims = await db
         .select()

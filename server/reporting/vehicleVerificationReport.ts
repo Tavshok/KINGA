@@ -1,142 +1,98 @@
 /**
  * T7: Vehicle Verification Report
  *
- * Produced for agency users. Summarises KINGA's cross-referenced intelligence
- * on a specific vehicle registration: ownership history, claims history,
- * pre-existing damage flags, stolen status, and risk score.
- *
- * Access: agency role only (enforced in REPORT_ACCESS in reportDefinitions.ts).
- * Design: black / white / grey palette, KINGA design system.
+ * Renders only tenant-scoped vehicle and operational claim history. The
+ * unscoped legacy vehicle_history table is intentionally not read because it
+ * has no tenant ownership column. P0-B1 redacts fraud decision material while
+ * preserving independently supported vehicle and claim facts.
  */
 
 import mysql from "mysql2/promise";
-import {
-  buildKingaHtml, esc, fmtD, chip, callout, safeJson,
-} from "./templates/kingaDesignSystem";
+import { buildKingaHtml, callout, esc, fmtD } from "./templates/kingaDesignSystem";
+import { renderP0B1FraudAbstentionMarker } from "./p0FraudPresentation";
 
 const DB_URL = process.env.DATABASE_URL!;
-async function getConn() { return mysql.createConnection(DB_URL); }
+async function getConn() {
+  return mysql.createConnection(DB_URL);
+}
 
 export async function generateVehicleVerificationReport(
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  tenantId?: string,
 ): Promise<string> {
   const registration = String(params.registration ?? "").trim().toUpperCase();
   if (!registration) throw new Error("Vehicle registration is required");
+  if (!tenantId?.trim()) throw new Error("Tenant scope is required for vehicle verification reporting");
 
   const conn = await getConn();
   try {
-    // ── 1. Vehicle history record ─────────────────────────────────────────────
-    const [vhRows] = await conn.execute(
-      `SELECT vh.vehicle_registration, vh.vehicle_make, vh.vehicle_model, vh.vehicle_year,
-              vh.vin, vh.total_claims, vh.total_claim_amount, vh.last_claim_date,
-              vh.has_pre_existing_damage, vh.is_salvage_title, vh.has_odometer_fraud,
-              vh.is_stolen, vh.ownership_change_count, vh.unique_drivers_count,
-              vh.non_owner_accident_count, vh.risk_score,
-              vh.ownership_history, vh.driver_history
-       FROM vehicle_history vh
-       WHERE vh.vehicle_registration = ?
-       LIMIT 1`,
-      [registration]
-    ) as [Record<string, unknown>[], unknown];
-
-    const vh = vhRows[0] ?? null;
-
-    // ── 2. Claims linked to this registration ─────────────────────────────────
     const [claimRows] = await conn.execute(
       `SELECT c.id, c.claim_number, c.kinga_ref, c.incident_date, c.incident_type,
-              c.status, c.lodger_name, c.insurer_name,
-              a.fraud_score, a.recommendation, a.estimated_cost, a.fraud_risk_level
+              c.status, c.insurer_name, c.vehicle_make, c.vehicle_model,
+              c.vehicle_year, c.vehicle_vin, a.estimated_cost
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
-       WHERE c.vehicle_registration = ?
+       WHERE c.vehicle_registration = ? AND c.tenant_id = ?
        ORDER BY c.created_at DESC
        LIMIT 20`,
-      [registration]
+      [registration, tenantId],
     ) as [Record<string, unknown>[], unknown];
 
-    const claimList = claimRows as Record<string, unknown>[];
-
-    // ── 3. Build HTML ─────────────────────────────────────────────────────────
+    const claims = claimRows as Record<string, unknown>[];
+    const latestClaim = claims[0] ?? null;
+    const totalEstimatedCost = claims.reduce(
+      (total, claim) => total + Number(claim.estimated_cost ?? 0),
+      0,
+    );
+    const vehicleDescription = latestClaim
+      ? `${esc(String(latestClaim.vehicle_year ?? "—"))} ${esc(String(latestClaim.vehicle_make ?? ""))} ${esc(String(latestClaim.vehicle_model ?? ""))}`.trim()
+      : `Registration: ${esc(registration)}`;
     const reportDate = new Date().toLocaleDateString("en-ZA", {
-      day: "2-digit", month: "long", year: "numeric",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
     });
 
-    const riskScore = Number(vh?.risk_score ?? 0);
-    const riskChip = riskScore >= 70
-      ? chip("HIGH RISK", "fail")
-      : riskScore >= 40
-        ? chip("MEDIUM RISK", "warn")
-        : chip("LOW RISK", "pass");
-
-    const flagsHtml = [
-      vh?.is_stolen       ? chip("STOLEN",           "fail") : "",
-      vh?.is_salvage_title? chip("SALVAGE TITLE",     "fail") : "",
-      vh?.has_odometer_fraud ? chip("ODOMETER FRAUD", "fail") : "",
-      vh?.has_pre_existing_damage ? chip("PRE-EXISTING DAMAGE", "warn") : "",
-    ].filter(Boolean).join(" ") || chip("NO FLAGS", "pass");
-
-    const vehicleDesc = vh
-      ? `${esc(vh.vehicle_year)} ${esc(vh.vehicle_make)} ${esc(vh.vehicle_model)}`
-      : `Registration: ${esc(registration)}`;
-
-    const claimsTableRows = claimList.map(c => `
+    const claimRowsHtml = claims.map((claim) => `
       <tr>
-        <td>${esc(c.kinga_ref ?? c.claim_number)}</td>
-        <td>${fmtD(c.incident_date)}</td>
-        <td>${esc(c.incident_type)}</td>
-        <td>${esc(c.insurer_name)}</td>
-        <td>${esc(c.status)}</td>
-        <td>${c.fraud_score != null ? `${Number(c.fraud_score).toFixed(0)}%` : "—"}</td>
-        <td>${esc(c.recommendation ?? "—")}</td>
+        <td>${esc(String(claim.kinga_ref ?? claim.claim_number ?? "—"))}</td>
+        <td>${fmtD(claim.incident_date)}</td>
+        <td>${esc(String(claim.incident_type ?? "—"))}</td>
+        <td>${esc(String(claim.insurer_name ?? "—"))}</td>
+        <td>${esc(String(claim.status ?? "—"))}</td>
+        <td>${claim.estimated_cost == null ? "—" : `ZAR ${(Number(claim.estimated_cost) / 100).toLocaleString("en-ZA")}`}</td>
       </tr>`).join("");
 
     const body = `
       <div class="kinga-section">
         <div class="kinga-section-header">Vehicle Identity</div>
-        <table class="kinga-table">
-          <tbody>
-            <tr><th>Registration</th><td><strong>${esc(registration)}</strong></td>
-                <th>Risk Score</th><td>${riskScore}/100 &nbsp;${riskChip}</td></tr>
-            <tr><th>Vehicle</th><td>${vehicleDesc}</td>
-                <th>VIN</th><td>${esc(vh?.vin ?? "—")}</td></tr>
-            <tr><th>Flags</th><td colspan="3">${flagsHtml}</td></tr>
-          </tbody>
-        </table>
+        <table class="kinga-table"><tbody>
+          <tr><th>Registration</th><td><strong>${esc(registration)}</strong></td>
+              <th>Vehicle</th><td>${vehicleDescription}</td></tr>
+          <tr><th>VIN</th><td colspan="3">${esc(String(latestClaim?.vehicle_vin ?? "—"))}</td></tr>
+        </tbody></table>
       </div>
 
       <div class="kinga-section">
-        <div class="kinga-section-header">Claims Intelligence</div>
-        <table class="kinga-table">
-          <tbody>
-            <tr><th>Total Claims on Record</th><td>${Number(vh?.total_claims ?? claimList.length)}</td>
-                <th>Total Claimed Amount</th><td>${vh?.total_claim_amount ? `ZAR ${(Number(vh.total_claim_amount) / 100).toLocaleString("en-ZA")}` : "—"}</td></tr>
-            <tr><th>Last Claim Date</th><td>${fmtD(vh?.last_claim_date)}</td>
-                <th>Unique Drivers</th><td>${Number(vh?.unique_drivers_count ?? 0)}</td></tr>
-            <tr><th>Ownership Changes</th><td>${Number(vh?.ownership_change_count ?? 0)}</td>
-                <th>Non-Owner Accidents</th><td>${Number(vh?.non_owner_accident_count ?? 0)}</td></tr>
-          </tbody>
-        </table>
+        <div class="kinga-section-header">Tenant-Scoped Claim History</div>
+        <table class="kinga-table"><tbody>
+          <tr><th>Total Claims on Record</th><td>${claims.length}</td>
+              <th>Total Estimated Repair Cost</th><td>ZAR ${(totalEstimatedCost / 100).toLocaleString("en-ZA")}</td></tr>
+          <tr><th>Last Claim Date</th><td>${fmtD(latestClaim?.incident_date)}</td>
+              <th>History Scope</th><td>Current authorised tenant only</td></tr>
+        </tbody></table>
       </div>
 
-      ${claimList.length > 0 ? `
-      <div class="kinga-section">
-        <div class="kinga-section-header">Claim History (${claimList.length} record${claimList.length !== 1 ? "s" : ""})</div>
-        <table class="kinga-table">
-          <thead>
-            <tr>
-              <th>KINGA Ref</th><th>Incident Date</th><th>Type</th>
-              <th>Insurer</th><th>Status</th><th>Fraud Score</th><th>Recommendation</th>
-            </tr>
-          </thead>
-          <tbody>${claimsTableRows}</tbody>
-        </table>
-      </div>` : callout("No claims on record for this vehicle registration.", "green")}
+      ${renderP0B1FraudAbstentionMarker()}
 
-      ${riskScore >= 70 ? callout(
-        `<strong>High-Risk Vehicle:</strong> This vehicle has a risk score of ${riskScore}/100. ` +
-        `Review all flags and claim history carefully before proceeding.`,
-        "red"
-      ) : ""}
+      ${claims.length > 0 ? `
+      <div class="kinga-section">
+        <div class="kinga-section-header">Claim History (${claims.length} record${claims.length === 1 ? "" : "s"})</div>
+        <table class="kinga-table">
+          <thead><tr><th>KINGA Ref</th><th>Incident Date</th><th>Type</th><th>Insurer</th><th>Status</th><th>Estimated Repair Cost</th></tr></thead>
+          <tbody>${claimRowsHtml}</tbody>
+        </table>
+      </div>` : callout("No authorised tenant-scoped claims are available for this vehicle registration.", "green")}
     `;
 
     const reportTitle = `Vehicle Verification Report — ${registration}`;
@@ -144,9 +100,7 @@ export async function generateVehicleVerificationReport(
       <div class="kinga-header">
         <div class="kinga-header-title">${esc(reportTitle)}</div>
         <div class="kinga-header-meta">Report Date: ${esc(reportDate)} &nbsp;|&nbsp; Generated by KINGA AutoVerify AI</div>
-      </div>
-    `;
-
+      </div>`;
     return buildKingaHtml(reportTitle, headerHtml + body);
   } finally {
     await conn.end();

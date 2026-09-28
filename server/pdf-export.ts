@@ -17,8 +17,8 @@ import {
 } from "./reporting/resolvedReportRecord";
 import {
   buildP0A2CollisionPhysicsAbstentionText,
-  redactP0A2PhysicsReportPayload,
 } from "./reporting/p0PhysicsPresentation";
+import { renderP0B1FraudAbstentionMarker } from "./reporting/p0FraudPresentation";
 import puppeteer from "puppeteer-core";
 
 const canonicalAssessmentPdfInput = Symbol("canonicalAssessmentPdfInput");
@@ -29,7 +29,6 @@ const canonicalAssessmentPdfInput = Symbol("canonicalAssessmentPdfInput");
  * the exported assessment PDF.
  */
 export function toAssessmentPdfCanonicalInput(record: ResolvedReportRecord) {
-  const safeEvidence = redactP0A2PhysicsReportPayload(record.evidence);
   return {
     [canonicalAssessmentPdfInput]: true,
     vehicleMake: record.vehicle.make,
@@ -41,16 +40,10 @@ export function toAssessmentPdfCanonicalInput(record: ResolvedReportRecord) {
     // record, but its free text is not a PDF publication authority.
     damageDescription: null,
     estimatedCost: record.assessment.estimatedCost,
-    // P0-A-2: never pass legacy collision physics or cross-validation payloads
-    // into the PDF template. The redacted payload carries an actionable hold.
-    physicsAnalysis: safeEvidence.physicsAnalysis,
-    fraudAnalysis: {
-      risk_level: record.assessment.fraudRiskLevel,
-      fraud_probability: record.decision.normalised.fraud.score / 100,
-    },
+    // P0-A-2/B1: never pass collision-physics or fraud payloads into the
+    // legacy template. Each presentation marker is rendered independently.
     damagedComponents: [],
     crossValidation: null,
-    collisionPhysics: safeEvidence.collisionPhysics,
     accidentType: record.incident.type,
     accidentDate: record.incident.date,
     accidentDescription: null,
@@ -135,20 +128,10 @@ export function generateAssessmentReportHTML(data: any): string {
   // P0-A-2: legacy raw collision fields are deliberately not read, interpreted,
   // or rendered by this exporter. Keep the value textual so it cannot become an
   // apparent numeric zero or confidence score in the output.
-  const collisionPhysicsHold = buildP0A2CollisionPhysicsAbstentionText(
-    redactP0A2PhysicsReportPayload(safeData.collisionPhysics)
-  );
+  const collisionPhysicsHold = buildP0A2CollisionPhysicsAbstentionText();
 
-  // Extract fraud values - handle both risk_level and overallRisk formats
-  const fraudData = {
-    riskScore: fraudAnalysis?.fraud_probability
-      ? Math.round(fraudAnalysis.fraud_probability * 100)
-      : 0,
-    overallRisk:
-      fraudAnalysis?.risk_level || fraudAnalysis?.overallRisk || "unknown",
-    indicators: fraudAnalysis?.indicators || {},
-    topRiskFactors: fraudAnalysis?.top_risk_factors || [],
-  };
+  void fraudAnalysis;
+  const fraudDecisionHold = renderP0B1FraudAbstentionMarker();
 
   return `
 <!DOCTYPE html>
@@ -457,47 +440,9 @@ export function generateAssessmentReportHTML(data: any): string {
 
   <div class="page-break"></div>
 
-  <!-- Fraud Risk Assessment -->
+  <!-- Fraud decision boundary -->
   <div class="section">
-    <h2 class="section-title">Fraud Risk Assessment</h2>
-    
-    <div style="margin-bottom: 15px;">
-      <strong>Overall Risk Level: </strong>
-      <span class="badge ${fraudData.overallRisk === "low" ? "badge-success" : fraudData.overallRisk === "medium" ? "badge-warning" : "badge-danger"}">
-        ${fraudData.overallRisk === "low" ? "LOW RISK" : fraudData.overallRisk === "medium" ? "MEDIUM RISK" : "HIGH RISK"}
-      </span>
-      <span style="margin-left: 15px; font-size: 14pt; font-weight: bold; color: #1e40af;">
-        ${fraudData.riskScore}% Fraud Probability
-      </span>
-    </div>
-
-    <div class="commentary-box">
-      <strong>Analysis:</strong><br><br>
-      ${
-        fraudData.overallRisk === "low"
-        ? `This claim presents a low fraud risk profile with a calculated fraud probability of ${fraudData.riskScore}%. The multi-dimensional analysis across claim history, damage consistency, document authenticity, behavioral patterns, ownership verification, and geographic risk factors shows no significant red flags. The claim characteristics align with typical legitimate claims in this category.`
-          : fraudData.overallRisk === "medium"
-        ? `This claim exhibits moderate fraud risk indicators with a ${fraudData.riskScore}% fraud probability. While not definitively fraudulent, several factors warrant additional scrutiny before approval. The risk assessment identified patterns that deviate from typical legitimate claims, suggesting enhanced due diligence is advisable.`
-        : `High fraud risk detected with ${fraudData.riskScore}% probability. Multiple red flags have been identified across several risk dimensions. This claim requires thorough investigation before any approval or payment. The combination of risk factors suggests potential fraudulent activity that warrants immediate attention from the fraud investigation unit.`
-      }
-    </div>
-
-    ${
-      fraudData.overallRisk !== "low"
-        ? `
-    <div class="recommendations">
-      <h4>Recommended Actions</h4>
-      <ul>
-        <li>Escalate to fraud investigation team immediately</li>
-        <li>Conduct thorough background check on claimant</li>
-        <li>Verify all documentation authenticity</li>
-        <li>Cross-reference with claims database for patterns</li>
-        <li>Do not approve or make any payments until investigation concludes</li>
-      </ul>
-    </div>
-    `
-        : ""
-    }
+    ${fraudDecisionHold}
   </div>
 
   <div class="page-break"></div>

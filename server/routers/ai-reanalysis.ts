@@ -248,6 +248,16 @@ export const aiReanalysisRouter = router({
       })
     )
         .query(async ({ ctx, input }) => {
+      void ctx;
+      return {
+        claimId: input.claimId,
+        status: "FRAUD_DECISION_WITHHELD",
+        reviewRequired: true,
+        explanation: "Historic fraud levels and version deltas are withheld pending qualified governing evidence.",
+        requiredEvidence: ["Independently verifiable claim-linked evidence", "Human-reviewed evidence with auditable provenance", "A future owner-approved qualified automated-decision policy"],
+        versions: [],
+      };
+
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const tenantId = requireReanalysisTenant(ctx.user.tenantId);
@@ -306,6 +316,16 @@ export const aiReanalysisRouter = router({
       })
     )
         .query(async ({ ctx, input }) => {
+      void ctx;
+      return {
+        status: "FRAUD_DECISION_WITHHELD",
+        reviewRequired: true,
+        explanation: "Historic fraud levels and version deltas are withheld pending qualified governing evidence.",
+        requiredEvidence: ["Independently verifiable claim-linked evidence", "Human-reviewed evidence with auditable provenance", "A future owner-approved qualified automated-decision policy"],
+        assessmentIds: [input.assessmentId1, input.assessmentId2],
+        comparison: null,
+      };
+
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const tenantId = requireReanalysisTenant(ctx.user.tenantId);

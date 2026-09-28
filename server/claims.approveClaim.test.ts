@@ -313,7 +313,7 @@ describe("Claims - Approve Claim Workflow", () => {
     expect(remainingRepairer).toHaveLength(0);
   });
 
-  it("should approve claim and update status to repair_assigned", async () => {
+  it("withholds automated approval and leaves the claim unchanged pending manual review", async () => {
     // Reset to technical_approval state for this test
     const db = await getDb();
     await db
@@ -327,19 +327,23 @@ describe("Claims - Approve Claim Workflow", () => {
       res: {} as any,
     });
 
-    const result = await caller.claims.approveClaim({
-      claimId: testClaimId,
-      selectedQuoteId: testQuoteId,
+    const claimBeforeHold = await getClaimById(testClaimId);
+    await expect(
+      caller.claims.approveClaim({
+        claimId: testClaimId,
+        selectedQuoteId: testQuoteId,
+      })
+    ).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: expect.stringContaining("Automated fraud scoring"),
     });
 
-    expect(result.success).toBe(true);
-
-    // Verify claim status was updated
-    const updatedClaim = await getClaimById(testClaimId);
-    expect(updatedClaim?.status).toBe("repair_assigned");
+    const claimAfterHold = await getClaimById(testClaimId);
+    expect(claimAfterHold?.workflowState).toBe("technical_approval");
+    expect(claimAfterHold?.status).toBe(claimBeforeHold?.status);
   });
 
-  it("should create audit trail entry for claim approval", async () => {
+  it("withholds automated approval without appending an approval audit entry", async () => {
     // Reset claim to technical_approval state for this test via direct DB update
     const db = await getDb();
     await db
@@ -353,20 +357,19 @@ describe("Claims - Approve Claim Workflow", () => {
       res: {} as any,
     });
 
-    await caller.claims.approveClaim({
-      claimId: testClaimId,
-      selectedQuoteId: testQuoteId,
+    const auditTrailBeforeHold = await getAuditTrailByClaimId(testClaimId);
+    await expect(
+      caller.claims.approveClaim({
+        claimId: testClaimId,
+        selectedQuoteId: testQuoteId,
+      })
+    ).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: expect.stringContaining("Automated fraud scoring"),
     });
 
-    // Verify audit trail was created (workflow audit trail)
-    const auditTrail = await getAuditTrailByClaimId(testClaimId);
-    // Audit trail should have entries (either from workflow engine or legacy audit)
-    expect(auditTrail).toBeDefined();
-    // If the audit trail has entries, verify they have the expected structure
-    if (auditTrail.length > 0) {
-      const latestEntry = auditTrail[auditTrail.length - 1];
-      expect(latestEntry).toBeDefined();
-    }
+    const auditTrailAfterHold = await getAuditTrailByClaimId(testClaimId);
+    expect(auditTrailAfterHold).toHaveLength(auditTrailBeforeHold.length);
   });
 
   it("should require authentication", async () => {

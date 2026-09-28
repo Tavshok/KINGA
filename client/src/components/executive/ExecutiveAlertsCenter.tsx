@@ -1,5 +1,7 @@
 import { trpc } from "@/lib/trpc";
 import { AlertTriangle, Clock, Scale, TrendingUp, RefreshCw, CheckCircle } from "lucide-react";
+import { P0FraudValidationHold } from "@/components/ValidationGate";
+import { discriminateP0B1FraudDecisionResponse } from "@shared/p0FraudDecisionHoldPresentation";
 
 const SEVERITY_CONFIG = {
   critical: {
@@ -25,12 +27,26 @@ const SEVERITY_CONFIG = {
   },
 };
 
+type AvailableExecutiveAlert = {
+  id: string | number;
+  severity: keyof typeof SEVERITY_CONFIG;
+  value?: string | number | null;
+  title: string;
+  description: string;
+  action?: string | null;
+};
+
 export function ExecutiveAlertsCenter() {
-  const { data, isLoading, refetch, isFetching } = trpc.analytics.getExecutiveAlerts.useQuery(undefined, {
+  const { data, isLoading, isError, refetch, isFetching } = trpc.analytics.getExecutiveAlerts.useQuery(undefined, {
     refetchInterval: 5 * 60 * 1000, // refresh every 5 min
   });
 
-  const alerts = data?.alerts ?? [];
+  const executiveAlertsResponse = discriminateP0B1FraudDecisionResponse(data);
+  const fraudDecisionHold = executiveAlertsResponse.hold;
+  const availableExecutiveAlerts = executiveAlertsResponse.value as { alerts?: AvailableExecutiveAlert[] } | undefined;
+  const alerts = fraudDecisionHold
+    ? []
+    : (availableExecutiveAlerts?.alerts ?? []);
 
   return (
     <div
@@ -58,7 +74,15 @@ export function ExecutiveAlertsCenter() {
               Executive Alerts
             </h3>
             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-              {alerts.length === 0 ? 'No active alerts' : `${alerts.length} item${alerts.length > 1 ? 's' : ''} requiring attention`}
+              {isLoading
+                ? 'Loading fraud alert status'
+                : fraudDecisionHold
+                ? 'Fraud decision status withheld — manual review required'
+                : isError
+                ? 'Fraud alert status unavailable'
+                : alerts.length === 0
+                ? 'No active alerts'
+                : `${alerts.length} item${alerts.length > 1 ? 's' : ''} requiring attention`}
             </p>
           </div>
         </div>
@@ -80,6 +104,16 @@ export function ExecutiveAlertsCenter() {
             {[1, 2, 3].map(i => (
               <div key={i} className="h-16 rounded-md animate-pulse" style={{ background: 'var(--muted)' }} />
             ))}
+          </div>
+        ) : fraudDecisionHold ? (
+          <P0FraudValidationHold hold={fraudDecisionHold} compact />
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+            <AlertTriangle className="h-8 w-8" style={{ color: '#F59E0B' }} />
+            <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Fraud alerts unavailable</p>
+            <p className="text-xs max-w-sm" style={{ color: 'var(--muted-foreground)' }}>
+              Automated fraud alert status is unavailable. Keep affected claims in manual review.
+            </p>
           </div>
         ) : alerts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 gap-2">

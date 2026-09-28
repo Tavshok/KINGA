@@ -21,6 +21,11 @@ import type { Stage3Output } from "./types";
 import type { EvidenceRegistry } from "./evidenceRegistryEngine";
 import type { ExtractedQuote } from "./quoteExtractionEngine";
 import { WRITE_OFF_RECOMMENDATION_THRESHOLD, WRITE_OFF_WARNING_THRESHOLD } from "./pipelineCostConstants";
+import {
+  hasGoverningFraudDecisionEligibility,
+  type FraudDecisionEligibility,
+  type FraudDecisionEligibilityInput,
+} from "../evidence-governance/quantitativeFieldGovernance";
 
 // ─── CLAIM TRUTH TYPES ──────────────────────────────────────────────────────
 
@@ -155,6 +160,8 @@ export interface ClaimTruth {
     /** R-D-02: Stage 8 composite fraud score carried through for physics re-evaluation */
     stage8FraudScore?: number | null;
     stage8FraudLevel?: "minimal" | "low" | "moderate" | "high" | "elevated" | null;
+    fraudDecisionEligibility?: FraudDecisionEligibility | null;
+    fraudDecisionSources?: FraudDecisionEligibilityInput | null;
   };
 }
 
@@ -193,6 +200,9 @@ export interface ClaimTruthInput {
   stage8FraudScore?: number | null;
   /** R-D-02: Stage 8 five-tier fraud risk level. Used for tier-aware ESCALATE/REVIEW decisions. */
   stage8FraudLevel?: "minimal" | "low" | "moderate" | "high" | "elevated" | null;
+  /** P0-B1 eligibility required before fraud signals can alter a claim disposition. */
+  fraudDecisionEligibility?: FraudDecisionEligibility | null;
+  fraudDecisionSources?: FraudDecisionEligibilityInput | null;
 }
 
 // ─── RESOLUTION ENGINE ──────────────────────────────────────────────────────
@@ -258,6 +268,39 @@ export function buildClaimTruth(input: ClaimTruthInput): ClaimTruth {
       conflictsResolved: conflicts,
       stage8FraudScore: input.stage8FraudScore ?? null,
       stage8FraudLevel: input.stage8FraudLevel ?? null,
+      fraudDecisionEligibility: input.fraudDecisionEligibility ?? null,
+      fraudDecisionSources: input.fraudDecisionSources ?? null,
+    },
+  };
+}
+
+/**
+ * P0-B1 production boundary for Claim Truth publication. Base reconciliation
+ * remains characterisable in isolation, while pipeline consumers receive only a
+ * manual-review disposition unless fraud authority is source-bound and governing.
+ */
+export function buildP0GatedClaimTruth(input: ClaimTruthInput): ClaimTruth {
+  const truth = buildClaimTruth(input);
+  const fraudEligibility = input.fraudDecisionEligibility;
+  const fraudDecisionEligible = Boolean(
+    fraudEligibility &&
+      input.fraudDecisionSources &&
+      hasGoverningFraudDecisionEligibility(
+        fraudEligibility,
+        input.fraudDecisionSources
+      )
+  );
+  if (fraudDecisionEligible) return truth;
+
+  const reason = `${fraudEligibility?.explanation ?? "Fraud decision eligibility is missing or invalid."} ${fraudEligibility?.requiredEvidence.join(" ") ?? "Obtain independently verifiable claim-linked fraud evidence and a qualified automated-decision authority."}`;
+  return {
+    ...truth,
+    decision: {
+      recommendation: "REVIEW",
+      primaryReason: reason,
+      confidence: 0,
+      reviewTriggers: [reason],
+      approvalConditions: ["Human review must determine the disposition; P0 did not produce an automated fraud finding."],
     },
   };
 }
@@ -844,6 +887,20 @@ export function enrichClaimTruthWithPhysics(
     damageConsistencyScore: number | null;
   }
 ): ClaimTruth {
+  // P0-B1: this is a publication boundary. Absent, malformed, advisory, and
+  // unavailable state all fail closed; only a future source-bound governing
+  // authority may create physics-derived fraud anomalies.
+  if (
+    !truth.meta.fraudDecisionEligibility ||
+    !truth.meta.fraudDecisionSources ||
+    !hasGoverningFraudDecisionEligibility(
+      truth.meta.fraudDecisionEligibility,
+      truth.meta.fraudDecisionSources
+    )
+  ) {
+    return truth;
+  }
+
   const enriched = { ...truth };
   const anomalies = [...truth.fraudSignals.physicsAnomalies];
 

@@ -47,32 +47,30 @@ export function resolveCanonicalClaimReportPresentation(row: Record<string, unkn
     estimatedCost: centsToUsd(row.estimated_cost ?? row.estimatedCost),
     estimatedPartsCost: centsToUsd(row.estimated_parts_cost ?? row.parts_cost ?? row.estimatedPartsCost),
     estimatedLaborCost: centsToUsd(row.estimated_labor_cost ?? row.labor_cost ?? row.estimatedLaborCost),
-    fraudScore: asNumber(row.fraud_score ?? row.fraudScore),
-    fraudRiskLevel: typeof (row.fraud_risk_level ?? row.fraudRiskLevel) === "string"
-      ? String(row.fraud_risk_level ?? row.fraudRiskLevel)
-      : null,
-    recommendation: typeof row.recommendation === "string" ? row.recommendation : null,
+    // P0-B1: historic/model fraud values are advisory-only and cannot enter a
+    // normalisation path that can produce a threshold or recommendation.
+    fraudScore: null,
+    fraudRiskLevel: null,
+    recommendation: null,
     currencyCode: typeof (row.currency_code ?? row.currencyCode) === "string"
       ? String(row.currency_code ?? row.currencyCode)
       : null,
     costIntelligenceJson: jsonValue(row.cost_intelligence_json ?? row.costIntelligenceJson),
-    fraudScoreBreakdownJson: jsonValue(row.fraud_score_breakdown_json ?? row.fraudScoreBreakdownJson),
-    causalVerdictJson: jsonValue(row.causal_verdict_json ?? row.causalVerdictJson),
-    validatedOutcomeJson: jsonValue(row.validated_outcome_json ?? row.validatedOutcomeJson),
-    phase2Decision: typeof (row.phase2_decision ?? row.phase2Decision) === "string"
-      ? String(row.phase2_decision ?? row.phase2Decision) as RawAssessmentData["phase2Decision"]
-      : null,
+    fraudScoreBreakdownJson: null,
+    causalVerdictJson: null,
+    validatedOutcomeJson: null,
+    phase2Decision: null,
   };
 
   const canonicalAssessment = {
     ...row,
     estimatedCost: raw.estimatedCost,
-    fraudScore: raw.fraudScore,
-    fraudRiskLevel: raw.fraudRiskLevel,
+    fraudScore: null,
+    fraudRiskLevel: null,
     currencyCode: raw.currencyCode,
     claimRecordJson: row.claim_record_json ?? row.claimRecordJson,
     physicsAnalysis: row.physics_analysis ?? row.physicsAnalysis,
-    fraudScoreBreakdownJson: row.fraud_score_breakdown_json ?? row.fraudScoreBreakdownJson,
+    fraudScoreBreakdownJson: null,
     damagedComponentsJson: row.damaged_components_json ?? row.damagedComponentsJson,
     damagePhotosJson: row.damage_photos_json ?? row.damagePhotosJson,
     enrichedPhotosJson: row.enriched_photos_json ?? row.enrichedPhotosJson,

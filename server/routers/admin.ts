@@ -15,6 +15,7 @@ import { insurerTenants, insuranceCarriers, assessors, fleetAccounts, engineerPr
 import { sendInvitation, getInvitationByToken, acceptInvitation } from "../invitation-service";
 import { sql } from "drizzle-orm";
 import { isAdminRole } from "../../shared/role-permissions";
+import { throwP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 
 // Super-admin middleware
 const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -26,6 +27,7 @@ const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
   }
   return next({ ctx });
 });
+
 
 export const adminRouter = router({
   /**
@@ -637,112 +639,18 @@ export const adminRouter = router({
       limit: z.number().min(1).max(200).default(50),
     }))
     .query(async ({ input, ctx }) => {
-      try {
-        if (!(isAdminRole(ctx.user.role) || (ctx.user.role === "insurer" && ["risk_manager", "claims_manager", "executive", "insurer_admin"].includes(ctx.user.insurerRole ?? "")))) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Pipeline health requires an authorised administrative role." });
-        }
-        const tenantId = ctx.user.tenantId;
-        if (!tenantId) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required for pipeline health." });
-        }
-        const db = await getDb();
-        if (!db) throw new Error('DB not available');
-        const { aiAssessments } = await import('../../drizzle/schema');
-        const { desc } = await import('drizzle-orm');
-
-        const rows = await db
-          .select({
-            id: aiAssessments.id,
-            claimId: aiAssessments.claimId,
-            createdAt: aiAssessments.createdAt,
-            updatedAt: aiAssessments.updatedAt,
-            pipelineRunSummary: aiAssessments.pipelineRunSummary,
-            versionNumber: aiAssessments.versionNumber,
-            isReanalysis: aiAssessments.isReanalysis,
-            fraudRiskLevel: aiAssessments.fraudRiskLevel,
-            confidenceScore: aiAssessments.confidenceScore,
-            fcdiScore: aiAssessments.fcdiScore,
-            forensicExecutionLedgerJson: aiAssessments.forensicExecutionLedgerJson,
-            assumptionRegistryJson: aiAssessments.assumptionRegistryJson,
-            forensicAnalysis: aiAssessments.forensicAnalysis,
-          })
-          .from(aiAssessments)
-          .where(eq(aiAssessments.tenantId, tenantId))
-          .orderBy(desc(aiAssessments.createdAt))
-          .limit(input.limit);
-
-        return rows.map(row => {
-          let parsedSummary: any = null;
-          try {
-            if (row.pipelineRunSummary) {
-              parsedSummary = JSON.parse(row.pipelineRunSummary as string);
-            }
-          } catch { /* ignore parse errors */ }
-
-          // Parse FEL for summary stats
-          let felSummary: any = null;
-          try {
-            if (row.forensicExecutionLedgerJson) {
-              const fel = JSON.parse(row.forensicExecutionLedgerJson as string);
-              felSummary = {
-                replayable: fel.replayable ?? false,
-                stageCount: fel.stageRecords?.length ?? 0,
-                timedOutStages: (fel.stageRecords ?? []).filter((s: any) => s.timedOut).map((s: any) => s.stageId),
-                fallbackStages: (fel.stageRecords ?? []).filter((s: any) => s.fallbackUsed).map((s: any) => s.stageId),
-              };
-            }
-          } catch { /* ignore */ }
-          // Parse assumption registry for count
-          let assumptionCount = 0;
-          let highImpactAssumptions = 0;
-          try {
-            if (row.assumptionRegistryJson) {
-              const ar = JSON.parse(row.assumptionRegistryJson as string);
-              assumptionCount = ar.totalCount ?? 0;
-              highImpactAssumptions = (ar.assumptions ?? []).filter((a: any) => a.impactLevel === 'HIGH').length;
-            }
-          } catch { /* ignore */ }
-          // Parse forensicAnalysis for state machine and anomaly sentinels
-          let psmSummary: any = null;
-          let anomalyViolations: any[] = [];
-          try {
-            if (row.forensicAnalysis) {
-              const fa = JSON.parse(row.forensicAnalysis as string);
-              psmSummary = fa.pipelineStateMachine ?? null;
-              anomalyViolations = fa.anomalySentinelViolations ?? [];
-            }
-          } catch { /* ignore */ }
-
-          return {
-            assessmentId: row.id,
-            claimId: row.claimId,
-            createdAt: row.createdAt,
-            updatedAt: row.updatedAt,
-            versionNumber: row.versionNumber,
-            isReanalysis: row.isReanalysis === 1,
-            fraudRiskLevel: row.fraudRiskLevel,
-            confidenceScore: row.confidenceScore,
-            hasPipelineRunSummary: !!row.pipelineRunSummary,
-            stages: parsedSummary?.stages ?? null,
-            totalDurationMs: parsedSummary?.totalDurationMs ?? null,
-            completedAt: parsedSummary?.completedAt ?? null,
-            allSavedToDb: parsedSummary?.allSavedToDb ?? null,
-            // Phase 2A additions
-            fcdiScore: row.fcdiScore ?? null,
-            felSummary,
-            assumptionCount,
-            highImpactAssumptions,
-            psmCurrentState: psmSummary?.currentState ?? null,
-            psmFlaggedExceptionCount: (psmSummary?.history ?? []).filter((h: any) => h.to === 'FLAGGED_EXCEPTION').length,
-            anomalyViolationCount: anomalyViolations.filter((v: any) => v.violated).length,
-          };
-        });
-      } catch (error: any) {
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: `Failed to fetch pipeline health: ${error.message}`,
-        });
+      if (!(isAdminRole(ctx.user.role) || (ctx.user.role === "insurer" && ["risk_manager", "claims_manager", "executive", "insurer_admin"].includes(ctx.user.insurerRole ?? "")))) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Pipeline health requires an authorised administrative role." });
       }
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required for pipeline health." });
+      }
+
+      void input;
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message: "Fraud classifications and fraud-derived platform health metrics are withheld pending qualified governing evidence and a future owner-approved automated-decision policy.",
+      });
     }),
 
   /**
@@ -892,49 +800,17 @@ export const adminRouter = router({
   /**
    * Sprint B: Unified Platform Health — control room data
    */
-  getPlatformHealth: superAdminProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
-    const [jobStats] = await db.select({
-      total: count(),
-      running: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'running' THEN 1 ELSE 0 END)`,
-      failed24h: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'failed' AND ${pipelineJobs.startedAt} >= ${hoursAgo(24)} THEN 1 ELSE 0 END)`,
-      pending: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'pending' THEN 1 ELSE 0 END)`,
-      completed24h: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'completed' AND ${pipelineJobs.startedAt} >= ${hoursAgo(24)} THEN 1 ELSE 0 END)`,
-    }).from(pipelineJobs);
-    const stageStats = await db.select({
-      stageId: pipelineJobs.stageId,
-      total: count(),
-      completed: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'completed' THEN 1 ELSE 0 END)`,
-      failed: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'failed' THEN 1 ELSE 0 END)`,
-      running: sql<number>`SUM(CASE WHEN ${pipelineJobs.status} = 'running' THEN 1 ELSE 0 END)`,
-      last1h: sql<number>`SUM(CASE WHEN ${pipelineJobs.startedAt} >= ${hoursAgo(1)} THEN 1 ELSE 0 END)`,
-    }).from(pipelineJobs).where(gte(pipelineJobs.startedAt, daysAgo(7))).groupBy(pipelineJobs.stageId);
-    const [assessStats] = await db.select({
-      total: count(),
-      avgConf: sql<number>`AVG(${aiAssessments.confidenceScore})`,
-      highFraud: sql<number>`SUM(CASE WHEN ${aiAssessments.fraudRiskLevel} IN ('high','elevated','critical') THEN 1 ELSE 0 END)`,
-      last24h: sql<number>`SUM(CASE WHEN ${aiAssessments.createdAt} >= ${hoursAgo(24)} THEN 1 ELSE 0 END)`,
-    }).from(aiAssessments);
-    const tenantStats = await db.select({
-      id: tenants.id,
-      name: tenants.name,
-      tier: (tenants as any).subscriptionTier,
-      currency: (tenants as any).currency,
-      createdAt: tenants.createdAt,
-    }).from(tenants).limit(50);
-    const recentFailed = await db.select({
-      id: pipelineJobs.id,
-      claimId: pipelineJobs.claimId,
-      stageId: pipelineJobs.stageId,
-      startedAt: pipelineJobs.startedAt,
-    }).from(pipelineJobs).where(and(eq(pipelineJobs.status, 'failed'), gte(pipelineJobs.startedAt, hoursAgo(24)))).orderBy(desc(pipelineJobs.startedAt)).limit(10);
-    return { jobStats, stageStats, assessStats, tenantStats, recentFailed, collectedAt: new Date().toISOString() };
-  }),
-
   /**
-   * Sprint B: Update panel beater status with audit log
+   * Sprint B: Unified Platform Health — fraud-derived platform health is held
+   * after the route's existing super-admin admission and before database reads.
    */
+  getPlatformHealth: superAdminProcedure.query(
+    async ({ ctx }): Promise<any> => {
+      void ctx;
+      throwP0B1FraudDecisionHold();
+    }
+  ),
+
   updatePanelBeaterStatus: superAdminProcedure
     .input(z.object({
       panelBeaterId: z.number().int().positive(),

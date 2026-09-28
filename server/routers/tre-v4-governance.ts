@@ -39,6 +39,13 @@ function requireTreV4Tenant(ctx: { user?: { tenantId?: string | null } | null })
   return tenantId;
 }
 
+function throwP0FraudTreHold(): never {
+  throw new TRPCError({
+    code: "PRECONDITION_FAILED",
+    message: "TRE fraud simulation, certification, and fraud-bearing trust output are withheld pending independently verifiable claim-linked evidence, human-reviewed auditable evidence, and a future owner-approved qualified automated-decision policy.",
+  });
+}
+
 async function getCTOForAssessment(assessmentId: number, tenantId: string): Promise<ClaimTruthObject | null> {
   const db = await getDb();
   if (!db) return null;
@@ -353,23 +360,17 @@ export const treV4GovernanceRouter = router({
       })),
     }))
     .mutation(async ({ input, ctx }) => {
-      const cto = await getCTOForAssessment(input.assessmentId, requireTreV4Tenant(ctx));
-      if (!cto) throw new Error("CTO not found for assessment");
-      const scenario = trustSimulationEngine.defineScenario(
-        input.scenarioName,
-        input.description,
-        input.parameters
-      );
-      return trustSimulationEngine.simulate(String(input.assessmentId), cto, scenario);
+      const tenantId = requireTreV4Tenant(ctx);
+      await requireTenantAssessment(input.assessmentId, tenantId);
+      throwP0FraudTreHold();
     }),
 
   runStandardSimulations: protectedProcedure
     .input(z.object({ assessmentId: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const cto = await getCTOForAssessment(input.assessmentId, requireTreV4Tenant(ctx));
-      if (!cto) throw new Error("CTO not found for assessment");
-      const scenarios = trustSimulationEngine.getStandardScenarios();
-      return trustSimulationEngine.runBatch(String(input.assessmentId), cto, scenarios);
+      const tenantId = requireTreV4Tenant(ctx);
+      await requireTenantAssessment(input.assessmentId, tenantId);
+      throwP0FraudTreHold();
     }),
 
   // ── E9: Enterprise Trust Dashboard ──────────────────────────────────────
@@ -379,98 +380,9 @@ export const treV4GovernanceRouter = router({
       fromDate: z.string().optional(),
       limit: z.number().min(1).max(500).default(100),
     }))
-    .query(async ({ input, ctx }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database unavailable");
-      const tenantId = requireTreV4Tenant(ctx);
-
-      // createdAt is stored as string (mode: 'string') in the schema
-      const cutoffStr = input.fromDate
-        ? input.fromDate
-        : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
-
-      const rows = await db
-        .select({
-          id: aiAssessments.id,
-          claimTruthObjectJson: aiAssessments.claimTruthObjectJson,
-          createdAt: aiAssessments.createdAt,
-        })
-        .from(aiAssessments)
-        .where(
-          and(
-            isNotNull(aiAssessments.claimTruthObjectJson),
-            eq(aiAssessments.tenantId, tenantId),
-            gte(aiAssessments.createdAt, cutoffStr)
-          )
-        )
-        .orderBy(desc(aiAssessments.createdAt))
-        .limit(input.limit);
-
-      const ctos: ClaimTruthObject[] = [];
-      for (const row of rows) {
-        if (row.claimTruthObjectJson) {
-          try {
-            ctos.push(JSON.parse(row.claimTruthObjectJson));
-          } catch { /* skip malformed */ }
-        }
-      }
-
-      const base = {
-        totalAssessments: ctos.length,
-        certifiedCount: 0,
-        blockedCount: 0,
-        certificationRate: 0,
-        averageIntegrityScore: 0,
-        averageConfidence: 0,
-        recommendationBreakdown: { APPROVE: 0, REVIEW: 0, ESCALATE: 0, REJECT: 0 },
-        fraudRiskBreakdown: { minimal: 0, low: 0, moderate: 0, high: 0, elevated: 0 },
-        visionReliabilityBreakdown: { HIGH: 0, MEDIUM: 0, LOW: 0, NONE: 0 },
-        queueStats: trustResolutionQueue.getStats(),
-        eventBusStats: trustEventBus.getStats(),
-        memorySnapshot: trustMemoryEngine.getSnapshot(),
-        governanceReport: aiModelGovernanceEngine.generateGovernanceReport(),
-        generatedAt: new Date().toISOString(),
-      };
-
-      if (ctos.length === 0) return base;
-
-      const certifiedCount = ctos.filter(
-        (c) => c.certification.certificate.certified === "CERTIFIED"
-      ).length;
-      const blockedCount = ctos.filter(
-        (c) => c.certification.certificate.certified === "BLOCKED"
-      ).length;
-      const avgIntegrity = ctos.reduce(
-        (sum, c) => sum + (c.certification.certificate.integrityScore?.score ?? 0), 0
-      ) / ctos.length;
-      const avgConfidence = ctos.reduce(
-        (sum, c) => sum + c.confidence.overallConfidence, 0
-      ) / ctos.length;
-
-      const recommendationBreakdown = { APPROVE: 0, REVIEW: 0, ESCALATE: 0, REJECT: 0 };
-      const fraudBreakdown = { minimal: 0, low: 0, moderate: 0, high: 0, elevated: 0 };
-      const visionBreakdown = { HIGH: 0, MEDIUM: 0, LOW: 0, NONE: 0 };
-
-      for (const cto of ctos) {
-        const rec = cto.decision.recommendation as keyof typeof recommendationBreakdown;
-        if (rec in recommendationBreakdown) recommendationBreakdown[rec]++;
-        const fraud = cto.fraud.fraudRiskLevel as keyof typeof fraudBreakdown;
-        if (fraud in fraudBreakdown) fraudBreakdown[fraud]++;
-        const vision = cto.damage.visionSourceReliability as keyof typeof visionBreakdown;
-        if (vision in visionBreakdown) visionBreakdown[vision]++;
-      }
-
-      return {
-        ...base,
-        certifiedCount,
-        blockedCount,
-        certificationRate: Math.round((certifiedCount / ctos.length) * 100),
-        averageIntegrityScore: Math.round(avgIntegrity),
-        averageConfidence: Math.round(avgConfidence),
-        recommendationBreakdown,
-        fraudRiskBreakdown: fraudBreakdown,
-        visionReliabilityBreakdown: visionBreakdown,
-      };
+    .query(async ({ ctx }) => {
+      requireTreV4Tenant(ctx);
+      throwP0FraudTreHold();
     }),
 
   // ── E10: Trust API v2 — enriched CTO ────────────────────────────────────
@@ -478,23 +390,8 @@ export const treV4GovernanceRouter = router({
   getTrustAPIv2: protectedProcedure
     .input(z.object({ assessmentId: z.number() }))
     .query(async ({ input, ctx }) => {
-      const cto = await getCTOForAssessment(input.assessmentId, requireTreV4Tenant(ctx));
-      if (!cto) throw new Error("CTO not found for assessment");
-
-      const claimId = String(input.assessmentId);
-
-      return {
-        apiVersion: "4.0.0",
-        assessmentId: input.assessmentId,
-        generatedAt: new Date().toISOString(),
-        cto,
-        claimEvents: trustEventBus.getClaimEvents(claimId),
-        pendingReviews: humanTrustApprovalEngine.getClaimRequests(claimId),
-        claimSLAs: trustSLAManager.getClaimSLAs(claimId),
-        memoryInsights: trustMemoryEngine.generateInsights(),
-        queueTasks: trustResolutionQueue.getPendingTasks().filter(
-          (t) => t.claimId === claimId
-        ),
-      };
+      const tenantId = requireTreV4Tenant(ctx);
+      await requireTenantAssessment(input.assessmentId, tenantId);
+      throwP0FraudTreHold();
     }),
 });

@@ -18,6 +18,8 @@
  *   8. Array fields that are null/undefined are normalised to []
  */
 
+import { buildP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ValidationSeverity = "info" | "warn" | "error" | "block";
@@ -105,6 +107,63 @@ function emptyStringToNull(value: unknown): unknown {
 function ensureArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   return [];
+}
+
+const P0_B1_FRAUD_FIELDS = new Set([
+  "fraud_score",
+  "fraud_risk_score",
+  "risk_score",
+  "fraud_risk_level",
+  "risk_level",
+  "fraudScore",
+  "fraudRiskScore",
+  "fraudRiskLevel",
+  "fraudIndicators",
+  "fraudScoreBreakdownJson",
+  "weightedFraud",
+  "fraudLevelEnforced",
+  "fraudLevelLabel",
+  "fraudScoreAdjustment",
+  "indicators",
+]);
+
+function projectP0B1FraudWithheld(
+  obj: Record<string, unknown>,
+  corrections: ValidationCorrection[]
+): Record<string, unknown> {
+  const held = { ...obj };
+  for (const field of P0_B1_FRAUD_FIELDS) {
+    if (field in held) {
+      logCorrection(
+        corrections,
+        field,
+        "P0-B1 withheld an unqualified fraud value from the response boundary",
+        "auto_healed",
+        "warn",
+        held[field],
+        null
+      );
+      delete held[field];
+    }
+  }
+  for (const field of ["fraud", "fraudResult", "fraud_result"]) {
+    if (field in held) {
+      logCorrection(
+        corrections,
+        field,
+        "P0-B1 withheld an unqualified fraud object from the response boundary",
+        "auto_healed",
+        "warn",
+        held[field],
+        null
+      );
+      delete held[field];
+    }
+  }
+  return {
+    ...held,
+    fraudDecision: buildP0B1FraudDecisionHold(),
+  };
 }
 
 // ─── Known field-name drift mappings ─────────────────────────────────────────
@@ -369,7 +428,7 @@ export function validateClaimAnalysisResponse(
     return { passed: false, healed: false, corrections, data: null, validated_at };
   }
 
-  let obj = { ...(response as Record<string, unknown>) };
+  let obj = projectP0B1FraudWithheld(response as Record<string, unknown>, corrections);
 
   // ── Rule 5: Apply field-name drift mappings to top-level physics/fraud/cost ──
   if (obj.physicsAnalysis) {

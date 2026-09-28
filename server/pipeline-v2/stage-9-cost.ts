@@ -12,6 +12,7 @@ import { ensureCostContract } from "./engineFallback";
 import { deriveEconomicContext } from "./economicContextEngine";
 import { computeIFE, type IFEReport } from "./inputFidelityEngine";
 import { buildDOECandidates, runDOE, type DOEResult } from "./decisionOptimisationEngine";
+import { assessFraudDecisionEligibility } from "../evidence-governance/quantitativeFieldGovernance";
 import { extractCostLearningRecord } from "./costLearningRecorder";
 import { insertCostLearningRecord, getActiveCalibrationMultiplier, getVehicleSpecificComponentBenchmarks, getVehicleSpecificTrainingBenchmarks } from "../db";
 import { assessCost } from "./mlBenchmarkEngine";
@@ -1040,6 +1041,17 @@ export async function runCostOptimisationStage(
     let doeResult: DOEResult | null = null;
     try {
       if (quoteOptimisation && quoteOptimisation.selected_quotes.length > 0) {
+        // P0-B1 — Stage 8 runs in parallel, so DOE must independently establish
+        // the live fraud evidence state instead of defaulting an unavailable risk
+        // level to "low". P0 currently has no governing fraud-decision source.
+        const fraudDecisionSources = {
+          crushDepthDecision: physicsAnalysis.quantitativeEvidence?.crushDepth,
+          advisoryEvidencePresent: true,
+          fallbackOrDegraded: false,
+        };
+        const fraudDecisionEligibility = assessFraudDecisionEligibility(
+          fraudDecisionSources
+        );
         const policyCurrency = ctx.tenantRates?.currencyCode ?? currency;
         const exchangeRate = economicContext?.exchangeRateToUsd ?? 1;
         // Cross-border: if quote is in ZAR but policy is in USD, convert ZAR→USD
@@ -1069,7 +1081,9 @@ export async function runCostOptimisationStage(
             confidence: 'low' as const,
           })),
           currency: policyCurrency,
-          overallFraudRisk: stage8FraudRiskLevel ?? 'low',  // R-D-04: use explicit param, not ctx (S8/S9 run in parallel)
+          // This value cannot reach selection because runDOE validates the P0
+          // eligibility decision first. Do not turn unavailable fraud into low.
+          overallFraudRisk: stage8FraudRiskLevel ?? 'unavailable',
           fraudSignal: null,
           turnaroundDays: null,
         });
@@ -1086,6 +1100,8 @@ export async function runCostOptimisationStage(
           inputCompletenessScore: ifeResult?.completenessScore ?? 50,
           doeEligible: ifeResult?.doeEligible ?? false,
           doeIneligibilityReason: ifeResult?.doeIneligibilityReason ?? null,
+          fraudDecisionEligibility,
+          fraudDecisionSources,
         });
         ctx.log("Stage 9", `DOE: status=${doeResult.status}, selected=${doeResult.selectedPanelBeater ?? 'none'}, confidence=${doeResult.decisionConfidence}`);
       } else {

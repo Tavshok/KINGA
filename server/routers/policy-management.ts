@@ -33,6 +33,7 @@ import {
   simulateSingleClaimRouting,
   PolicySimulationInput,
 } from "../services/policy-simulation";
+import { throwP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 import {
   getPolicyImpactMetrics,
   comparePolicyPerformance,
@@ -267,15 +268,9 @@ export const policyManagementRouter = router({
       daysToAnalyze: z.number().optional().default(30),
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = requirePolicyTenant(ctx.user, input.tenantId);
-
-      const simulationResults = await simulateRoutingDistribution(
-        tenantId,
-        input.policyInput as PolicySimulationInput,
-        input.daysToAnalyze
-      );
-
-      return simulationResults;
+      requirePolicyTenant(ctx.user, input.tenantId);
+      void input;
+      throwP0B1FraudDecisionHold();
     }),
 
   /**

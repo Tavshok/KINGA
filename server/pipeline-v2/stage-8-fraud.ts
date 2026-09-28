@@ -52,9 +52,14 @@
  */
 
 import { ensureFraudContract } from "./engineFallback";
-import { analyseQuoteSimilarity, type QuoteSimilarityResult } from "./quoteSimilarityEngine";
-import { runAccidentDateCrossCheck, type DateCrossCheckResult } from "./accidentDateCrossCheckEngine";
-import { validateCrossEngineConsistency } from "./crossEngineConsistencyValidator";
+import {
+  analyseQuoteSimilarity,
+  type QuoteSimilarityResult,
+} from "./quoteSimilarityEngine";
+import {
+  runAccidentDateCrossCheck,
+  type DateCrossCheckResult,
+} from "./accidentDateCrossCheckEngine";
 import { runPhotoForensics } from "./photoForensicsEngine";
 import {
   evaluateScenarioFraud,
@@ -77,8 +82,27 @@ import type {
   RecoveryAction,
   InputRecoveryOutput,
 } from "./types";
-import { scoreToFraudLevel, type FraudRiskLevel } from "../../shared/fraudScoring";
+import {
+  scoreToFraudLevel,
+  type FraudRiskLevel,
+} from "../../shared/fraudScoring";
 import { runContactPatchRatioCheck } from "./contactPatchRatioEngine";
+import { assessFraudDecisionEligibility } from "../evidence-governance/quantitativeFieldGovernance";
+
+/** P0-B1 failure record: nonnumeric, non-accusatory, and actionable. */
+export function buildP0FraudUnavailableAssumption(
+  reason: string,
+  stage = "Stage 8"
+): Assumption {
+  return {
+    field: "fraudDecisionEligibility",
+    assumedValue: "UNAVAILABLE",
+    reason: `${reason}. Automated fraud scoring and routing were withheld; obtain independently verifiable claim-linked fraud evidence and a qualified automated-decision authority for manual review.`,
+    strategy: "none",
+    confidence: 0,
+    stage,
+  };
+}
 
 /**
  * R-D-05: Codes for signals that are PHYSICS FINDINGS, not fraud signals.
@@ -179,49 +203,83 @@ const CATEGORY_RAW_CAP: Record<string, number> = {
  * Maps a FraudIndicator to one of the 6 composite categories.
  */
 function mapIndicatorCategory(indicator: FraudIndicator): string {
-  const cat = (indicator.category ?? '').toLowerCase();
-  const code = (indicator.indicator ?? '').toLowerCase();
+  const cat = (indicator.category ?? "").toLowerCase();
+  const code = (indicator.indicator ?? "").toLowerCase();
 
   // C6: Photo Forensics (check before C1 to avoid misclassifying forensics as consistency)
-  if (cat === 'photo_forensics' || cat === 'forensics' || code.startsWith('photo_') ||
-      code.startsWith('gps_') || code.startsWith('exif_') || code.includes('manipulation')) {
-    return 'photo_forensics';
+  if (
+    cat === "photo_forensics" ||
+    cat === "forensics" ||
+    code.startsWith("photo_") ||
+    code.startsWith("gps_") ||
+    code.startsWith("exif_") ||
+    code.includes("manipulation")
+  ) {
+    return "photo_forensics";
   }
   // C1: Physical Consistency
   // cross_validation indicators (speed contradiction, damage pattern mismatch from XV engine)
   // are physical consistency signals — they belong in C1, not C2.
-  if (cat === 'consistency' || cat === 'cross_validation' ||
-      code.startsWith('damage_direction') || code.startsWith('severity_physics') ||
-      code.startsWith('damage_pattern') || code.startsWith('damage_image') || code.startsWith('cross_engine_') ||
-      code.startsWith('[cross-validation]') || code.includes('cross-validation')) {
-    return 'physical_consistency';
+  if (
+    cat === "consistency" ||
+    cat === "cross_validation" ||
+    code.startsWith("damage_direction") ||
+    code.startsWith("severity_physics") ||
+    code.startsWith("damage_pattern") ||
+    code.startsWith("damage_image") ||
+    code.startsWith("cross_engine_") ||
+    code.startsWith("[cross-validation]") ||
+    code.includes("cross-validation")
+  ) {
+    return "physical_consistency";
   }
   // C3: Financial Anomaly
-  if (cat === 'financial' || code.startsWith('quote_similarity') || code.startsWith('cost_deviation') ||
-      code.startsWith('inflated_') || code === 'financed_vehicle_total_loss_risk' ||
-      code === 'non_panel_repairer_requested') {
-    return 'financial_anomaly';
+  if (
+    cat === "financial" ||
+    code.startsWith("quote_similarity") ||
+    code.startsWith("cost_deviation") ||
+    code.startsWith("inflated_") ||
+    code === "financed_vehicle_total_loss_risk" ||
+    code === "non_panel_repairer_requested"
+  ) {
+    return "financial_anomaly";
   }
   // C4: Documentation Integrity
-  if (cat === 'documentation' || cat === 'date_crosscheck' || code.startsWith('missing_police') ||
-      code.startsWith('police_report') || code.startsWith('no_damage_photos') ||
-      code.startsWith('photos_not_ingested') || code.startsWith('low_data_completeness') ||
-      code === 'accident_date_inconsistency' || code.startsWith('late_submission')) {
-    return 'documentation_integrity';
+  if (
+    cat === "documentation" ||
+    cat === "date_crosscheck" ||
+    code.startsWith("missing_police") ||
+    code.startsWith("police_report") ||
+    code.startsWith("no_damage_photos") ||
+    code.startsWith("photos_not_ingested") ||
+    code.startsWith("low_data_completeness") ||
+    code === "accident_date_inconsistency" ||
+    code.startsWith("late_submission")
+  ) {
+    return "documentation_integrity";
   }
   // C5: Entity Intelligence
-  if (cat === 'cross_entity_intelligence' || cat === 'entity' ||
-      code === 'officer_concentration' || code === 'assessor_routing_bias' ||
-      code === 'driver_history_pattern') {
-    return 'entity_intelligence';
+  if (
+    cat === "cross_entity_intelligence" ||
+    cat === "entity" ||
+    code === "officer_concentration" ||
+    code === "assessor_routing_bias" ||
+    code === "driver_history_pattern"
+  ) {
+    return "entity_intelligence";
   }
   // C2: Scenario Intelligence — narrative, timeline, pattern (from scenario engine), behaviour
-  if (cat === 'narrative' || cat === 'timeline' || cat === 'pattern' ||
-      cat === 'behaviour' || cat === 'scenario') {
-    return 'scenario_intelligence';
+  if (
+    cat === "narrative" ||
+    cat === "timeline" ||
+    cat === "pattern" ||
+    cat === "behaviour" ||
+    cat === "scenario"
+  ) {
+    return "scenario_intelligence";
   }
   // Default: scenario intelligence
-  return 'scenario_intelligence';
+  return "scenario_intelligence";
 }
 
 /**
@@ -234,7 +292,13 @@ function mapIndicatorCategory(indicator: FraudIndicator): string {
 function computeWeightedFraudScore(
   indicators: FraudIndicator[],
   scenarioFraudScore: number | null
-): { score: number; categoryBreakdown: Record<string, { rawScore: number; normScore: number; budget: number }> } {
+): {
+  score: number;
+  categoryBreakdown: Record<
+    string,
+    { rawScore: number; normScore: number; budget: number }
+  >;
+} {
   // Step 1: Accumulate raw scores per category
   const rawScores: Record<string, number> = {};
   for (const cat of Object.keys(CATEGORY_BUDGET)) rawScores[cat] = 0;
@@ -249,12 +313,18 @@ function computeWeightedFraudScore(
   //   (b) the scenario engine's own fraud_score (already 0-100)
   // This ensures the scenario engine's holistic assessment is not lost when
   // only a subset of its flags are injected as individual indicators.
-  if (scenarioFraudScore !== null && scenarioFraudScore > rawScores.scenario_intelligence) {
+  if (
+    scenarioFraudScore !== null &&
+    scenarioFraudScore > rawScores.scenario_intelligence
+  ) {
     rawScores.scenario_intelligence = scenarioFraudScore;
   }
 
   // Step 3: Normalise each category against its raw cap and scale to budget
-  const categoryBreakdown: Record<string, { rawScore: number; normScore: number; budget: number }> = {};
+  const categoryBreakdown: Record<
+    string,
+    { rawScore: number; normScore: number; budget: number }
+  > = {};
   let baseScore = 0;
   let categoriesWithSignals = 0;
 
@@ -271,7 +341,10 @@ function computeWeightedFraudScore(
   // Step 4: Corroboration multiplier
   // Convergence of evidence across ≥3 independent categories is a stronger signal
   // than a single large flag in one category.
-  const corroborationFactor = Math.min(1.20, 1.0 + 0.04 * Math.max(0, categoriesWithSignals - 2));
+  const corroborationFactor = Math.min(
+    1.2,
+    1.0 + 0.04 * Math.max(0, categoriesWithSignals - 2)
+  );
 
   // Step 5: Compute final score
   const amplified = baseScore * corroborationFactor;
@@ -297,7 +370,8 @@ function analyseDamageConsistency(
       indicator: "damage_direction_mismatch",
       category: "consistency",
       score: 25,
-      description: "Frontal collision reported but no front damage zone detected.",
+      description:
+        "Frontal collision reported but no front damage zone detected.",
     });
     consistencyScore = Math.max(0, consistencyScore - 20);
     notes.push("Impact direction inconsistent with damage zones.");
@@ -326,14 +400,20 @@ function analyseDamageConsistency(
     const DMG_PHYSICS_MISMATCH_SCORE     = 30;
     /** Consistency score penalty for severity/physics mismatch */
     const DMG_PHYSICS_MISMATCH_PENALTY   = 25;
-    if (dmgSeverity > DMG_PHYSICS_MISMATCH_THRESHOLD && (physSeverity === "minor" || physSeverity === "cosmetic")) {
+    if (
+      dmgSeverity > DMG_PHYSICS_MISMATCH_THRESHOLD &&
+      (physSeverity === "minor" || physSeverity === "cosmetic")
+    ) {
       indicators.push({
         indicator: "severity_physics_mismatch",
         category: "consistency",
         score: DMG_PHYSICS_MISMATCH_SCORE,
         description: `High damage severity (${dmgSeverity}/100) but physics indicates ${physSeverity} impact.`,
       });
-      consistencyScore = Math.max(0, consistencyScore - DMG_PHYSICS_MISMATCH_PENALTY);
+      consistencyScore = Math.max(
+        0,
+        consistencyScore - DMG_PHYSICS_MISMATCH_PENALTY
+      );
       notes.push("Damage severity exceeds what physics analysis supports.");
     }
   }
@@ -353,7 +433,10 @@ function analyseDamageConsistency(
 
   return {
     score: consistencyScore,
-    notes: notes.length > 0 ? notes.join(" ") : "Damage patterns are consistent with reported incident.",
+    notes:
+      notes.length > 0
+        ? notes.join(" ")
+        : "Damage patterns are consistent with reported incident.",
     indicators,
   };
 }
@@ -374,6 +457,84 @@ function analyseQuoteDeviation(
   return { deviation: null, indicators: [] };
 }
 
+/**
+ * P0-B1 output boundary for Stage 8. Kept as a real exported production helper
+ * so regression tests exercise the same fail-closed transformation used after
+ * every source engine completes.
+ */
+export function buildP0FraudReviewBoundary(input: {
+  crushDepthDecision: unknown;
+  fallbackOrDegraded: boolean;
+}): Pick<
+  Stage8Output,
+  | "fraudRiskScore"
+  | "fraudRiskLevel"
+  | "fraudDecisionEligibility"
+  | "indicators"
+> {
+  const fraudDecisionEligibility = assessFraudDecisionEligibility({
+    crushDepthDecision: input.crushDepthDecision,
+    advisoryEvidencePresent: true,
+    fallbackOrDegraded: input.fallbackOrDegraded,
+  });
+  const p0ReviewMarker: FraudIndicator = {
+    indicator: "P0_FRAUD_EVIDENCE_UNAVAILABLE",
+    category: "p0_evidence_governance",
+    score: null,
+    severity: "advisory",
+    description:
+      "Automated fraud scoring and routing are withheld: current visual, physics-derived, photo-forensic and model-derived signals are descriptive only under P0.",
+    evidence: fraudDecisionEligibility.requiredEvidence,
+  };
+  return {
+    fraudRiskScore: null,
+    fraudRiskLevel: null,
+    fraudDecisionEligibility,
+    indicators: [p0ReviewMarker],
+  };
+}
+
+/** Converts every raw fraud observation to reviewer-visible, non-score evidence. */
+export function classifyP0FraudObservations(
+  indicators: FraudIndicator[]
+): FraudIndicator[] {
+  return indicators.map(indicator => ({
+    ...indicator,
+    score: null,
+    severity: "advisory",
+  }));
+}
+
+/**
+ * Retains only EXIF/date/hash provenance for human review. All model confidence,
+ * manipulation probability, vision crush depth, and suspicion conclusions are
+ * deliberately removed before the Stage 8 output is published.
+ */
+export function buildP0PhotoMetadataIndicators(
+  photoForensics: Stage8Output["photoForensics"]
+): FraudIndicator[] {
+  return (photoForensics?.photos ?? []).flatMap(photo => {
+    const analysis = photo.analysisResult;
+    if (!analysis) return [];
+    return [
+      {
+        indicator: "P0_PHOTO_METADATA_MANUAL_REVIEW",
+        category: "photo_metadata",
+        score: null,
+        severity: "advisory" as const,
+        description:
+          "Photo EXIF/date/hash provenance is retained for manual review; it does not produce an automated fraud finding.",
+        evidence: [
+          `Photo: ${photo.url}`,
+          `Image hash: ${analysis.image_hash || "unavailable"}`,
+          `EXIF capture time: ${analysis.capture_datetime || "unavailable"}`,
+          `GPS metadata present: ${analysis.gps_coordinates ? "yes" : "no"}`,
+        ],
+      },
+    ];
+  });
+}
+
 function analyseDocumentation(
   claimRecord: ClaimRecord,
   inputRecovery?: InputRecoveryOutput
@@ -382,22 +543,28 @@ function analyseDocumentation(
 
   if (!claimRecord.policeReport.reportNumber) {
     // Check 1: Was extraction itself incomplete? If so, treat as system gap, not fraud.
-    const extractionFailed = inputRecovery?.failure_flags?.some(
-      f => f === 'ocr_failure' || f === 'quote_not_mapped'
+    const extractionFailed =
+      inputRecovery?.failure_flags?.some(
+        f => f === "ocr_failure" || f === "quote_not_mapped"
     ) ?? false;
 
     // Check 2: Does the accident narrative confirm police were notified at scene?
     // This handles the common case where police were reported verbally but no case
     // number was recorded in the claim document (e.g. Mazda BT50 CI-024NATPHARM).
-    const narrative = (claimRecord.accidentDetails.description || "").toLowerCase();
-    const verbalPoliceReport = (
-      /reported\s+(?:the\s+)?(?:issue|incident|accident|matter)\s+to\s+(?:the\s+)?police/i.test(narrative) ||
+    const narrative = (
+      claimRecord.accidentDetails.description || ""
+    ).toLowerCase();
+    const verbalPoliceReport =
+      /reported\s+(?:the\s+)?(?:issue|incident|accident|matter)\s+to\s+(?:the\s+)?police/i.test(
+        narrative
+      ) ||
       /immediately\s+reported\s+(?:to\s+)?(?:the\s+)?police/i.test(narrative) ||
       /reported\s+to\s+(?:the\s+)?police/i.test(narrative) ||
       /notified\s+(?:the\s+)?police/i.test(narrative) ||
-      /police\s+(?:were\s+)?(?:called|notified|informed|alerted)/i.test(narrative) ||
-      /went\s+to\s+(?:the\s+)?police/i.test(narrative)
-    );
+      /police\s+(?:were\s+)?(?:called|notified|informed|alerted)/i.test(
+        narrative
+      ) ||
+      /went\s+to\s+(?:the\s+)?police/i.test(narrative);
 
     if (verbalPoliceReport) {
       // Driver narrative confirms police were notified — downgrade to low-score informational flag.
@@ -406,21 +573,24 @@ function analyseDocumentation(
         indicator: "police_report_verbal_only",
         category: "documentation",
         score: 3,
-        description: "Driver narrative confirms police were notified at scene, but no case number was recorded in the claim document. Manual verification of police report number recommended.",
+        description:
+          "Driver narrative confirms police were notified at scene, but no case number was recorded in the claim document. Manual verification of police report number recommended.",
       });
     } else if (extractionFailed) {
       indicators.push({
         indicator: "police_report_extraction_uncertain",
         category: "documentation",
         score: 3,
-        description: "Police report number could not be confirmed — document extraction was incomplete. Manual verification required.",
+        description:
+          "Police report number could not be confirmed — document extraction was incomplete. Manual verification required.",
       });
     } else {
       indicators.push({
         indicator: "missing_police_report",
         category: "documentation",
         score: 10,
-        description: "No police report number found in the claim document and driver narrative does not confirm police notification.",
+        description:
+          "No police report number found in the claim document and driver narrative does not confirm police notification.",
       });
     }
   }
@@ -436,7 +606,8 @@ function analyseDocumentation(
         indicator: "photos_not_ingested",
         category: "documentation",
         score: 5,
-        description: "Damage photographs detected in source document but not yet processed through the photo analysis pipeline. Manual review recommended.",
+        description:
+          "Damage photographs detected in source document but not yet processed through the photo analysis pipeline. Manual review recommended.",
       });
     } else {
       indicators.push({
@@ -479,8 +650,10 @@ function buildScenarioFraudInput(
   // Priority 2: Fall back to raw claim form incidentType string.
   // This ensures the fraud engine uses the correct scenario profile even when
   // the claim form says "collision" but the engine classified it as "rollover".
-  const classifiedType = claimRecord.accidentDetails.incidentClassification?.incident_type;
-  const rawScenario = (classifiedType && classifiedType !== "unknown")
+  const classifiedType =
+    claimRecord.accidentDetails.incidentClassification?.incident_type;
+  const rawScenario =
+    classifiedType && classifiedType !== "unknown"
     ? classifiedType
     : (claimRecord.accidentDetails.incidentType ?? "unknown");
   const scenarioMap: Record<string, ScenarioType> = {
@@ -527,7 +700,9 @@ function buildScenarioFraudInput(
 
   // ── Police report status ───────────────────────────────────────────────────
   const hasPoliceReport = !!claimRecord.policeReport.reportNumber;
-  const policeStatus: PoliceReportStatus = hasPoliceReport ? "present" : "absent";
+  const policeStatus: PoliceReportStatus = hasPoliceReport
+    ? "present"
+    : "absent";
 
   // ── Timeline consistency ───────────────────────────────────────────────────
   // Use the data quality score as a proxy for timeline consistency
@@ -542,28 +717,38 @@ function buildScenarioFraudInput(
   const TIMELINE_MINOR_GAP_THRESHOLD     = 50;
   /** Completeness score at or above which timeline has 'significant_gap' */
   const TIMELINE_SIGNIFICANT_GAP_THRESHOLD = 30;
-  if (completeness >= TIMELINE_CONSISTENT_THRESHOLD) timelineConsistency = "consistent";
-  else if (completeness >= TIMELINE_MINOR_GAP_THRESHOLD) timelineConsistency = "minor_gap";
-  else if (completeness >= TIMELINE_SIGNIFICANT_GAP_THRESHOLD) timelineConsistency = "significant_gap";
+  if (completeness >= TIMELINE_CONSISTENT_THRESHOLD)
+    timelineConsistency = "consistent";
+  else if (completeness >= TIMELINE_MINOR_GAP_THRESHOLD)
+    timelineConsistency = "minor_gap";
+  else if (completeness >= TIMELINE_SIGNIFICANT_GAP_THRESHOLD)
+    timelineConsistency = "significant_gap";
   else timelineConsistency = "unknown";
 
   // ── Damage pattern result ──────────────────────────────────────────────────
   const damagePatternResult = physicsAnalysis.damagePatternValidation
     ? {
         pattern_match: physicsAnalysis.damagePatternValidation.pattern_match as
-          "STRONG" | "MODERATE" | "WEAK" | "NONE",
+          | "STRONG"
+          | "MODERATE"
+          | "WEAK"
+          | "NONE",
         structural_damage_detected:
           physicsAnalysis.damagePatternValidation.structural_damage_detected,
         confidence: physicsAnalysis.damagePatternValidation.confidence,
         validation_detail: {
           image_contradiction:
-            physicsAnalysis.damagePatternValidation.validation_detail.image_contradiction,
+            physicsAnalysis.damagePatternValidation.validation_detail
+              .image_contradiction,
           image_contradiction_reason:
-            physicsAnalysis.damagePatternValidation.validation_detail.image_contradiction_reason,
+            physicsAnalysis.damagePatternValidation.validation_detail
+              .image_contradiction_reason,
           primary_coverage_pct:
-            physicsAnalysis.damagePatternValidation.validation_detail.primary_coverage_pct,
+            physicsAnalysis.damagePatternValidation.validation_detail
+              .primary_coverage_pct,
           secondary_coverage_pct:
-            physicsAnalysis.damagePatternValidation.validation_detail.secondary_coverage_pct,
+            physicsAnalysis.damagePatternValidation.validation_detail
+              .secondary_coverage_pct,
         },
       }
     : null;
@@ -599,9 +784,17 @@ export async function runFraudAnalysisStage(
     const allIndicators: FraudIndicator[] = [];
 
     // 1. Damage consistency
-    let consistency: { score: number; notes: string; indicators: FraudIndicator[] };
+    let consistency: {
+      score: number;
+      notes: string;
+      indicators: FraudIndicator[];
+    };
     try {
-      consistency = analyseDamageConsistency(claimRecord, damageAnalysis, physicsAnalysis);
+      consistency = analyseDamageConsistency(
+        claimRecord,
+        damageAnalysis,
+        physicsAnalysis
+      );
       allIndicators.push(...consistency.indicators);
       // C1 Physical Consistency: inject a scored indicator for the damage consistency score itself.
       // The consistency score represents how well the observed damage is explained by the stated
@@ -613,17 +806,22 @@ export async function runFraudAnalysisStage(
       //   score  0–29 (>70% unexplained)   → indicator score 60 (critical concern)
       if (consistency.score < 70) {
         const unexplainedFraction = (100 - consistency.score) / 100;
-        const indicatorScore = consistency.score < 30 ? 60 : consistency.score < 50 ? 40 : 20;
+        const indicatorScore =
+          consistency.score < 30 ? 60 : consistency.score < 50 ? 40 : 20;
         allIndicators.push({
-          indicator: 'damage_pattern_unexplained',
-          category: 'consistency',
+          indicator: "damage_pattern_unexplained",
+          category: "consistency",
           score: indicatorScore,
           description: `Damage consistency score: ${consistency.score}/100 (${Math.round(unexplainedFraction * 100)}% of observed damage unexplained by stated incident). ${consistency.notes}`,
         });
       }
     } catch (e) {
       isDegraded = true;
-      consistency = { score: 50, notes: "Consistency analysis failed.", indicators: [] };
+      consistency = {
+        score: 50,
+        notes: "Consistency analysis failed.",
+        indicators: [],
+      };
       recoveryActions.push({
         target: "damageConsistency",
         strategy: "default_value",
@@ -648,7 +846,10 @@ export async function runFraudAnalysisStage(
 
     // 3. Documentation
     try {
-      const docIndicators = analyseDocumentation(claimRecord, stage3?.inputRecovery);
+      const docIndicators = analyseDocumentation(
+        claimRecord,
+        stage3?.inputRecovery
+      );
       allIndicators.push(...docIndicators);
     } catch (e) {
       isDegraded = true;
@@ -663,29 +864,28 @@ export async function runFraudAnalysisStage(
     // 3b. Scenario-aware fraud detection engine
     let scenarioFraudResult: Stage8Output["scenarioFraudResult"] = null;
     try {
-      const scenarioInput = buildScenarioFraudInput(claimRecord, physicsAnalysis);
+      const scenarioInput = buildScenarioFraudInput(
+        claimRecord,
+        physicsAnalysis
+      );
       scenarioFraudResult = evaluateScenarioFraud(scenarioInput);
 
-      // Blend scenario fraud score into the overall indicator score
-      // by adding scenario-specific flags as FraudIndicators
+      // P0-B1 keeps the scenario descriptions for manual review but never
+      // imports the model's score contribution into fraud evidence.
       for (const flag of scenarioFraudResult.flags) {
         // Avoid double-counting flags already generated by the legacy analysers
-        const alreadyPresent = allIndicators.some(i => i.indicator === flag.code);
+        const alreadyPresent = allIndicators.some(
+          i => i.indicator === flag.code
+        );
         if (!alreadyPresent) {
           allIndicators.push({
             indicator: flag.code,
             category: flag.category as FraudIndicator["category"],
-            score: flag.score_contribution,
+            score: null,
+            severity: "advisory",
             description: flag.description,
           });
         }
-      }
-
-      // Apply scenario trust reductions: if scenario engine reduced score,
-      // subtract the same trust reduction from the legacy consistency score
-      const trustReduction = scenarioFraudResult.engine_metadata.trust_reduction_applied;
-      if (trustReduction > 0) {
-        consistency.score = Math.min(100, consistency.score + Math.round(trustReduction / 3));
       }
 
       ctx.log(
@@ -693,8 +893,7 @@ export async function runFraudAnalysisStage(
         // R-D-02: scenarioFraudEngine returns 3-tier risk_level ("LOW"|"MEDIUM"|"HIGH").
         // Stage 8 uses 5-tier FraudRiskLevel. Label the source tier to avoid confusion.
         `Scenario fraud engine (3-tier): ${scenarioFraudResult.risk_level} ` +
-        `(score: ${scenarioFraudResult.fraud_score}/100, ` +
-        `flags: ${scenarioFraudResult.flags.length}, ` +
+          `(manual-review flags: ${scenarioFraudResult.flags.length}, ` +
         `FPP: ${scenarioFraudResult.false_positive_protection.length})`
       );
     } catch (e) {
@@ -722,7 +921,9 @@ export async function runFraudAnalysisStage(
     // The failure_flags check is a secondary signal (explicit failure marker), not
     // a fallback that makes the result true when data is absent.
     const hasImages = claimRecord.damage.imageUrls.length > 0;
-    const explicitlyFailed = stage3?.inputRecovery?.failure_flags?.includes('images_not_processed') === true;
+    const explicitlyFailed =
+      stage3?.inputRecovery?.failure_flags?.includes("images_not_processed") ===
+      true;
     const imagesWereProcessed = hasImages && !explicitlyFailed;
     if (damagePatternResult) {
       if (damagePatternResult.pattern_match === "NONE") {
@@ -730,18 +931,20 @@ export async function runFraudAnalysisStage(
           allIndicators.push({
             indicator: "damage_pattern_none",
             category: "consistency",
-            score: 35,
-            description: `Damage pattern validation returned NONE: no expected components for the claimed scenario were found. ` +
+            score: null,
+            severity: "advisory",
+            description:
+              `Damage pattern validation returned NONE: no expected components for the claimed scenario were found. ` +
               `Scenario: ${damagePatternResult.reasoning.substring(0, 120)}.`,
           });
-          consistency.score = Math.max(0, consistency.score - 25);
           consistency.notes = `${consistency.notes} Damage pattern validation: NONE match — damage components do not match the claimed incident scenario.`;
         } else {
           // Images were not processed — NONE result is a system gap, not a fraud signal
           allIndicators.push({
             indicator: "damage_pattern_unverified",
             category: "consistency",
-            score: 8,
+            score: null,
+            severity: "advisory",
             description: `Damage pattern could not be validated: photographs were not processed through the analysis pipeline. Manual photo review required.`,
           });
           consistency.notes = `${consistency.notes} Damage pattern validation skipped — photos not yet processed.`;
@@ -750,24 +953,29 @@ export async function runFraudAnalysisStage(
         allIndicators.push({
           indicator: "damage_pattern_weak",
           category: "consistency",
-          score: 20,
-          description: `Damage pattern validation returned WEAK: very few expected components for the claimed scenario were found. ` +
+          score: null,
+          severity: "advisory",
+          description:
+            `Damage pattern validation returned WEAK: very few expected components for the claimed scenario were found. ` +
             `Confidence: ${damagePatternResult.confidence}/100.`,
         });
-        consistency.score = Math.max(0, consistency.score - 15);
         consistency.notes = `${consistency.notes} Damage pattern validation: WEAK match — limited damage components match the claimed incident scenario.`;
       }
       if (damagePatternResult.validation_detail.image_contradiction) {
         allIndicators.push({
           indicator: "damage_image_contradiction",
           category: "consistency",
-          score: 30,
-          description: `Image zones contradict the claimed damage pattern. ` +
+          score: null,
+          severity: "advisory",
+          description:
+            `Image zones contradict the claimed damage pattern. ` +
             `${damagePatternResult.validation_detail.image_contradiction_reason || "Images show damage inconsistent with reported incident."}`,
         });
-        consistency.score = Math.max(0, consistency.score - 20);
       }
-      ctx.log("Stage 8", `Damage pattern: ${damagePatternResult.pattern_match} (confidence: ${damagePatternResult.confidence}/100, image_contradiction: ${damagePatternResult.validation_detail.image_contradiction})`);
+      ctx.log(
+        "Stage 8",
+        `Damage pattern: ${damagePatternResult.pattern_match} (confidence: ${damagePatternResult.confidence}/100, image_contradiction: ${damagePatternResult.validation_detail.image_contradiction})`
+      );
     }
 
     // 3d. Speed-claim inconsistency — inject as physical_consistency indicator when
@@ -784,29 +992,49 @@ export async function runFraudAnalysisStage(
     //     (ensemble confidence gate) before contributing to the fraud score.
     try {
       const sf = physicsAnalysis.speedForensics;
-      const ensembleConf: string = ((physicsAnalysis.speedInferenceEnsemble as any)?.overallConfidence ?? 'LOW').toUpperCase();
-      const confGatePassed = ensembleConf === 'MEDIUM' || ensembleConf === 'HIGH';
-      if (sf && sf.deviationClass && confGatePassed &&
-          (sf.deviationClass === 'significant' || sf.deviationClass === 'critical')) {
-        const alreadyPresent = allIndicators.some(i => i.indicator === 'speed_claim_inconsistency');
-        if (!alreadyPresent && sf.claimedSpeedKmh != null && sf.claimedSpeedKmh > 0) {
-          const isCritical = sf.deviationClass === 'critical';
+      const ensembleConf: string = (
+        (physicsAnalysis.speedInferenceEnsemble as any)?.overallConfidence ??
+        "LOW"
+      ).toUpperCase();
+      const confGatePassed =
+        ensembleConf === "MEDIUM" || ensembleConf === "HIGH";
+      if (
+        sf &&
+        sf.deviationClass &&
+        confGatePassed &&
+        (sf.deviationClass === "significant" ||
+          sf.deviationClass === "critical")
+      ) {
+        const alreadyPresent = allIndicators.some(
+          i => i.indicator === "speed_claim_inconsistency"
+        );
+        if (
+          !alreadyPresent &&
+          sf.claimedSpeedKmh != null &&
+          sf.claimedSpeedKmh > 0
+        ) {
           allIndicators.push({
-            indicator: 'speed_claim_inconsistency',
-            category: 'consistency',
-            score: sf.riskScoreContribution,
+            indicator: "speed_claim_inconsistency",
+            category: "consistency",
+            score: null,
+            severity: "advisory",
             description:
               `Stated speed (${sf.claimedSpeedKmh} km/h) is ${sf.deviationPct}% ` +
-              `${sf.deviationKmh != null && sf.deviationKmh < 0 ? 'above' : 'below'} the physics-inferred consensus ` +
+              `${sf.deviationKmh != null && sf.deviationKmh < 0 ? "above" : "below"} the physics-inferred consensus ` +
               `(${sf.physicsSpeedKmh} km/h, ${ensembleConf.toLowerCase()} confidence ensemble). ` +
               `Deviation class: ${sf.deviationLabel}. ${sf.interpretation}`,
-            severity: isCritical ? 'critical' : 'high',
           } as FraudIndicator);
-          ctx.log('Stage 8', `Speed-claim inconsistency indicator injected: ${sf.deviationClass} (${sf.deviationPct}% deviation, +${sf.riskScoreContribution}pts, ensemble=${ensembleConf})`);
+          ctx.log(
+            "Stage 8",
+            `Speed-claim inconsistency retained for manual review: ${sf.deviationClass} (ensemble=${ensembleConf})`
+          );
         }
       }
     } catch (speedErr) {
-      ctx.log('Stage 8', `Speed-claim inconsistency check failed (non-fatal): ${String(speedErr)}`);
+      ctx.log(
+        "Stage 8",
+        `Speed-claim inconsistency check failed (non-fatal): ${String(speedErr)}`
+      );
     }
 
     // 3b. Narrative Reasoning fraud signals (Stage 7e)
@@ -827,7 +1055,9 @@ export async function runFraudAnalysisStage(
       let injected = 0;
       let physicsOnly = 0;
       for (const sig of narrativeAnalysis.fraud_signals) {
-        const alreadyPresent = allIndicators.some(i => i.indicator === sig.code);
+        const alreadyPresent = allIndicators.some(
+          i => i.indicator === sig.code
+        );
         if (alreadyPresent) continue;
         if (PHYSICS_ONLY_SIGNALS.has(sig.code)) {
           // Log as physics finding — zero fraud score contribution
@@ -860,8 +1090,10 @@ export async function runFraudAnalysisStage(
     // otherwise fall back to raw imageUrls. This ensures we only run forensics on
     // actual damage photos, not document pages or quotation scans.
     let photoForensicsResult: Stage8Output["photoForensics"] = null;
-    const classifiedDamagePhotos = ctx.classifiedImages?.damagePhotos?.map(p => p.url) ?? [];
-    const photoUrlsForForensics = classifiedDamagePhotos.length > 0
+    const classifiedDamagePhotos =
+      ctx.classifiedImages?.damagePhotos?.map(p => p.url) ?? [];
+    const photoUrlsForForensics =
+      classifiedDamagePhotos.length > 0
       ? classifiedDamagePhotos
       : (ctx.damagePhotoUrls ?? claimRecord.damage.imageUrls ?? []);
     if (photoUrlsForForensics.length > 0) {
@@ -871,8 +1103,12 @@ export async function runFraudAnalysisStage(
         // Stage 8 runs before Stage 7 in the pipeline, making this the correct injection point.
         if (forensics.visionCrushDepthM != null) {
           claimRecord._forensicAnalysis = claimRecord._forensicAnalysis ?? {};
-          claimRecord._forensicAnalysis.visionCrushDepthM = forensics.visionCrushDepthM;
-          ctx.log('Stage 8 (photo-forensics)', `Vision crush depth: ${(forensics.visionCrushDepthM * 100).toFixed(1)} cm (median across ${forensics.analysedCount} photos)`);
+          claimRecord._forensicAnalysis.visionCrushDepthM =
+            forensics.visionCrushDepthM;
+          ctx.log(
+            "Stage 8 (photo-forensics)",
+            `Vision crush depth: ${(forensics.visionCrushDepthM * 100).toFixed(1)} cm (median across ${forensics.analysedCount} photos)`
+          );
         }
         photoForensicsResult = {
           analysedCount: forensics.analysedCount,
@@ -883,36 +1119,34 @@ export async function runFraudAnalysisStage(
           photos: forensics.photos.map(p => ({
             url: p.url,
             error: p.error,
-            analysisResult: p.analysisResult ? {
+            analysisResult: p.analysisResult
+              ? {
               is_suspicious: p.analysisResult.is_suspicious,
               confidence: p.analysisResult.confidence,
               flags: p.analysisResult.flags,
               gps_coordinates: p.analysisResult.gps_coordinates,
               capture_datetime: p.analysisResult.capture_datetime,
-              manipulation_indicators: p.analysisResult.manipulation_indicators,
+                  manipulation_indicators:
+                    p.analysisResult.manipulation_indicators,
               image_hash: p.analysisResult.image_hash,
               recommendations: p.analysisResult.recommendations,
               ai_vision_description: p.analysisResult.ai_vision_description,
               // Persist is_non_vehicle so the report can filter document/form images correctly
               is_non_vehicle: p.analysisResult.is_non_vehicle ?? false,
-            } : null,
+                }
+              : null,
           })),
         };
-        // Inject photo forensics fraud indicators
-        for (const ind of forensics.indicators) {
-          const alreadyPresent = allIndicators.some(i => i.indicator === ind.indicator);
-          if (!alreadyPresent) {
-            allIndicators.push(ind);
-          }
-        }
         ctx.log(
           "Stage 8 (photo-forensics)",
           `Analysed ${forensics.analysedCount}/${photoUrlsForForensics.length} photo(s). ` +
-          `GPS present: ${forensics.anyGpsPresent}. Suspicious: ${forensics.anySuspicious}. ` +
-          `Indicators injected: ${forensics.indicators.length}. Errors: ${forensics.errorCount}.`
+            `EXIF/hash/date provenance retained for manual review. Errors: ${forensics.errorCount}.`
         );
       } catch (photoErr) {
-        ctx.log("Stage 8 (photo-forensics)", `Photo forensics failed: ${String(photoErr)} — skipping`);
+        ctx.log(
+          "Stage 8 (photo-forensics)",
+          `Photo forensics failed: ${String(photoErr)} — skipping`
+        );
       }
     }
 
@@ -922,10 +1156,13 @@ export async function runFraudAnalysisStage(
       // extracted_quotes is ExtractedQuote[] (canonical type from quoteExtractionEngine)
       // DB fallback: if Stage 3 degraded and produced no quotes, read from panel_beater_quotes
       // (same pattern as Stage 9 resolvedExtractedQuotes — see stage-9-cost.ts)
-      let extractedQuotes: any[] = stage3?.inputRecovery?.extracted_quotes ?? [];
+      let extractedQuotes: any[] =
+        stage3?.inputRecovery?.extracted_quotes ?? [];
       if (extractedQuotes.length === 0 && ctx.db && claimRecord.claimId) {
         try {
-          const { panelBeaterQuotes, panelBeaters } = await import("../../drizzle/schema");
+          const { panelBeaterQuotes, panelBeaters } = await import(
+            "../../drizzle/schema"
+          );
           const { eq } = await import("drizzle-orm");
           const dbRows = await ctx.db
             .select({
@@ -937,7 +1174,10 @@ export async function runFraudAnalysisStage(
               panelBeaterName: panelBeaters.businessName,
             })
             .from(panelBeaterQuotes)
-            .leftJoin(panelBeaters, eq(panelBeaterQuotes.panelBeaterId, panelBeaters.id))
+            .leftJoin(
+              panelBeaters,
+              eq(panelBeaterQuotes.panelBeaterId, panelBeaters.id)
+            )
             .where(eq(panelBeaterQuotes.claimId, claimRecord.claimId));
           if (dbRows.length > 0) {
             extractedQuotes = dbRows
@@ -946,35 +1186,41 @@ export async function runFraudAnalysisStage(
                 panel_beater: r.panelBeaterName ?? "Panel Beater",
                 total_cost: r.quotedAmount / 100,
                 currency: r.currencyCode ?? "USD",
-                components: (() => { try { return r.componentsJson ? JSON.parse(r.componentsJson) : []; } catch { return []; } })(),
+                components: (() => {
+                  try {
+                    return r.componentsJson ? JSON.parse(r.componentsJson) : [];
+                  } catch {
+                    return [];
+                  }
+                })(),
                 labour_cost: r.laborCost ? r.laborCost / 100 : null,
                 parts_cost: r.partsCost ? r.partsCost / 100 : null,
                 confidence: "medium",
                 quote_type: "repair",
               }));
-            ctx.log("Stage 8", `DB fallback: loaded ${extractedQuotes.length} quote(s) from panel_beater_quotes for fraud analysis`);
+            ctx.log(
+              "Stage 8",
+              `DB fallback: loaded ${extractedQuotes.length} quote(s) from panel_beater_quotes for fraud analysis`
+            );
           }
         } catch (dbErr) {
-          ctx.log("Stage 8", `DB fallback query failed (non-fatal): ${String(dbErr)}`);
+          ctx.log(
+            "Stage 8",
+            `DB fallback query failed (non-fatal): ${String(dbErr)}`
+          );
         }
       }
       if (extractedQuotes.length >= 2) {
-        const damageComponents = damageAnalysis.damagedParts.map((p: any) => p.name ?? p.part ?? String(p));
-        quoteSimilarityResult = analyseQuoteSimilarity(extractedQuotes, damageComponents);
-        if (quoteSimilarityResult.should_flag) {
-          allIndicators.push({
-            indicator: "quote_similarity_detected",
-            category: "financial",
-            score: quoteSimilarityResult.fraud_score_contribution,
-            description: quoteSimilarityResult.summary,
-          });
-        }
+        const damageComponents = damageAnalysis.damagedParts.map(
+          (p: any) => p.name ?? p.part ?? String(p)
+        );
+        quoteSimilarityResult = analyseQuoteSimilarity(
+          extractedQuotes,
+          damageComponents
+        );
         ctx.log(
           "Stage 8 (quote-similarity)",
-          `${extractedQuotes.length} quotes analysed. Verdict: ${quoteSimilarityResult.overall_verdict} ` +
-          `(risk: ${quoteSimilarityResult.overall_risk_score}/100). ` +
-          `Unquoted damage components: ${quoteSimilarityResult.unquoted_damage_components.length}. ` +
-          `Extra quoted: ${quoteSimilarityResult.extra_quoted_components.length}.`
+          `${extractedQuotes.length} quotes analysed for descriptive manual review; P0-B1 withheld similarity risk and score contributions.`
         );
       }
     } catch (simErr) {
@@ -1005,52 +1251,58 @@ export async function runFraudAnalysisStage(
       //
       // We deliberately do NOT fall back to ctx.claim.createdAt because it is the
       // KINGA ingestion timestamp, not the insurer's claim registration date.
-      const policeReportDateStr = (claimRecord as any).policeReportDate ?? claimRecord.policeReport?.reportDate ?? null;
-      const claimSubmissionDateForCrossCheck: string | null = policeReportDateStr ?? null;
+      const policeReportDateStr =
+        (claimRecord as any).policeReportDate ??
+        claimRecord.policeReport?.reportDate ??
+        null;
+      const claimSubmissionDateForCrossCheck: string | null =
+        policeReportDateStr ?? null;
       // Log the source so adjusters can audit the decision
       ctx.log(
-        'Stage 8 (date-crosscheck)',
+        "Stage 8 (date-crosscheck)",
         claimSubmissionDateForCrossCheck
           ? `Submission date proxy: policeReportDate=${claimSubmissionDateForCrossCheck} (system createdAt suppressed to avoid false late-submission flags)`
           : `Submission date: not available from documents — late submission check suppressed (system createdAt not used as proxy)`
       );
 
       accidentDateCrossCheckResult = runAccidentDateCrossCheck({
-        accidentDate: claimRecord.accidentDetails?.date ?? (claimRecord as any).accidentDate ?? null,
+        accidentDate:
+          claimRecord.accidentDetails?.date ??
+          (claimRecord as any).accidentDate ??
+          null,
         policeReportDate: policeReportDateStr,
         // Use document-derived date only — never system ingestion timestamp
         claimSubmissionDate: claimSubmissionDateForCrossCheck,
         photoForensicsResults: photoForensicsPhotos.map((p: any) => ({
           url: p.url,
-          analysisResult: p.analysisResult ? {
+          analysisResult: p.analysisResult
+            ? {
             capture_datetime: p.analysisResult.capture_datetime ?? null,
             is_non_vehicle: p.analysisResult.is_non_vehicle ?? false,
-          } : null,
+              }
+            : null,
         })),
       });
       if (accidentDateCrossCheckResult.fraudScore > 0) {
         allIndicators.push({
-          indicator: 'accident_date_inconsistency',
-          category: 'documentation',
-          score: accidentDateCrossCheckResult.fraudScore,
+          indicator: "accident_date_inconsistency",
+          category: "documentation",
+          score: null,
+          severity: "advisory",
           description: accidentDateCrossCheckResult.summary,
-          // CALIBRATION: 15-point threshold for 'high' vs 'medium' date-crosscheck severity
-          // is engineering-judgment.
-          severity: accidentDateCrossCheckResult.fraudScore >= 15 ? 'high' : 'medium',
         });
       }
       ctx.log(
-        'Stage 8 (date-crosscheck)',
+        "Stage 8 (date-crosscheck)",
         `Verdict: ${accidentDateCrossCheckResult.verdict}. ` +
-        `Fraud score: +${accidentDateCrossCheckResult.fraudScore}. ` +
         `Pre-incident images: ${accidentDateCrossCheckResult.preIncidentImages.length}. ` +
         `Photos with EXIF: ${accidentDateCrossCheckResult.photosWithExifDate}.`
       );
     } catch (dateErr) {
       isDegraded = true;
       recoveryActions.push({
-        target: 'accidentDateCrossCheckEngine',
-        strategy: 'default_value',
+        target: "accidentDateCrossCheckEngine",
+        strategy: "default_value",
         success: true,
         description: `Accident date cross-check failed: ${String(dateErr)}. Skipping.`,
       });
@@ -1060,7 +1312,10 @@ export async function runFraudAnalysisStage(
     // CALIBRATION: 30% completeness threshold for degraded fraud analysis is engineering-judgment.
     /** Completeness score below which fraud analysis is flagged as degraded */
     const FRAUD_DEGRADED_COMPLETENESS_THRESHOLD = 30;
-    if (claimRecord.dataQuality.completenessScore < FRAUD_DEGRADED_COMPLETENESS_THRESHOLD) {
+    if (
+      claimRecord.dataQuality.completenessScore <
+      FRAUD_DEGRADED_COMPLETENESS_THRESHOLD
+    ) {
       isDegraded = true;
       assumptions.push({
         field: "fraudRiskScore",
@@ -1076,8 +1331,12 @@ export async function runFraudAnalysisStage(
     // Query entity registries built from historical claim data.
     // Non-blocking: silently skipped if registry is empty or unavailable.
     try {
-      const { checkOfficerConcentration, checkAssessorRouting, checkDriverHistory } = await import('../services/entityRegistry');
-      const tenantId = (claimRecord as any)?.tenantId ?? 'default';
+      const {
+        checkOfficerConcentration,
+        checkAssessorRouting,
+        checkDriverHistory,
+      } = await import("../services/entityRegistry");
+      const tenantId = (claimRecord as any)?.tenantId ?? "default";
       const policeReport = claimRecord?.policeReport as any;
       const assessorInfo = (claimRecord as any)?.assessorInfo;
       const driver = claimRecord?.driver as any;
@@ -1085,55 +1344,92 @@ export async function runFraudAnalysisStage(
 
       // 1. Officer concentration
       const officerCheck = await checkOfficerConcentration(
-        policeReport?.officerName, policeReport?.officerBadgeNumber, tenantId
+        policeReport?.officerName,
+        policeReport?.officerBadgeNumber,
+        tenantId
       );
       if (officerCheck && officerCheck.fraudPoints > 0) {
-        const levelLabel = ['critical','high'].includes(officerCheck.riskLevel) ? officerCheck.riskLevel.toUpperCase() : 'ADVISORY';
+        const levelLabel = ["critical", "high"].includes(officerCheck.riskLevel)
+          ? officerCheck.riskLevel.toUpperCase()
+          : "ADVISORY";
         allIndicators.push({
-          indicator: 'OFFICER_CONCENTRATION',
-          description: `Officer ${officerCheck.officerName} has attended ${officerCheck.totalClaims} claims — ${levelLabel} concentration risk.${officerCheck.collusionWebDetected ? ` Collusion web: same officer+assessor on ${officerCheck.topAssessorCount}+ claims.` : ''}`,
+          indicator: "OFFICER_CONCENTRATION",
+          description: `Officer ${officerCheck.officerName} has attended ${officerCheck.totalClaims} claims — ${levelLabel} concentration risk.${officerCheck.collusionWebDetected ? ` Collusion web: same officer+assessor on ${officerCheck.topAssessorCount}+ claims.` : ""}`,
           score: officerCheck.fraudPoints,
-          severity: ['critical','high'].includes(officerCheck.riskLevel) ? 'high' : 'medium',
-          category: 'cross_entity_intelligence',
-          evidence: [`Officer total claims: ${officerCheck.totalClaims}`, `Collusion web: ${officerCheck.collusionWebDetected}`],
+          severity: ["critical", "high"].includes(officerCheck.riskLevel)
+            ? "high"
+            : "medium",
+          category: "cross_entity_intelligence",
+          evidence: [
+            `Officer total claims: ${officerCheck.totalClaims}`,
+            `Collusion web: ${officerCheck.collusionWebDetected}`,
+          ],
         });
-        ctx.log('Stage 8 (entity)', `Officer concentration: ${officerCheck.officerName} — ${officerCheck.totalClaims} claims, +${officerCheck.fraudPoints}pts`);
+        ctx.log(
+          "Stage 8 (entity)",
+          `Officer concentration: ${officerCheck.officerName} — ${officerCheck.totalClaims} claims, +${officerCheck.fraudPoints}pts`
+        );
       }
 
       // 2. Assessor routing bias
-      const assessorCheck = await checkAssessorRouting(assessorInfo?.name, tenantId);
+      const assessorCheck = await checkAssessorRouting(
+        assessorInfo?.name,
+        tenantId
+      );
       if (assessorCheck && assessorCheck.fraudPoints > 0) {
         allIndicators.push({
-          indicator: 'ASSESSOR_ROUTING_BIAS',
-          description: `Assessor ${assessorCheck.assessorName} routes ${assessorCheck.topPanelBeaterPct}% of claims to a single panel beater (${assessorCheck.totalClaims} claims assessed).${assessorCheck.collusionSuspected ? ' Collusion suspected.' : ''}`,
+          indicator: "ASSESSOR_ROUTING_BIAS",
+          description: `Assessor ${assessorCheck.assessorName} routes ${assessorCheck.topPanelBeaterPct}% of claims to a single panel beater (${assessorCheck.totalClaims} claims assessed).${assessorCheck.collusionSuspected ? " Collusion suspected." : ""}`,
           score: assessorCheck.fraudPoints,
-          severity: assessorCheck.collusionSuspected ? 'high' : 'medium',
-          category: 'cross_entity_intelligence',
-          evidence: [`Routing concentration: ${assessorCheck.topPanelBeaterPct}%`, `Cost suppression claims: ${assessorCheck.costSuppressionClaims}`],
+          severity: assessorCheck.collusionSuspected ? "high" : "medium",
+          category: "cross_entity_intelligence",
+          evidence: [
+            `Routing concentration: ${assessorCheck.topPanelBeaterPct}%`,
+            `Cost suppression claims: ${assessorCheck.costSuppressionClaims}`,
+          ],
         });
-        ctx.log('Stage 8 (entity)', `Assessor routing bias: ${assessorCheck.assessorName} — ${assessorCheck.topPanelBeaterPct}% to top panel beater, +${assessorCheck.fraudPoints}pts`);
+        ctx.log(
+          "Stage 8 (entity)",
+          `Assessor routing bias: ${assessorCheck.assessorName} — ${assessorCheck.topPanelBeaterPct}% to top panel beater, +${assessorCheck.fraudPoints}pts`
+        );
       }
 
       // 3. Driver history
       const driverCheck = await checkDriverHistory(
-        driver?.name, driver?.idNumber, driver?.licenceNumber, accidentDetails?.date, tenantId
+        driver?.name,
+        driver?.idNumber,
+        driver?.licenceNumber,
+        accidentDetails?.date,
+        tenantId
       );
       if (driverCheck && driverCheck.fraudPoints > 0) {
         const desc = driverCheck.rapidReclaimFlag
           ? `Driver ${driverCheck.driverName} filed a claim ${driverCheck.daysSinceLastClaim} days ago — rapid re-claim pattern.`
-          : `Driver ${driverCheck.driverName} has ${driverCheck.totalClaims} claims on record.${driverCheck.addressChangeCount >= 3 ? ` Address changed ${driverCheck.addressChangeCount} times.` : ''}`;
+          : `Driver ${driverCheck.driverName} has ${driverCheck.totalClaims} claims on record.${driverCheck.addressChangeCount >= 3 ? ` Address changed ${driverCheck.addressChangeCount} times.` : ""}`;
         allIndicators.push({
-          indicator: 'DRIVER_HISTORY_PATTERN',
+          indicator: "DRIVER_HISTORY_PATTERN",
           description: desc,
           score: driverCheck.fraudPoints,
-          severity: driverCheck.rapidReclaimFlag ? 'high' : 'medium',
-          category: 'cross_entity_intelligence',
-          evidence: [`Total claims: ${driverCheck.totalClaims}`, driverCheck.daysSinceLastClaim !== undefined ? `Days since last claim: ${driverCheck.daysSinceLastClaim}` : 'First claim on record', `Address changes: ${driverCheck.addressChangeCount}`],
+          severity: driverCheck.rapidReclaimFlag ? "high" : "medium",
+          category: "cross_entity_intelligence",
+          evidence: [
+            `Total claims: ${driverCheck.totalClaims}`,
+            driverCheck.daysSinceLastClaim !== undefined
+              ? `Days since last claim: ${driverCheck.daysSinceLastClaim}`
+              : "First claim on record",
+            `Address changes: ${driverCheck.addressChangeCount}`,
+          ],
         });
-        ctx.log('Stage 8 (entity)', `Driver history: ${driverCheck.driverName} — ${driverCheck.totalClaims} claims, rapid reclaim: ${driverCheck.rapidReclaimFlag}, +${driverCheck.fraudPoints}pts`);
+        ctx.log(
+          "Stage 8 (entity)",
+          `Driver history: ${driverCheck.driverName} — ${driverCheck.totalClaims} claims, rapid reclaim: ${driverCheck.rapidReclaimFlag}, +${driverCheck.fraudPoints}pts`
+        );
       }
     } catch (entityErr: any) {
-      ctx.log('Stage 8 (entity)', `Cross-entity checks skipped (non-fatal): ${String(entityErr).substring(0, 80)}`);
+      ctx.log(
+        "Stage 8 (entity)",
+        `Cross-entity checks skipped (non-fatal): ${String(entityErr).substring(0, 80)}`
+      );
     }
 
     // ── CGI Phase 1: Contact Patch Ratio (CPR) indicator ─────────────────────
@@ -1143,118 +1439,90 @@ export async function runFraudAnalysisStage(
       const cprIndicator = runContactPatchRatioCheck(
         claimRecord.accidentDetails.collisionDirection,
         claimRecord.vehicle.bodyType,
-        damageAnalysis.damagedParts,
+        damageAnalysis.damagedParts
       );
       if (cprIndicator) {
-        const alreadyPresent = allIndicators.some(i => i.indicator === cprIndicator.indicator);
+        const alreadyPresent = allIndicators.some(
+          i => i.indicator === cprIndicator.indicator
+        );
         if (!alreadyPresent) {
           allIndicators.push(cprIndicator);
-          ctx.log('Stage 8 (CGI)', `CPR anomaly detected: ${cprIndicator.description.substring(0, 80)} (+${cprIndicator.score}pts)`);
+          ctx.log(
+            "Stage 8 (CGI)",
+            `CPR anomaly detected: ${cprIndicator.description.substring(0, 80)} (+${cprIndicator.score}pts)`
+          );
         }
       }
     } catch (cprErr) {
-      ctx.log('Stage 8 (CGI)', `CPR check skipped (non-fatal): ${String(cprErr).substring(0, 80)}`);
+      ctx.log(
+        "Stage 8 (CGI)",
+        `CPR check skipped (non-fatal): ${String(cprErr).substring(0, 80)}`
+      );
     }
-    // ── Weighted composite fraud scoring ───────────────────────────────────────
-    // Use the 6-category weighted framework instead of the naive raw sum.
-    // The scenario engine's fraud_score is passed as a floor for the scenario_intelligence
-    // category to ensure its holistic assessment is not lost.
-    const scenarioEngineScore = scenarioFraudResult?.fraud_score ?? null;
-    const { score: fraudRiskScore, categoryBreakdown: fraudCategoryBreakdown } =
-      computeWeightedFraudScore(allIndicators, scenarioEngineScore);
-    const fraudRiskLevel = scoreToLevel(fraudRiskScore);
-    ctx.log("Stage 8", `Weighted fraud score: ${fraudRiskScore}/100 (${fraudRiskLevel}). Category breakdown: ` +
-      Object.entries(fraudCategoryBreakdown)
-        .filter(([, v]) => v.rawScore > 0)
-        .map(([k, v]) => `${k}=${v.normScore.toFixed(1)}/${v.budget}`)
-        .join(', '));
+    // P0-B1: retain the observations only as non-score descriptive evidence.
+    // In particular, do not weight Stage 6 fractions, collision physics,
+    // photo-forensic probabilities, contact-patch output, scenario-model output,
+    // or cross-engine mismatches. Running the old weighted composite even before
+    // discarding it would leave a score-bearing path available for reuse.
+    const descriptiveIndicators = classifyP0FraudObservations(allIndicators);
+    ctx.log(
+      "Stage 8",
+      `P0 review-only evidence classification complete: ${descriptiveIndicators.length} descriptive observation(s); weighting and cross-engine score injection withheld.`
+    );
 
-    // Stage 43: Cross-Engine Consistency Validation
-    let crossEngineConsistency: Stage8Output["crossEngineConsistency"] = null;
-    try {
-      crossEngineConsistency = validateCrossEngineConsistency({
-        claimRecord,
-        stage6: damageAnalysis,
-        stage7: physicsAnalysis,
-        stage8: {
-          fraudRiskScore,
-          fraudRiskLevel,
-          indicators: allIndicators,
-          damageConsistencyScore: consistency.score,
-          scenarioFraudResult,
-        },
-      });
-      if (crossEngineConsistency) {
-        ctx.log("Stage 8/43", `Cross-engine consistency: ${crossEngineConsistency.overall_status} (${crossEngineConsistency.consistency_score}/100), ${crossEngineConsistency.agreements.length} agreements, ${crossEngineConsistency.conflicts.length} conflicts`);
+    // P0-B1: the current Stage 8 sources include visual/model-derived, raw Stage 6,
+    // collision-physics, photo-forensic and fallback inputs. They remain available
+    // as descriptive evidence for a reviewer, but cannot produce a fraud score,
+    // level, adverse disposition, repairer disqualification, or routing action.
+    // Do not substitute a zero/low/medium score: that would silently look like an
+    // assessment and could clear a threshold downstream.
+    const p0FraudBoundary = buildP0FraudReviewBoundary({
+      crushDepthDecision: physicsAnalysis.quantitativeEvidence?.crushDepth,
+      fallbackOrDegraded: isDegraded,
+    });
 
-        // ── STRATEGIC FIX: Feed C-check conflicts back into the fraud score ──
-        // The cross-engine validator already detects physics↔damage↔fraud conflicts
-        // (C1–C9) but previously these findings were stored and never counted.
-        // We now inject each conflict as a FraudIndicator so the fraud score
-        // reflects ALL detected inconsistencies, not just the legacy indicators.
-        //
-        // Score mapping (per conflict severity):
-        //   CRITICAL    → 20 pts  (e.g. physics says minor, damage says catastrophic)
-        //   SIGNIFICANT → 12 pts  (e.g. direction mismatch confirmed by two engines)
-        //   MINOR       → 4 pts   (e.g. small severity band gap)
-        //
-        // Deduplication: skip if an indicator with the same check_id already exists
-        // from the legacy analysers (e.g. damage_direction_mismatch from analyseDamageConsistency).
-        const CONFLICT_SCORE: Record<string, number> = { CRITICAL: 20, SIGNIFICANT: 12, MINOR: 4 };
-        for (const conflict of crossEngineConsistency.conflicts) {
-          const indicatorId = `cross_engine_${conflict.check_id.toLowerCase()}`;
-          const alreadyPresent = allIndicators.some(i => i.indicator === indicatorId);
-          if (!alreadyPresent) {
-            const score = CONFLICT_SCORE[conflict.severity] ?? 4;
-            allIndicators.push({
-              indicator: indicatorId,
-              category: "consistency",
-              score,
-              description: `[${conflict.check_id}] ${conflict.label}: ${conflict.physics_says || conflict.damage_says || conflict.fraud_says || 'Cross-engine conflict detected'}. Recommended action: ${conflict.recommended_action}`,
-            });
-            ctx.log("Stage 8/43", `Injected cross-engine conflict indicator: ${indicatorId} (+${score}pts) — ${conflict.label}`);
-          }
-        }
-      }
-    } catch (crossErr) {
-      ctx.log("Stage 8/43", `Cross-engine consistency validator failed: ${String(crossErr)} — skipping`);
-    }
-
-    // ── Recalculate final score AFTER cross-engine injection ──────────────────
-    // The cross-engine loop may have pushed additional cross-engine conflict indicators.
-    // We must recompute using the weighted framework so the stored fraudRiskScore matches
-    // the full indicator set and the cover card, executive summary, and breakdown table
-    // all read the same value.
-    const { score: finalFraudRiskScore, categoryBreakdown: finalCategoryBreakdown } =
-      computeWeightedFraudScore(allIndicators, scenarioEngineScore);
-    const finalFraudRiskLevel = scoreToLevel(finalFraudRiskScore);
-    if (finalFraudRiskScore !== fraudRiskScore) {
-      ctx.log("Stage 8", `Fraud score updated after cross-engine injection: ${fraudRiskScore} → ${finalFraudRiskScore}/100`);
-    }
-    // Attach category breakdown to the output for the report UI
-    void finalCategoryBreakdown; // will be attached to output below
-
-    // Stage 26: apply defensive contract — ensure score, level, and at least 1 indicator
-    const output = ensureFraudContract({
-      fraudRiskScore: finalFraudRiskScore,
-      fraudRiskLevel: finalFraudRiskLevel,
-      indicators: allIndicators,
+    // Stage 26 still supplies a structurally complete, UI-renderable output.
+    // P0 owns its fraud score/level values and deliberately leaves both null.
+    const output = ensureFraudContract(
+      {
+        ...p0FraudBoundary,
+        indicators: [
+          ...p0FraudBoundary.indicators,
+          ...descriptiveIndicators,
+          ...buildP0PhotoMetadataIndicators(photoForensicsResult),
+        ],
       quoteDeviation: null,
-      repairerHistory: { flagged: false, notes: "No repairer history data available for analysis." },
-      claimantClaimFrequency: { flagged: false, notes: "No historical claim frequency data available." },
-      vehicleClaimHistory: { flagged: false, notes: "No vehicle claim history data available." },
-      damageConsistencyScore: consistency.score,
-      damageConsistencyNotes: consistency.notes,
-      scenarioFraudResult,
-      crossEngineConsistency,
-      photoForensics: photoForensicsResult,
-      quoteSimilarity: quoteSimilarityResult,
-      accidentDateCrossCheck: accidentDateCrossCheckResult,
-    }, isDegraded ? "degraded_analysis" : "success");
+        repairerHistory: {
+          flagged: false,
+          notes: "No repairer history data available for analysis.",
+        },
+        claimantClaimFrequency: {
+          flagged: false,
+          notes: "No historical claim frequency data available.",
+        },
+        vehicleClaimHistory: {
+          flagged: false,
+          notes: "No vehicle claim history data available.",
+        },
+        damageConsistencyScore: null,
+        damageConsistencyNotes:
+          "Physics/damage consistency numerics are withheld from fraud assessment under P0; review descriptive evidence and obtain qualified governing measurements.",
+        // P0-B1 keeps EXIF/hash/date only through non-score manual-review indicators.
+        // Suppress every nested score, probability, vision measurement, and risk result.
+        scenarioFraudResult: null,
+        crossEngineConsistency: null,
+        photoForensics: null,
+        quoteSimilarity: null,
+        accidentDateCrossCheck: null,
+      },
+      isDegraded ? "degraded_analysis" : "success"
+    );
 
-    // Attach weighted category breakdown to output for the report UI
-    (output as any).fraudCategoryBreakdown = finalCategoryBreakdown;
-    ctx.log("Stage 8", `Fraud analysis complete. Risk: ${finalFraudRiskLevel} (${finalFraudRiskScore}/100), Indicators: ${allIndicators.length}, Consistency: ${consistency.score}/100`);
+    ctx.log(
+      "Stage 8",
+      `Fraud analysis complete in P0 review-only mode. Score/level withheld; ` +
+        `manual review requires: ${p0FraudBoundary.fraudDecisionEligibility!.requiredEvidence.join(" ")}`
+    );
 
     return {
       status: isDegraded ? "degraded" : "success",
@@ -1266,29 +1534,36 @@ export async function runFraudAnalysisStage(
       degraded: isDegraded,
     };
   } catch (err) {
-    ctx.log("Stage 8", `Fraud analysis failed: ${String(err)} — producing baseline assessment`);
+    ctx.log(
+      "Stage 8",
+      `Fraud analysis failed: ${String(err)} — producing baseline assessment`
+    );
 
-    // Stage 26: apply defensive contract — mark all fallback fields
+    // Stage 26/P0-B1: fallback remains structurally visible but carries no
+    // numeric score or level that could cross an automated decision threshold.
+    const fallbackOutput = ensureFraudContract(
+      {},
+      `engine_failure: ${String(err)}`
+    );
+    fallbackOutput.fraudDecisionEligibility = assessFraudDecisionEligibility({
+      advisoryEvidencePresent: true,
+      fallbackOrDegraded: true,
+    });
     return {
       status: "degraded",
-      data: ensureFraudContract({}, `engine_failure: ${String(err)}`),
+      data: fallbackOutput,
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,
-      assumptions: [{
-        field: "fraudRiskScore",
-        assumedValue: 50,
-        reason: `Fraud analysis failed: ${String(err)}. Defaulting to medium risk (50/100) to flag for manual review.`,
-        strategy: "default_value",
-        confidence: 20,
-        stage: "Stage 8",
-      }],
-      recoveryActions: [{
-        target: "fraud_analysis_error",
-        strategy: "default_value",
-        success: true,
-        description: `Fraud analysis error caught. Defaulting to medium risk for manual review.`,
-      }],
+      assumptions: [buildP0FraudUnavailableAssumption(`Fraud analysis failed: ${String(err)}`)],
+      recoveryActions: [
+        {
+          target: "fraud_analysis_error",
+          strategy: "none",
+          success: true,
+          description: "Fraud analysis error caught. Automated fraud scoring and routing withheld for manual review.",
+        },
+      ],
       degraded: true,
     };
   }

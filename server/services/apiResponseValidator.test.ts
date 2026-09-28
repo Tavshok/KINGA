@@ -47,30 +47,38 @@ describe("Block conditions", () => {
 // ─── Rule 2: Finite number enforcement ───────────────────────────────────────
 
 describe("Rule 2: Finite number enforcement", () => {
-  it("replaces NaN fraudScore with 0", () => {
+  it("withholds NaN fraudScore rather than fabricating a number", () => {
     const result = validateClaimAnalysisResponse({ fraudScore: NaN });
     expect(result.passed).toBe(true);
-    expect((result.data as any).fraudScore).toBe(0);
+    expect((result.data as any).fraudScore).toBeUndefined();
+    expect((result.data as any).fraudDecision.status).toBe(
+      "FRAUD_DECISION_WITHHELD"
+    );
     expect(result.healed).toBe(true);
   });
 
-  it("replaces Infinity fraudRiskScore with 0", () => {
+  it("withholds Infinity fraudRiskScore rather than fabricating a number", () => {
     const result = validateClaimAnalysisResponse({ fraudRiskScore: Infinity });
     expect(result.passed).toBe(true);
-    expect((result.data as any).fraudRiskScore).toBe(0);
+    expect((result.data as any).fraudRiskScore).toBeUndefined();
   });
 
   it("replaces -Infinity damageConsistencyScore with 0", () => {
-    const result = validateClaimAnalysisResponse({ damageConsistencyScore: -Infinity });
+    const result = validateClaimAnalysisResponse({
+      damageConsistencyScore: -Infinity,
+    });
     expect(result.passed).toBe(true);
     expect((result.data as any).damageConsistencyScore).toBe(0);
   });
 
-  it("preserves valid finite numbers", () => {
-    const result = validateClaimAnalysisResponse({ fraudScore: 42, fraudRiskScore: 55 });
-    expect((result.data as any).fraudScore).toBe(42);
-    expect((result.data as any).fraudRiskScore).toBe(55);
-    expect(result.healed).toBe(false);
+  it("withholds even valid but unqualified fraud numbers", () => {
+    const result = validateClaimAnalysisResponse({
+      fraudScore: 42,
+      fraudRiskScore: 55,
+    });
+    expect((result.data as any).fraudScore).toBeUndefined();
+    expect((result.data as any).fraudRiskScore).toBeUndefined();
+    expect(result.healed).toBe(true);
   });
 });
 
@@ -97,15 +105,15 @@ describe("Rule 3: Confidence clamping [0, 100]", () => {
 
 // ─── Rule 4: Fraud score clamping ─────────────────────────────────────────────
 
-describe("Rule 4: Fraud score clamping [0, 100]", () => {
-  it("clamps fraudScore above 100 to 100", () => {
+describe("Rule 4: Fraud score withdrawal", () => {
+  it("withholds fraudScore above 100", () => {
     const result = validateClaimAnalysisResponse({ fraudScore: 200 });
-    expect((result.data as any).fraudScore).toBe(100);
+    expect((result.data as any).fraudScore).toBeUndefined();
   });
 
-  it("clamps fraudScore below 0 to 0", () => {
+  it("withholds fraudScore below 0", () => {
     const result = validateClaimAnalysisResponse({ fraudScore: -5 });
-    expect((result.data as any).fraudScore).toBe(0);
+    expect((result.data as any).fraudScore).toBeUndefined();
   });
 });
 
@@ -174,30 +182,29 @@ describe("Rule 5: Physics field-name drift mappings", () => {
   });
 });
 
-describe("Rule 5: Fraud field-name drift mappings", () => {
-  it("maps fraud_risk_score → fraudRiskScore", () => {
+describe("Rule 5: Fraud field-name withdrawal", () => {
+  it("withholds fraud_risk_score before aliasing can make it authoritative", () => {
     const result = validateClaimAnalysisResponse({
       fraudScoreBreakdownJson: { fraud_risk_score: 70, indicators: [] },
     });
-    const fraud = (result.data as any).fraudScoreBreakdownJson;
-    expect(fraud.fraudRiskScore).toBe(70);
-    expect("fraud_risk_score" in fraud).toBe(false);
+    expect((result.data as any).fraudScoreBreakdownJson).toBeUndefined();
+    expect((result.data as any).fraudDecision.status).toBe(
+      "FRAUD_DECISION_WITHHELD"
+    );
   });
 
-  it("maps fraud_score → fraudRiskScore", () => {
+  it("withholds fraud_score before aliasing can make it authoritative", () => {
     const result = validateClaimAnalysisResponse({
       fraudScoreBreakdownJson: { fraud_score: 40 },
     });
-    const fraud = (result.data as any).fraudScoreBreakdownJson;
-    expect(fraud.fraudRiskScore).toBe(40);
+    expect((result.data as any).fraudScoreBreakdownJson).toBeUndefined();
   });
 
-  it("clamps fraudRiskScore in fraud object to [0, 100]", () => {
+  it("withholds nested fraudRiskScore rather than clamping it", () => {
     const result = validateClaimAnalysisResponse({
       fraudScoreBreakdownJson: { fraudRiskScore: 150 },
     });
-    const fraud = (result.data as any).fraudScoreBreakdownJson;
-    expect(fraud.fraudRiskScore).toBe(100);
+    expect((result.data as any).fraudScoreBreakdownJson).toBeUndefined();
   });
 });
 
@@ -281,9 +288,12 @@ describe("Rule 8: Null/undefined array fields → []", () => {
     expect(result.healed).toBe(true);
   });
 
-  it("normalises undefined indicators to []", () => {
+  it("withholds undefined fraud indicators", () => {
     const result = validateClaimAnalysisResponse({ indicators: undefined });
-    expect((result.data as any).indicators).toEqual([]);
+    expect((result.data as any).indicators).toBeUndefined();
+    expect((result.data as any).fraudDecision.status).toBe(
+      "FRAUD_DECISION_WITHHELD"
+    );
   });
 
   it("preserves existing arrays", () => {
@@ -299,7 +309,8 @@ describe("Rule 8: Null/undefined array fields → []", () => {
 describe("validateAndHeal", () => {
   it("returns healed data for valid input", () => {
     const data = validateAndHeal({ fraudScore: 150, confidence: 200 });
-    expect((data as any).fraudScore).toBe(100);
+    expect((data as any).fraudScore).toBeUndefined();
+    expect((data as any).fraudDecision.status).toBe("FRAUD_DECISION_WITHHELD");
     expect((data as any).confidence).toBe(100);
   });
 
@@ -319,13 +330,16 @@ describe("validateClaimAnalysisList", () => {
     const input = [
       { fraudScore: 30 },
       null,
-      { fraudScore: 200 }, // will be healed to 100
+      { fraudScore: 200 }, // will be withheld under P0-B1
       undefined,
       { confidence: 80 },
     ];
     const result = validateClaimAnalysisList(input as unknown[]);
     expect(result.length).toBe(3);
-    expect((result[1] as any).fraudScore).toBe(100);
+    expect((result[1] as any).fraudScore).toBeUndefined();
+    expect((result[1] as any).fraudDecision.status).toBe(
+      "FRAUD_DECISION_WITHHELD"
+    );
   });
 
   it("returns empty array when all items are blocked", () => {
@@ -354,7 +368,7 @@ describe("Correction log structure", () => {
     const result = validateClaimAnalysisResponse({ fraudScore: 200 });
     const c = result.corrections[0];
     expect(c.original_value).toBe(200);
-    expect(c.corrected_value).toBe(100);
+    expect(c.corrected_value).toBeNull();
   });
 
   it("includes validated_at timestamp on result", () => {
@@ -363,9 +377,13 @@ describe("Correction log structure", () => {
     expect(typeof result.validated_at).toBe("string");
   });
 
-  it("healed flag is false when no corrections applied", () => {
-    const result = validateClaimAnalysisResponse({ id: 1, fraudScore: 50, confidence: 80 });
-    expect(result.healed).toBe(false);
-    expect(result.corrections.length).toBe(0);
+  it("healed flag is true when an unqualified fraud field is withdrawn", () => {
+    const result = validateClaimAnalysisResponse({
+      id: 1,
+      fraudScore: 50,
+      confidence: 80,
+    });
+    expect(result.healed).toBe(true);
+    expect(result.corrections.length).toBeGreaterThan(0);
   });
 });

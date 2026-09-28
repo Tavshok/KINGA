@@ -59,9 +59,22 @@ describe("generated reports tenant authority", () => {
       source.indexOf("generateExecutiveReport:"),
       source.indexOf("}),", source.indexOf("generateExecutiveReport:")) + 3
     );
-    expect(executiveBlock).toContain(
-      'requireAlternateReportAccess(ctx, "executive.portfolio_overview")'
+    const reportAccessCall =
+      'requireAlternateReportAccess(ctx, "executive.portfolio_overview")';
+    const reportAccessIndex = executiveBlock.indexOf(reportAccessCall);
+
+    expect(reportAccessIndex).toBeGreaterThan(-1);
+    // A prior P0-B1 integration commit left the correct authorization calls
+    // textually present but unreachable after a router-local terminal hold.
+    // The first executable resolver statement must therefore be report access:
+    // no return, direct hold, or router-local error may preempt authority.
+    const preAuthorityPrefix = executiveBlock.slice(0, reportAccessIndex);
+    expect(preAuthorityPrefix).not.toMatch(/\b(?:throw|return)\b/);
+    expect(preAuthorityPrefix).not.toMatch(
+      /new\s+TRPCError|throwP0B1FraudDecisionHold/
     );
+
+    expect(executiveBlock).toContain(reportAccessCall);
     expect(executiveBlock).toContain(
       'assertRestrictedAgencyAssistedCapability(ctx.user, "report_access")'
     );
@@ -73,11 +86,7 @@ describe("generated reports tenant authority", () => {
     expect(executiveBlock).not.toContain("generatePDFBuffer(");
     expect(executiveBlock).not.toContain("fraudDecisionNotice");
     expect(executiveBlock).not.toContain(".from(claims)");
-    expect(
-      executiveBlock.indexOf(
-        'requireAlternateReportAccess(ctx, "executive.portfolio_overview")'
-      )
-    ).toBeLessThan(
+    expect(reportAccessIndex).toBeLessThan(
       executiveBlock.indexOf(
         'assertRestrictedAgencyAssistedCapability(ctx.user, "report_access")'
       )

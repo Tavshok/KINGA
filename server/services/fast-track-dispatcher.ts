@@ -46,6 +46,14 @@ export interface DispatchResult {
   newState?: string;
   routingLogId?: number;
   error?: string;
+  status?: "FRAUD_DECISION_WITHHELD";
+  reviewRequired?: boolean;
+  requiredEvidence?: string[];
+  resolver?: string;
+}
+
+function p0FraudPolicyBlocksAutomatedDispatch(): boolean {
+  return true;
 }
 
 /**
@@ -66,6 +74,27 @@ export async function executeFastTrackAction(
   executedBy: number,
   allowOverride: boolean = false
 ): Promise<DispatchResult> {
+  // P0-B1: callers can forge an evaluation object and current fraud inputs have
+  // no qualified governing authority. Do not permit an execution sink to trust
+  // caller-supplied eligibility, action, or score.
+  if (p0FraudPolicyBlocksAutomatedDispatch()) {
+    return {
+      success: false,
+      action: "MANUAL_REVIEW",
+      status: "FRAUD_DECISION_WITHHELD",
+      reviewRequired: true,
+      requiredEvidence: [
+        "Independently verifiable, claim-linked documentary or metadata evidence",
+        "Human-reviewed evidence with auditable provenance",
+        "A qualified automated-decision authority approved by the policy owner",
+      ],
+      resolver:
+        "Assign a human fraud reviewer to obtain and verify claim-linked evidence, then record the authority decision before any routing action.",
+      error:
+        "P0-B1 withheld automated fast-track action: obtain independently verifiable claim-linked fraud evidence and a qualified automated-decision authority.",
+    };
+  }
+
   const db = await getDb();
   if (!db) {
     throw new Error("Database connection not available");

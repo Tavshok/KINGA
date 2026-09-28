@@ -19,7 +19,8 @@
  *   - Fallback/estimated fields are marked with { estimated: true, source: "fallback" }
  *   - Low-confidence output reduces confidence but does NOT remove output
  *   - Damage: at least 1 zone OR explicit "no visible damage detected" sentinel
- *   - Fraud: at least 1 contributing factor always present
+ *   - Fraud: at least 1 contributing factor always present; P0-B1 makes score and
+ *     level explicitly unavailable rather than fabricating a threshold value
  *   - Physics: delta_v, direction, and estimated_force always present
  *   - Cost: ai_estimate, parts, labour, fair_range always present
  */
@@ -31,7 +32,6 @@ import type {
   Stage9Output,
   CollisionDirection,
   AccidentSeverity,
-  FraudRiskLevel,
 } from "./types";
 
 // ─── Metadata marker types ────────────────────────────────────────────────────
@@ -274,21 +274,20 @@ export interface FraudFallbackOutput extends Stage8Output {
  * or the fraud engine fails.
  *
  * Minimum required:
- *   - score (fraudRiskScore)
- *   - level (fraudRiskLevel)
  *   - at least 1 contributing factor (indicators)
  */
 export function buildFraudFallback(reason = "insufficient_input"): FraudFallbackOutput {
   const fallbackMeta: FallbackMeta = { estimated: true, source: "fallback", reason };
   return {
-    fraudRiskScore: 50,
-    fraudRiskLevel: "moderate" as FraudRiskLevel,
+    // P0-B1: no fabricated numeric score or level can cross a fraud/route threshold.
+    fraudRiskScore: null,
+    fraudRiskLevel: null,
     // Minimum: 1 contributing factor
     indicators: [
       {
         indicator: "assessment_unavailable",
         category: "system",
-        score: 50,
+        score: null,
         description:
           "Fraud assessment could not be completed with available data. Additional verification needed before final determination.",
       },
@@ -306,7 +305,8 @@ export function buildFraudFallback(reason = "insufficient_input"): FraudFallback
       flagged: false,
       notes: "Additional verification needed.",
     },
-    damageConsistencyScore: 50,
+    // P0-B1: a neutral-looking 50 would be a usable threshold value.
+    damageConsistencyScore: null,
     damageConsistencyNotes:
       "Damage consistency could not be assessed. Further review required.",
     scenarioFraudResult: null,
@@ -338,8 +338,11 @@ export function ensureFraudContract(
   }
 
   return {
+    // Absence must remain absence. P0-B1 consumers use eligibility, never 0/50,
+    // to decide whether an automated fraud outcome is allowed.
     fraudRiskScore: partial.fraudRiskScore ?? fallback.fraudRiskScore,
     fraudRiskLevel: partial.fraudRiskLevel ?? fallback.fraudRiskLevel,
+    fraudDecisionEligibility: partial.fraudDecisionEligibility,
     indicators: indicators.length > 0 ? indicators : fallback.indicators,
     quoteDeviation: partial.quoteDeviation ?? null,
     repairerHistory: partial.repairerHistory ?? fallback.repairerHistory,

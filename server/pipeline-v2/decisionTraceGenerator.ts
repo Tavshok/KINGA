@@ -29,6 +29,7 @@
  */
 
 import type { FraudRiskLevel } from "./types";
+import { buildP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ export interface DecisionTraceOutput {
     stages_skipped: number;
     timestamp_utc: string;
   };
+  decision_hold?: ReturnType<typeof buildP0B1FraudDecisionHold>;
 }
 
 export interface ExtractionStageInput {
@@ -134,6 +136,33 @@ export interface DecisionTraceInput {
   fraud?: FraudStageInput | null;
   cost?: CostStageInput | null;
   consistency?: ConsistencyStageInput | null;
+}
+
+export function buildP0B1DecisionTraceHold(): DecisionTraceOutput {
+  return {
+    decision_trace: [
+      {
+        stage: "manual_review",
+        input_summary: "Automated fraud and physics decision inputs are withheld under P0-B1.",
+        output_summary: "No fraud score, risk level, physics conclusion, or automated recommendation was generated.",
+        impact_on_decision: "Manual review remains required until qualified evidence and authority are available.",
+      },
+    ],
+    final_recommendation: "REVIEW",
+    final_confidence: 0,
+    executive_summary:
+      "Decision trace withheld: current fraud and physics evidence has no qualified governing authority.",
+    trace_complete: false,
+    missing_stages: ["qualified_fraud_decision_authority", "qualified_physics_authority"],
+    metadata: {
+      engine: "DecisionTraceGenerator",
+      version: "1.0.0",
+      stages_included: 1,
+      stages_skipped: 8,
+      timestamp_utc: new Date().toISOString(),
+    },
+    decision_hold: buildP0B1FraudDecisionHold(),
+  };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

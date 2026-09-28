@@ -7,7 +7,6 @@ import { FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, insurerDomainProcedure, router } from "../_core/trpc";
-import { getDb } from "../db";
 import { assertRestrictedAgencyAssistedCapability } from "../agency/agencyAssistedClaimantIdentity";
 import { parsePhysicsAnalysis } from "../types/physics-validation";
 import {
@@ -52,11 +51,20 @@ import { validateClaimDetailResponse } from "../apiResponseValidator";
 import { exportClaimPDF } from "../claim-pdf-export";
 import { logger } from "../logger";
 import { nanoid } from "nanoid";
-import { isAdminRole } from "@shared/role-permissions";
+import { GOVERNANCE_ALLOWED_ROLES, isAdminRole } from "@shared/role-permissions";
 import { isExternalAssessor } from "../assessor-role-authority";
 import { persistCanonicalClaimIntake, startCanonicalIntakeAssessment } from "../services/canonicalClaimIntake";
 import { submitPortalCanonicalIntake } from "../services/canonicalIntakeAdapters";
-import { buildP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
+import {
+  buildP0B1FraudDecisionHold,
+  P0_B1_FRAUD_DECISION_HOLD,
+  throwP0B1FraudDecisionHold,
+} from "../evidence-governance/p0FraudDecisionHold";
+
+async function getClaimsDb() {
+  const { getDb } = await import("../db");
+  return getDb();
+}
 
 async function requireTenantScopedClaim(
   ctx: { user: { tenantId?: string | null } | null },
@@ -73,7 +81,9 @@ async function requireTenantScopedClaim(
   return { claim, tenantId };
 }
 
-function requireSessionTenant(ctx: { user: { tenantId?: string | null } | null }) {
+function requireSessionTenant(
+  ctx: { user: { tenantId?: string | null } | null }
+): string {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Tenant required" });
@@ -139,6 +149,215 @@ export function projectP0B1ClaimReview(
     })),
     fraudDecision: buildP0B1FraudDecisionHold(),
   };
+}
+
+export function buildP0B1FraudOutputHold() {
+  return { ...buildP0B1FraudDecisionHold(), results: [] as never[] };
+}
+
+type P0B1GeographicOperationalRow = {
+  incidentLocation: string | null;
+  incidentType: string | null;
+  approvedAmount: string | number | null;
+  fraudRiskLevel?: unknown;
+  fraudRiskScore?: unknown;
+};
+
+/**
+ * Builds a geographic workload view from independently supported operational
+ * data. Fraud values are accepted only so an accidental legacy projection is
+ * explicitly discarded rather than spread into the response or ordering.
+ */
+export function buildP0B1GeographicOperationalClusters(
+  rows: readonly P0B1GeographicOperationalRow[]
+) {
+  const parseLocation = (location: string | null): string => {
+    if (!location) return "Unknown";
+    const token = location.split(",")[0].trim();
+    return token.length > 40 ? token.slice(0, 40) : token || "Unknown";
+  };
+
+  const clusterMap: Record<string, {
+    totalClaims: number;
+    totalExposure: number;
+    incidentTypes: Record<string, number>;
+  }> = {};
+
+  for (const row of rows) {
+    const location = parseLocation(row.incidentLocation);
+    const cluster = (clusterMap[location] ??= {
+      totalClaims: 0,
+      totalExposure: 0,
+      incidentTypes: {},
+    });
+    cluster.totalClaims++;
+    cluster.totalExposure += Number(row.approvedAmount ?? 0);
+    const incidentType = row.incidentType ?? "other";
+    cluster.incidentTypes[incidentType] =
+      (cluster.incidentTypes[incidentType] ?? 0) + 1;
+  }
+
+  const clusters = Object.entries(clusterMap)
+    .map(([location, cluster]) => ({
+      location,
+      totalClaims: cluster.totalClaims,
+      totalExposure: Math.round(cluster.totalExposure),
+      dominantIncidentType:
+        Object.entries(cluster.incidentTypes).sort((a, b) => b[1] - a[1])[0]?.[0] ??
+        "other",
+    }))
+    .sort((a, b) => b.totalClaims - a.totalClaims || a.location.localeCompare(b.location))
+    .slice(0, 20);
+
+  return { clusters, totalLocations: Object.keys(clusterMap).length };
+}
+
+type P0B1ProcessorQueueRow = {
+  createdAt: string | null;
+  fraudRiskLevel?: unknown;
+  fraudRiskScore?: unknown;
+  [key: string]: unknown;
+};
+
+/**
+ * Applies neutral chronological queue ordering and removes any accidental
+ * historic fraud fields before operational queue publication.
+ */
+export function projectP0B1ProcessorQueueRows<T extends P0B1ProcessorQueueRow>(
+  rows: readonly T[],
+  nowMs = Date.now()
+): Array<
+  Omit<T, "fraudRiskLevel" | "fraudRiskScore"> & {
+    ageHours: number;
+    slaHoursRemaining: number;
+    slaStatus: "breached" | "critical" | "warning" | "ok";
+    fraudDecision: ReturnType<typeof buildP0B1FraudDecisionHold>;
+  }
+> {
+  return [...rows]
+    .sort(
+      (left, right) =>
+        new Date(left.createdAt ?? 0).getTime() -
+        new Date(right.createdAt ?? 0).getTime()
+    )
+    .map(row => {
+      const {
+        fraudRiskLevel: _fraudRiskLevel,
+        fraudRiskScore: _fraudRiskScore,
+        ...operationalRow
+      } = row;
+      const ageHours = row.createdAt
+        ? Math.round((nowMs - new Date(row.createdAt).getTime()) / 3600000)
+        : 0;
+      const slaHoursRemaining = 72 - ageHours;
+      const slaStatus =
+        slaHoursRemaining < 0
+          ? "breached"
+          : slaHoursRemaining < 12
+            ? "critical"
+            : slaHoursRemaining < 24
+              ? "warning"
+              : "ok";
+      return {
+        ...operationalRow,
+        ageHours,
+        slaHoursRemaining,
+        slaStatus,
+        fraudDecision: buildP0B1FraudDecisionHold(),
+      } as Omit<T, "fraudRiskLevel" | "fraudRiskScore"> & {
+        ageHours: number;
+        slaHoursRemaining: number;
+        slaStatus: "breached" | "critical" | "warning" | "ok";
+        fraudDecision: ReturnType<typeof buildP0B1FraudDecisionHold>;
+      };
+    });
+}
+
+function assertP0B1FraudCommandHold(): never {
+  return throwP0B1FraudDecisionHold();
+}
+
+/**
+ * Payment authorization is the financial_decision -> payment_authorized
+ * transition. This route must use the same narrow actor policy as the
+ * workflow transition engine; a generic insurer session, tenant ownership, or
+ * lower-trust claimant denial is not a payment-command grant.
+ */
+const PAYMENT_COMMAND_ACTOR_ROLES = ["claims_manager", "executive"] as const;
+
+function requirePaymentCommandActor(ctx: {
+  user?: { role?: string | null; insurerRole?: string | null } | null;
+}): void {
+  const user = ctx.user;
+  const insurerRole = user?.insurerRole;
+  if (
+    user?.role !== "insurer" ||
+    !PAYMENT_COMMAND_ACTOR_ROLES.includes(
+      insurerRole as (typeof PAYMENT_COMMAND_ACTOR_ROLES)[number]
+    )
+  ) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Payment authorization requires claims_manager or executive insurer role",
+    });
+  }
+}
+
+function p0B1FraudPolicyActive(): boolean {
+  return true;
+}
+
+const P0_B1_RISK_MANAGER_OPERATIONAL_ALLOWED_ROLES = new Set(
+  GOVERNANCE_ALLOWED_ROLES
+);
+const P0_B1_CLAIM_APPROVAL_ALLOWED_ROLES = new Set([
+  "claims_manager",
+  "executive",
+]);
+
+function isP0B1RiskManagerSession(ctx: {
+  user: { role?: string | null; insurerRole?: string | null } | null;
+}) {
+  return ctx.user?.role === "insurer" && ctx.user.insurerRole === "risk_manager";
+}
+
+function requireP0B1RiskManagerOperationalAuthority(ctx: {
+  user: { role?: string | null; insurerRole?: string | null; tenantId?: string | null } | null;
+}) {
+  const user = ctx.user;
+  const permitted = Boolean(
+    user &&
+      (isAdminRole(user.role) ||
+        (user.role === "insurer" &&
+          user.insurerRole &&
+          P0_B1_RISK_MANAGER_OPERATIONAL_ALLOWED_ROLES.has(user.insurerRole as never)))
+  );
+  if (!permitted) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Risk Manager operational access requires a governance role.",
+    });
+  }
+  // Platform administrators must still name a concrete tenant before this
+  // tenant-scoped operational projection can be read.
+  return requireSessionTenant(ctx);
+}
+
+function requireP0B1ClaimApprovalAuthority(user: {
+  role?: string | null;
+  insurerRole?: string | null;
+} | null) {
+  if (
+    !user ||
+    user.role !== "insurer" ||
+    !user.insurerRole ||
+    !P0_B1_CLAIM_APPROVAL_ALLOWED_ROLES.has(user.insurerRole)
+  ) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Claim approval requires a claims_manager or executive role.",
+    });
+  }
 }
 
 export const claimsRouter = router({
@@ -275,7 +494,7 @@ export const claimsRouter = router({
       }
       
       // Find or create claimant user
-      const _claimDb3 = await getDb();
+      const _claimDb3 = await getClaimsDb();
       if (!_claimDb3) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const { users: _usersTable3 } = await import("../../drizzle/schema");
       const { eq: _eqEmail3 } = await import("drizzle-orm");
@@ -484,7 +703,7 @@ export const claimsRouter = router({
       // The active assignment must own the stated vehicle registration.
       let fleetDriverId: number | null = null;
       if (input.claimantType === "company" && ctx.user.role === "fleet_driver") {
-        const db = await getDb();
+        const db = await getClaimsDb();
         if (db) {
           const [assignment] = await db
             .select({ id: fleetDrivers.id })
@@ -623,7 +842,7 @@ export const claimsRouter = router({
   // Get claims for panel beater (claims where this panel beater was selected)
   myQuoteRequests: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user) throw new Error("Not authenticated");
-    const db = await getDb();
+    const db = await getClaimsDb();
     if (!db) return [];
     // Look up the panel beater record linked to this user account
     const { panelBeaters: pbTable } = await import('../../drizzle/schema');
@@ -636,7 +855,7 @@ export const claimsRouter = router({
   // Get quote history for the logged-in panel beater
   myQuoteHistory: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user) throw new Error("Not authenticated");
-    const db = await getDb();
+    const db = await getClaimsDb();
     if (!db) return [];
     const { panelBeaters: pbTable } = await import('../../drizzle/schema');
     const { eq: _pbEq } = await import('drizzle-orm');
@@ -648,7 +867,7 @@ export const claimsRouter = router({
   // Get the panel beater profile for the logged-in user
   myPanelBeaterProfile: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user) throw new Error("Not authenticated");
-    const db = await getDb();
+    const db = await getClaimsDb();
     if (!db) return null;
     const { panelBeaters: pbTable } = await import('../../drizzle/schema');
     const { eq: _pbEq } = await import('drizzle-orm');
@@ -664,7 +883,7 @@ export const claimsRouter = router({
     }).optional())
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { panelBeaters: pbTable2, panelBeaterQuotes: pbqTable, claims: claimsTable } = await import('../../drizzle/schema');
       const { eq: _eq3, and: _and3, gte: _gte3, lte: _lte3, desc: _desc3 } = await import('drizzle-orm');
@@ -755,7 +974,7 @@ export const claimsRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { panelBeaters: pbTable, panelBeaterQuotes: pbqTable, claims: claimsTable, insurerTenants: tenantsTable } = await import('../../drizzle/schema');
       const { eq: _eq, desc: _desc, and: _and } = await import('drizzle-orm');
@@ -854,7 +1073,17 @@ export const claimsRouter = router({
   byStatus: insurerDomainProcedure
     .input(z.object({ status: z.string() }))
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      // Risk Manager may not obtain a raw whole-claim response through this
+      // shared legacy endpoint. Its dedicated operational projection below is
+      // the only supported dashboard data source.
+      if (isP0B1RiskManagerSession(ctx)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Risk Manager must use the approved operational claims projection.",
+        });
+      }
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       // ctx.insurerTenantId guaranteed non-null by insurerDomainProcedure middleware
       const rows = await db
@@ -904,7 +1133,7 @@ export const claimsRouter = router({
   // Get all claims for the insurer tenant (no status filter) — used by Risk Manager Dashboard
   allForTenant: insurerDomainProcedure
     .query(async ({ ctx }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const rows = await db
         .select()
@@ -962,7 +1191,14 @@ export const claimsRouter = router({
       search: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      if (isP0B1RiskManagerSession(ctx)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Risk Manager must use the approved operational claims projection.",
+        });
+      }
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const terminalStatuses = ['completed', 'rejected', 'closed'] as const;
       const conditions: any[] = [
@@ -1020,6 +1256,51 @@ export const claimsRouter = router({
       return rows;
     }),
 
+  /**
+   * P0-B1 Risk Manager operational projection. This route intentionally exposes
+   * only independently supported claim/workflow information; stored fraud
+   * scores, levels, flags, and early-suspicion fields are not selected.
+   */
+  getRiskManagerOperationalClaims: insurerDomainProcedure
+    .input(z.object({
+      from: z.string().optional(),
+      to: z.string().optional(),
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      const tenantId = requireP0B1RiskManagerOperationalAuthority(ctx);
+      const db = await getClaimsDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const terminalStatuses = ["completed", "rejected", "closed"] as const;
+      const conditions: any[] = [
+        eq(claims.tenantId, tenantId),
+        notInArray(claims.status, [...terminalStatuses] as any[]),
+      ];
+      if (input?.from) conditions.push(gte(claims.createdAt, input.from));
+      if (input?.to) conditions.push(lte(claims.createdAt, input.to + " 23:59:59"));
+
+      return db
+        .select({
+          id: claims.id,
+          claimNumber: claims.claimNumber,
+          status: claims.status,
+          workflowState: claims.workflowState,
+          approvedAmount: claims.approvedAmount,
+          estimatedClaimValue: claims.estimatedClaimValue,
+          vehicleMake: claims.vehicleMake,
+          vehicleModel: claims.vehicleModel,
+          vehicleRegistration: claims.vehicleRegistration,
+          currencyCode: claims.currencyCode,
+          priority: claims.priority,
+          createdAt: claims.createdAt,
+          updatedAt: claims.updatedAt,
+        })
+        .from(claims)
+        .where(and(...conditions))
+        .orderBy(desc(claims.createdAt))
+        .limit(500);
+    }),
+
   // ─── Claims Manager: Fraud Alerts ───────────────────────────────────────────
   // P0-B1: legacy fraud scores and levels have no governing authority. Do not
   // query, sort, classify, or return claims from those stored values.
@@ -1045,7 +1326,7 @@ export const claimsRouter = router({
       to: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       // All claims for tenant within optional date range
       const conditions: any[] = [eq(claims.tenantId, ctx.insurerTenantId)];
@@ -1135,7 +1416,11 @@ export const claimsRouter = router({
       search: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      void ctx;
+      void input;
+      return buildP0B1FraudOutputHold();
+
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const conditions: any[] = [
         eq(claims.tenantId, ctx.insurerTenantId),
@@ -1181,8 +1466,10 @@ export const claimsRouter = router({
       }
       return rows;
     }),
-  // ─── Risk Manager: Financial Decision Queue ──────────────────────────────────────────
-  // Claims awaiting financial approval, ordered by amount descending
+  // ─── Risk Manager: Financial Decision Queue ──────────────────────────────────
+  // Historic fraud fields are withheld from this legacy queue. The Risk Manager
+  // route now uses getRiskManagerOperationalClaims instead of attempting a
+  // parallel financial/fraud projection.
   getFinancialDecisionQueue: insurerDomainProcedure
     .input(z.object({
       from: z.string().optional(),
@@ -1190,50 +1477,9 @@ export const claimsRouter = router({
       search: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      const conditions: any[] = [
-        eq(claims.tenantId, ctx.insurerTenantId),
-        eq(claims.workflowState, 'financial_decision' as any),
-      ];
-      if (input?.from) conditions.push(gte(claims.createdAt, input.from));
-      if (input?.to) conditions.push(lte(claims.createdAt, input.to + ' 23:59:59'));
-      const rows = await db
-        .select({
-          id: claims.id,
-          claimNumber: claims.claimNumber,
-          status: claims.status,
-          workflowState: claims.workflowState,
-          fraudRiskLevel: claims.fraudRiskLevel,
-          fraudRiskScore: claims.fraudRiskScore,
-          approvedAmount: claims.approvedAmount,
-          estimatedClaimValue: claims.estimatedClaimValue,
-          finalApprovedAmount: claims.finalApprovedAmount,
-          incidentType: claims.incidentType,
-          vehicleMake: claims.vehicleMake,
-          vehicleModel: claims.vehicleModel,
-          vehicleYear: claims.vehicleYear,
-          vehicleRegistration: claims.vehicleRegistration,
-          claimantName: claims.lodgerName,
-          claimantEmail: claims.claimantEmail,
-          incidentDate: claims.incidentDate,
-          createdAt: claims.createdAt,
-          updatedAt: claims.updatedAt,
-          currencyCode: claims.currencyCode,
-          priority: claims.priority,
-        })
-        .from(claims)
-        .where(and(...conditions))
-        .orderBy(desc(claims.estimatedClaimValue))
-        .limit(300);
-      if (input?.search) {
-        const q = input.search.toLowerCase();
-        return rows.filter(r =>
-          r.claimNumber?.toLowerCase().includes(q) ||
-          r.claimantName?.toLowerCase().includes(q)
-        );
-      }
-      return rows;
+      void input;
+      requireP0B1RiskManagerOperationalAuthority(ctx);
+      return buildP0B1FraudOutputHold();
     }),
 
   // ─── Analytics: Manager Overview ─────────────────────────────────────────────
@@ -1245,7 +1491,7 @@ export const claimsRouter = router({
       to: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const now = new Date();
       // Default: last 30 days
@@ -1350,94 +1596,13 @@ export const claimsRouter = router({
       to: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
-      const now = new Date();
-      const toDate = input?.to ? new Date(input.to) : now;
-      const fromDate = input?.from ? new Date(input.from) : new Date(now.getTime() - 90 * 86400000);
-      const fmt = (d: Date) => d.toISOString().slice(0, 10);
+      void ctx;
+      void input;
+      // P0-B1: no stored fraud level, score, aggregate, trend, or heatmap has
+      // governing authority. This route intentionally returns only the
+      // canonical actionable hold; do not reintroduce a numeric fallback.
+      return buildP0B1FraudOutputHold();
 
-      const rows = await db.select({
-        id: claims.id,
-        fraudRiskLevel: claims.fraudRiskLevel,
-        fraudRiskScore: claims.fraudRiskScore,
-        incidentType: claims.incidentType,
-        approvedAmount: claims.approvedAmount,
-        estimatedClaimValue: claims.estimatedClaimValue,
-        finalApprovedAmount: claims.finalApprovedAmount,
-        createdAt: claims.createdAt,
-        status: claims.status,
-      })
-      .from(claims)
-      .where(and(
-        eq(claims.tenantId, ctx.insurerTenantId),
-        gte(claims.createdAt, fmt(fromDate)),
-        lte(claims.createdAt, fmt(toDate) + ' 23:59:59'),
-      ))
-      .limit(3000);
-
-      // Incident type × risk level heatmap
-      const incidentTypes = ['collision','theft','hail','fire','vandalism','flood','hijacking','other'];
-      const riskLevels = ['low','medium','high','critical','elevated'];
-      const heatmap: Record<string, Record<string, number>> = {};
-      for (const it of incidentTypes) {
-        heatmap[it] = {};
-        for (const rl of riskLevels) heatmap[it][rl] = 0;
-      }
-
-      // Weekly fraud rate trend
-      const weekMap: Record<string, { total: number; fraud: number }> = {};
-      // Frequency vs severity scatter (one point per incident type)
-      const scatterMap: Record<string, { count: number; totalAmt: number }> = {};
-
-      for (const r of rows) {
-        const it = r.incidentType ?? 'other';
-        const rl = r.fraudRiskLevel ?? 'low';
-        if (heatmap[it]) heatmap[it][rl] = (heatmap[it][rl] ?? 0) + 1;
-
-        // Weekly bucket
-        const d = new Date(r.createdAt ?? '');
-        const week = `${d.getFullYear()}-W${String(Math.ceil(d.getDate() / 7)).padStart(2,'0')}`;
-        if (!weekMap[week]) weekMap[week] = { total: 0, fraud: 0 };
-        weekMap[week].total++;
-        if (['high','critical','elevated'].includes(rl)) weekMap[week].fraud++;
-
-        // Scatter
-        if (!scatterMap[it]) scatterMap[it] = { count: 0, totalAmt: 0 };
-        scatterMap[it].count++;
-        scatterMap[it].totalAmt += parseFloat(String(r.estimatedClaimValue ?? 0));
-      }
-
-      const fraudRateTrend = Object.entries(weekMap)
-        .sort(([a],[b]) => a.localeCompare(b))
-        .map(([week, v]) => ({ week, fraudRate: v.total > 0 ? Math.round((v.fraud / v.total) * 100) : 0, total: v.total }));
-
-      const scatter = Object.entries(scatterMap).map(([incidentType, v]) => ({
-        incidentType,
-        frequency: v.count,
-        avgSeverity: v.count > 0 ? Math.round(v.totalAmt / v.count) : 0,
-      }));
-
-      const totalFraud = rows.filter(r => ['high','critical','elevated'].includes(r.fraudRiskLevel ?? '')).length;
-      const fraudExposure = rows
-        .filter(r => ['high','critical','elevated'].includes(r.fraudRiskLevel ?? ''))
-        .reduce((sum, r) => sum + parseFloat(String(r.estimatedClaimValue ?? 0)), 0);
-
-      return {
-        period: { from: fmt(fromDate), to: fmt(toDate) },
-        kpis: {
-          totalClaims: rows.length,
-          fraudCount: totalFraud,
-          fraudRate: rows.length > 0 ? Math.round((totalFraud / rows.length) * 100) : 0,
-          fraudExposure: Math.round(fraudExposure),
-          avgFraudScore: rows.length > 0
-            ? Math.round(rows.reduce((s, r) => s + (r.fraudRiskScore ?? 0), 0) / rows.length)
-            : 0,
-        },
-        heatmap,
-        fraudRateTrend,
-        scatter,
-      };
     }),
 
   // ─── Risk Manager: Fraud Rule Accuracy (False Positive Rate) ───────────────
@@ -1452,7 +1617,7 @@ export const claimsRouter = router({
    * Source: fraudRules table. No schema changes required.
    */
   getFraudRuleAccuracy: insurerDomainProcedure.query(async ({ ctx }) => {
-    const db = await getDb();
+    const db = await getClaimsDb();
     if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
 
     const rows = await db
@@ -1496,13 +1661,13 @@ export const claimsRouter = router({
     };
   }),
 
-  // ─── Risk Manager: Geographic Risk Clustering ─────────────────────────────
+  // ─── Risk Manager: Geographic Operational Clustering ─────────────────────
   /**
    * getGeographicRiskClusters
    *
-   * Groups high-risk claims (fraudRiskLevel = high/critical/elevated) by
-   * incidentLocation token (first segment before comma) to identify geographic
-   * hotspots. Returns top 20 clusters sorted by claim count descending.
+   * Groups tenant-scoped claims by incident-location token (first segment before
+   * comma) to identify operational workload concentrations. Historic fraud
+   * scores and classifications are deliberately excluded under P0-B1.
    *
    * Source: claims table (incidentLocation free-text field).
    * No schema changes required.
@@ -1513,7 +1678,7 @@ export const claimsRouter = router({
       to: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const now = new Date();
       const toDate = input?.to ? new Date(input.to) : now;
@@ -1523,8 +1688,6 @@ export const claimsRouter = router({
       const rows = await db
         .select({
           incidentLocation: claims.incidentLocation,
-          fraudRiskLevel: claims.fraudRiskLevel,
-          fraudRiskScore: claims.fraudRiskScore,
           incidentType: claims.incidentType,
           approvedAmount: claims.approvedAmount,
         })
@@ -1537,55 +1700,14 @@ export const claimsRouter = router({
         ))
         .limit(5000);
 
-      // Parse location token: first segment before comma, trimmed, max 40 chars
-      const parseLocation = (loc: string | null): string => {
-        if (!loc) return 'Unknown';
-        const token = loc.split(',')[0].trim();
-        return token.length > 40 ? token.slice(0, 40) : token || 'Unknown';
-      };
-
-      // Aggregate by location token
-      const clusterMap: Record<string, {
-        totalClaims: number;
-        highRiskClaims: number;
-        totalExposure: number;
-        incidentTypes: Record<string, number>;
-        avgFraudScore: number;
-        fraudScoreSum: number;
-      }> = {};
-
-      for (const r of rows) {
-        const loc = parseLocation(r.incidentLocation);
-        if (!clusterMap[loc]) {
-          clusterMap[loc] = { totalClaims: 0, highRiskClaims: 0, totalExposure: 0, incidentTypes: {}, avgFraudScore: 0, fraudScoreSum: 0 };
-        }
-        const c = clusterMap[loc];
-        c.totalClaims++;
-        if (['high', 'critical', 'elevated'].includes(r.fraudRiskLevel ?? '')) c.highRiskClaims++;
-        c.totalExposure += Number(r.approvedAmount ?? 0);
-        c.fraudScoreSum += r.fraudRiskScore ?? 0;
-        const it = r.incidentType ?? 'other';
-        c.incidentTypes[it] = (c.incidentTypes[it] ?? 0) + 1;
-      }
-
-      const clusters = Object.entries(clusterMap)
-        .map(([location, c]) => ({
-          location,
-          totalClaims: c.totalClaims,
-          highRiskClaims: c.highRiskClaims,
-          fraudRate: c.totalClaims > 0 ? Math.round((c.highRiskClaims / c.totalClaims) * 100) : 0,
-          totalExposure: Math.round(c.totalExposure),
-          avgFraudScore: c.totalClaims > 0 ? Math.round(c.fraudScoreSum / c.totalClaims) : 0,
-          dominantIncidentType: Object.entries(c.incidentTypes).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other',
-        }))
-        .sort((a, b) => b.highRiskClaims - a.highRiskClaims || b.fraudRate - a.fraudRate)
-        .slice(0, 20);
+      const { clusters, totalLocations } = buildP0B1GeographicOperationalClusters(rows);
 
       return {
         period: { from: fmt(fromDate), to: fmt(toDate) },
         clusters,
-        totalLocations: Object.keys(clusterMap).length,
+        totalLocations,
         hasData: rows.length > 0,
+        fraudDecision: buildP0B1FraudDecisionHold(),
       };
     }),
 
@@ -1598,7 +1720,7 @@ export const claimsRouter = router({
       to: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const now = new Date();
       const toDate = input?.to ? new Date(input.to) : now;
@@ -1617,7 +1739,6 @@ export const claimsRouter = router({
           finalApprovedAmount: claims.finalApprovedAmount,
           createdAt: claims.createdAt,
           closedAt: claims.closedAt,
-          fraudRiskLevel: claims.fraudRiskLevel,
         })
         .from(claims)
         .where(and(
@@ -1690,7 +1811,8 @@ export const claimsRouter = router({
     }),
 
   // ─── Analytics: Processor Queue ──────────────────────────────────────────────
-  // AI priority-sorted queue with SLA hours, AI recommendation, confidence, missing docs
+  // Operational queue with SLA hours, claim workflow state, and missing documents.
+  // P0-B1 deliberately removes historic fraud ordering and output fields.
   getProcessorQueue: insurerDomainProcedure
     .input(z.object({
       from: z.string().optional(),
@@ -1699,7 +1821,7 @@ export const claimsRouter = router({
       priority: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const conditions: any[] = [
         eq(claims.tenantId, ctx.insurerTenantId),
@@ -1713,8 +1835,6 @@ export const claimsRouter = router({
         claimNumber: claims.claimNumber,
         status: claims.status,
         workflowState: claims.workflowState,
-        fraudRiskLevel: claims.fraudRiskLevel,
-        fraudRiskScore: claims.fraudRiskScore,
         approvedAmount: claims.approvedAmount,
         estimatedClaimValue: claims.estimatedClaimValue,
         incidentType: claims.incidentType,
@@ -1740,19 +1860,10 @@ export const claimsRouter = router({
       })
       .from(claims)
       .where(and(...conditions))
-      .orderBy(desc(claims.fraudRiskScore), asc(claims.createdAt))
+      .orderBy(asc(claims.createdAt))
       .limit(500);
 
-      // Calculate SLA hours remaining (72h SLA from creation)
-      const SLA_HOURS = 72;
-      const enriched = rows.map(r => {
-        const ageHours = r.createdAt
-          ? Math.round((Date.now() - new Date(r.createdAt).getTime()) / 3600000)
-          : 0;
-        const slaHoursRemaining = SLA_HOURS - ageHours;
-        const slaStatus = slaHoursRemaining < 0 ? 'breached' : slaHoursRemaining < 12 ? 'critical' : slaHoursRemaining < 24 ? 'warning' : 'ok';
-        return { ...r, ageHours, slaHoursRemaining, slaStatus };
-      });
+      const enriched = projectP0B1ProcessorQueueRows(rows);
 
       if (input?.search) {
         const q = input.search.toLowerCase();
@@ -1771,7 +1882,7 @@ export const claimsRouter = router({
   // Returns the current tenant's pricing tier and feature flags
   getTierConfig: insurerDomainProcedure
     .query(async ({ ctx }) => {
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const [tenant] = await db
         .select({
@@ -1818,7 +1929,7 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (ctx.user?.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const updates: Record<string, any> = {};
       if (input.pricingTier) updates.pricingTier = input.pricingTier;
@@ -1871,7 +1982,7 @@ export const claimsRouter = router({
         // Priority: claim.currencyCode → insurer_tenant.primaryCurrency → "USD"
         let resolvedCurrencyCode = claim.currencyCode ?? null;
         if (!resolvedCurrencyCode && claim.tenantId) {
-          const db = await getDb();
+          const db = await getClaimsDb();
           if (db) {
             const [insurerRow] = await db
               .select({ primaryCurrency: insurerTenants.primaryCurrency })
@@ -1887,7 +1998,7 @@ export const claimsRouter = router({
         // Fetch PDF URL from source document if available
         let sourcePdfUrl: string | null = null;
         if (claim.sourceDocumentId) {
-          const db = await getDb();
+          const db = await getClaimsDb();
           if (db) {
             const [sourceDoc] = await db
               .select({ s3Url: ingestionDocuments.s3Url })
@@ -2160,7 +2271,7 @@ export const claimsRouter = router({
       // ai_assessment_triggered=1 prevents the resetStuckClaim guard from
       // incorrectly resetting a claim that is genuinely in-flight.
       try {
-        const dbPreflight = await getDb();
+        const dbPreflight = await getClaimsDb();
         if (dbPreflight) {
           await dbPreflight.update(claims).set({
             aiAssessmentTriggered: 1,
@@ -2196,41 +2307,24 @@ export const claimsRouter = router({
                   recipientName: asyncUserName,
                   claimNumber: claim.claimNumber,
                   estimatedCost: (aiAssessment.estimatedCost || 0).toString(),
-                  fraudRiskLevel: aiAssessment.fraudRiskLevel || "low",
+                  fraudRiskLevel: "withheld_pending_qualified_evidence",
                   confidenceScore: (aiAssessment.confidenceScore || 0).toString(),
                 });
               }
 
               // Create in-app notification
               const { createNotification } = await import("../db");
-              if (aiAssessment.fraudRiskLevel === "high") {
-                await createNotification({
-                  userId: asyncUserId,
-                  title: isRerun ? "\u26a0\ufe0f High Fraud Risk — Re-Analysis" : "\u26a0\ufe0f High Fraud Risk Detected",
-                  message: `KINGA ${isRerun ? 're-analysis' : 'assessment'} flagged claim ${claim.claimNumber} as high fraud risk. Immediate review recommended.`,
-                  type: "fraud_detected",
-                  claimId: input.claimId,
-                  entityType: "ai_assessment",
-                  entityId: aiAssessment.id,
-                  actionUrl: `/insurer/claims/${input.claimId}/comparison`,
-                  priority: "urgent",
-                  tenantId: asyncTenantId,
-                });
-              } else {
-                await createNotification({
-                  userId: asyncUserId,
-                  title: isRerun ? "KINGA Re-Analysis Complete" : "KINGA Assessment Complete",
-                  message: isRerun
-                    ? `Re-analysis complete for claim ${claim.claimNumber}. Updated estimate: $${(aiAssessment.estimatedCost || 0).toFixed(2)}`
-                    : `AI damage assessment completed for claim ${claim.claimNumber}. Estimated cost: $${(aiAssessment.estimatedCost || 0).toFixed(2)}`,
-                  type: "assessment_completed",
-                  claimId: input.claimId,
-                  entityType: "ai_assessment",
-                  actionUrl: `/insurer/claims/${input.claimId}/comparison`,
-                  priority: "medium",
-                  tenantId: asyncTenantId,
-                });
-              }
+              await createNotification({
+                userId: asyncUserId,
+                title: isRerun ? "KINGA Re-Analysis Requires Review" : "KINGA Assessment Requires Review",
+                message: `Automated fraud scoring for claim ${claim.claimNumber} is withheld pending independently verifiable claim-linked evidence, human-reviewed auditable evidence, and a future qualified automated-decision policy.`,
+                type: "assessment_completed",
+                claimId: input.claimId,
+                entityType: "ai_assessment",
+                actionUrl: `/insurer/claims/${input.claimId}/comparison`,
+                priority: "medium",
+                tenantId: asyncTenantId,
+              });
             }
 
             // Audit entry for completion
@@ -2255,7 +2349,7 @@ export const claimsRouter = router({
           // NOTE: The claims table does NOT have a 'notes' or 'aiAssessmentStatus' column.
           // Store error info in the audit trail instead.
           try {
-            const dbFail = await getDb();
+            const dbFail = await getClaimsDb();
             if (dbFail) {
               await dbFail.update(claims).set({
                 documentProcessingStatus: "failed",
@@ -2308,7 +2402,7 @@ export const claimsRouter = router({
       }
       const { tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
 
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new Error("Database not available");
 
       await db.update(claims).set({
@@ -2348,7 +2442,7 @@ export const claimsRouter = router({
       }
 
       const { runDebugPipeline } = await import("../pipeline-v2/debug-runner");
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new Error("Database not available");
 
       const { claim } = await requireTenantScopedClaim(ctx, input.claimId);
@@ -2412,9 +2506,11 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      
-      // Get claim and quote details
+      requireP0B1ClaimApprovalAuthority(ctx.user);
+
+      // Actor authority precedes tenant/resource lookup and the canonical hold.
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
+      assertP0B1FraudCommandHold();
       
       // Do NOT apply tenant filtering for quotes — claimId already uniquely identifies the claim.
       const quotes = await getQuotesByClaimId(input.claimId);
@@ -2464,7 +2560,7 @@ export const claimsRouter = router({
       });
       
       // Update additional approval fields (not part of workflow state)
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new Error("Database not available");
       
       await db.update(claims).set({
@@ -2734,7 +2830,7 @@ export const claimsRouter = router({
           ...(input.finalApprovedAmount ? { approvedAmount: input.finalApprovedAmount } : {}),
         },
       });
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const updateData: any = { updatedAt: new Date() };
       if (input.finalApprovedAmount) updateData.totalClaimAmount = input.finalApprovedAmount;
@@ -2915,7 +3011,7 @@ export const claimsRouter = router({
       }
       
       // Update claim with financial approval
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new Error("Database not available");
       
       await db.update(claims).set({
@@ -2959,7 +3055,7 @@ export const claimsRouter = router({
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
 
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
       const { marketplaceProfiles, insurerMarketplaceRelationships } = await import("../../drizzle/schema");
@@ -3075,7 +3171,7 @@ export const claimsRouter = router({
       // Verify claim exists and belongs to tenant
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
 
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
       const { aiAssessments: aiAssessmentsTable, panelBeaterQuotes: panelBeaterQuotesTable } = await import("../../drizzle/schema");
@@ -3127,7 +3223,7 @@ export const claimsRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
       const { auditTrail: auditTrailTable, users: usersTable } = await import('../../drizzle/schema');
       const rows = await db
@@ -3195,7 +3291,7 @@ export const claimsRouter = router({
         overriddenAt: new Date().toISOString(),
       };
 
-      const _db = await getDb();
+      const _db = await getClaimsDb();
       if (!_db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const { aiAssessments: _aiAssessments } = await import("../../drizzle/schema");
       await _db.update(_aiAssessments)
@@ -3238,7 +3334,7 @@ export const claimsRouter = router({
       await requireTenantScopedClaim(ctx, input.claimId);
       const { adjusterSignOffs } = await import('../../drizzle/schema');
       const now = Date.now();
-      const _adjDb = await getDb();
+      const _adjDb = await getClaimsDb();
       if (!_adjDb) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const existing = await _adjDb
         .select({ id: adjusterSignOffs.id })
@@ -3283,7 +3379,7 @@ export const claimsRouter = router({
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       await requireTenantScopedClaim(ctx, input.claimId);
       const { adjusterSignOffs } = await import('../../drizzle/schema');
-      const _adjDb = await getDb();
+      const _adjDb = await getClaimsDb();
       if (!_adjDb) return null;
       const rows = await _adjDb
         .select()
@@ -3303,7 +3399,7 @@ export const claimsRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       assertRestrictedAgencyAssistedCapability(ctx.user, "settlement_instruction");
-      const _settleDb = await getDb();
+      const _settleDb = await getClaimsDb();
       if (!_settleDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       // Only the claimant who owns the claim may accept
@@ -3408,7 +3504,7 @@ export const claimsRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       assertRestrictedAgencyAssistedCapability(ctx.user, "dispute_instruction");
-      const _disputeDb = await getDb();
+      const _disputeDb = await getClaimsDb();
       if (!_disputeDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       if (claim.claimantId !== ctx.user.id && ctx.user.role !== 'admin') {
@@ -3456,7 +3552,7 @@ export const claimsRouter = router({
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       await requireTenantScopedClaim(ctx, input.claimId);
       const { auditTrail } = await import('../../drizzle/schema');
-      const db = await getDb();
+      const db = await getClaimsDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const entry = await db
         .select({
@@ -3490,9 +3586,13 @@ export const claimsRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       assertRestrictedAgencyAssistedCapability(ctx.user, "payment_authority");
-      const _authDb = await getDb();
-      if (!_authDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+      requirePaymentCommandActor(ctx);
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
+      if (p0B1FraudPolicyActive()) {
+        return buildP0B1FraudDecisionHold();
+      }
+      const _authDb = await getClaimsDb();
+      if (!_authDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       if (claim.workflowState !== 'financial_decision') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: `Payment can only be authorised from financial_decision state (current: ${claim.workflowState})` });
       }
@@ -3551,7 +3651,7 @@ export const claimsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
-      const _rejectDb = await getDb();
+      const _rejectDb = await getClaimsDb();
       if (!_rejectDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       const nonRejectableStates = ['closed', 'completed', 'rejected'];
@@ -3621,7 +3721,7 @@ export const claimsRouter = router({
       if (!allowedRoles.includes(ctx.user.subRole || '') && ctx.user.role !== 'admin') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Only Insurer Administrators can override claim decisions' });
       }
-      const _overrideDb = await getDb();
+      const _overrideDb = await getClaimsDb();
       if (!_overrideDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       const { claim, tenantId } = await requireTenantScopedClaim(ctx, input.claimId);
       const terminalStates = ['closed', 'completed'];

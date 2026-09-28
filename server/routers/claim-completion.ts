@@ -120,8 +120,7 @@ export const claimCompletionRouter = router({
       // Non-blocking fire-and-forget: errors won't fail claim completion
       ;(async () => {
         try {
-          const { insertDamageHistory } = await import('../vehicle-damage-history');
-          const { vehicleRegistry, fleetRiskScores } = await import('../../drizzle/schema');
+          const { vehicleRegistry } = await import('../../drizzle/schema');
           const { eq: eqDrizzle, sql: sqlDrizzle } = await import('drizzle-orm');
           // Get the AI assessment for this claim to extract damage data
           const [assessment] = await db
@@ -156,21 +155,10 @@ export const claimCompletionRouter = router({
               estimatedSpeedKmh = physics?.estimatedSpeedKmh ?? null;
               impactForceKn = physics?.impactForceKn ?? null;
             } catch {}
-            await insertDamageHistory({
-              vehicleId,
-              claimId: input.claimId,
-              vehicleRegistration: claim.vehicleRegistration ?? null, // DEF-001: direct registration for vehicle-centric queries
-              damagedComponents,
-              impactDirection: null, // collision direction not on claims table; sourced from physics analysis if available
-              estimatedSpeedKmh,
-              impactForceKn,
-              structuralDamageSeverity: assessment.structuralDamageSeverity ?? null,
-              hasStructuralDamage: (assessment.structuralDamageSeverity ?? 'none') !== 'none',
-              repairCostEstimateCents: assessment.estimatedCost ?? 0,
-              fraudRiskScore: assessment.fraudScore ?? 0,
-              tenantId: claim.tenantId ?? null,
-            });
-            console.log(`[C-03] Vehicle damage history inserted for claim ${claim.claimNumber} vehicle ${vehicleId}`);
+            // P0-B1: vehicle_damage_history has a non-null legacy fraud-score
+            // column with a database default of zero. Until a separately
+            // authorised schema transition can represent a withheld value, do
+            // not create a false benign incident history record.
             // Update vehicleRegistry aggregate counters
             await db.update(vehicleRegistry)
               .set({
@@ -181,25 +169,7 @@ export const claimCompletionRouter = router({
               })
               .where(eqDrizzle(vehicleRegistry.id, vehicleId));
           }
-          // Update fleet risk score if vehicle belongs to a fleet
-          if (vehicleId) {
-            const { fleetVehicles } = await import('../../drizzle/schema');
-            const [fleetVehicle] = await db
-              .select({ fleetId: fleetVehicles.fleetId })
-              .from(fleetVehicles)
-              .where(eqDrizzle(fleetVehicles.id, vehicleId))
-              .limit(1);
-            if (fleetVehicle?.fleetId) {
-              // Bump fleet risk score by fraud score delta (capped at 100)
-              const fraudDelta = Math.min(assessment?.fraudScore ?? 0, 20);
-              await db.update(fleetRiskScores)
-                .set({
-                  overallRiskScore: sqlDrizzle`LEAST(100, overall_risk_score + ${fraudDelta})`,
-                })
-                .where(eqDrizzle(fleetRiskScores.fleetId, fleetVehicle.fleetId));
-              console.log(`[C-03] Fleet risk score updated for fleet ${fleetVehicle.fleetId}`);
-            }
-          }
+          // P0-B1: no fraud-score-derived fleet-risk mutation is permitted.
         } catch (err) {
           console.error(`[C-03] Vehicle damage history update failed for claim ${input.claimId}:`, err);
         }

@@ -16,13 +16,32 @@ describe("resolved platform report collection authority", () => {
     const claimA = `PLATFORM-A-${stamp}`;
     const claimB = `PLATFORM-B-${stamp}`;
     const globalBefore = await resolvePlatformReportCollection({
-      authority: { kind: "platform_global", auditTenantId: tenantA, actorId: 1, actorRole: "admin" },
+      authority: {
+        kind: "platform_global",
+        auditTenantId: tenantA,
+        actorId: 1,
+        actorRole: "admin",
+      },
     });
 
     try {
       await db.insert(claims).values([
-        { claimNumber: claimA, tenantId: tenantA, status: "submitted", vehicleMake: "Kinga", vehicleModel: "Aggregate A", vehicleYear: 2024 },
-        { claimNumber: claimB, tenantId: tenantB, status: "rejected", vehicleMake: "Kinga", vehicleModel: "Aggregate B", vehicleYear: 2024 },
+        {
+          claimNumber: claimA,
+          tenantId: tenantA,
+          status: "submitted",
+          vehicleMake: "Kinga",
+          vehicleModel: "Aggregate A",
+          vehicleYear: 2024,
+        },
+        {
+          claimNumber: claimB,
+          tenantId: tenantB,
+          status: "rejected",
+          vehicleMake: "Kinga",
+          vehicleModel: "Aggregate B",
+          vehicleYear: 2024,
+        },
       ]);
 
       const tenantACollection = await resolvePlatformReportCollection({
@@ -33,51 +52,115 @@ describe("resolved platform report collection authority", () => {
       expect(tenantACollection.portfolio.activeInsurerCount).toBe(1);
 
       const globalAfter = await resolvePlatformReportCollection({
-        authority: { kind: "platform_global", auditTenantId: tenantA, actorId: 1, actorRole: "admin" },
+        authority: {
+          kind: "platform_global",
+          auditTenantId: tenantA,
+          actorId: 1,
+          actorRole: "admin",
+        },
       });
-      expect(globalAfter.portfolio.totalClaims).toBe(globalBefore.portfolio.totalClaims + 2);
-      expect(globalAfter.portfolio.rejectedCount).toBe(globalBefore.portfolio.rejectedCount + 1);
+      expect(globalAfter.portfolio.totalClaims).toBe(
+        globalBefore.portfolio.totalClaims + 2
+      );
+      expect(globalAfter.portfolio.rejectedCount).toBe(
+        globalBefore.portfolio.rejectedCount + 1
+      );
 
       const reportParams = {};
-      const [claimsSummary, fraudSummary, dwellTime, claimsManager, riskManager, executivePortfolio, platformDashboard] = await Promise.all([
+      const [
+        claimsSummary,
+        fraudSummary,
+        dwellTime,
+        claimsManager,
+        riskManager,
+        executivePortfolio,
+        platformDashboard,
+      ] = await Promise.all([
         generateReportHtml("portfolio.claims_summary", reportParams, tenantA),
         generateReportHtml("portfolio.fraud_summary", reportParams, tenantA),
         generateReportHtml("portfolio.dwell_time", reportParams, tenantA),
-        generateReportHtml("claims_manager.portfolio_overview", reportParams, tenantA),
-        generateReportHtml("risk_manager.portfolio_overview", reportParams, tenantA),
-        generateReportHtml("executive.portfolio_overview", reportParams, tenantA),
-        generateReportHtml("executive.platform_dashboard", {
-          platformAggregateAuthority: { kind: "platform_global", auditTenantId: tenantA, actorId: 1, actorRole: "admin" },
-        }, tenantA),
+        generateReportHtml(
+          "claims_manager.portfolio_overview",
+          reportParams,
+          tenantA
+        ),
+        generateReportHtml(
+          "risk_manager.portfolio_overview",
+          reportParams,
+          tenantA
+        ),
+        generateReportHtml(
+          "executive.portfolio_overview",
+          reportParams,
+          tenantA
+        ),
+        generateReportHtml(
+          "executive.platform_dashboard",
+          {
+            platformAggregateAuthority: {
+              kind: "platform_global",
+              auditTenantId: tenantA,
+              actorId: 1,
+              actorRole: "admin",
+            },
+          },
+          tenantA
+        ),
       ]);
       expect(claimsSummary).toContain("Claims Portfolio Summary");
-      expect(fraudSummary).toContain("Fraud Detection Summary Report");
+      expect(fraudSummary).toContain('data-p0-fraud-decision="withheld"');
+      expect(fraudSummary).toContain(
+        "Fraud Decision Withheld — Manual Review Required"
+      );
+      expect(fraudSummary).toContain("What is missing:");
+      expect(fraudSummary).toContain("What resolves this:");
+      expect(fraudSummary).not.toContain("Fraud Detection Summary Report");
       expect(dwellTime).toContain("Total Claim Elapsed Time by Current Status");
-      expect(dwellTime).toContain("not time spent in the current workflow status");
+      expect(dwellTime).toContain(
+        "not time spent in the current workflow status"
+      );
       expect(claimsManager).toContain("Claims Manager Portfolio Report");
       expect(riskManager).toContain("Risk Manager Portfolio Report");
       expect(executivePortfolio).toContain("Executive Portfolio Report");
-      expect(claimsManager).toContain("Total Claims</div><div class=\"kv-value bold\">1");
-      expect(executivePortfolio).toContain("Total Claims</div><div class=\"kv-value bold\">1");
-      expect(riskManager).toContain("High-Risk Claims");
-      expect(executivePortfolio).toContain("High-Risk Claims");
+      expect(claimsManager).toContain(
+        'Total Claims</div><div class="kv-value bold">1'
+      );
+      expect(executivePortfolio).toContain(
+        'Total Claims</div><div class="kv-value bold">1'
+      );
+      for (const fraudHeldReport of [riskManager, executivePortfolio]) {
+        expect(fraudHeldReport).toContain('data-p0-fraud-decision="withheld"');
+        expect(fraudHeldReport).toContain(
+          "Fraud Decision Withheld — Manual Review Required"
+        );
+        expect(fraudHeldReport).not.toContain("High-Risk Claims");
+      }
       expect(claimsManager).not.toContain("Recovery Pipeline");
       expect(riskManager).not.toContain("Recovery Pipeline");
       expect(executivePortfolio).not.toContain("Recovery Pipeline");
       expect(platformDashboard).toContain("Platform Executive Dashboard");
 
-      await expect(resolvePlatformReportCollection({
-        authority: { kind: "platform_global", auditTenantId: tenantA, actorId: 1, actorRole: "insurer" as never },
-      })).rejects.toThrow(/platform-super-admin/i);
+      await expect(
+        resolvePlatformReportCollection({
+          authority: {
+            kind: "platform_global",
+            auditTenantId: tenantA,
+            actorId: 1,
+            actorRole: "insurer" as never,
+          },
+        })
+      ).rejects.toThrow(/platform-super-admin/i);
     } finally {
-      await db.delete(claims).where(and(
-        eq(claims.claimNumber, claimA),
-        eq(claims.tenantId, tenantA),
-      ));
-      await db.delete(claims).where(and(
-        eq(claims.claimNumber, claimB),
-        eq(claims.tenantId, tenantB),
-      ));
+      await db
+        .delete(claims)
+        .where(
+          and(eq(claims.claimNumber, claimA), eq(claims.tenantId, tenantA))
+        );
+      await db
+        .delete(claims)
+        .where(
+          and(eq(claims.claimNumber, claimB), eq(claims.tenantId, tenantB))
+        );
     }
   });
 });

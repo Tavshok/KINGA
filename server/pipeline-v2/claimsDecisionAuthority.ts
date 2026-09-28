@@ -26,6 +26,7 @@
 
 import type { FraudRiskLevel, AccidentSeverity } from "./types";
 import { scoreToFraudLevel } from "../../shared/fraudScoring";
+import { hasGoverningFraudDecisionEligibility } from "../evidence-governance/quantitativeFieldGovernance";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,9 @@ export interface FraudResultInput {
   scenario_fraud_flagged?: boolean | null;
   /** Short reasoning from the fraud engine */
   reasoning?: string | null;
+  /** P0-B1 source-bound eligibility required before a fraud-derived decision. */
+  fraud_decision_eligibility?: import("../evidence-governance/quantitativeFieldGovernance").FraudDecisionEligibility | null;
+  fraud_decision_sources?: import("../evidence-governance/quantitativeFieldGovernance").FraudDecisionEligibilityInput | null;
 }
 
 /** Simplified cost decision result */
@@ -206,6 +210,45 @@ function countAvailableInputs(availability: Record<string, boolean>): number {
 }
 
 // ─── Main Function ────────────────────────────────────────────────────────────
+
+/**
+ * P0-B1 production boundary for final claim publication. The underlying rule
+ * evaluator remains independently characterisable, but no pipeline caller may
+ * publish its result without a live, source-bound fraud eligibility decision.
+ */
+export function evaluateP0GatedClaimDecision(
+  input: ClaimsDecisionInput
+): ClaimsDecisionOutput {
+  const fraudEligibility = input.fraud_result?.fraud_decision_eligibility;
+  const fraudSources = input.fraud_result?.fraud_decision_sources;
+  if (
+    !fraudEligibility ||
+    !fraudSources ||
+    !hasGoverningFraudDecisionEligibility(fraudEligibility, fraudSources)
+  ) {
+    const availability = inputAvailability(input);
+    const scenarioType = input.scenario_type ?? "unknown";
+    const severity = input.severity ?? "unknown";
+    const overallConfidence = input.overall_confidence ?? null;
+    const reason = `${fraudEligibility?.explanation ?? "Automated claim decision is withheld because fraud evidence eligibility is missing or invalid."} ${fraudEligibility?.requiredEvidence.join(" ") ?? "Obtain independently verifiable claim-linked fraud evidence and a qualified automated-decision authority before relying on fraud signals."}`;
+    return buildOutput({
+      recommendation: "REVIEW",
+      confidence: Math.min(overallConfidence ?? 50, 50),
+      decision_basis: "insufficient_data",
+      key_drivers: ["Automated fraud decision withheld pending qualified evidence"],
+      reasoning: reason,
+      decision_trace: ["[P0-B1] REVIEW: fraud decision eligibility is advisory, unavailable, missing, stale, or forged"],
+      blocking_factors: [reason],
+      override_flags: [],
+      warnings: ["P0-B1 withheld automated fraud-derived claim decision; this does not imply fraud or low risk."],
+      availability,
+      scenarioType,
+      severity,
+    });
+  }
+
+  return evaluateClaimDecision(input);
+}
 
 /**
  * Evaluate all upstream signals and produce the single final claim recommendation.

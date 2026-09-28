@@ -527,7 +527,7 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
     ]);
   });
 
-  it("keeps all Passport aggregate, timeline, claim-history, and fraud-signal sources within the requesting tenant", async () => {
+  it("authorizes the requesting tenant before withholding claim-history and fraud-signal decisions", async () => {
     const aggregate = await aggregateVehiclePassport(vehicleRegistryId, agencyTenantId);
     expect(aggregate).toMatchObject({
       totalClaims: 1,
@@ -537,21 +537,22 @@ describe("P0 Vehicle Passport qualifying insurer snapshot regression", () => {
       fraudAlertCount: 1,
     });
 
-    const caller = appRouter.createCaller(contextFor(agencyUserId, agencyTenantId));
-    const [timeline, claimHistory, fraudSignals] = await Promise.all([
-      caller.vehiclePassport.getTimeline({ vehicleRegistryId }),
+    const caller = appRouter.createCaller(contextFor(insurerUserId, insurerTenantId));
+    const [claimHistory, fraudSignals] = await Promise.all([
       caller.vehiclePassport.getClaimHistory({ vehicleRegistryId }),
       caller.vehiclePassport.getFraudSignals({ vehicleRegistryId }),
     ]);
-    expect(timeline.events.map((event) => event.sourceId)).toContain(ownerDamageHistoryId);
-    expect(timeline.events.map((event) => event.sourceId)).toContain(ownerInspectionId);
-    expect(timeline.events.map((event) => event.sourceId)).toContain(ownerFraudAlertId);
-    expect(timeline.events.map((event) => event.sourceId)).not.toContain(foreignDamageHistoryId);
-    expect(timeline.events.map((event) => event.sourceId)).not.toContain(foreignInspectionId);
-    expect(timeline.events.map((event) => event.sourceId)).not.toContain(foreignFraudAlertId);
-    expect(claimHistory.claims.map((claim) => claim.claimId)).toEqual([claimId]);
-    expect(fraudSignals.signals.map((signal) => signal.id)).toEqual([ownerSignalId]);
-    expect(fraudSignals.alerts.map((alert) => alert.id)).toEqual([ownerFraudAlertId]);
+    expect(claimHistory).toMatchObject({
+      status: "FRAUD_DECISION_WITHHELD",
+      reviewRequired: true,
+      claims: [],
+    });
+    expect(fraudSignals).toMatchObject({
+      status: "FRAUD_DECISION_WITHHELD",
+      reviewRequired: true,
+      signals: [],
+      alerts: [],
+    });
   });
 
   it("denies an unrelated tenant without an agency invitation across every sensitive Passport endpoint", async () => {

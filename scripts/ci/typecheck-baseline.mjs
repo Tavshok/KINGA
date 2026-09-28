@@ -7,7 +7,14 @@ const writeBaseline = argumentsList.includes("--write-baseline");
 const cwdFlag = argumentsList.indexOf("--cwd");
 const cwd =
   cwdFlag >= 0 ? resolve(argumentsList[cwdFlag + 1] ?? ".") : process.cwd();
-const baselinePath = resolve(cwd, "ci/typecheck-baseline.json");
+const baselinePathFlag = argumentsList.indexOf("--baseline-path");
+if (writeBaseline && baselinePathFlag >= 0) {
+  throw new Error("--write-baseline cannot be combined with --baseline-path");
+}
+const baselinePath =
+  baselinePathFlag >= 0
+    ? resolve(argumentsList[baselinePathFlag + 1] ?? "")
+    : resolve(cwd, "ci/typecheck-baseline.json");
 const reportPath = resolve(cwd, "ci/typecheck-report.json");
 
 function normalizeOutput(value) {

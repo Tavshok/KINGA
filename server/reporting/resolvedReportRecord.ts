@@ -232,7 +232,7 @@ export interface ResolvedReportCollection {
 export interface ResolvedReportCollectionSummary {
   claimCount: number;
   estimatedCostUsd: number;
-  fraud: { averageScore: number; highRiskCount: number };
+  fraud: { averageScore: null; highRiskCount: 0; status: "FRAUD_DECISION_WITHHELD" };
   verdicts: Record<string, number>;
 }
 
@@ -782,19 +782,15 @@ export async function resolveReportCollection(input: {
 export function summariseResolvedReportRecords(records: readonly ResolvedReportRecord[]): ResolvedReportCollectionSummary {
   const verdicts: Record<string, number> = {};
   let estimatedCostUsd = 0;
-  let totalFraudScore = 0;
-  let highRiskCount = 0;
   for (const record of records) {
     const verdict = record.decision.normalised.verdict.verdict;
     verdicts[verdict] = (verdicts[verdict] ?? 0) + 1;
     estimatedCostUsd += record.decision.normalised.costs.totalUsd ?? 0;
-    totalFraudScore += record.decision.normalised.fraud.score;
-    if (["high", "elevated"].includes(record.decision.normalised.fraud.level)) highRiskCount += 1;
   }
   return {
     claimCount: records.length,
     estimatedCostUsd,
-    fraud: { averageScore: records.length ? totalFraudScore / records.length : 0, highRiskCount },
+    fraud: { averageScore: null, highRiskCount: 0, status: "FRAUD_DECISION_WITHHELD" },
     verdicts,
   };
 }

@@ -4,72 +4,89 @@
  * R-GH-16 (routers.ts + db.ts primary data path catch blocks).
  */
 
-import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
-const SERVER_DIR = resolve(__dirname, '..');
+const SERVER_DIR = resolve(__dirname, "..");
 
 // ─── R-GH-15: context.ts tenant extraction ───────────────────────────────────
-describe('R-GH-15: context.ts tenant extraction error observability', () => {
-  const src = readFileSync(resolve(SERVER_DIR, '_core/context.ts'), 'utf8');
+describe("R-GH-15: context.ts tenant extraction error observability", () => {
+  const src = readFileSync(resolve(SERVER_DIR, "_core/context.ts"), "utf8");
 
-  it('catch block accepts typed error parameter for tenant extraction', () => {
-    expect(src).toContain('catch (tenantErr: unknown)');
+  it("catch block accepts typed error parameter for tenant extraction", () => {
+    expect(src).toContain("catch (tenantErr: unknown)");
   });
 
-  it('logs via console.warn on tenant extraction failure', () => {
-    expect(src).toContain('[context] Tenant extraction failed');
+  it("logs via console.warn on tenant extraction failure", () => {
+    expect(src).toContain("[context] Tenant extraction failed");
   });
 
-  it('auth failure catch block uses typed error parameter', () => {
-    expect(src).toContain('catch (authErr: unknown)');
+  it("auth failure catch block uses typed error parameter", () => {
+    expect(src).toContain("catch (authErr: unknown)");
   });
 
-  it('no bare catch {} blocks remain in context.ts', () => {
+  it("no bare catch {} blocks remain in context.ts", () => {
     const bareCatches = (src.match(/\} catch \{/g) || []).length;
     expect(bareCatches).toBe(0);
   });
 });
 
 // ─── R-GH-16: vehicle valuation router catch blocks ─────────────────────────
-describe('R-GH-16: vehicle valuation router error observability', () => {
-  const src = readFileSync(resolve(SERVER_DIR, 'routers/vehicle-valuation-core.ts'), 'utf8');
+describe("R-GH-16: vehicle valuation router error observability", () => {
+  const src = readFileSync(
+    resolve(SERVER_DIR, "routers/vehicle-valuation-core.ts"),
+    "utf8"
+  );
 
-  it('narrative generation catch block uses typed error and console.warn', () => {
-    expect(src).toContain('catch (narrativeErr: unknown)');
-    expect(src).toContain('[runConsistencyCheck] Mismatch narrative generation failed');
-    expect(src).not.toContain('} catch { /* narrative failure must not block');
+  it("narrative generation catch block uses typed error and console.warn", () => {
+    expect(src).toContain("catch (narrativeErr: unknown)");
+    expect(src).toContain(
+      "[runConsistencyCheck] Mismatch narrative generation failed"
+    );
+    expect(src).not.toContain("} catch { /* narrative failure must not block");
   });
 
-  it('fraud score update catch block uses typed error and console.warn', () => {
-    expect(src).toContain('catch (fraudUpdateErr: unknown)');
-    expect(src).toContain('[runConsistencyCheck] Fraud score update failed');
-    expect(src).not.toContain('} catch { /* fraud score update failure');
+  it("P0-B1 keeps consistency mismatches as reviewer context and never updates a fraud score", () => {
+    expect(src).toContain(
+      "cannot produce, blend, or persist a numeric fraud score"
+    );
+    expect(src).not.toContain("computeWeightedFraudScore");
+    expect(src).not.toContain("fraudUpdateErr");
+    expect(src).not.toContain(
+      "[runConsistencyCheck] Fraud score update failed"
+    );
+    expect(src).not.toContain(".set({ fraudScore: updatedScore })");
   });
 
-  it('auto-trigger catch block uses typed error and console.warn', () => {
-    expect(src).toContain('catch (autoTriggerErr: unknown)');
-    expect(src).toContain('[enrichAssessment] Auto-trigger consistency check failed');
-    expect(src).not.toContain('} catch { /* auto-trigger failure');
+  it("auto-trigger catch block uses typed error and console.warn", () => {
+    expect(src).toContain("catch (autoTriggerErr: unknown)");
+    expect(src).toContain(
+      "[enrichAssessment] Auto-trigger consistency check failed"
+    );
+    expect(src).not.toContain("} catch { /* auto-trigger failure");
   });
 });
 
 // ─── R-GH-16: db.ts primary data path catch blocks ───────────────────────────
-describe('R-GH-16: db.ts error observability', () => {
-  const src = readFileSync(resolve(SERVER_DIR, 'db.ts'), 'utf8');
+describe("R-GH-16: db.ts error observability", () => {
+  const src = readFileSync(resolve(SERVER_DIR, "db.ts"), "utf8");
 
-  it('photo ingestion log catch block uses typed error and console.warn', () => {
-    expect(src).toContain('catch (photoLogErr: unknown)');
-    expect(src).toContain('[triggerAiAssessment] Photo ingestion log build failed');
+  it("photo ingestion log catch block uses typed error and console.warn", () => {
+    expect(src).toContain("catch (photoLogErr: unknown)");
+    expect(src).toContain(
+      "[triggerAiAssessment] Photo ingestion log build failed"
+    );
   });
 
-  it('vehicle market value lookup catch block uses typed error and console.warn', () => {
-    expect(src).toContain('catch (valErr: unknown)');
-    expect(src).toContain('[triggerAiAssessment] Vehicle market value lookup failed');
+  it("vehicle market value lookup catch block uses typed error and console.warn", () => {
+    expect(src).toContain("catch (valErr: unknown)");
+    expect(src).toContain(
+      "[triggerAiAssessment] Vehicle market value lookup failed"
+    );
   });
 
-  it('remaining bare catch blocks are only JSON.parse fallbacks (≤12)', () => {
+  it("remaining bare catch blocks are only JSON.parse fallbacks (≤12)", () => {
     // All 36 remaining bare catch blocks in db.ts are JSON.parse fallbacks:
     // - 32 in getAiAssessmentByClaimId virtual field IIFEs (return null/0/[] on parse failure)
     // - 1 in getClaimsByPanelBeater filter (return false on parse failure)

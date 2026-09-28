@@ -58,6 +58,42 @@ const protectedProcedure = baseProtectedProcedure.use(async ({ ctx, next }) => {
   return next({ ctx });
 });
 
+export function buildP0PortfolioFraudHold(days: number) {
+  return {
+    period: { days },
+    status: "FRAUD_DECISION_WITHHELD" as const,
+    reviewRequired: true,
+    explanation: "Portfolio fraud metrics are withheld because current fraud scores and levels do not have qualified governing authority.",
+    requiredEvidence: [
+      "Independently verifiable claim-linked evidence",
+      "Human-reviewed evidence with auditable provenance",
+      "A future owner-approved qualified automated-decision policy",
+    ],
+    alerts: null,
+    aiScores: null,
+    dataSources: [],
+  };
+}
+
+export function buildP0DriverFraudPropensityHold(driverId: number) {
+  return {
+    driverId,
+    status: "FRAUD_DECISION_WITHHELD" as const,
+    reviewRequired: true,
+    explanation:
+      "Driver fraud propensity is withheld because historic fraud scores and classifications do not have qualified governing authority.",
+    requiredEvidence: [
+      "Independently verifiable claim-linked evidence",
+      "Human-reviewed evidence with auditable provenance",
+      "A future owner-approved qualified automated-decision policy",
+    ],
+    score: null,
+    riskLevel: null,
+    factors: [],
+    dataSources: [],
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. CROSS-MODULE INTELLIGENCE ROUTER
 // Surfaces signals that propagate across Claims, Fleet, Engineering, and Driver
@@ -795,6 +831,9 @@ export const portfolioIntelligenceRouter = router({
       days: z.number().int().min(7).max(365).default(90),
     }))
     .query(async ({ ctx, input }) => {
+      void ctx;
+      return buildP0PortfolioFraudHold(input.days);
+
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
@@ -1501,6 +1540,9 @@ export const predictiveAnalyticsRouter = router({
       driverId: z.number().int().positive(),
     }))
     .query(async ({ ctx, input }) => {
+      requireIntelligenceTenant(ctx);
+      return buildP0DriverFraudPropensityHold(input.driverId);
+      /* c8 ignore start -- P0-B1 blocks historic fraud-score calculation. */
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
@@ -1553,6 +1595,7 @@ export const predictiveAnalyticsRouter = router({
         calculatedAt: new Date().toISOString(),
         dataSources: ["drivers"],
       };
+      /* c8 ignore stop */
     }),
 
   /** Compute fleet risk trajectory (deterministic). */

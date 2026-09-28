@@ -161,7 +161,6 @@ export interface DriverRiskParams {
   totalClaimsCount: number;
   atFaultClaimsCount: number;
   isStagedAccidentSuspect: boolean;
-  lastFraudRiskScore: number;
 }
 
 /**
@@ -174,8 +173,9 @@ export interface DriverRiskParams {
  *   atFaultClaimsCount ≥ 3 → +20
  *   atFaultClaimsCount = 2 → +10
  *   isStagedAccidentSuspect → +30
- *   lastFraudRiskScore ≥ 70 → +20
- *   lastFraudRiskScore ≥ 40 → +10
+ *
+ * Historic fraud scores are intentionally excluded under P0-B1. They are
+ * advisory-only observations and cannot influence an automated driver score.
  */
 export function computeDriverRiskScore(params: DriverRiskParams): number {
   let score = 0;
@@ -191,10 +191,6 @@ export function computeDriverRiskScore(params: DriverRiskParams): number {
 
   // Staged accident flag
   if (params.isStagedAccidentSuspect) score += 30;
-
-  // Fraud risk from linked claims
-  if (params.lastFraudRiskScore >= 70) score += 20;
-  else if (params.lastFraudRiskScore >= 40) score += 10;
 
   return Math.min(score, 100);
 }
@@ -407,13 +403,12 @@ export async function linkDriverToClaim(params: {
   role: DriverRole;
   isAtFault?: boolean;
   wasInjured?: boolean;
-  fraudRiskScore?: number;
   tenantId?: string | null;
 }): Promise<void> {
   const db = await getDb();
   if (!db) return;
 
-  const { driverId, claimId, role, isAtFault = false, wasInjured = false, fraudRiskScore = 0, tenantId } = params;
+  const { driverId, claimId, role, isAtFault = false, wasInjured = false, tenantId } = params;
   if (!tenantId) return;
 
   // Insert driver_claims row (ignore duplicate)
@@ -462,7 +457,6 @@ export async function linkDriverToClaim(params: {
     totalClaimsCount: newTotal,
     atFaultClaimsCount: newAtFault,
     isStagedAccidentSuspect: !!(d.isStagedAccidentSuspect),
-    lastFraudRiskScore: fraudRiskScore,
   });
 
   await db
@@ -472,7 +466,6 @@ export async function linkDriverToClaim(params: {
       atFaultClaimsCount: newAtFault,
       isRepeatClaimer: newTotal >= 3 ? 1 : 0,
       driverRiskScore: newRiskScore,
-      lastFraudRiskScore: fraudRiskScore,
       claimIdsJson: JSON.stringify(claimIds),
       lastSeenAt: new Date().toISOString().slice(0, 19).replace("T", " "),
     })
@@ -506,7 +499,6 @@ export interface UpsertDriverFromClaimParams {
   claimantEmail?: string | null;
   claimantIdNumber?: string | null;
   // Context
-  fraudRiskScore?: number;
   dataSource?: "ocr" | "manual" | "import" | "unknown";
   ocrConfidenceScore?: number | null;
   tenantId?: string | null;
@@ -554,7 +546,6 @@ export async function upsertDriverFromClaim(
         driverId: match.driverId,
         claimId: params.claimId,
         role: "driver",
-        fraudRiskScore: params.fraudRiskScore ?? 0,
         tenantId: params.tenantId,
       });
     }
@@ -583,7 +574,6 @@ export async function upsertDriverFromClaim(
         driverId: claimantMatch.driverId,
         claimId: params.claimId,
         role: "claimant",
-        fraudRiskScore: params.fraudRiskScore ?? 0,
         tenantId: params.tenantId,
       });
       // If no driver was found, use the claimant's registry ID as a fallback
@@ -609,7 +599,6 @@ export async function upsertDriverFromClaim(
         driverId: tpMatch.driverId,
         claimId: params.claimId,
         role: "third_party_driver",
-        fraudRiskScore: params.fraudRiskScore ?? 0,
         tenantId: params.tenantId,
       });
     }

@@ -85,8 +85,8 @@ export interface ResolvedClaimRecord {
   currencyCode: string;                     // "USD", "ZAR", "ZIG", etc.
 
   // ── Fraud ─────────────────────────────────────────────────────────────────
-  fraudScore: number;                       // 0–100, pipeline Stage 8 score
-  fraudRiskLevel: string;                   // "low" | "medium" | "high" | "critical"
+  fraudScore: number;                       // runtime null until qualified governing authority exists
+  fraudRiskLevel: string;                   // runtime null until qualified governing authority exists
   fraudIndicators: Array<{ indicator: string; score: number; description?: string }>;
 
   // ── Physics ───────────────────────────────────────────────────────────────
@@ -294,18 +294,13 @@ export function resolveClaimRecord(assessment: Record<string, unknown>): Resolve
         : (velRange?.mid_kmh ?? physNum?.velocity_range?.mid_kmh ?? 0);
 
   // ── Fraud ────────────────────────────────────────────────────────────────
-  // Priority: pipeline Stage 8 score (assessment.fraudScore) → breakdown overallScore → 0
-  const fraudScore: number =
-    (assessment.fraudScore as number)
-    ?? (fraudBd?.overallScore as number)
-    ?? 0;
-  const fraudRiskLevel: string =
-    (assessment.fraudRiskLevel as string)
-    ?? (fraudBd?.level as string)
-    ?? "low";
+  // P0-B1: historic values cannot stand in for a qualified governing fraud
+  // decision. Preserve absence rather than manufacturing a benign zero/low.
+  const fraudScore = null as unknown as number;
+  const fraudRiskLevel = null as unknown as string;
   const fraudIndicators = indicators.map(i => ({
     indicator: i.indicator ?? "unknown",
-    score: Number(i.score ?? 0),
+    score: null as unknown as number,
     description: i.description,
   }));
 

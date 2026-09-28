@@ -4,10 +4,16 @@
  * NEVER: Bypass typed tRPC contracts or decide tenant, role, or workflow authority in the browser.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Download, FileText, CheckCircle2 } from "lucide-react";
@@ -15,7 +21,8 @@ import { trpc } from "@/lib/trpc";
 import { generateDamageReportPDF } from "@/lib/pdfExport";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-import { useTenantCurrency } from '@/hooks/useTenantCurrency';
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { getP0B1FraudDecisionHold } from "@shared/p0FraudDecisionHoldPresentation";
 
 export default function BatchExport() {
   const { user } = useAuth();
@@ -25,11 +32,21 @@ export default function BatchExport() {
   const [isExporting, setIsExporting] = useState(false);
 
   // Fetch all claims
-  const { data: submittedClaims = [] } = trpc.claims.byStatus.useQuery({ status: 'submitted' });
-  const { data: triageClaims = [] } = trpc.claims.byStatus.useQuery({ status: 'triage' });
-  const { data: assessmentClaims = [] } = trpc.claims.byStatus.useQuery({ status: 'assessment_in_progress' });
-  const { data: comparisonClaims = [] } = trpc.claims.byStatus.useQuery({ status: 'comparison' });
-  const { data: completedClaims = [] } = trpc.claims.byStatus.useQuery({ status: 'completed' });
+  const { data: submittedClaims = [] } = trpc.claims.byStatus.useQuery({
+    status: "submitted",
+  });
+  const { data: triageClaims = [] } = trpc.claims.byStatus.useQuery({
+    status: "triage",
+  });
+  const { data: assessmentClaims = [] } = trpc.claims.byStatus.useQuery({
+    status: "assessment_in_progress",
+  });
+  const { data: comparisonClaims = [] } = trpc.claims.byStatus.useQuery({
+    status: "comparison",
+  });
+  const { data: completedClaims = [] } = trpc.claims.byStatus.useQuery({
+    status: "completed",
+  });
 
   // Combine all claims
   const allClaims = [
@@ -37,13 +54,49 @@ export default function BatchExport() {
     ...triageClaims,
     ...assessmentClaims,
     ...comparisonClaims,
-    ...completedClaims
+    ...completedClaims,
   ];
 
   // Fetch all KINGA assessments
   const { data: aiAssessments = [] } = trpc.aiAssessments.all.useQuery();
 
+  const isWithheldAssessment = (assessment: unknown) =>
+    Boolean(getP0B1FraudDecisionHold(assessment));
+  const assessmentForClaim = (claimId: number) =>
+    aiAssessments.find((assessment: any) => assessment.claimId === claimId);
+  const exportableClaims = allClaims.filter((claim: any) => {
+    const assessment = assessmentForClaim(claim.id);
+    return Boolean(assessment) && !isWithheldAssessment(assessment);
+  });
+  const exportableClaimIds = new Set(
+    exportableClaims.map((claim: any) => claim.id)
+  );
+  const selectedExportableClaims = new Set(
+    Array.from(selectedClaims).filter(claimId =>
+      exportableClaimIds.has(claimId)
+    )
+  );
+
+  useEffect(() => {
+    setSelectedClaims(currentSelection => {
+      const sanitizedSelection = new Set(
+        Array.from(currentSelection).filter(claimId =>
+          exportableClaimIds.has(claimId)
+        )
+      );
+      return sanitizedSelection.size === currentSelection.size
+        ? currentSelection
+        : sanitizedSelection;
+    });
+  }, [aiAssessments]);
+
   const toggleClaim = (claimId: number) => {
+    if (isWithheldAssessment(assessmentForClaim(claimId))) {
+      toast.error(
+        "This assessment is withheld pending manual review and cannot be exported"
+      );
+      return;
+    }
     const newSelected = new Set(selectedClaims);
     if (newSelected.has(claimId)) {
       newSelected.delete(claimId);
@@ -54,16 +107,29 @@ export default function BatchExport() {
   };
 
   const selectAll = () => {
-    if (selectedClaims.size === allClaims.length) {
+    if (selectedExportableClaims.size === exportableClaims.length) {
       setSelectedClaims(new Set());
     } else {
-      setSelectedClaims(new Set(allClaims.map((c: any) => c.id)));
+      setSelectedClaims(
+        new Set(exportableClaims.map((claim: any) => claim.id))
+      );
     }
   };
 
   const handleBatchExport = async () => {
     if (selectedClaims.size === 0) {
       toast.error("Please select at least one claim to export");
+      return;
+    }
+
+    if (
+      Array.from(selectedClaims).some(claimId =>
+        isWithheldAssessment(assessmentForClaim(claimId))
+      )
+    ) {
+      toast.error(
+        "Withheld assessments cannot be exported; remove them and request manual review instead"
+      );
       return;
     }
 
@@ -74,7 +140,7 @@ export default function BatchExport() {
 
       for (const claimId of Array.from(selectedClaims)) {
         const claim = allClaims.find((c: any) => c.id === claimId);
-        const aiAssessment = aiAssessments.find((a: any) => a.claimId === claimId);
+        const aiAssessment = assessmentForClaim(claimId) as any;
 
         if (!claim || !aiAssessment) {
           console.warn(`Skipping claim ${claimId}: missing data`);
@@ -88,12 +154,27 @@ export default function BatchExport() {
 
         // Component categories for categorization
         const componentCategories = {
-          "Exterior Panels": ["fender", "bumper", "door", "hood", "trunk", "quarter panel", "rocker panel"],
-          "Lighting": ["headlight", "taillight", "fog light", "turn signal"],
-          "Glass": ["windshield", "window", "mirror"],
-          "Structural": ["frame", "pillar", "subframe", "crossmember"],
-          "Mechanical": ["radiator", "condenser", "suspension", "wheel", "tire", "axle"],
-          "Interior": ["dashboard", "airbag", "seat", "console"],
+          "Exterior Panels": [
+            "fender",
+            "bumper",
+            "door",
+            "hood",
+            "trunk",
+            "quarter panel",
+            "rocker panel",
+          ],
+          Lighting: ["headlight", "taillight", "fog light", "turn signal"],
+          Glass: ["windshield", "window", "mirror"],
+          Structural: ["frame", "pillar", "subframe", "crossmember"],
+          Mechanical: [
+            "radiator",
+            "condenser",
+            "suspension",
+            "wheel",
+            "tire",
+            "axle",
+          ],
+          Interior: ["dashboard", "airbag", "seat", "console"],
         };
 
         // Categorize detected components
@@ -108,20 +189,35 @@ export default function BatchExport() {
         });
 
         // Infer hidden damage
-        const inferredHiddenDamage: Array<{ component: string; reason: string; confidence: string }> = [];
+        const inferredHiddenDamage: Array<{
+          component: string;
+          reason: string;
+          confidence: string;
+        }> = [];
         const damageDescription = aiAssessment.damageDescription || "";
         
-        if (damagedComponents.some((c: string) => c.toLowerCase().includes("bumper") || c.toLowerCase().includes("fender"))) {
-          if ((aiAssessment as any).accidentType === "frontal" || damageDescription.toLowerCase().includes("front")) {
+        if (
+          damagedComponents.some(
+            (c: string) =>
+              c.toLowerCase().includes("bumper") ||
+              c.toLowerCase().includes("fender")
+          )
+        ) {
+          if (
+            (aiAssessment as any).accidentType === "frontal" ||
+            damageDescription.toLowerCase().includes("front")
+          ) {
             inferredHiddenDamage.push({
               component: "Radiator / AC Condenser",
-              reason: "Front-end impact typically damages cooling system components",
-              confidence: "High"
+              reason:
+                "Front-end impact typically damages cooling system components",
+              confidence: "High",
             });
             inferredHiddenDamage.push({
               component: "Front Subframe / Crash Bar",
-              reason: "Significant frontal collision often affects structural supports",
-              confidence: "Medium"
+              reason:
+                "Significant frontal collision often affects structural supports",
+              confidence: "Medium",
             });
           }
         }
@@ -130,13 +226,17 @@ export default function BatchExport() {
           inferredHiddenDamage.push({
             component: "Door Intrusion Beam",
             reason: "Side impact typically damages internal door reinforcement",
-            confidence: "High"
+            confidence: "High",
           });
-          if (damagedComponents.some((c: string) => c.toLowerCase().includes("door"))) {
+          if (
+            damagedComponents.some((c: string) =>
+              c.toLowerCase().includes("door")
+            )
+          ) {
             inferredHiddenDamage.push({
               component: "B-Pillar / Side Structure",
               reason: "Severe door damage may indicate pillar deformation",
-              confidence: "Medium"
+              confidence: "Medium",
             });
           }
         }
@@ -145,7 +245,7 @@ export default function BatchExport() {
           inferredHiddenDamage.push({
             component: "Roof Structure / Pillars",
             reason: "Rollover accidents cause structural deformation",
-            confidence: "High"
+            confidence: "High",
           });
         }
 
@@ -153,7 +253,7 @@ export default function BatchExport() {
           inferredHiddenDamage.push({
             component: "Frame / Unibody Structure",
             reason: "KINGA detected structural damage indicators",
-            confidence: "High"
+            confidence: "High",
           });
         }
 
@@ -161,7 +261,7 @@ export default function BatchExport() {
           inferredHiddenDamage.push({
             component: "Airbag Control Module / Sensors",
             reason: "Airbag deployment requires system replacement",
-            confidence: "High"
+            confidence: "High",
           });
         }
 
@@ -170,16 +270,23 @@ export default function BatchExport() {
           claimNumber: claim.claimNumber,
           vehicle: `${claim.vehicleMake} ${claim.vehicleModel} (${claim.vehicleYear})`,
           registration: claim.vehicleRegistration || "",
-          incidentDate: (claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A"),
-          accidentType: (aiAssessment as any).accidentType || "unknown" as string,
+          incidentDate: claim.incidentDate
+            ? new Date(claim.incidentDate).toLocaleDateString()
+            : "N/A",
+          accidentType:
+            (aiAssessment as any).accidentType || ("unknown" as string),
           damagedComponents,
           categorizedDamage,
           inferredHiddenDamage,
           structuralDamage: (aiAssessment as any).structuralDamage || false,
           airbagDeployment: (aiAssessment as any).airbagDeployment || false,
           estimatedCost: aiAssessment.estimatedCost || 0,
-          partsCost: (aiAssessment as any).partsCost || (aiAssessment.estimatedCost || 0) * 0.6,
-          laborCost: (aiAssessment as any).laborCost || (aiAssessment.estimatedCost || 0) * 0.4,
+          partsCost:
+            (aiAssessment as any).partsCost ||
+            (aiAssessment.estimatedCost || 0) * 0.6,
+          laborCost:
+            (aiAssessment as any).laborCost ||
+            (aiAssessment.estimatedCost || 0) * 0.4,
           damageDescription: aiAssessment.damageDescription || "",
         });
 
@@ -200,7 +307,13 @@ export default function BatchExport() {
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+    const statusConfig: Record<
+      string,
+      {
+        label: string;
+        variant: "default" | "secondary" | "destructive" | "outline";
+      }
+    > = {
       submitted: { label: "Submitted", variant: "secondary" },
       triage: { label: "Triage", variant: "default" },
       assessment_in_progress: { label: "Assessment", variant: "default" },
@@ -208,7 +321,10 @@ export default function BatchExport() {
       completed: { label: "Completed", variant: "outline" },
     };
 
-    const config = statusConfig[status] || { label: status, variant: "secondary" };
+    const config = statusConfig[status] || {
+      label: status,
+      variant: "secondary",
+    };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -216,7 +332,10 @@ export default function BatchExport() {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5 p-6">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
-          <Button variant="ghost" onClick={() => setLocation("/insurer-portal")}>
+          <Button
+            variant="ghost"
+            onClick={() => setLocation("/insurer-portal")}
+          >
             ← Back to Dashboard
           </Button>
         </div>
@@ -230,7 +349,8 @@ export default function BatchExport() {
                   Batch Export Damage Reports
                 </CardTitle>
                 <CardDescription>
-                  Select claims to export damage component breakdown reports in bulk
+                  Select claims to export damage component breakdown reports in
+                  bulk
                 </CardDescription>
               </div>
               <div className="flex items-center gap-3">
@@ -239,22 +359,24 @@ export default function BatchExport() {
                   onClick={selectAll}
                   disabled={allClaims.length === 0}
                 >
-                  {selectedClaims.size === allClaims.length ? "Deselect All" : "Select All"}
+                  {selectedExportableClaims.size === exportableClaims.length
+                    ? "Deselect All"
+                    : "Select All"}
                 </Button>
                 <Button
                   onClick={handleBatchExport}
-                  disabled={selectedClaims.size === 0 || isExporting}
+                  disabled={selectedExportableClaims.size === 0 || isExporting}
                   className="gradient-primary text-white"
                 >
                   {isExporting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Exporting {selectedClaims.size} Reports...
+                      Exporting {selectedExportableClaims.size} Reports...
                     </>
                   ) : (
                     <>
                       <Download className="mr-2 h-4 w-4" />
-                      Export {selectedClaims.size} Selected
+                      Export {selectedExportableClaims.size} Selected
                     </>
                   )}
                 </Button>
@@ -266,54 +388,70 @@ export default function BatchExport() {
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-4 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
                 <p>No claims available for export</p>
-                <p className="text-sm mt-2">Claims with KINGA assessments will appear here</p>
+                <p className="text-sm mt-2">
+                  Claims with KINGA assessments will appear here
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
                 {allClaims.map((claim: any) => {
-                  const aiAssessment = aiAssessments.find((a: any) => a.claimId === claim.id);
+                  const aiAssessment = assessmentForClaim(claim.id) as any;
                   const hasAssessment = !!aiAssessment;
+                  const assessmentWithheld = isWithheldAssessment(aiAssessment);
 
                   return (
                     <div
                       key={claim.id}
                       className={`flex items-center gap-4 p-4 rounded-lg border-2 transition-all ${
-                        selectedClaims.has(claim.id)
+                        selectedExportableClaims.has(claim.id)
                           ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
                           : "border-gray-200 dark:border-border bg-white dark:bg-card hover:border-gray-300 dark:border-border"
-                      } ${!hasAssessment ? "opacity-50" : ""}`}
+                      } ${!hasAssessment || assessmentWithheld ? "opacity-50" : ""}`}
                     >
                       <Checkbox
-                        checked={selectedClaims.has(claim.id)}
+                        checked={selectedExportableClaims.has(claim.id)}
                         onCheckedChange={() => toggleClaim(claim.id)}
-                        disabled={!hasAssessment}
+                        disabled={!hasAssessment || assessmentWithheld}
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-1">
                           <p className="font-semibold">{claim.claimNumber}</p>
                           {getStatusBadge(claim.status)}
                           {hasAssessment && (
-                            <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800">
+                            <Badge
+                              variant="outline"
+                              className={
+                                assessmentWithheld
+                                  ? "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                                  : "bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                              }
+                            >
                               <CheckCircle2 className="h-3 w-3 mr-1" />
-                              KINGA Assessment Available
+                              {assessmentWithheld
+                                ? "Manual Review Required"
+                                : "KINGA Assessment Available"}
                             </Badge>
                           )}
                         </div>
                         <p className="text-sm text-gray-600 dark:text-muted-foreground">
-                          {claim.vehicleMake} {claim.vehicleModel} ({claim.vehicleYear}) • {claim.vehicleRegistration}
+                          {claim.vehicleMake} {claim.vehicleModel} (
+                          {claim.vehicleYear}) • {claim.vehicleRegistration}
                         </p>
                         {claim.incidentDate && (
                           <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
-                            Incident: {new Date(claim.incidentDate).toLocaleDateString()}
+                            Incident:{" "}
+                            {new Date(claim.incidentDate).toLocaleDateString()}
                           </p>
                         )}
                       </div>
-                      {hasAssessment && (
+                      {hasAssessment && !assessmentWithheld && (
                         <div className="text-right">
                           <p className="text-sm font-medium text-gray-700 dark:text-foreground/80">
                             {fmt((aiAssessment.estimatedCost || 0) * 100)}
                           </p>
-                          <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Estimated Cost</p>
+                          <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
+                            Estimated Cost
+                          </p>
                         </div>
                       )}
                     </div>

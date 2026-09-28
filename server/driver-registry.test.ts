@@ -6,7 +6,7 @@
  *   - normaliseDriverName()      — trim, collapse whitespace, title-case
  *   - parseLicenseDate()         — OCR-tolerant date parsing
  *   - isLicenseExpired()         — null = never expires
- *   - computeDriverRiskScore()   — composite 0–100 score
+ *   - computeDriverRiskScore()   — non-fraud operational history score
  *
  * DB-dependent functions (matchOrCreateDriver, linkDriverToClaim,
  * upsertDriverFromClaim) are covered by integration tests.
@@ -308,63 +308,63 @@ describe("computeDriverRiskScore", () => {
     })).toBe(30);
   });
 
-  it("adds 10 for fraud risk score 40–69", () => {
+  it("does not incorporate a historic fraud score into the driver risk score", () => {
     expect(computeDriverRiskScore({
       totalClaimsCount: 0,
       atFaultClaimsCount: 0,
       isStagedAccidentSuspect: false,
       lastFraudRiskScore: 40,
-    })).toBe(10);
+    })).toBe(0);
     expect(computeDriverRiskScore({
       totalClaimsCount: 0,
       atFaultClaimsCount: 0,
       isStagedAccidentSuspect: false,
       lastFraudRiskScore: 69,
-    })).toBe(10);
+    })).toBe(0);
   });
 
-  it("adds 20 for fraud risk score 70+", () => {
+  it("does not incorporate a historic high fraud score into the driver risk score", () => {
     expect(computeDriverRiskScore({
       totalClaimsCount: 0,
       atFaultClaimsCount: 0,
       isStagedAccidentSuspect: false,
       lastFraudRiskScore: 70,
-    })).toBe(20);
+    })).toBe(0);
     expect(computeDriverRiskScore({
       totalClaimsCount: 0,
       atFaultClaimsCount: 0,
       isStagedAccidentSuspect: false,
       lastFraudRiskScore: 100,
-    })).toBe(20);
+    })).toBe(0);
   });
 
-  it("caps at 100 for extreme cases", () => {
+  it("uses only documented operational-history factors in extreme cases", () => {
     expect(computeDriverRiskScore({
       totalClaimsCount: 20,
       atFaultClaimsCount: 10,
       isStagedAccidentSuspect: true,
       lastFraudRiskScore: 100,
-    })).toBe(100);
+    })).toBe(80);
   });
 
-  it("computes combined score correctly for a high-risk driver", () => {
-    // 30 (5+ claims) + 20 (3+ at-fault) + 30 (staged) + 20 (fraud 70+) = 100 (capped)
+  it("computes combined score without a fraud-score contribution", () => {
+    // 30 (5+ claims) + 20 (3+ at-fault) + 30 (staged) = 80
     expect(computeDriverRiskScore({
       totalClaimsCount: 7,
       atFaultClaimsCount: 4,
       isStagedAccidentSuspect: true,
       lastFraudRiskScore: 85,
-    })).toBe(100);
+    })).toBe(80);
   });
 
-  it("computes a moderate score for a medium-risk driver", () => {
-    // 20 (3 claims) + 10 (2 at-fault) + 0 + 10 (fraud 50) = 40
+  it("computes a moderate operational-history score without a fraud-score contribution", () => {
+    // 20 (3 claims) + 10 (2 at-fault) = 30
     expect(computeDriverRiskScore({
       totalClaimsCount: 3,
       atFaultClaimsCount: 2,
       isStagedAccidentSuspect: false,
       lastFraudRiskScore: 50,
-    })).toBe(40);
+    })).toBe(30);
   });
 });
 

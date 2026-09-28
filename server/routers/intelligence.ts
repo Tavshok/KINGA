@@ -13,6 +13,21 @@ import { isAdminRole } from "@shared/role-permissions";
 
 const tenantInput = z.object({ tenantId: z.string().optional() });
 const boundedLimit = z.number().int().min(1).max(200).default(50);
+
+export function projectP0AccidentCluster(row: Record<string, unknown>) {
+  const { fraud_rate: _fraudRate, risk_level: _riskLevel, ...safeRow } = row;
+  return {
+    ...safeRow,
+    hotspot_type: row.is_spatio_temporal ? "spatio_temporal_cluster" : "spatial_cluster",
+    fraudDecision: {
+      status: "FRAUD_DECISION_WITHHELD" as const,
+      reviewRequired: true,
+      explanation: "Cluster fraud-rate and risk classification are withheld because they lack qualified governing authority.",
+      requiredEvidence: ["Independently verifiable claim-linked evidence", "Human-reviewed evidence with auditable provenance", "A future owner-approved qualified automated-decision policy"],
+    },
+  };
+}
+
 const intelligenceInsurerRoles = new Set([
   "claims_processor", "claims_manager", "risk_manager", "executive", "insurer_admin", "fraud_investigator",
 ]);
@@ -51,6 +66,20 @@ export const intelligenceRouter = router({
   getSummaryStats: protectedProcedure
     .input(tenantInput)
     .query(async ({ ctx, input }) => {
+      void ctx;
+      void input;
+      return {
+        status: "FRAUD_DECISION_WITHHELD",
+        reviewRequired: true,
+        explanation: "Risk and fraud-derived intelligence aggregates are withheld pending qualified governing evidence.",
+        requiredEvidence: ["Independently verifiable claim-linked evidence", "Human-reviewed evidence with auditable provenance", "A future owner-approved qualified automated-decision policy"],
+        officers: null,
+        assessors: null,
+        panelBeaters: null,
+        drivers: null,
+        clusters: null,
+      };
+
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const scope = await resolveIntelligenceScope(ctx as any, input.tenantId, "intelligence.getSummaryStats");
@@ -123,10 +152,9 @@ export const intelligenceRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const scope = await resolveIntelligenceScope(ctx as any, input.tenantId, "intelligence.getAccidentClusters");
-      const riskFilter = input.riskLevel ? sql`AND risk_classification = ${input.riskLevel}` : sql``;
-      const [rows] = await db.execute(sql`SELECT id, cluster_label as location_description, risk_classification as risk_level, claim_count, fraud_rate, flagged_claim_count, centroid_lat, centroid_lng, radius_meters, first_claim_date, last_claim_date, is_spatio_temporal, temporal_window_days as time_span_days, dominant_entities FROM accident_clusters WHERE tenant_id = ${scope.tenantId} ${riskFilter} ORDER BY claim_count DESC LIMIT 100`);
+      const [rows] = await db.execute(sql`SELECT id, cluster_label as location_description, claim_count, flagged_claim_count, centroid_lat, centroid_lng, radius_meters, first_claim_date, last_claim_date, is_spatio_temporal, temporal_window_days as time_span_days, dominant_entities FROM accident_clusters WHERE tenant_id = ${scope.tenantId} ORDER BY claim_count DESC LIMIT 100`);
       await finishIntelligenceAccess(ctx as any, scope, "intelligence.getAccidentClusters", scope.tenantId);
-      return ((rows as any[]) ?? []).map((row) => ({ ...row, avg_fraud_score: row.fraud_rate ? (Number(row.fraud_rate) * 100).toFixed(1) : null, max_fraud_score: row.fraud_rate ? (Number(row.fraud_rate) * 130).toFixed(1) : null, hotspot_type: row.is_spatio_temporal ? "spatio_temporal_cluster" : "spatial_cluster" }));
+      return ((rows as any[]) ?? []).map((row) => projectP0AccidentCluster(row));
     }),
 
   getAnomalyScores: protectedProcedure

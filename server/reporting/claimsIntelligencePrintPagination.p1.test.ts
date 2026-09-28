@@ -10,11 +10,16 @@ vi.mock("mysql2/promise", () => ({
 }));
 
 vi.mock("./evidenceGovernancePresentation", () => ({
-  loadEvidenceGovernanceReportData: vi.fn(async () => ({ findings: [], summary: null })),
+  loadEvidenceGovernanceReportData: vi.fn(async () => ({
+    findings: [],
+    summary: null,
+  })),
   renderEvidenceGovernancePanel: vi.fn(() => ""),
 }));
 
-const { generateClaimsIntelligenceReport } = await import("./claimsIntelligenceReport");
+const { generateClaimsIntelligenceReport } = await import(
+  "./claimsIntelligenceReport"
+);
 
 const claim = {
   id: 990002,
@@ -33,7 +38,11 @@ const claim = {
   fraud_score: 0,
   fraud_risk_level: "low",
   recommendation: "REVIEW",
-  cost_intelligence_json: JSON.stringify({ compositeOptimisation: null, quoteCount: 0, quotesReceived: 0 }),
+  cost_intelligence_json: JSON.stringify({
+    compositeOptimisation: null,
+    quoteCount: 0,
+    quotesReceived: 0,
+  }),
   repair_intelligence_json: "[]",
   fraud_score_breakdown_json: "{}",
   ife_result_json: "{}",
@@ -60,13 +69,20 @@ describe("CI report A4 print pagination", () => {
   });
 
   it("uses explicit A4 section breaks and stable section footers rather than false two-page counters", async () => {
-    const html = await generateClaimsIntelligenceReport(claim.id, claim.tenant_id);
+    const html = await generateClaimsIntelligenceReport(
+      claim.id,
+      claim.tenant_id
+    );
 
     expect(html).toContain("@page{ size:A4; margin:12mm; }");
-    expect(html).toContain(".page-break{break-before:page; page-break-before:always;}");
+    expect(html).toContain(
+      ".page-break{break-before:page; page-break-before:always;}"
+    );
     expect(html).toContain("thead { display:table-header-group; }");
-    expect(html).toContain("table { break-inside:auto; page-break-inside:auto; }");
-    expect((html.match(/class="page page-break"/g) ?? [])).toHaveLength(5);
+    expect(html).toContain(
+      "table { break-inside:auto; page-break-inside:auto; }"
+    );
+    expect(html.match(/class="page page-break"/g) ?? []).toHaveLength(5);
     expect(html).toContain('<div class="page">\n<div class="section">');
     expect(html).not.toContain("Page 1 of 2");
     expect(html).not.toContain("Page 2 of 2");
@@ -74,7 +90,12 @@ describe("CI report A4 print pagination", () => {
     expect(html).toContain("Section 01 · Claim Identity &amp; Policy");
     expect(html).toContain("Section P · Policy &amp; Coverage Check");
     expect(html).toContain("Section 02 · Cost Intelligence");
-    expect(html).toContain("Section 03 · Risk Indicators");
+    expect(html).toContain("Section 03 · Fraud Decision Status");
+    expect(html).toContain("Fraud Decision Withheld — Manual Review Required");
+    expect(html).toContain('data-p0-fraud-decision="withheld"');
+    expect(html).not.toContain("Section 03 · Risk Indicators");
+    expect(html).not.toMatch(/fraud score|fraud risk level/i);
+    expect(html).not.toMatch(/\blow risk\b/i);
     expect(html).toContain("Section 04 · Evidence Snapshot");
     expect(html).toContain("Section 05 · Decision &amp; Next Steps");
     expect(html).toContain("How to Read These Cost Results");

@@ -1,4 +1,3 @@
-import { scoreToFraudLevel } from "../shared/fraudScoring";
 
 /**
  * Report Normalisation Service
@@ -66,10 +65,10 @@ export interface NormalisedCosts {
 }
 
 export interface NormalisedFraud {
-  /** Fraud score 0-100. Always an integer. */
-  score: number;
-  /** Risk level label */
-  level: 'minimal' | 'low' | 'moderate' | 'high' | 'elevated';
+  /** P0-B1 withholds unqualified fraud scores. */
+  score: number | null;
+  /** P0-B1 withholds unqualified fraud risk labels. */
+  level: 'minimal' | 'low' | 'moderate' | 'high' | 'elevated' | null;
   /** True if the score was derived from JSON rather than the first-class column */
   derivedFromJson: boolean;
 }
@@ -165,12 +164,6 @@ function toDollars(val: number | null | undefined): number | null {
 function clampScore(v: number | null | undefined): number {
   if (v == null || isNaN(Number(v))) return 0;
   return Math.max(0, Math.min(100, Math.round(Number(v))));
-}
-
-// Delegates to shared/fraudScoring.ts::scoreToFraudLevel — KINGA-FSS-2026-001.
-// Do NOT add local threshold logic here. See docs/KINGA-FRAUD-SCORING-STANDARD.md.
-function scoreToLevel(score: number): NormalisedFraud['level'] {
-  return scoreToFraudLevel(score);
 }
 
 const VALID_VERDICTS = new Set([
@@ -286,48 +279,9 @@ export function normaliseReportData(raw: RawAssessmentData): NormalisedReportDat
   };
 
   // ── FRAUD ─────────────────────────────────────────────────────────────────
-  //
-  // Priority:
-  //   1. fraudScore DB column (integer, 0-100)
-  //   2. fraudScoreBreakdownJson.overallScore
-  //   3. 0 (safe default — never show inflated fraud score)
-
-  let fraudScore: number;
-  let derivedFromJson = false;
-
-  if (raw.fraudScore != null && raw.fraudScore > 0) {
-    fraudScore = clampScore(raw.fraudScore);
-  } else if (raw.fraudScoreBreakdownJson?.overallScore != null) {
-    fraudScore = clampScore(raw.fraudScoreBreakdownJson.overallScore);
-    derivedFromJson = true;
-  } else if (raw.fraudScoreBreakdownJson?.overall_score != null) {
-    fraudScore = clampScore(raw.fraudScoreBreakdownJson.overall_score);
-    derivedFromJson = true;
-  } else {
-    fraudScore = 0;
-  }
-
-  // Translate legacy DB enum values to the canonical vocabulary used by all
-  // three scoring engines (intelligence-enforcement, weighted-fraud-scoring,
-  // and this normalisation layer).
-  //   'medium'   → 'moderate'  (old label, same band: 41-60)
-  //   'critical' → 'elevated'  (old label, same band: 81+)
-  const LEGACY_LEVEL_MAP: Record<string, NormalisedFraud['level']> = {
-    medium:   'moderate',
-    critical: 'elevated',
-  };
-  const rawStoredLevel = raw.fraudRiskLevel as string | null | undefined;
-  const storedLevel: NormalisedFraud['level'] | null | undefined = rawStoredLevel
-    ? (LEGACY_LEVEL_MAP[rawStoredLevel] ?? rawStoredLevel as NormalisedFraud['level'])
-    : undefined;
-  const derivedLevel = scoreToLevel(fraudScore);
-  const fraudLevel: NormalisedFraud['level'] = storedLevel ?? derivedLevel;
-
-  const fraud: NormalisedFraud = {
-    score: fraudScore,
-    level: fraudLevel,
-    derivedFromJson,
-  };
+  // P0-B1: historic fields and JSON breakdowns have no qualified governing
+  // authority. Do not normalise, default, classify, or threshold them.
+  const fraud: NormalisedFraud = { score: null, level: null, derivedFromJson: false };
 
   // ── VERDICT ───────────────────────────────────────────────────────────────
   //
@@ -366,10 +320,6 @@ export function normaliseReportData(raw: RawAssessmentData): NormalisedReportDat
   } else if (v4) {
     verdict = v4;
     verdictSource = 'output_validation';
-  } else if (fraudScore >= 70) {
-    // High fraud score → always escalate regardless of cost decision
-    verdict = 'ESCALATE';
-    verdictSource = 'fraud_threshold';
   } else {
     verdict = 'PENDING';
     verdictSource = 'fallback';

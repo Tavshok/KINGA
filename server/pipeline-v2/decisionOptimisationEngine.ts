@@ -22,6 +22,10 @@
  *      are computed for ALL candidates and stored in the audit trail ONLY —
  *      they do NOT drive the selection decision.
  *
+ * P0-B1: a fraud level cannot be treated as low/neutral merely because a
+ * source is missing or a fallback was generated. Every invocation checks a
+ * source-bound fraud eligibility decision before evaluating candidates.
+ *
  * FRAUD DISQUALIFICATION RULE:
  *   If a panel beater's fraud risk is HIGH or ELEVATED → disqualify
  *   → Select next cheapest eligible
@@ -37,6 +41,8 @@
  *   If input completeness < 55% → DOE disabled, route to manual review
  */
 
+import { hasGoverningFraudDecisionEligibility } from "../evidence-governance/quantitativeFieldGovernance";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,6 +52,7 @@ export type DOEStatus =
   | "GATED_LOW_FCDI"     // FCDI too low — manual review required
   | "GATED_LOW_INPUT"    // Input completeness too low — manual review required
   | "GATED_NO_QUOTES"    // No valid quotes to optimise
+  | "GATED_FRAUD_EVIDENCE" // Fraud authority unavailable — manual review required
   | "ALL_DISQUALIFIED";  // All quotes disqualified on fraud grounds
 
 export interface DOECandidate {
@@ -64,7 +71,7 @@ export interface DOECandidate {
   /** Panel beater reliability score 0–1 (from learning DB, default 0.5) */
   reliabilityScore: number;
   /** Fraud risk level for this panel beater */
-  fraudRisk: "minimal" | "low" | "moderate" | "high" | "elevated";
+  fraudRisk: "minimal" | "low" | "moderate" | "high" | "elevated" | "unavailable";
   /** Fraud signal that triggered the risk level (for audit trail) */
   fraudSignal: string | null;
   /** Extraction confidence */
@@ -194,6 +201,9 @@ function scoreFraudRisk(fraudRisk: string): number {
     moderate: 0.50,
     high:     0.10,
     elevated: 0.05,
+    // P0-B1 prevents selection before scoring this state; this value is a
+    // defensive non-preference rather than a low-risk fallback.
+    unavailable: 0,
   };
   return scores[fraudRisk] ?? 0.5;
 }
@@ -215,6 +225,10 @@ export interface DOEInput {
   doeEligible: boolean;
   /** IFE ineligibility reason (if applicable) */
   doeIneligibilityReason: string | null;
+  /** P0-B1 eligibility decision for every fraud-derived candidate input. */
+  fraudDecisionEligibility?: import("../evidence-governance/quantitativeFieldGovernance").FraudDecisionEligibility;
+  /** Live Stage 7/8 source snapshot used to rebind the persisted eligibility decision. */
+  fraudDecisionSources?: import("../evidence-governance/quantitativeFieldGovernance").FraudDecisionEligibilityInput;
 }
 
 export function runDOE(input: DOEInput): DOEResult {
@@ -228,6 +242,35 @@ export function runDOE(input: DOEInput): DOEResult {
   } = input;
 
   const now = new Date().toISOString();
+
+  // P0-B1 — this must precede all candidate work. A missing, stale, forged,
+  // advisory, unavailable, or fallback fraud result may not silently become a
+  // low-risk repairer input or a repair selection.
+  const fraudEligibility = input.fraudDecisionEligibility;
+  const fraudEvidenceUnavailable = !fraudEligibility ||
+    !input.fraudDecisionSources ||
+    !hasGoverningFraudDecisionEligibility(
+      fraudEligibility,
+      input.fraudDecisionSources
+    );
+  if (fraudEvidenceUnavailable) {
+    return {
+      status: "GATED_FRAUD_EVIDENCE",
+      selectedPanelBeater: null,
+      selectedCost: null,
+      currency: null,
+      benchmarkDeviationPct: null,
+      qualityScore: null,
+      fraudRisk: null,
+      decisionConfidence: "low",
+      scoreBreakdown: [],
+      disqualifications: [],
+      rationale: `${fraudEligibility?.explanation ?? "Fraud eligibility was missing or invalid."} ${fraudEligibility?.requiredEvidence.join(" ") ?? "Obtain qualified fraud evidence and route the claim to manual review before selecting a repairer."}`,
+      fcdiScoreAtExecution: fcdiScore,
+      inputCompletenessAtExecution: inputCompletenessScore,
+      computedAt: now,
+    };
+  }
 
   // ── Hard gate: FCDI ────────────────────────────────────────────────────────
   if (fcdiScore < DOE_FCDI_MIN) {
@@ -550,7 +593,9 @@ export function buildDOECandidates(input: BuildCandidatesInput): DOECandidate[] 
     coverageRatio: q.coverage_ratio,
     turnaroundDays,
     reliabilityScore: 0.5, // Default — Phase 4 will wire in learning DB reliability scores
-    fraudRisk: overallFraudRisk as DOECandidate["fraudRisk"],
+    fraudRisk: overallFraudRisk === "unavailable"
+      ? "unavailable"
+      : overallFraudRisk as Exclude<DOECandidate["fraudRisk"], "unavailable">,
     fraudSignal,
     confidence: q.confidence,
   }));

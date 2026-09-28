@@ -7,6 +7,8 @@ import {
   isValidCrushDepthDecision,
   P0_QUANTITATIVE_EVIDENCE_CONTRACT_VERSION,
   preserveOrFailClosedCrushDepthDecision,
+  assessFraudDecisionEligibility,
+  resolvePersistableFraudValues,
 } from "./quantitativeFieldGovernance";
 
 const vgeVisualGeometry = {
@@ -197,5 +199,36 @@ describe("P0 quantitative field governance", () => {
       disposition: "UNAVAILABLE",
       reasonCode: "P0_UNAVAILABLE_INCONSISTENT_PRESERVED_DECISION",
     });
+  });
+});
+
+describe("P0-B1 fraud persistence governance", () => {
+  it("never persists forged, advisory, or fallback fraud numbers", () => {
+    const sources = {
+      crushDepthDecision: assessCrushDepthEligibility({
+        rawStage6CrushDepthCandidatePresent: true,
+      }),
+      advisoryEvidencePresent: true,
+      fallbackOrDegraded: false,
+    };
+    const advisory = assessFraudDecisionEligibility(sources);
+
+    const result = resolvePersistableFraudValues({
+      decision: {
+        ...advisory,
+        governing: { score: 99, level: "elevated" },
+      },
+      sources,
+      candidateScore: 99,
+      candidateLevel: "elevated",
+    });
+
+    expect(result.eligibility).toMatchObject({
+      disposition: "UNAVAILABLE",
+      governing: null,
+      reasonCode: "P0_UNAVAILABLE_MISSING_OR_INCONSISTENT_DECISION",
+    });
+    expect(result.fraudRiskScore).toBeNull();
+    expect(result.fraudRiskLevel).toBeNull();
   });
 });

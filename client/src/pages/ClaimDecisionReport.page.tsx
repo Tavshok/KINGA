@@ -58,6 +58,12 @@ import { PhysicsAnalysisChart } from "@/components/PhysicsAnalysisChart";
 import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import { RepairReplacePanel } from "@/components/RepairReplacePanel";
 import { ClaimCommentThread } from "@/components/ClaimCommentThread";
+import {
+  P0FraudValidationHold,
+} from "@/components/ValidationGate";
+import {
+  discriminateP0B1FraudDecisionResponse,
+} from "@shared/p0FraudDecisionHoldPresentation";
 
 import type { EnforcementResult } from './ClaimDecisionReport.sections';
 import {
@@ -91,13 +97,16 @@ export default function ClaimDecisionReport() {
       refetchInterval: isPollingForPipeline ? 5000 : false,
     }
   );
-  const { data: aiAssessment, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery(
+  const { data: aiAssessmentResponseData, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery(
     { claimId },
     {
       enabled: !!claimId,
       refetchInterval: isPollingForPipeline ? 5000 : false,
     }
   );
+  const aiAssessmentResponse = discriminateP0B1FraudDecisionResponse(aiAssessmentResponseData);
+  const aiAssessmentHold = aiAssessmentResponse.hold;
+  const aiAssessment = aiAssessmentResponse.value;
   const { data: enforcement, isLoading: enforcementLoading } = trpc.aiAssessments.getEnforcement.useQuery(
     { claimId },
     {
@@ -139,15 +148,37 @@ export default function ClaimDecisionReport() {
   const utils = trpc.useUtils();
   // ── Snapshot auto-save: fires once when enforcement data first loads ───────
   const snapshotSaved = useRef(false);
-  const saveSnapshotMutation = trpc.aiAssessments.saveSnapshot.useMutation();
-  const { data: snapshotHistory = [] } = trpc.aiAssessments.getSnapshots.useQuery(
+  const saveSnapshotMutation = trpc.aiAssessments.saveSnapshot.useMutation({
+    onSuccess: (data) => {
+      const snapshotResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (snapshotResponse.hold) return;
+    },
+  });
+  const saveSnapshotMutationResponse = discriminateP0B1FraudDecisionResponse(saveSnapshotMutation.data);
+  const saveSnapshotMutationHold = saveSnapshotMutationResponse.hold;
+  const { data: snapshotHistoryResponse } = trpc.aiAssessments.getSnapshots.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId }
   );
-  const { data: latestSnapshot } = trpc.aiAssessments.getLatestSnapshot.useQuery(
+  const snapshotHistoryDecisionResponse = discriminateP0B1FraudDecisionResponse(
+    snapshotHistoryResponse
+  );
+  const snapshotHistoryHold = snapshotHistoryDecisionResponse.hold;
+  const snapshotHistoryValue = snapshotHistoryDecisionResponse.value;
+  const snapshotHistory = Array.isArray(snapshotHistoryValue)
+    ? snapshotHistoryValue
+    : [];
+  const snapshotCollisionPhysicsHold =
+    snapshotHistoryValue && !Array.isArray(snapshotHistoryValue)
+      ? (snapshotHistoryValue as any).collisionPhysics
+      : null;
+  const { data: latestSnapshotResponseData } = trpc.aiAssessments.getLatestSnapshot.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId }
   );
+  const latestSnapshotResponse = discriminateP0B1FraudDecisionResponse(latestSnapshotResponseData);
+  const latestSnapshotHold = latestSnapshotResponse.hold;
+  const latestSnapshot = latestSnapshotResponse.value;
   const [showSnapshotHistory, setShowSnapshotHistory] = useState(false);
   const [showSpecJson, setShowSpecJson] = useState(false);
   const [showReplay, setShowReplay] = useState(false);
@@ -165,10 +196,13 @@ export default function ClaimDecisionReport() {
   }>(null);
 
   // Lifecycle state
-  const { data: lifecycle, refetch: refetchLifecycle } = trpc.aiAssessments.getLifecycle.useQuery(
+  const { data: lifecycleResponseData, refetch: refetchLifecycle } = trpc.aiAssessments.getLifecycle.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId }
   );
+  const lifecycleDecisionResponse = discriminateP0B1FraudDecisionResponse(lifecycleResponseData);
+  const lifecycleHold = lifecycleDecisionResponse.hold;
+  const lifecycle = lifecycleDecisionResponse.value;
   const isLocked = lifecycle?.is_locked ?? false;
   const isFinal = lifecycle?.is_final ?? false;
   const lifecycleState = (lifecycle?.lifecycle_state ?? 'DRAFT') as string;
@@ -205,10 +239,14 @@ export default function ClaimDecisionReport() {
     }
     window.print();
   };
-  const { data: auditLog = [], refetch: refetchAuditLog } = trpc.aiAssessments.getAuditLog.useQuery(
+  const { data: auditLogResponse, refetch: refetchAuditLog } = trpc.aiAssessments.getAuditLog.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId && showAuditLog }
   );
+  const auditLogDecisionResponse = discriminateP0B1FraudDecisionResponse(auditLogResponse);
+  const auditLogHold = auditLogDecisionResponse.hold;
+  const auditLogValue = auditLogDecisionResponse.value;
+  const auditLog = Array.isArray(auditLogValue) ? auditLogValue : [];
   const [isExporting, setIsExporting] = useState(false);
   const [exportValidationErrors, setExportValidationErrors] = useState<Array<{check: string; passed: boolean; detail: string}> | null>(null);
   const [showExportValidation, setShowExportValidation] = useState(false);
@@ -261,43 +299,79 @@ export default function ClaimDecisionReport() {
 
   const markReviewedMutation = trpc.aiAssessments.markReviewed.useMutation({
     onSuccess: (data) => {
+      const markReviewedResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (markReviewedResponse.hold) return;
+      const availableData = markReviewedResponse.value as {
+        action_allowed: boolean;
+        validation_errors: string[];
+      };
       refetchLifecycle();
       refetchAuditLog();
-      if (!data.action_allowed) {
-        toast.error(`Governance blocked: ${data.validation_errors.join('; ')}`);
+      if (!availableData.action_allowed) {
+        toast.error(`Governance blocked: ${availableData.validation_errors.join('; ')}`);
       } else {
         toast.success("Decision marked as Reviewed");
       }
     },
     onError: (err) => toast.error(`Failed to mark reviewed: ${err.message}`),
   });
+  const markReviewedMutationResponse = discriminateP0B1FraudDecisionResponse(markReviewedMutation.data);
+  const markReviewedMutationHold = markReviewedMutationResponse.hold;
 
   const finaliseDecisionMutation = trpc.aiAssessments.finaliseDecision.useMutation({
     onSuccess: (data) => {
+      const finaliseDecisionResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (finaliseDecisionResponse.hold) {
+        return;
+      }
       refetchLifecycle();
       refetchAuditLog();
-      if (!data.action_allowed) {
-        toast.error(`Governance blocked: ${data.validation_errors.join('; ')}`);
+      const availableFinaliseDecision = finaliseDecisionResponse.value as unknown as {
+        action_allowed?: boolean;
+        validation_errors?: string[];
+        override_flag?: boolean;
+        authoritative_snapshot_id?: number;
+      };
+      if (!availableFinaliseDecision.action_allowed) {
+        toast.error(
+          `Governance blocked: ${(availableFinaliseDecision.validation_errors ?? []).join('; ')}`
+        );
       } else {
-        const overrideMsg = data.override_flag ? ' ⚠️ Override recorded.' : '';
-        toast.success(`Decision FINALISED — Snapshot #${data.authoritative_snapshot_id} created.${overrideMsg}`);
+        const overrideMsg = availableFinaliseDecision.override_flag
+          ? " ⚠️ Override recorded."
+          : "";
+        toast.success(
+          `Decision FINALISED — Snapshot #${availableFinaliseDecision.authoritative_snapshot_id} created.${overrideMsg}`
+        );
       }
     },
     onError: (err) => toast.error(`Finalise failed: ${err.message}`),
   });
+  const finaliseDecisionMutationResponse = discriminateP0B1FraudDecisionResponse(
+    finaliseDecisionMutation.data
+  );
+  const finaliseDecisionMutationHold = finaliseDecisionMutationResponse.hold;
 
   const lockDecisionMutation = trpc.aiAssessments.lockDecision.useMutation({
     onSuccess: (data) => {
+      const lockDecisionResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (lockDecisionResponse.hold) return;
+      const availableData = lockDecisionResponse.value as {
+        action_allowed: boolean;
+        validation_errors: string[];
+      };
       refetchLifecycle();
       refetchAuditLog();
-      if (!data.action_allowed) {
-        toast.error(`Governance blocked: ${data.validation_errors.join('; ')}`);
+      if (!availableData.action_allowed) {
+        toast.error(`Governance blocked: ${availableData.validation_errors.join('; ')}`);
       } else {
         toast.success("Claim LOCKED — This is now an immutable legal record");
       }
     },
     onError: (err) => toast.error(`Lock failed: ${err.message}`),
   });
+  const lockDecisionMutationResponse = discriminateP0B1FraudDecisionResponse(lockDecisionMutation.data);
+  const lockDecisionMutationHold = lockDecisionMutationResponse.hold;
 
   // Submit reason dialog
   const submitReasonDialog = () => {
@@ -324,17 +398,22 @@ export default function ClaimDecisionReport() {
 
   const replayMutation = trpc.aiAssessments.replayDecision.useMutation({
     onSuccess: (data) => {
-      setReplayResult(data);
+      const replayResponse = discriminateP0B1FraudDecisionResponse(data);
+      if (replayResponse.hold) return;
+      const availableData = replayResponse.value as NonNullable<typeof replayResult>;
+      setReplayResult(availableData);
       setShowReplay(true);
       refetchLifecycle();
-      if (data.changed) {
-        toast.warning(`Logic drift detected — ${data.differences.length} field(s) changed`);
+      if (availableData.changed) {
+        toast.warning(`Logic drift detected — ${availableData.differences.length} field(s) changed`);
       } else {
         toast.success("No drift detected — decision is consistent with current logic");
       }
     },
     onError: (err) => toast.error(`Replay failed: ${err.message}`),
   });
+  const replayMutationResponse = discriminateP0B1FraudDecisionResponse(replayMutation.data);
+  const replayMutationHold = replayMutationResponse.hold;
 
   useEffect(() => {
     if (!enforcement || !aiAssessment || snapshotSaved.current) return;
@@ -478,6 +557,46 @@ export default function ClaimDecisionReport() {
   }, [reportView]);
 
   const isLoading = claimLoading || aiLoading || enforcementLoading || quotesLoading;
+
+  if (finaliseDecisionMutationHold) {
+    return <P0FraudValidationHold hold={finaliseDecisionMutationHold} />;
+  }
+
+  if (latestSnapshotHold) {
+    return <P0FraudValidationHold hold={latestSnapshotHold} />;
+  }
+
+  if (lifecycleHold) {
+    return <P0FraudValidationHold hold={lifecycleHold} />;
+  }
+
+  if (auditLogHold) {
+    return <P0FraudValidationHold hold={auditLogHold} />;
+  }
+
+  if (saveSnapshotMutationHold) {
+    return <P0FraudValidationHold hold={saveSnapshotMutationHold} />;
+  }
+
+  if (markReviewedMutationHold) {
+    return <P0FraudValidationHold hold={markReviewedMutationHold} />;
+  }
+
+  if (lockDecisionMutationHold) {
+    return <P0FraudValidationHold hold={lockDecisionMutationHold} />;
+  }
+
+  if (replayMutationHold) {
+    return <P0FraudValidationHold hold={replayMutationHold} />;
+  }
+
+  if (aiAssessmentHold) {
+    return <P0FraudValidationHold hold={aiAssessmentHold} />;
+  }
+
+  if (snapshotHistoryHold) {
+    return <P0FraudValidationHold hold={snapshotHistoryHold} />;
+  }
 
   if (isLoading) {
     return (
@@ -790,7 +909,32 @@ export default function ClaimDecisionReport() {
 
         <ReportSectionDivider label="Audit Trail & Decision History" icon="📜" />
         {/* 7. Snapshot History */}
-        {(snapshotHistory as any[]).length > 0 && (
+        {snapshotHistoryHold && (
+          <div className="mb-4 space-y-3">
+            <P0FraudValidationHold hold={snapshotHistoryHold} />
+            {snapshotCollisionPhysicsHold && (
+              <div
+                className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-3 text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100"
+              >
+                <p className="text-sm font-semibold">
+                  Collision Physics Withheld — Manual Review Required
+                </p>
+                <p className="mt-1 text-xs leading-relaxed">
+                  {snapshotCollisionPhysicsHold.explanation}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed">
+                  <span className="font-semibold">What is missing:</span>{" "}
+                  {(snapshotCollisionPhysicsHold.requiredEvidence ?? []).join("; ")}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed">
+                  <span className="font-semibold">What resolves this:</span>{" "}
+                  {snapshotCollisionPhysicsHold.resolver?.action}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+        {snapshotHistory.length > 0 && (
           <div className="mb-4 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
             <button
               className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold"
@@ -799,13 +943,13 @@ export default function ClaimDecisionReport() {
             >
               <span style={{ color: "var(--muted-foreground)" }}>
                 <FileText className="inline h-3.5 w-3.5 mr-1.5" />
-                Decision Snapshot History ({(snapshotHistory as any[]).length} version{(snapshotHistory as any[]).length !== 1 ? 's' : ''})
+                Decision Snapshot History ({snapshotHistory.length} version{snapshotHistory.length !== 1 ? 's' : ''})
               </span>
               {showSnapshotHistory ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
             {showSnapshotHistory && (
               <div className="divide-y" style={{ borderTop: "1px solid var(--border)", background: "var(--background)" }}>
-                {(snapshotHistory as any[]).map((snap: any) => (
+                {snapshotHistory.map((snap: any) => (
                   <div key={snap.id} className="px-4 py-3 flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold mb-0.5" style={{ color: "var(--foreground)" }}>

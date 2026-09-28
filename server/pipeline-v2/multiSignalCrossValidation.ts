@@ -612,13 +612,13 @@ function buildSummary(
   const parts: string[] = [];
 
   if (overallRisk === 'LOW') {
-    parts.push(`Cross-validation: LOW RISK. ${verdictSummary.corroborated}/${total} facts corroborated by independent signals.`);
+    parts.push(`Cross-validation corroboration: ${verdictSummary.corroborated}/${total} facts corroborated by independent signals.`);
   } else if (overallRisk === 'MEDIUM') {
-    parts.push(`Cross-validation: MEDIUM RISK. ${verdictSummary.contradicted} fact(s) show minor inconsistencies requiring review.`);
+    parts.push(`Cross-validation review attention: ${verdictSummary.contradicted} fact(s) show minor inconsistencies requiring review.`);
   } else if (overallRisk === 'HIGH') {
-    parts.push(`Cross-validation: HIGH RISK. ${severitySummary.concern} significant inconsistency(ies) detected — adjuster investigation required.`);
+    parts.push(`Cross-validation investigation required: ${severitySummary.concern} significant inconsistency(ies) detected — adjuster investigation required.`);
   } else {
-    parts.push(`Cross-validation: CRITICAL RISK. ${severitySummary.flag} material contradiction(s) detected — specialist review recommended.`);
+    parts.push(`Cross-validation specialist review required: ${severitySummary.flag} material contradiction(s) detected — specialist review recommended.`);
   }
 
   const flagFindings = findings.filter(f => f.severity === 'FLAG');

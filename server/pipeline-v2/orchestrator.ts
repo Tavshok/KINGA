@@ -42,10 +42,14 @@ import {
 } from "./stage-7-physics";
 import {
   assessCrushDepthEligibility,
+  assessFraudDecisionEligibility,
   hasGoverningCrushDepthEligibility,
 } from "../evidence-governance/quantitativeFieldGovernance";
 import { scoreClaimComplexity, type ComplexityScore } from "./claimComplexityScorer";
-import { runFraudAnalysisStage, recomputeFraudScore } from "./stage-8-fraud";
+import {
+  buildP0FraudUnavailableAssumption,
+  runFraudAnalysisStage,
+} from "./stage-8-fraud";
 import { aggregateConfidence, buildConfidenceAggregationInput } from "./confidenceAggregationEngine";
 import { runCostOptimisationStage } from "./stage-9-cost";
 import { runContactGeometryIntelligence, type Stage9_5Output } from "./stage-9-5-cgi";
@@ -112,7 +116,7 @@ import {
   type PreGenerationCheckResult,
 } from "./preGenerationConsistencyCheck";
 import {
-  evaluateClaimDecision,
+  evaluateP0GatedClaimDecision,
   type ClaimsDecisionOutput,
 } from "./claimsDecisionAuthority";
 import {
@@ -165,7 +169,7 @@ import { eq } from "drizzle-orm";
 import { calculatePhysicsDeviationScore, parsePhysicsAnalysis } from "../physics-deviation-calculator";
 import { checkClaimConsistency } from "./claimConsistencyChecker";
 import { detectContradictions } from "./contradictionDetectionEngine";
-import { buildClaimTruth, enrichClaimTruthWithPhysics, type ClaimTruth } from "./claimTruthLayer";
+import { buildP0GatedClaimTruth, enrichClaimTruthWithPhysics, type ClaimTruth } from "./claimTruthLayer";
 import {
   checkStage6Inputs,
   checkStage7Inputs,
@@ -177,7 +181,7 @@ import {
   saveStageResult,
   loadCompletedStages,
 } from "../db-pipeline";
-import { runTruthReconciliationEngine, type ClaimTruthObject } from "./truthReconciliationEngine";
+import { runP0GatedTruthReconciliationEngine, type ClaimTruthObject } from "./truthReconciliationEngine";
 import { buildPhysicsTruth, type PhysicsTruth } from "./physicsTruth";
 import { runIntegrityEngine, type IntegrityEngineResult } from "./stage-integrity";
 import { runUncertaintyPropagation, type UncertaintyPropagationResult } from "./stage-uncertainty";
@@ -294,6 +298,28 @@ export function projectForensicAnalysisUnderP0(
     return forensicAnalysis;
   }
   return { ...forensicAnalysis, causalChain: null };
+}
+
+/** Converts cross-validation findings into manual-review context without points. */
+export function buildP0CrossValidationIndicators(
+  findings: Array<{
+    severity: string;
+    fact: string;
+    verdict: string;
+    explanation: string;
+    recommendedAction?: string | null;
+  }>
+) {
+  return findings
+    .filter(f => f.severity === "FLAG" || f.severity === "CONCERN")
+    .map(f => ({
+      indicator: `[CROSS-VALIDATION] ${f.fact}: ${f.verdict}`,
+      category: "cross_validation",
+      score: null,
+      description: f.explanation,
+      severity: "advisory" as const,
+      evidence: f.recommendedAction ? [f.recommendedAction] : [],
+    }));
 }
 
 /**
@@ -1978,23 +2004,27 @@ export async function runPipelineV2(
         ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
         : `engine_failure: ${String(err)}`;
       ctx.log("Stage 8", `${isTimeout ? "TIMEOUT" : "ERROR"}: ${err.message} — invoking fraud engine fallback`);
-      // ensureFraudContract({}) produces the same output as the stage's own catch block.
-      // Score defaults to medium risk (50) with all indicators marked as estimated.
+      // P0-B1: the fallback preserves unavailable fraud authority; it never
+      // substitutes a threshold-looking risk score or level.
       return {
         status: "degraded" as const,
-        data: ensureFraudContract({}, reason),
+        data: {
+          ...ensureFraudContract({}, reason),
+          fraudDecisionEligibility: assessFraudDecisionEligibility({
+            crushDepthDecision: stage7Data?.quantitativeEvidence?.crushDepth,
+            advisoryEvidencePresent: true,
+            fallbackOrDegraded: true,
+          }),
+        },
         error: err.message,
         durationMs: isTimeout ? err.budgetMs : 0,
-        savedToDb: false,
-        _timedOut: isTimeout,
-        assumptions: [{
-          field: "fraudRiskScore",
-          assumedValue: "medium_risk_50",
-          reason: `Stage 8 ${isTimeout ? "timed out" : "failed"}: ${reason}. Fraud score unavailable — medium risk applied to flag for manual review.`,
-          strategy: "default_value" as const,
-          confidence: 10,
-          stage: "Stage 8",
-        }],
+          savedToDb: false,
+          _timedOut: isTimeout,
+          assumptions: [
+            buildP0FraudUnavailableAssumption(
+              `Stage 8 ${isTimeout ? "timed out" : "failed"}: ${reason}`
+            ),
+          ],
         recoveryActions: [{
           target: "fraud_analysis_recovery",
           strategy: "default_value" as const,
@@ -2141,34 +2171,13 @@ export async function runPipelineV2(
         } : null,
       });
       ctx.log('Signal-XV', `Cross-validation: risk=${crossValidationResult.overallRisk}, findings=${crossValidationResult.findings.length}, flags=${crossValidationResult.severitySummary.flag}, concerns=${crossValidationResult.severitySummary.concern}`);
-      // Inject cross-validation flags into fraud scoring as a distinct indicator category
+      // P0-B1: retain cross-validation findings as descriptive manual-review
+      // evidence only. They cannot inject points or re-open fraud scoring.
       if (stage8Data && crossValidationResult.hasMaterialContradictions) {
-        const xvIndicators = crossValidationResult.findings
-          .filter(f => f.severity === 'FLAG' || f.severity === 'CONCERN')
-          .map(f => ({
-            indicator: `[CROSS-VALIDATION] ${f.fact}: ${f.verdict}`,
-            category: 'cross_validation',
-            score: f.severity === 'FLAG' ? 25 : 15,
-            description: f.explanation,
-            severity: (f.severity === 'FLAG' ? 'high' : 'medium') as 'high' | 'medium',
-            evidence: f.recommendedAction ? [f.recommendedAction] : [],
-          }));
+        const xvIndicators = buildP0CrossValidationIndicators(crossValidationResult.findings);
         if (!stage8Data.indicators) stage8Data.indicators = [];
         stage8Data.indicators.push(...xvIndicators);
-        ctx.log('Signal-XV', `Injected ${xvIndicators.length} cross-validation indicator(s) into fraud scoring`);
-        // ── Recompute fraud score after XV injection ──────────────────────────
-        // The XV indicators are now in stage8Data.indicators but the stored
-        // fraudRiskScore is still the pre-injection value from Stage 8.
-        // Recompute using the exported weighted scoring function so the final
-        // DB-stored score reflects ALL signals including cross-validation.
-        const scenarioScoreForRecompute = stage8Data.scenarioFraudResult?.fraud_score ?? null;
-        const { score: xvAdjustedScore, riskLevel: xvAdjustedLevel } =
-          recomputeFraudScore(stage8Data.indicators, scenarioScoreForRecompute);
-        if (xvAdjustedScore !== stage8Data.fraudRiskScore) {
-          ctx.log('Signal-XV', `Fraud score updated after XV injection: ${stage8Data.fraudRiskScore} → ${xvAdjustedScore}/100 (${xvAdjustedLevel})`);
-          stage8Data.fraudRiskScore = xvAdjustedScore;
-          stage8Data.fraudRiskLevel = xvAdjustedLevel;
-        }
+        ctx.log('Signal-XV', `Retained ${xvIndicators.length} cross-validation finding(s) for manual review; no fraud score was computed.`);
       }
     } catch (err) {
       ctx.log('Signal-XV', `Cross-validation failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
@@ -2377,12 +2386,12 @@ export async function runPipelineV2(
         recommendation: ((localConsensusResult?.consensus_label as string) === 'STRONG' ? 'APPROVE' : 'REVIEW') as any,
         overall_confidence: claimRecord ? Math.max(0, Math.min(100, claimRecord.dataQuality.completenessScore)) : null,
         fraud_result: stage8Data ? {
-          fraud_risk_level: stage8Data.fraudRiskLevel,
-          fraud_risk_score: stage8Data.fraudRiskScore,
-          critical_flag_count: stage8Data.indicators?.filter((i: any) => i.severity === 'critical').length ?? 0,
-          // CALIBRATION: 70-point threshold for scenario_fraud_flagged in fast-track context
-          // is engineering-judgment. The FSS-2026-001 'elevated' band starts at 81.
-          scenario_fraud_flagged: stage8Data.fraudRiskScore > SCENARIO_FRAUD_FLAG_SCORE,
+          // P0-B1: contradiction detection may preserve a missing-evidence hold,
+          // but it cannot escalate from a visual/model-derived fraud score.
+          fraud_risk_level: null,
+          fraud_risk_score: null,
+          critical_flag_count: null,
+          scenario_fraud_flagged: null,
         } : null,
         physics_result: stage7Data ? {
           is_plausible: stage7Data.isPhysicallyPlausible ?? (stage7Data.physicsStatus === 'EXECUTED'),
@@ -2539,7 +2548,7 @@ export async function runPipelineV2(
         return Array.isArray(parsed) ? parsed.filter((p: any) => p?.url) : [];
       } catch { return []; }
     })();
-    claimTruth = buildClaimTruth({
+    claimTruth = buildP0GatedClaimTruth({
       claimRecord: claimRecord!,
       stage3Data: stage3Data ?? null,
       evidenceRegistry: evidenceRegistryData ?? null,
@@ -2554,6 +2563,12 @@ export async function runPipelineV2(
       // R-D-02: pass Stage 8 composite fraud score/level so CTL uses the correct scale for ESCALATE decisions
       stage8FraudScore: stage8Data?.fraudRiskScore ?? null,
       stage8FraudLevel: stage8Data?.fraudRiskLevel ?? null,
+      fraudDecisionEligibility: stage8Data?.fraudDecisionEligibility ?? null,
+      fraudDecisionSources: {
+        crushDepthDecision: stage7Data?.quantitativeEvidence?.crushDepth,
+        advisoryEvidencePresent: true,
+        fallbackOrDegraded: Boolean((stage8Data as any)?._fallback),
+      },
     });
     ctx.log("CTL", `Claim Truth Layer resolved: quotes=${claimTruth.costBasis.quotes.length}, ` +
       `optimisedCost=$${claimTruth.costBasis.optimisedCostUsd.toFixed(2)}, ` +
@@ -2565,8 +2580,11 @@ export async function runPipelineV2(
         ctx.log("CTL", `  CONFLICT [${c.field}]: chose "${c.chosen}" over "${c.rejected}" \u2014 ${c.reason}`);
       }
     }
-    // Enrich with physics results (Stage 7 already ran)
-    if (stage7Data && claimTruth) {
+    // P0-B1: a held Claim Truth result must not be enriched with collision
+    // quantities that would create a physics-derived fraud anomaly after the hold.
+    const canEnrichClaimTruthWithPhysics =
+      claimTruth?.meta.fraudDecisionEligibility?.governing !== null;
+    if (stage7Data && claimTruth && canEnrichClaimTruthWithPhysics) {
       const airbagDeployed = claimRecord?.accidentDetails?.airbagDeployment === true;
       claimTruth = enrichClaimTruthWithPhysics(claimTruth, {
         deltaVKmh: stage7Data.deltaVKmh ?? null,
@@ -2579,6 +2597,8 @@ export async function runPipelineV2(
         ctx.log("CTL", `Physics enrichment: ${claimTruth.fraudSignals.physicsAnomalies.length} anomaly(ies) detected. ` +
           claimTruth.fraudSignals.physicsAnomalies.map(a => `[${a.severity}] ${a.type}`).join(", "));
       }
+    } else if (stage7Data && claimTruth) {
+      ctx.log("CTL", "P0-B1 withheld physics-derived fraud enrichment pending governing fraud evidence.");
     }
     // Attach to context so downstream consumers (Stage 10, reports) can access it
     (ctx as any).claimTruth = claimTruth;
@@ -2590,7 +2610,7 @@ export async function runPipelineV2(
   // Runs after all engines (CTL, reconciliation, consistency) and produces the
   // canonical ClaimTruthObject (CTO) that all downstream consumers must read from.
   try {
-    claimTruthObject = runTruthReconciliationEngine({
+    claimTruthObject = runP0GatedTruthReconciliationEngine({
       claimRecord: claimRecord!,
       claimTruth: claimTruth,
       physicsAnalysis: stage7Data,
@@ -2867,8 +2887,12 @@ export async function runPipelineV2(
   // before the result is returned to the caller.
   let preGenCheck: PreGenerationCheckResult | null = null;
   try {
+    // P0-B1: pre-generation correction is itself an automated recommendation
+    // sink. It cannot turn raw physics or advisory fraud observations into an
+    // escalation/review override.
+    const fraudEvidenceCanGovern = false;
     const physicsBasedFraudIndicators: string[] = [];
-    if (stage8Data?.indicators) {
+    if (fraudEvidenceCanGovern && stage8Data?.indicators) {
       for (const ind of stage8Data.indicators) {
         const id = (ind as any).indicator ?? "";
         if (
@@ -2883,9 +2907,9 @@ export async function runPipelineV2(
     }
     preGenCheck = runPreGenerationConsistencyCheck({
       recommendation: stage9Data?.costDecision?.recommendation ?? null,
-      fraud_score: stage8Data?.fraudRiskScore ?? null,
-      fraud_score_cover: stage8Data?.fraudRiskScore ?? null,
-      physics_plausibility_score: stage7Data?.animalStrikePhysics?.plausibility_score ?? stage7Data?.damageConsistencyScore ?? null,
+      fraud_score: null,
+      fraud_score_cover: null,
+      physics_plausibility_score: null,
       physics_based_fraud_indicators: physicsBasedFraudIndicators,
       cost_basis: stage9Data?.costDecision?.cost_basis ?? null,
       quotation_present: (claimRecord?.repairQuote?.quoteTotalCents ?? 0) > 0 ||
@@ -2927,7 +2951,7 @@ export async function runPipelineV2(
     const overallConfidence = claimRecord
       ? Math.max(0, Math.min(100, claimRecord.dataQuality.completenessScore))
       : null;
-    decisionAuthorityResult = evaluateClaimDecision({
+    decisionAuthorityResult = evaluateP0GatedClaimDecision({
       scenario_type: claimRecord?.accidentDetails?.incidentType ?? null,
       severity: stage7Data?.accidentSeverity ?? null,
       physics_result: stage7Data ? {
@@ -2947,9 +2971,15 @@ export async function runPipelineV2(
       fraud_result: stage8Data ? {
         fraud_risk_level: stage8Data.fraudRiskLevel ?? null,
         fraud_risk_score: stage8Data.fraudRiskScore ?? null,
-        critical_flag_count: stage8Data.indicators?.filter((i: any) => i.severity === 'critical').length ?? 0,
-        scenario_fraud_flagged: (stage8Data.fraudRiskScore ?? 0) >= SCENARIO_FRAUD_FLAG_SCORE,
+        critical_flag_count: null,
+        scenario_fraud_flagged: null,
         reasoning: (stage8Data as any).fraudSummary ?? null,
+        fraud_decision_eligibility: stage8Data.fraudDecisionEligibility ?? null,
+        fraud_decision_sources: {
+          crushDepthDecision: stage7Data?.quantitativeEvidence?.crushDepth,
+          advisoryEvidencePresent: true,
+          fallbackOrDegraded: Boolean((stage8Data as any)?._fallback),
+        },
       } : null,
       costDecision: stage9Data?.costDecision ? {
         recommendation: stage9Data.costDecision.recommendation === 'APPROVE' ? 'PROCEED_TO_ASSESSMENT'

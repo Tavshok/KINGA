@@ -139,14 +139,8 @@ export class RoutingEngine {
       };
     }
 
-    // Check fraud risk
-    if (claim.aiAssessment?.fraudRiskLevel === "high") {
-      return {
-        required: true,
-        reason: "High fraud risk detected by KINGA assessment",
-        targetRole: "risk_manager",
-      };
-    }
+    // P0-B1: stored fraud levels lack qualified governing authority. They may
+    // not select a routing role or construct an automated fraud conclusion.
 
     return {
       required: false,
@@ -161,26 +155,11 @@ export class RoutingEngine {
     claim: ClaimContext,
     config: WorkflowConfiguration
   ): boolean {
-    if (!config.aiFastTrackEnabled) {
-      return false;
-    }
-
-    // Fast track criteria:
-    // 1. Low fraud risk
-    // 2. High AI confidence
-    // 3. Below high-value threshold
-
-    if (!claim.aiAssessment) {
-      return false;
-    }
-
-    const { fraudRiskLevel, confidenceScore } = claim.aiAssessment;
-
-    return (
-      fraudRiskLevel === "low" &&
-      confidenceScore >= 85 &&
-      claim.estimatedCost < config.highValueThreshold
-    );
+    // P0-B1: no current fraud source may authorize automated routing. A future
+    // qualified authority must extend this method with a source-bound contract.
+    void claim;
+    void config;
+    return false;
   }
 
   /**

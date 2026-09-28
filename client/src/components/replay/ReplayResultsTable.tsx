@@ -17,6 +17,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { ReplayComparisonView } from "./ReplayComparisonView";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { getP0B1FraudDecisionHold } from "@shared/p0FraudDecisionHoldPresentation";
 
 export function ReplayResultsTable() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -39,126 +40,27 @@ export function ReplayResultsTable() {
     );
   }
   
-  if (!results || results.length === 0) {
+  const fraudDecisionHold = getP0B1FraudDecisionHold(results);
+  if (fraudDecisionHold) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Replay Results</CardTitle>
-          <CardDescription>No replay results found</CardDescription>
+          <CardTitle>Replay Results Withheld</CardTitle>
+          <CardDescription>{fraudDecisionHold.explanation}</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-center text-muted-foreground py-8">
-            Trigger a replay to see results here
-          </p>
+          <p className="text-sm text-muted-foreground">{fraudDecisionHold.resolver.unresolvedAction}</p>
         </CardContent>
       </Card>
     );
   }
   
   return (
-    <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Replay Results</CardTitle>
-          <CardDescription>
-            Click any row to view detailed comparison
-          </CardDescription>
+        <CardTitle>Replay Results Unavailable</CardTitle>
+        <CardDescription>Historical replay results are not available without qualified governing fraud authority.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Claim ID</TableHead>
-                <TableHead>Replayed At</TableHead>
-                <TableHead>Decision Match</TableHead>
-                <TableHead>Payout Variance</TableHead>
-                <TableHead>Recommended Action</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {results.map((result: any) => (
-                <>
-                  <TableRow
-                    key={result.id}
-                    className="cursor-pointer hover:bg-accent"
-                    onClick={() => setExpandedId(expandedId === result.id ? null : result.id)}
-                  >
-                    <TableCell className="font-medium">
-                      {result.historicalClaimId}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(result.replayedAt).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      {result.decisionMatch ? (
-                        <Badge variant="default" className="gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Match
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive" className="gap-1">
-                          <XCircle className="h-3 w-3" />
-                          Mismatch
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className={result.payoutVarianceAmount < 0 ? "text-green-600" : result.payoutVarianceAmount > 0 ? "text-red-600" : ""}>
-                        {result.payoutVarianceAmount < 0 ? '-' : '+'}{formatCurrency(Math.abs(result.payoutVarianceAmount))}
-                      </span>
-                      <span className="text-xs text-muted-foreground ml-1">
-                        ({result.payoutVariancePercent.toFixed(1)}%)
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{result.recommendedAction}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {expandedId === result.id ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                  
-                  {expandedId === result.id && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="bg-accent/50">
-                        <div className="py-4">
-                          <ReplayComparisonView result={result} />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
       </Card>
-      
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={() => setPage(Math.max(0, page - 1))}
-          disabled={page === 0}
-        >
-          Previous
-        </Button>
-        <span className="text-sm text-muted-foreground">
-          Page {page + 1}
-        </span>
-        <Button
-          variant="outline"
-          onClick={() => setPage(page + 1)}
-          disabled={results.length < limit}
-        >
-          Next
-        </Button>
-      </div>
-    </div>
   );
 }

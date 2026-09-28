@@ -916,6 +916,16 @@ export const fleetAccountsRouter = router({
       limit: z.number().int().min(1).max(50).default(20),
     }))
     .query(async ({ input, ctx }) => {
+      void input;
+      void ctx;
+      return {
+        status: "FRAUD_DECISION_WITHHELD",
+        reviewRequired: true,
+        explanation: "Fleet fraud flags are withheld pending qualified governing evidence.",
+        requiredEvidence: ["Independently verifiable claim-linked evidence", "Human-reviewed evidence with auditable provenance", "A future owner-approved qualified automated-decision policy"],
+        vehicles: [],
+      };
+
       const db = await getDb();
       if (!db) return [];
       try {

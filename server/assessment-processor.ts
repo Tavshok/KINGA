@@ -32,6 +32,7 @@ import { crossValidateQuotesVsPhotos, type CrossValidationReport } from './cross
 import { extendPhysicsValidationOutput } from './physics-quantitative-output';
 import { validatePhysicsAnalysis, type PhysicsAnalysis as TypedPhysicsAnalysis } from '../shared/physics-types';
 import { WRITE_OFF_RECOMMENDATION_THRESHOLD } from '../shared/writeOffPolicy';
+import { throwP0B1FraudDecisionHold } from './evidence-governance/p0FraudDecisionHold';
 
 // ============================================================
 // TYPE DEFINITIONS
@@ -812,6 +813,9 @@ export async function processExternalAssessment(
   fileName: string,
   fileData: string | Buffer
 ): Promise<AssessmentResult> {
+  void fileName;
+  void fileData;
+  throwP0B1FraudDecisionHold();
   const fileBuffer = typeof fileData === 'string' 
     ? Buffer.from(fileData, "base64")
     : fileData;

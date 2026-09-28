@@ -1,0 +1,668 @@
+[
+  {
+    "path": "client/src/components/replay/ReplayResultsTable.tsx",
+    "line": 28,
+    "column": 40,
+    "kind": "query",
+    "callee": "trpc.claimReplay.getAllReplayResults.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "06df520c35d4d5c9655b1cdb19afe111b530c5e53a2b8b37de7774204c1fc977"
+  },
+  {
+    "path": "client/src/components/AiReanalysisPanel.tsx",
+    "line": 44,
+    "column": 56,
+    "kind": "query",
+    "callee": "trpc.aiReanalysis.getVersionHistory.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "0b7c60161dc2bc1b6fc7f8aab2603f6b73b4ca05ba5ac9ab0fa23932775f7c43"
+  },
+  {
+    "path": "client/src/pages/RelationshipIntelligence.tsx",
+    "line": 95,
+    "column": 17,
+    "kind": "query",
+    "callee": "trpc.intelligence.getSummaryStats.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "128a2202b879b3fbadcf1555ff96b6d550c039c5e9bffe47ed486d7c24db6ac8"
+  },
+  {
+    "path": "client/src/components/VehiclePassportPanel.tsx",
+    "line": 150,
+    "column": 7,
+    "kind": "query",
+    "callee": "trpc.vehiclePassport.getFraudSignals.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "162e972ee4f6f23e925c0d6814278696c8a554e4a4d5a022d1264b7f0939a0c9"
+  },
+  {
+    "path": "client/src/components/DecisionAuthorityPanel.tsx",
+    "line": 98,
+    "column": 38,
+    "kind": "query",
+    "callee": "trpc.decision.getDecisionTrace.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "179555ac88002c56edf69087cb3af1d4b6f670ad361c53175597a3cfbb6c58ba"
+  },
+  {
+    "path": "client/src/components/ClaimDrillDownModal.tsx",
+    "line": 44,
+    "column": 18,
+    "kind": "query",
+    "callee": "trpc.executive.getOperationalClaimDetail.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "1e219b9613e25b4470047022ed596fd0c7f425282ed6e4b29237c98a3e7b5dc7"
+  },
+  {
+    "path": "client/src/pages/InsurerAdminDashboard.tsx",
+    "line": 172,
+    "column": 50,
+    "kind": "query",
+    "callee": "trpc.analytics.getKPIs.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "211fd1353255c43c768f9f60e47d62db0d88ebe1ae98443d015b2e0ff3dbc7a7"
+  },
+  {
+    "path": "client/src/pages/ClaimsManagerComparisonView.tsx",
+    "line": 148,
+    "column": 56,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.byClaim.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "24f3e9827b63469b925edf929fa0e15c63678daad3d5fa03e1502b0af25fa41d"
+  },
+  {
+    "path": "client/src/pages/admin/IntelligenceEngineMonitoring.tsx",
+    "line": 40,
+    "column": 48,
+    "kind": "query",
+    "callee": "trpc.admin.getPlatformHealth.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "266838915c37b54ac410b8ecb61a86b40b6d8b7249c8b53ec8e1900f3a49dfff"
+  },
+  {
+    "path": "client/src/pages/RiskManagerAnalytics.tsx",
+    "line": 705,
+    "column": 24,
+    "kind": "mutation",
+    "callee": "trpc.analytics.sendRiskAnalyticsReport.useMutation",
+    "detection": "server-canonical-hold",
+    "fingerprint": "267f9c4bd87f93bf9c8d02a33a282b466a5c4289ee6a61cd600d1ef1976bf95f"
+  },
+  {
+    "path": "client/src/pages/admin/LearningDashboard.tsx",
+    "line": 158,
+    "column": 31,
+    "kind": "query",
+    "callee": "trpc.learning.evaluateCalibrationFeedback.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "2ac44ce287bb078e5175300dd7e7c9583948d97d2ffc6972754c09d45b8852e7"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 300,
+    "column": 32,
+    "kind": "mutation",
+    "callee": "trpc.aiAssessments.markReviewed.useMutation",
+    "detection": "typed-and-server",
+    "fingerprint": "2bb9e70cf214e0a48f9d1d83720c0c462bc0dcc7ab5c44aa3a671da2a2cf09bf"
+  },
+  {
+    "path": "client/src/pages/RelationshipIntelligence.tsx",
+    "line": 100,
+    "column": 20,
+    "kind": "query",
+    "callee": "trpc.intelligence.getAccidentClusters.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "34dd84de90a7f9d8f50e001afc905578547fee32c4350fab08503ec1af5e8fd8"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 110,
+    "column": 64,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.getEnforcement.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "378f3d90c845088caeb0dfe85c2d82f225a0147a7aaecb4e426b47f6e310787c"
+  },
+  {
+    "path": "client/src/components/replay/ReplayStatisticsCards.tsx",
+    "line": 15,
+    "column": 38,
+    "kind": "query",
+    "callee": "trpc.claimReplay.getReplayStatistics.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "39127e90314d2a95cd798c6c226d2f3a4bac906aa04d76aeea68159b85183b3f"
+  },
+  {
+    "path": "client/src/components/PoliceReportForm.tsx",
+    "line": 41,
+    "column": 24,
+    "kind": "mutation",
+    "callee": "trpc.policeReports.create.useMutation",
+    "detection": "typed-and-server",
+    "fingerprint": "3a1b9b64ae18f9f8d13c27576e94a09820a332c5e699b5a3e4a9acd02bc5cdfb"
+  },
+  {
+    "path": "client/src/pages/InsurerComparisonView.tsx",
+    "line": 211,
+    "column": 37,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.getSharedRoles.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "41937afe088cdf089330b5a94325f9c31f1dda73b56224b082e54f5fcce74c2e"
+  },
+  {
+    "path": "client/src/components/AiReanalysisPanel.tsx",
+    "line": 67,
+    "column": 62,
+    "kind": "query",
+    "callee": "trpc.aiReanalysis.compareVersions.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "41bb664e4ea603eb3b4d7c51af3192b5f2a307618f465c52974cf092de4868f7"
+  },
+  {
+    "path": "client/src/pages/ClaimsManagerDashboard.tsx",
+    "line": 201,
+    "column": 5,
+    "kind": "query",
+    "callee": "trpc.claims.getManagerOverview.useQuery",
+    "detection": "typed-canonical-hold",
+    "fingerprint": "4235e8fbf2e0fa9aa477d505ad41934da7eaf92ed688423b20029d92d5da189f"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 242,
+    "column": 64,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.getAuditLog.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "458549256b976d8873728551b554c637ebf54de8d6450e9ae4fbfb792b9c1fdc"
+  },
+  {
+    "path": "client/src/pages/InsurerComparisonView.tsx",
+    "line": 200,
+    "column": 30,
+    "kind": "mutation",
+    "callee": "trpc.aiAssessments.pushReportToRole.useMutation",
+    "detection": "server-canonical-hold",
+    "fingerprint": "458a07bc488f9e0dcd010fd48b813e6f67d03d05847f4342ac4619717fbe86fd"
+  },
+  {
+    "path": "client/src/components/EscalationCentre.tsx",
+    "line": 100,
+    "column": 28,
+    "kind": "query",
+    "callee": "trpc.claims.getEscalations.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "46b1b5c5a4a13690d3d1ac00c7634c2c8f5e8dc7552b7be289bd667f21bbd1fd"
+  },
+  {
+    "path": "client/src/pages/InternalAssessorDashboard.tsx",
+    "line": 614,
+    "column": 28,
+    "kind": "mutation",
+    "callee": "trpc.claims.authorizePayment.useMutation",
+    "detection": "server-canonical-hold",
+    "fingerprint": "48c097104ce589770ef0813a0a880a2401ef0b99bb9eb8707fef8a32fa4153f9"
+  },
+  {
+    "path": "client/src/pages/ClaimsManagerDashboard.tsx",
+    "line": 208,
+    "column": 5,
+    "kind": "query",
+    "callee": "trpc.claims.getFraudAlerts.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "4a30bcb0693c49da3610f988be10068d1fd7eee6adf889c1337d31c9934f2598"
+  },
+  {
+    "path": "client/src/pages/admin/LearningDashboard.tsx",
+    "line": 170,
+    "column": 28,
+    "kind": "mutation",
+    "callee": "trpc.learning.applyCalibrationUpdate.useMutation",
+    "detection": "typed-and-server",
+    "fingerprint": "4c6a37e0a1bc403a16afc21205864e9db89785bb3acda764123cd978b63e96cf"
+  },
+  {
+    "path": "client/src/pages/ClaimantClaimDetail.tsx",
+    "line": 61,
+    "column": 34,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.byClaim.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "5b4e340809e07a458e77c65543c52b9b24ae8d0a1dc00d6f0d190a70e69fd07d"
+  },
+  {
+    "path": "client/src/pages/InsurerComparisonView.tsx",
+    "line": 71,
+    "column": 64,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.byClaim.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "5dce13db387d3b0cd650ae9e3f3399dfd2dabd6e765b07a5f7337f674a6dc1eb"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 321,
+    "column": 36,
+    "kind": "mutation",
+    "callee": "trpc.aiAssessments.finaliseDecision.useMutation",
+    "detection": "typed-and-server",
+    "fingerprint": "5e29c220e55b774153275d734bb3be845eca3c8b4cd96b71fe57478151d7abc6"
+  },
+  {
+    "path": "client/src/pages/InternalAssessorDashboard.tsx",
+    "line": 654,
+    "column": 5,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.byClaim.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "630fe7223c6ae42a389e17ddab31fd678dafa46ab2d52c1ff28197470e8184aa"
+  },
+  {
+    "path": "client/src/components/executive/EscalationsDashboard.tsx",
+    "line": 18,
+    "column": 40,
+    "kind": "query",
+    "callee": "trpc.analytics.getEscalationCounts.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "632f4649fb6af92474823400dc6d73a923ded9eb4546cada4d983ba1b2ed6869"
+  },
+  {
+    "path": "client/src/pages/ExecutiveDashboard.tsx",
+    "line": 252,
+    "column": 70,
+    "kind": "query",
+    "callee": "trpc.analytics.getFinancialOverview.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "64d95a6ddf529b385ac53cd33b1fc5101be77c3dcaa8b61022f5e8afaebd4263"
+  },
+  {
+    "path": "client/src/pages/ExecutiveDashboard.tsx",
+    "line": 274,
+    "column": 93,
+    "kind": "query",
+    "callee": "trpc.analytics.globalSearch.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "703830c84df2040647a0877f3b38497d6078c77e3a299dc6a6813bb0332de12c"
+  },
+  {
+    "path": "client/src/pages/InsurerComparisonView.tsx",
+    "line": 1242,
+    "column": 24,
+    "kind": "mutation",
+    "callee": "trpc.claims.approveClaim.useMutation",
+    "detection": "server-canonical-hold",
+    "fingerprint": "75ca7ec98ee31b8f3b46ae9e71ae2a56cf59f68b87e55b63832d5282890f9e0e"
+  },
+  {
+    "path": "client/src/components/ReportGenerationDialog.tsx",
+    "line": 37,
+    "column": 57,
+    "kind": "query",
+    "callee": "trpc.claimReports.validate.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "7ad5671f934b403a863d9ae1038befe95ba0610c51b9558f49a309c8ff52cfe7"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 151,
+    "column": 32,
+    "kind": "mutation",
+    "callee": "trpc.aiAssessments.saveSnapshot.useMutation",
+    "detection": "server-canonical-hold",
+    "fingerprint": "7b556699f0a5e77f5578cd047b476e596554ed68ea12f53d3ed2e2801b4f2ade"
+  },
+  {
+    "path": "client/src/components/ApprovalWorkbench.tsx",
+    "line": 16,
+    "column": 31,
+    "kind": "query",
+    "callee": "trpc.claimsManager.getApprovalWorkbenchMetrics.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "864f8f661da3bfb196948ab1c19b098cc334f8515766f47fbf59a65042c12e09"
+  },
+  {
+    "path": "client/src/pages/admin/LearningDashboard.tsx",
+    "line": 137,
+    "column": 22,
+    "kind": "query",
+    "callee": "trpc.learning.getFraudPatternAnalysis.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "87844c07a8a0e64ba10dd11a0633c8118ca8c69173fe577b21387217ba1431b3"
+  },
+  {
+    "path": "client/src/pages/admin/TenantMonitoring.tsx",
+    "line": 7,
+    "column": 28,
+    "kind": "query",
+    "callee": "trpc.admin.getPlatformHealth.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "879470328a55d5f8e3b30d4ae622a23675026c643bf2b232e5256f4b0379bc3c"
+  },
+  {
+    "path": "client/src/pages/ClaimsManagerDashboard.tsx",
+    "line": 215,
+    "column": 5,
+    "kind": "query",
+    "callee": "trpc.claims.getDashboardStats.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "8b2d3445fe09be4161deb1d926b35e5deda1114e21207b210fdf33805c0466b3"
+  },
+  {
+    "path": "client/src/pages/ExecutiveDashboard.tsx",
+    "line": 257,
+    "column": 45,
+    "kind": "query",
+    "callee": "trpc.analytics.getMonthComparison.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "8f96230153c01bc7e281311e5bfba084ecea065b567155cd050fd78ca43f0d51"
+  },
+  {
+    "path": "client/src/components/ExecutiveAnalyticsCharts.tsx",
+    "line": 135,
+    "column": 67,
+    "kind": "query",
+    "callee": "trpc.executive.getFraudRiskDistribution.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "97eab332f8efecc57d5b4e77176ce4f8e16ec53931283148ba21384c3d10c1ce"
+  },
+  {
+    "path": "client/src/pages/AssessorPerformance.tsx",
+    "line": 15,
+    "column": 40,
+    "kind": "query",
+    "callee": "trpc.assessors.getPerformanceMetrics.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "9bbee5d1c55eba22795867d68f750f6b8662e6d8d07979d8d2f05d7f33124ec5"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 159,
+    "column": 45,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.getSnapshots.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "9ca48f2b4aa787a145b0ab0fcf9e6f22a3a3ecacdb552a7b8782c991449bfacc"
+  },
+  {
+    "path": "client/src/pages/RiskManagerAnalytics.tsx",
+    "line": 821,
+    "column": 47,
+    "kind": "query",
+    "callee": "trpc.analytics.getRiskManagerKPIs.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "9cfc8bf22f7f9d99d615df8ac30c5e31df8d0e72a1683d37630b8b7660011ed2"
+  },
+  {
+    "path": "client/src/components/ExecutiveAnalyticsCharts.tsx",
+    "line": 132,
+    "column": 67,
+    "kind": "query",
+    "callee": "trpc.executive.getFraudDetectionTrends.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "9ed8c94903d997226664c6980529a523576a868ee1a810f9f8ac78507e9d5ab0"
+  },
+  {
+    "path": "client/src/pages/InsurerComparisonView.tsx",
+    "line": 151,
+    "column": 64,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.getEnforcement.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "9f02c56cffa621a6462346546332fec141d5e919b28b3a457347ae798070515f"
+  },
+  {
+    "path": "client/src/pages/admin/LearningDashboard.tsx",
+    "line": 89,
+    "column": 5,
+    "kind": "query",
+    "callee": "trpc.learning.getCalibrationDrift.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "a4d62e187716a225008b1fd7d19b971749876db5e0974d4fd05a030519af998f"
+  },
+  {
+    "path": "client/src/pages/ExceptionIntelligenceHub.tsx",
+    "line": 117,
+    "column": 40,
+    "kind": "query",
+    "callee": "trpc.exceptionIntelligence.getExceptionQueue.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "a54d5ea846b32da8c78fe797c47ef793c70ea1ef8bae9aae896c4d59aeb5dc71"
+  },
+  {
+    "path": "client/src/pages/admin/PlatformHealthDashboard.tsx",
+    "line": 68,
+    "column": 48,
+    "kind": "query",
+    "callee": "trpc.admin.getPlatformHealth.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "a58df8fc0de39434fdb4076162e65c1c6f805c5e0cad24224e8d86a1bc9b210e"
+  },
+  {
+    "path": "client/src/components/risk/GeographicRiskClustersPanel.tsx",
+    "line": 31,
+    "column": 40,
+    "kind": "query",
+    "callee": "trpc.claims.getGeographicRiskClusters.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "a6a63587e461c0ba88e11c1b7100f4c246e5e40f1a4880a4e4316faa7f7c0c16"
+  },
+  {
+    "path": "client/src/pages/BatchExport.tsx",
+    "line": 61,
+    "column": 40,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.all.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "a85982b1ed2baf73f1801a1a4c9a95a7b1ecadaa13511fa5e5bc4f22f65cb324"
+  },
+  {
+    "path": "client/src/pages/FleetManagerDashboard.tsx",
+    "line": 211,
+    "column": 47,
+    "kind": "query",
+    "callee": "trpc.fleetAccounts.getFraudFlaggedVehicles.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "ac6a2ab75c1423986c9a31b5c189aa7af4a620a2eaf1441252a90727ddb489b9"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 199,
+    "column": 70,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.getLifecycle.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "b09ab878a25b171c84e42156e71ff4a587bfd32309cfd8e8e645f55da48e9d5f"
+  },
+  {
+    "path": "client/src/components/executive/ExecutiveAlertsCenter.tsx",
+    "line": 40,
+    "column": 61,
+    "kind": "query",
+    "callee": "trpc.analytics.getExecutiveAlerts.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "bfe31e0fa4a7ae245abdfb264c07f8103dfb147175cb1368122b1677de065b73"
+  },
+  {
+    "path": "client/src/components/executive/PortfolioIntelligenceTab.tsx",
+    "line": 106,
+    "column": 27,
+    "kind": "query",
+    "callee": "trpc.portfolioIntelligence.getFraudSummary.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "c2276c17bf0d828ccb5c35e18a2d175e92ad21a3b1e3036c77b05e69cfddf5b8"
+  },
+  {
+    "path": "client/src/components/AttentionRequiredPanel.tsx",
+    "line": 108,
+    "column": 31,
+    "kind": "query",
+    "callee": "trpc.claimsManager.getAttentionRequired.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "c320644204c64d32d55e167347ae87af2beb2bdad966e16b34ac97efc0e34f9d"
+  },
+  {
+    "path": "client/src/pages/AssessorClaimDetails.tsx",
+    "line": 71,
+    "column": 64,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.byClaim.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "c38f5eb81ff4857582e7865841b778b160040c0e78ef4eb8237cdbe63bfcdde1"
+  },
+  {
+    "path": "client/src/pages/admin/LearningDashboard.tsx",
+    "line": 184,
+    "column": 48,
+    "kind": "query",
+    "callee": "trpc.learning.getCalibrationHistory.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "c3f09b16c36a4365a1ac9545b33681d9b8cc0f1cc57d8ec58be2e346b67c85ce"
+  },
+  {
+    "path": "client/src/components/ValidationGate.tsx",
+    "line": 326,
+    "column": 43,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.validate.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "c4acb117ca415a5237fc9466c524a6e3a29c62439d49dbe62cf7a726f0114cb9"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 100,
+    "column": 68,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.byClaim.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "c9bad8557a3e21c5f5c51d121c594d3f247e9ef774cf8cc19a56179161b8d578"
+  },
+  {
+    "path": "client/src/pages/ExternalAssessorDashboard.tsx",
+    "line": 142,
+    "column": 28,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.byClaim.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "ca3f4b830aaa12a56612bb357cfb423a4478ba31f82a3555b1e36311c8a90fb1"
+  },
+  {
+    "path": "client/src/pages/ExecutiveDashboard.tsx",
+    "line": 246,
+    "column": 78,
+    "kind": "query",
+    "callee": "trpc.analytics.getKPIs.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "cc1a7da39d8fa91f6a632675e86e8a64fe6c632b5b06b946d36f779dee5900e5"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 175,
+    "column": 48,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.getLatestSnapshot.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "da3aba6b166cb299212697cd3ad30a8081c098afd64a6c77c789314716976851"
+  },
+  {
+    "path": "client/src/components/IntelligenceEnforcementPanel.tsx",
+    "line": 177,
+    "column": 44,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.getEnforcement.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "db2d0cb8e8e48882b0719fbfd65dec4f12bf5a973a843498cbe6583e04b2d4c8"
+  },
+  {
+    "path": "client/src/components/replay/ReplayTriggerForm.tsx",
+    "line": 30,
+    "column": 24,
+    "kind": "mutation",
+    "callee": "trpc.claimReplay.replayHistoricalClaim.useMutation",
+    "detection": "typed-and-server",
+    "fingerprint": "e19cd1dffac846fab2bd6de22c5d11378c90ed3a2c68433775d17aa46cafa72e"
+  },
+  {
+    "path": "client/src/components/executive/FraudInvestigationFunnel.tsx",
+    "line": 14,
+    "column": 31,
+    "kind": "query",
+    "callee": "trpc.analytics.getFraudInvestigationFunnel.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "e36269a3f6c9b42804461edbdddd37dcab22577bde80209da4d002eb39efbb46"
+  },
+  {
+    "path": "client/src/components/executive/ExecutiveEscalationQueue.tsx",
+    "line": 22,
+    "column": 31,
+    "kind": "query",
+    "callee": "trpc.executive.getEscalationQueue.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "e397c7a8c09f9b564d6684d8e8af93e33363a55e84321d3d2d449a54991c3f9c"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 399,
+    "column": 26,
+    "kind": "mutation",
+    "callee": "trpc.aiAssessments.replayDecision.useMutation",
+    "detection": "server-canonical-hold",
+    "fingerprint": "e3ba478781bbc5e83eb199f297d109bcd94d76e50fc3b93480a5be66444c80ee"
+  },
+  {
+    "path": "client/src/pages/ClaimsManagerDashboard.tsx",
+    "line": 156,
+    "column": 34,
+    "kind": "query",
+    "callee": "trpc.aiAssessments.byClaim.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "e441009cfd642b719d829c96e7b745447e2ecf221c7e56c49afa8681abbecd79"
+  },
+  {
+    "path": "client/src/components/executive/SettlementTrendChart.tsx",
+    "line": 35,
+    "column": 40,
+    "kind": "query",
+    "callee": "trpc.analytics.getSettlementTrend.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "ec29cb1eb2c2a51fbe557959c44e98ac916dcfe5dcc26d8b9f017184636d9d06"
+  },
+  {
+    "path": "client/src/components/ClaimReviewDialog.tsx",
+    "line": 49,
+    "column": 57,
+    "kind": "query",
+    "callee": "trpc.claims.getReviewView.useQuery",
+    "detection": "typed-and-server",
+    "fingerprint": "ed58dcc055fb327f917ea0d257ab2cf1b557042f10df1c47afe4477cb010b4d3"
+  },
+  {
+    "path": "client/src/pages/ClaimDecisionReport.page.tsx",
+    "line": 355,
+    "column": 32,
+    "kind": "mutation",
+    "callee": "trpc.aiAssessments.lockDecision.useMutation",
+    "detection": "typed-and-server",
+    "fingerprint": "f9a31696d4a25519f44ccd08524db3fc8b8ed36db45c15acf684ad4876981af8"
+  },
+  {
+    "path": "client/src/components/replay/ReplayTriggerForm.tsx",
+    "line": 44,
+    "column": 23,
+    "kind": "mutation",
+    "callee": "trpc.claimReplay.batchReplayHistoricalClaims.useMutation",
+    "detection": "typed-and-server",
+    "fingerprint": "fe9b69994e494b46304ae384dde92a5d4601fb7f28f9cabb4cd0973776aa436b"
+  },
+  {
+    "path": "client/src/pages/ExceptionIntelligenceHub.tsx",
+    "line": 305,
+    "column": 31,
+    "kind": "query",
+    "callee": "trpc.exceptionIntelligence.getSystemDriftReport.useQuery",
+    "detection": "server-canonical-hold",
+    "fingerprint": "ffacf372e5d0e03629bc3227e771dc4bad907cbc95d533d9e8771f18ca5597a6"
+  }
+]

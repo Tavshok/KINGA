@@ -31,6 +31,7 @@ import { RepairReplacePanel } from "@/components/RepairReplacePanel";
 import { ClaimCommentThread } from "@/components/ClaimCommentThread";
 import FraudScorePanel from "@/components/FraudScorePanel";
 import { ConfidenceScorePanel } from "@/components/ConfidenceScorePanel";
+import { getP0B1FraudDecisionHold } from "@shared/p0FraudDecisionHoldPresentation";
 
 export default function AssessorClaimDetails({
   routePattern = "/assessor/claims/:id",
@@ -43,7 +44,7 @@ export default function AssessorClaimDetails({
   const { fmt } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [, params] = useRoute(routePattern);
-  const claimId = Number(params?.id ? parseInt(params.id) : 0);
+  const claimId = Number(params?.[0] ? parseInt(params[0]) : 0);
 
   // Form state for evaluation
   const [evaluation, setEvaluation] = useState({
@@ -67,7 +68,9 @@ export default function AssessorClaimDetails({
   const { data: existingEvaluation } = trpc.assessorEvaluations.byClaim.useQuery({ claimId });
 
   // Get KINGA assessment for this claim
-  const { data: aiAssessment, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery({ claimId });
+  const { data: aiAssessmentResponse, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery({ claimId });
+  const assessmentFraudDecisionHold = getP0B1FraudDecisionHold(aiAssessmentResponse);
+  const aiAssessment = assessmentFraudDecisionHold ? null : (aiAssessmentResponse as any);
 
   const createReportDraft = trpc.assessorReports.createDraft.useMutation();
   const attestReport = trpc.assessorReports.attest.useMutation();
@@ -76,6 +79,11 @@ export default function AssessorClaimDetails({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!claim) {
+      toast.error("The claim is no longer available");
+      return;
+    }
 
     const estimatedCost = parseFloat(evaluation.estimatedRepairCost);
     if (isNaN(estimatedCost) || estimatedCost <= 0) {
@@ -315,7 +323,17 @@ export default function AssessorClaimDetails({
             <PanelBeaterChoicesCard claimId={claimId} />
 
             {/* KINGA Co-Pilot Assessment */}
-            {aiAssessment && (
+            {assessmentFraudDecisionHold ? (
+              <Card className="border-l-4 border-l-amber-500 bg-amber-50/70 dark:bg-amber-950/20">
+                <CardHeader>
+                  <CardTitle>Automated Fraud Decision Withheld</CardTitle>
+                  <CardDescription>{assessmentFraudDecisionHold.explanation}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">{assessmentFraudDecisionHold.resolver.unresolvedAction}</p>
+                </CardContent>
+              </Card>
+            ) : aiAssessment && (
               <Card className="border-l-4 border-l-primary bg-primary/5/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">

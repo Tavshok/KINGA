@@ -41,11 +41,16 @@ import {
   type CalibrationFeedbackInput,
 } from "../pipeline-v2/calibrationFeedbackController";
 import { TRPCError } from "@trpc/server";
+import { buildP0B1FraudDecisionHold } from "../evidence-governance/p0FraudDecisionHold";
 
 function requireLearningTenant(ctx: { user?: { tenantId?: string | null } | null }) {
   const tenantId = ctx.user?.tenantId;
   if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
   return tenantId;
+}
+
+function p0B1FraudLearningPolicyActive(): boolean {
+  return true;
 }
 
 // ─── Router ───────────────────────────────────────────────────────────────────
@@ -158,6 +163,10 @@ export const learningRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
+      if (p0B1FraudLearningPolicyActive()) {
+        requireLearningTenant(ctx);
+        return buildP0B1FraudDecisionHold({ scope: "fraud_pattern_learning" });
+      }
       const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle)
@@ -257,6 +266,10 @@ export const learningRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
+      if (p0B1FraudLearningPolicyActive()) {
+        requireLearningTenant(ctx);
+        return buildP0B1FraudDecisionHold({ scope: "calibration_drift" });
+      }
       const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) {
@@ -662,6 +675,10 @@ export const learningRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
+      if (p0B1FraudLearningPolicyActive()) {
+        requireLearningTenant(ctx);
+        return buildP0B1FraudDecisionHold({ scope: "fraud_calibration_feedback" });
+      }
       const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) throw new Error("Database unavailable");
@@ -800,6 +817,10 @@ export const learningRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      if (p0B1FraudLearningPolicyActive()) {
+        requireLearningTenant(ctx);
+        return buildP0B1FraudDecisionHold({ scope: "fraud_calibration_update" });
+      }
       const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) throw new Error("Database unavailable");
@@ -831,6 +852,10 @@ export const learningRouter = router({
   getCalibrationHistory: protectedProcedure
     .input(z.object({ jurisdiction: z.string().optional() }))
     .query(async ({ input, ctx }) => {
+      if (p0B1FraudLearningPolicyActive()) {
+        requireLearningTenant(ctx);
+        return buildP0B1FraudDecisionHold({ scope: "calibration_history" });
+      }
       const tenantId = requireLearningTenant(ctx);
       const drizzle = await getDb();
       if (!drizzle) throw new Error("Database unavailable");

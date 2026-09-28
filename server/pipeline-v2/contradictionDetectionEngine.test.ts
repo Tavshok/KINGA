@@ -7,8 +7,8 @@
 
 import { describe, it, expect } from "vitest";
 import {
-  detectContradictions,
-  detectContradictionsBatch,
+  characterizeContradictions,
+  characterizeContradictionsBatch,
   aggregateContradictionStats,
   type ContradictionInput,
 } from "./contradictionDetectionEngine";
@@ -58,7 +58,7 @@ function cleanReview(): ContradictionInput {
 
 describe("Output shape", () => {
   it("returns the required JSON fields", () => {
-    const result = detectContradictions(cleanApprove());
+    const result = characterizeContradictions(cleanApprove());
     expect(result).toHaveProperty("contradictions");
     expect(result).toHaveProperty("valid");
     expect(result).toHaveProperty("action");
@@ -67,22 +67,22 @@ describe("Output shape", () => {
   });
 
   it("contradictions is always an array", () => {
-    expect(Array.isArray(detectContradictions(cleanApprove()).contradictions)).toBe(true);
+    expect(Array.isArray(characterizeContradictions(cleanApprove()).contradictions)).toBe(true);
   });
 
   it("valid is boolean", () => {
-    expect(typeof detectContradictions(cleanApprove()).valid).toBe("boolean");
+    expect(typeof characterizeContradictions(cleanApprove()).valid).toBe("boolean");
   });
 
   it("action is ALLOW or BLOCK", () => {
-    const r1 = detectContradictions(cleanApprove());
-    const r2 = detectContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
+    const r1 = characterizeContradictions(cleanApprove());
+    const r2 = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
     expect(["ALLOW", "BLOCK"]).toContain(r1.action);
     expect(["ALLOW", "BLOCK"]).toContain(r2.action);
   });
 
   it("each contradiction entry has required fields", () => {
-    const result = detectContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
+    const result = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
     for (const c of result.contradictions) {
       expect(c).toHaveProperty("rule_id");
       expect(c).toHaveProperty("description");
@@ -96,7 +96,7 @@ describe("Output shape", () => {
   });
 
   it("metadata contains engine name and version", () => {
-    const r = detectContradictions(cleanApprove());
+    const r = characterizeContradictions(cleanApprove());
     expect(r.metadata.engine).toBe("ContradictionDetectionEngine");
     expect(r.metadata.version).toBe("1.0.0");
     expect(typeof r.metadata.rules_checked).toBe("number");
@@ -108,47 +108,47 @@ describe("Output shape", () => {
 
 describe("ALLOW — clean decisions", () => {
   it("APPROVE with all clear signals → ALLOW", () => {
-    const r = detectContradictions(cleanApprove());
+    const r = characterizeContradictions(cleanApprove());
     expect(r.action).toBe("ALLOW");
     expect(r.valid).toBe(true);
     expect(r.contradictions).toHaveLength(0);
   });
 
   it("REJECT with all bad signals → ALLOW", () => {
-    const r = detectContradictions(cleanReject());
+    const r = characterizeContradictions(cleanReject());
     expect(r.action).toBe("ALLOW");
     expect(r.valid).toBe(true);
   });
 
   it("REVIEW with moderate signals → ALLOW", () => {
-    const r = detectContradictions(cleanReview());
+    const r = characterizeContradictions(cleanReview());
     expect(r.action).toBe("ALLOW");
     expect(r.valid).toBe(true);
   });
 
   it("APPROVE with minimal fraud → ALLOW", () => {
     const input = { ...cleanApprove(), fraud_result: { fraud_risk_level: "minimal" as const, critical_flag_count: 0 } };
-    expect(detectContradictions(input).action).toBe("ALLOW");
+    expect(characterizeContradictions(input).action).toBe("ALLOW");
   });
 
   it("APPROVE with null fraud level → ALLOW", () => {
     const input = { ...cleanApprove(), fraud_result: { fraud_risk_level: null, critical_flag_count: 0 } };
-    expect(detectContradictions(input).action).toBe("ALLOW");
+    expect(characterizeContradictions(input).action).toBe("ALLOW");
   });
 
   it("APPROVE with no optional fields → ALLOW", () => {
-    const r = detectContradictions({ recommendation: "APPROVE" });
+    const r = characterizeContradictions({ recommendation: "APPROVE" });
     expect(r.action).toBe("ALLOW");
   });
 
   it("REJECT with no optional fields → ALLOW (no issues to contradict)", () => {
-    const r = detectContradictions({ recommendation: "REJECT" });
+    const r = characterizeContradictions({ recommendation: "REJECT" });
     // REJECT with no signals is a false rejection → BLOCK
     expect(r.action).toBe("BLOCK");
   });
 
   it("REVIEW with no optional fields → ALLOW", () => {
-    const r = detectContradictions({ recommendation: "REVIEW" });
+    const r = characterizeContradictions({ recommendation: "REVIEW" });
     expect(r.action).toBe("ALLOW");
   });
 });
@@ -157,29 +157,29 @@ describe("ALLOW — clean decisions", () => {
 
 describe("APPROVE_HIGH_FRAUD rule", () => {
   it("APPROVE + fraud HIGH → BLOCK with APPROVE_HIGH_FRAUD", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
     expect(r.action).toBe("BLOCK");
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_HIGH_FRAUD")).toBe(true);
   });
 
   it("APPROVE + fraud ELEVATED → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "elevated" } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "elevated" } });
     expect(r.action).toBe("BLOCK");
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_HIGH_FRAUD")).toBe(true);
   });
 
   it("APPROVE + fraud CRITICAL → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "critical" } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "critical" } });
     expect(r.action).toBe("BLOCK");
   });
 
   it("APPROVE + fraud MEDIUM → ALLOW for this rule", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "medium" } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "medium" } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_HIGH_FRAUD")).toBe(false);
   });
 
   it("APPROVE_HIGH_FRAUD contradiction has CRITICAL severity", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
     const c = r.contradictions.find((c) => c.rule_id === "APPROVE_HIGH_FRAUD");
     expect(c?.severity).toBe("CRITICAL");
   });
@@ -187,29 +187,29 @@ describe("APPROVE_HIGH_FRAUD rule", () => {
 
 describe("APPROVE_CRITICAL_FRAUD_FLAGS rule", () => {
   it("APPROVE + critical_flag_count 1 → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { critical_flag_count: 1 } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { critical_flag_count: 1 } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_CRITICAL_FRAUD_FLAGS")).toBe(true);
   });
 
   it("APPROVE + critical_flag_count 5 → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { critical_flag_count: 5 } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { critical_flag_count: 5 } });
     expect(r.action).toBe("BLOCK");
   });
 
   it("APPROVE + critical_flag_count 0 → no flag for this rule", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { critical_flag_count: 0 } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { critical_flag_count: 0 } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_CRITICAL_FRAUD_FLAGS")).toBe(false);
   });
 });
 
 describe("APPROVE_SCENARIO_FRAUD_FLAGGED rule", () => {
   it("APPROVE + scenario_fraud_flagged true → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { scenario_fraud_flagged: true } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { scenario_fraud_flagged: true } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_SCENARIO_FRAUD_FLAGGED")).toBe(true);
   });
 
   it("APPROVE + scenario_fraud_flagged false → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { scenario_fraud_flagged: false } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { scenario_fraud_flagged: false } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_SCENARIO_FRAUD_FLAGGED")).toBe(false);
   });
 });
@@ -218,18 +218,18 @@ describe("APPROVE_SCENARIO_FRAUD_FLAGGED rule", () => {
 
 describe("APPROVE_IMPLAUSIBLE_PHYSICS rule", () => {
   it("APPROVE + is_plausible false → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", physics_result: { is_plausible: false } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", physics_result: { is_plausible: false } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_IMPLAUSIBLE_PHYSICS")).toBe(true);
     expect(r.action).toBe("BLOCK");
   });
 
   it("APPROVE + is_plausible true → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", physics_result: { is_plausible: true } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", physics_result: { is_plausible: true } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_IMPLAUSIBLE_PHYSICS")).toBe(false);
   });
 
   it("APPROVE_IMPLAUSIBLE_PHYSICS has CRITICAL severity", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", physics_result: { is_plausible: false } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", physics_result: { is_plausible: false } });
     const c = r.contradictions.find((c) => c.rule_id === "APPROVE_IMPLAUSIBLE_PHYSICS");
     expect(c?.severity).toBe("CRITICAL");
   });
@@ -237,12 +237,12 @@ describe("APPROVE_IMPLAUSIBLE_PHYSICS rule", () => {
 
 describe("APPROVE_CRITICAL_PHYSICS_INCONSISTENCY rule", () => {
   it("APPROVE + has_critical_inconsistency true → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", physics_result: { has_critical_inconsistency: true } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", physics_result: { has_critical_inconsistency: true } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_CRITICAL_PHYSICS_INCONSISTENCY")).toBe(true);
   });
 
   it("APPROVE + has_critical_inconsistency false → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", physics_result: { has_critical_inconsistency: false } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", physics_result: { has_critical_inconsistency: false } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_CRITICAL_PHYSICS_INCONSISTENCY")).toBe(false);
   });
 });
@@ -251,17 +251,17 @@ describe("APPROVE_CRITICAL_PHYSICS_INCONSISTENCY rule", () => {
 
 describe("APPROVE_DAMAGE_INCONSISTENT rule", () => {
   it("APPROVE + is_consistent false → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", damage_validation: { is_consistent: false } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", damage_validation: { is_consistent: false } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_DAMAGE_INCONSISTENT")).toBe(true);
   });
 
   it("APPROVE + is_consistent true → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", damage_validation: { is_consistent: true } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", damage_validation: { is_consistent: true } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_DAMAGE_INCONSISTENT")).toBe(false);
   });
 
   it("APPROVE_DAMAGE_INCONSISTENT has MAJOR severity", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", damage_validation: { is_consistent: false } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", damage_validation: { is_consistent: false } });
     const c = r.contradictions.find((c) => c.rule_id === "APPROVE_DAMAGE_INCONSISTENT");
     expect(c?.severity).toBe("MAJOR");
   });
@@ -269,12 +269,12 @@ describe("APPROVE_DAMAGE_INCONSISTENT rule", () => {
 
 describe("APPROVE_UNEXPLAINED_DAMAGE rule", () => {
   it("APPROVE + has_unexplained_damage true → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", damage_validation: { has_unexplained_damage: true } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", damage_validation: { has_unexplained_damage: true } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_UNEXPLAINED_DAMAGE")).toBe(true);
   });
 
   it("APPROVE + has_unexplained_damage false → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", damage_validation: { has_unexplained_damage: false } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", damage_validation: { has_unexplained_damage: false } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_UNEXPLAINED_DAMAGE")).toBe(false);
   });
 });
@@ -283,17 +283,17 @@ describe("APPROVE_UNEXPLAINED_DAMAGE rule", () => {
 
 describe("APPROVE_COST_ESCALATE rule", () => {
   it("APPROVE + cost ESCALATE → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", cost_decision: { recommendation: "ESCALATE" } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", cost_decision: { recommendation: "ESCALATE" } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_COST_ESCALATE")).toBe(true);
   });
 
   it("APPROVE + cost NEGOTIATE → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", cost_decision: { recommendation: "NEGOTIATE" } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", cost_decision: { recommendation: "NEGOTIATE" } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_COST_ESCALATE")).toBe(false);
   });
 
   it("APPROVE + cost PROCEED_TO_ASSESSMENT → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", cost_decision: { recommendation: "PROCEED_TO_ASSESSMENT" } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", cost_decision: { recommendation: "PROCEED_TO_ASSESSMENT" } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_COST_ESCALATE")).toBe(false);
   });
 });
@@ -302,24 +302,24 @@ describe("APPROVE_COST_ESCALATE rule", () => {
 
 describe("APPROVE_CRITICAL_CONSISTENCY_CONFLICT rule", () => {
   it("APPROVE + critical_conflict_count 2 → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", consistency_status: { critical_conflict_count: 2 } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", consistency_status: { critical_conflict_count: 2 } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_CRITICAL_CONSISTENCY_CONFLICT")).toBe(true);
   });
 
   it("APPROVE + critical_conflict_count 0 → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", consistency_status: { critical_conflict_count: 0 } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", consistency_status: { critical_conflict_count: 0 } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_CRITICAL_CONSISTENCY_CONFLICT")).toBe(false);
   });
 });
 
 describe("APPROVE_CONSISTENCY_BLOCKED rule", () => {
   it("APPROVE + proceed false → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", consistency_status: { proceed: false } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", consistency_status: { proceed: false } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_CONSISTENCY_BLOCKED")).toBe(true);
   });
 
   it("APPROVE + proceed true → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", consistency_status: { proceed: true } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", consistency_status: { proceed: true } });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_CONSISTENCY_BLOCKED")).toBe(false);
   });
 });
@@ -328,27 +328,27 @@ describe("APPROVE_CONSISTENCY_BLOCKED rule", () => {
 
 describe("APPROVE_LOW_CONFIDENCE rule", () => {
   it("APPROVE + confidence 30 → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", overall_confidence: 30 });
+    const r = characterizeContradictions({ recommendation: "APPROVE", overall_confidence: 30 });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_LOW_CONFIDENCE")).toBe(true);
   });
 
   it("APPROVE + confidence 39 → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", overall_confidence: 39 });
+    const r = characterizeContradictions({ recommendation: "APPROVE", overall_confidence: 39 });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_LOW_CONFIDENCE")).toBe(true);
   });
 
   it("APPROVE + confidence 40 → no flag (boundary)", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", overall_confidence: 40 });
+    const r = characterizeContradictions({ recommendation: "APPROVE", overall_confidence: 40 });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_LOW_CONFIDENCE")).toBe(false);
   });
 
   it("APPROVE + confidence 75 → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", overall_confidence: 75 });
+    const r = characterizeContradictions({ recommendation: "APPROVE", overall_confidence: 75 });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_LOW_CONFIDENCE")).toBe(false);
   });
 
   it("APPROVE + confidence null → no flag (unknown is not flagged)", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", overall_confidence: null });
+    const r = characterizeContradictions({ recommendation: "APPROVE", overall_confidence: null });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_LOW_CONFIDENCE")).toBe(false);
   });
 });
@@ -357,36 +357,36 @@ describe("APPROVE_LOW_CONFIDENCE rule", () => {
 
 describe("APPROVE_CATASTROPHIC_SEVERITY_NO_ASSESSOR rule", () => {
   it("APPROVE + catastrophic severity + no assessor → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", severity: "catastrophic", assessor_validated: false });
+    const r = characterizeContradictions({ recommendation: "APPROVE", severity: "catastrophic", assessor_validated: false });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_CATASTROPHIC_SEVERITY_NO_ASSESSOR")).toBe(true);
   });
 
   it("APPROVE + catastrophic + assessor validated → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", severity: "catastrophic", assessor_validated: true });
+    const r = characterizeContradictions({ recommendation: "APPROVE", severity: "catastrophic", assessor_validated: true });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_CATASTROPHIC_SEVERITY_NO_ASSESSOR")).toBe(false);
   });
 
   it("APPROVE + severe (not catastrophic) + no assessor → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", severity: "severe", assessor_validated: false });
+    const r = characterizeContradictions({ recommendation: "APPROVE", severity: "severe", assessor_validated: false });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_CATASTROPHIC_SEVERITY_NO_ASSESSOR")).toBe(false);
   });
 });
 
 describe("APPROVE_HIGH_VALUE_NO_ASSESSOR rule", () => {
   it("APPROVE + high value + no assessor → MINOR contradiction", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", is_high_value: true, assessor_validated: false });
+    const r = characterizeContradictions({ recommendation: "APPROVE", is_high_value: true, assessor_validated: false });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_HIGH_VALUE_NO_ASSESSOR")).toBe(true);
     const c = r.contradictions.find((c) => c.rule_id === "APPROVE_HIGH_VALUE_NO_ASSESSOR");
     expect(c?.severity).toBe("MINOR");
   });
 
   it("APPROVE + high value + assessor validated → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", is_high_value: true, assessor_validated: true });
+    const r = characterizeContradictions({ recommendation: "APPROVE", is_high_value: true, assessor_validated: true });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_HIGH_VALUE_NO_ASSESSOR")).toBe(false);
   });
 
   it("APPROVE + not high value → no flag", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", is_high_value: false });
+    const r = characterizeContradictions({ recommendation: "APPROVE", is_high_value: false });
     expect(r.contradictions.some((c) => c.rule_id === "APPROVE_HIGH_VALUE_NO_ASSESSOR")).toBe(false);
   });
 });
@@ -395,7 +395,7 @@ describe("APPROVE_HIGH_VALUE_NO_ASSESSOR rule", () => {
 
 describe("REJECT_NO_ISSUES rule", () => {
   it("REJECT + all clear signals → BLOCK", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REJECT",
       fraud_result: { fraud_risk_level: "low", critical_flag_count: 0, scenario_fraud_flagged: false },
       physics_result: { is_plausible: true, has_critical_inconsistency: false },
@@ -407,7 +407,7 @@ describe("REJECT_NO_ISSUES rule", () => {
   });
 
   it("REJECT + fraud high → no REJECT_NO_ISSUES flag", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REJECT",
       fraud_result: { fraud_risk_level: "high", critical_flag_count: 2 },
     });
@@ -415,7 +415,7 @@ describe("REJECT_NO_ISSUES rule", () => {
   });
 
   it("REJECT + physics implausible → no REJECT_NO_ISSUES flag", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REJECT",
       physics_result: { is_plausible: false },
     });
@@ -423,7 +423,7 @@ describe("REJECT_NO_ISSUES rule", () => {
   });
 
   it("REJECT_NO_ISSUES has CRITICAL severity", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REJECT",
       fraud_result: { fraud_risk_level: "low", critical_flag_count: 0, scenario_fraud_flagged: false },
       physics_result: { is_plausible: true, has_critical_inconsistency: false },
@@ -437,7 +437,7 @@ describe("REJECT_NO_ISSUES rule", () => {
 
 describe("REJECT_HIGH_CONFIDENCE_NO_ISSUES rule", () => {
   it("REJECT + confidence 85 + no issues → BLOCK with REJECT_HIGH_CONFIDENCE_NO_ISSUES", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REJECT",
       overall_confidence: 85,
       fraud_result: { fraud_risk_level: "low", critical_flag_count: 0 },
@@ -448,7 +448,7 @@ describe("REJECT_HIGH_CONFIDENCE_NO_ISSUES rule", () => {
   });
 
   it("REJECT + confidence 74 + no issues → no REJECT_HIGH_CONFIDENCE_NO_ISSUES (below threshold)", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REJECT",
       overall_confidence: 74,
       fraud_result: { fraud_risk_level: "low", critical_flag_count: 0 },
@@ -461,36 +461,36 @@ describe("REJECT_HIGH_CONFIDENCE_NO_ISSUES rule", () => {
 
 describe("REVIEW_HIGH_FRAUD_SHOULD_REJECT rule", () => {
   it("REVIEW + fraud HIGH → BLOCK with REVIEW_HIGH_FRAUD_SHOULD_REJECT", () => {
-    const r = detectContradictions({ recommendation: "REVIEW", fraud_result: { fraud_risk_level: "high" } });
+    const r = characterizeContradictions({ recommendation: "REVIEW", fraud_result: { fraud_risk_level: "high" } });
     expect(r.contradictions.some((c) => c.rule_id === "REVIEW_HIGH_FRAUD_SHOULD_REJECT")).toBe(true);
   });
 
   it("REVIEW + fraud ELEVATED → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "REVIEW", fraud_result: { fraud_risk_level: "elevated" } });
+    const r = characterizeContradictions({ recommendation: "REVIEW", fraud_result: { fraud_risk_level: "elevated" } });
     expect(r.contradictions.some((c) => c.rule_id === "REVIEW_HIGH_FRAUD_SHOULD_REJECT")).toBe(true);
   });
 
   it("REVIEW + fraud MEDIUM → no flag", () => {
-    const r = detectContradictions({ recommendation: "REVIEW", fraud_result: { fraud_risk_level: "medium" } });
+    const r = characterizeContradictions({ recommendation: "REVIEW", fraud_result: { fraud_risk_level: "medium" } });
     expect(r.contradictions.some((c) => c.rule_id === "REVIEW_HIGH_FRAUD_SHOULD_REJECT")).toBe(false);
   });
 });
 
 describe("REVIEW_CRITICAL_PHYSICS_SHOULD_REJECT rule", () => {
   it("REVIEW + critical physics inconsistency → BLOCK", () => {
-    const r = detectContradictions({ recommendation: "REVIEW", physics_result: { has_critical_inconsistency: true } });
+    const r = characterizeContradictions({ recommendation: "REVIEW", physics_result: { has_critical_inconsistency: true } });
     expect(r.contradictions.some((c) => c.rule_id === "REVIEW_CRITICAL_PHYSICS_SHOULD_REJECT")).toBe(true);
   });
 
   it("REVIEW + no critical physics → no flag", () => {
-    const r = detectContradictions({ recommendation: "REVIEW", physics_result: { has_critical_inconsistency: false } });
+    const r = characterizeContradictions({ recommendation: "REVIEW", physics_result: { has_critical_inconsistency: false } });
     expect(r.contradictions.some((c) => c.rule_id === "REVIEW_CRITICAL_PHYSICS_SHOULD_REJECT")).toBe(false);
   });
 });
 
 describe("REVIEW_ALL_CLEAR_HIGH_CONFIDENCE rule", () => {
   it("REVIEW + all clear + confidence 85 → MINOR contradiction", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REVIEW",
       overall_confidence: 85,
       is_high_value: false,
@@ -506,7 +506,7 @@ describe("REVIEW_ALL_CLEAR_HIGH_CONFIDENCE rule", () => {
   });
 
   it("REVIEW + all clear + confidence 79 → no flag (below threshold)", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REVIEW",
       overall_confidence: 79,
       fraud_result: { fraud_risk_level: "low", critical_flag_count: 0 },
@@ -518,7 +518,7 @@ describe("REVIEW_ALL_CLEAR_HIGH_CONFIDENCE rule", () => {
   });
 
   it("REVIEW + all clear + high value → no flag (high value justifies review)", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REVIEW",
       overall_confidence: 90,
       is_high_value: true,
@@ -535,7 +535,7 @@ describe("REVIEW_ALL_CLEAR_HIGH_CONFIDENCE rule", () => {
 
 describe("FRAUD_HIGH_PHYSICS_PLAUSIBLE_MISMATCH rule", () => {
   it("Fraud HIGH + physics plausible (no critical inconsistency) → MINOR contradiction", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REVIEW",
       fraud_result: { fraud_risk_level: "high" },
       physics_result: { is_plausible: true, has_critical_inconsistency: false },
@@ -546,7 +546,7 @@ describe("FRAUD_HIGH_PHYSICS_PLAUSIBLE_MISMATCH rule", () => {
   });
 
   it("Fraud HIGH + physics has critical inconsistency → no mismatch flag", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REVIEW",
       fraud_result: { fraud_risk_level: "high" },
       physics_result: { is_plausible: true, has_critical_inconsistency: true },
@@ -555,7 +555,7 @@ describe("FRAUD_HIGH_PHYSICS_PLAUSIBLE_MISMATCH rule", () => {
   });
 
   it("Fraud LOW + physics plausible → no mismatch flag", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "APPROVE",
       fraud_result: { fraud_risk_level: "low" },
       physics_result: { is_plausible: true },
@@ -566,7 +566,7 @@ describe("FRAUD_HIGH_PHYSICS_PLAUSIBLE_MISMATCH rule", () => {
 
 describe("DAMAGE_INCONSISTENT_COST_WITHIN_RANGE rule", () => {
   it("Damage inconsistent + cost within range → MINOR contradiction", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REVIEW",
       damage_validation: { is_consistent: false },
       cost_decision: { is_within_range: true },
@@ -575,7 +575,7 @@ describe("DAMAGE_INCONSISTENT_COST_WITHIN_RANGE rule", () => {
   });
 
   it("Damage inconsistent + cost not within range → no mismatch flag", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REVIEW",
       damage_validation: { is_consistent: false },
       cost_decision: { is_within_range: false },
@@ -586,7 +586,7 @@ describe("DAMAGE_INCONSISTENT_COST_WITHIN_RANGE rule", () => {
 
 describe("CONSISTENCY_CONFLICTED_PROCEED_TRUE rule", () => {
   it("Consistency CONFLICTED + critical conflicts + proceed true → MAJOR contradiction", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REVIEW",
       consistency_status: { overall_status: "CONFLICTED", critical_conflict_count: 2, proceed: true },
     });
@@ -596,7 +596,7 @@ describe("CONSISTENCY_CONFLICTED_PROCEED_TRUE rule", () => {
   });
 
   it("Consistency CONFLICTED + 0 critical conflicts + proceed true → no flag", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "REVIEW",
       consistency_status: { overall_status: "CONFLICTED", critical_conflict_count: 0, proceed: true },
     });
@@ -604,7 +604,7 @@ describe("CONSISTENCY_CONFLICTED_PROCEED_TRUE rule", () => {
   });
 
   it("Consistency CONSISTENT + proceed true → no flag", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "APPROVE",
       consistency_status: { overall_status: "CONSISTENT", critical_conflict_count: 0, proceed: true },
     });
@@ -616,7 +616,7 @@ describe("CONSISTENCY_CONFLICTED_PROCEED_TRUE rule", () => {
 
 describe("Multiple contradictions", () => {
   it("APPROVE with multiple bad signals → multiple contradictions", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "APPROVE",
       fraud_result: { fraud_risk_level: "high", critical_flag_count: 3, scenario_fraud_flagged: true },
       physics_result: { is_plausible: false, has_critical_inconsistency: true },
@@ -632,7 +632,7 @@ describe("Multiple contradictions", () => {
   });
 
   it("metadata counts match contradictions array", () => {
-    const r = detectContradictions({
+    const r = characterizeContradictions({
       recommendation: "APPROVE",
       fraud_result: { fraud_risk_level: "high" },
       physics_result: { is_plausible: false },
@@ -651,17 +651,17 @@ describe("Multiple contradictions", () => {
 
 describe("Summary messages", () => {
   it("ALLOW summary mentions no contradictions", () => {
-    const r = detectContradictions(cleanApprove());
+    const r = characterizeContradictions(cleanApprove());
     expect(r.summary.toLowerCase()).toContain("no contradictions");
   });
 
   it("BLOCK summary mentions BLOCK", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
     expect(r.summary.toLowerCase()).toContain("block");
   });
 
   it("BLOCK summary mentions the recommendation", () => {
-    const r = detectContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
+    const r = characterizeContradictions({ recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } });
     expect(r.summary).toContain("APPROVE");
   });
 });
@@ -670,7 +670,7 @@ describe("Summary messages", () => {
 
 describe("detectContradictionsBatch", () => {
   it("returns one result per input", () => {
-    const results = detectContradictionsBatch([
+    const results = characterizeContradictionsBatch([
       { claim_id: 1, input: cleanApprove() },
       { claim_id: 2, input: { recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } } },
       { claim_id: 3, input: cleanReject() },
@@ -679,14 +679,14 @@ describe("detectContradictionsBatch", () => {
   });
 
   it("preserves claim_id in results", () => {
-    const results = detectContradictionsBatch([
+    const results = characterizeContradictionsBatch([
       { claim_id: "abc-123", input: cleanApprove() },
     ]);
     expect(results[0].claim_id).toBe("abc-123");
   });
 
   it("each result has action field", () => {
-    const results = detectContradictionsBatch([
+    const results = characterizeContradictionsBatch([
       { claim_id: 1, input: cleanApprove() },
       { claim_id: 2, input: cleanReject() },
     ]);
@@ -696,7 +696,7 @@ describe("detectContradictionsBatch", () => {
   });
 
   it("empty batch returns empty array", () => {
-    expect(detectContradictionsBatch([])).toHaveLength(0);
+    expect(characterizeContradictionsBatch([])).toHaveLength(0);
   });
 });
 
@@ -704,7 +704,7 @@ describe("detectContradictionsBatch", () => {
 
 describe("aggregateContradictionStats", () => {
   it("counts total, blocked, allowed correctly", () => {
-    const results = detectContradictionsBatch([
+    const results = characterizeContradictionsBatch([
       { claim_id: 1, input: cleanApprove() },          // ALLOW
       { claim_id: 2, input: { recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } } }, // BLOCK
       { claim_id: 3, input: cleanReject() },            // ALLOW
@@ -716,7 +716,7 @@ describe("aggregateContradictionStats", () => {
   });
 
   it("block_rate_pct is correct", () => {
-    const results = detectContradictionsBatch([
+    const results = characterizeContradictionsBatch([
       { claim_id: 1, input: cleanApprove() },
       { claim_id: 2, input: { recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } } },
     ]);
@@ -725,7 +725,7 @@ describe("aggregateContradictionStats", () => {
   });
 
   it("top_rules lists the most frequent contradiction", () => {
-    const results = detectContradictionsBatch([
+    const results = characterizeContradictionsBatch([
       { claim_id: 1, input: { recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } } },
       { claim_id: 2, input: { recommendation: "APPROVE", fraud_result: { fraud_risk_level: "high" } } },
       { claim_id: 3, input: { recommendation: "APPROVE", physics_result: { is_plausible: false } } },

@@ -68,6 +68,12 @@ import * as dbPipeline from './db-pipeline.ts';
 import { getTenantRates, notifyTenantProcessors } from './db/intelligence-db';
 import { handleVehicleRegistryRequiredAuditFailure } from './vehicle-registry-audit-alert';
 import { resolveKingaWriteOffRecommendation } from '../shared/writeOffRecommendation';
+import {
+  hasGoverningFraudDecisionEligibility,
+  resolvePersistableFraudValues,
+  type FraudDecisionEligibility,
+  type FraudDecisionEligibilityInput,
+} from './evidence-governance/quantitativeFieldGovernance';
 
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 let _db: MySql2Database<typeof schema> | null = null;
@@ -110,6 +116,33 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+/**
+ * Keeps the fast-track callback itself behind the P0-B1 authority boundary.
+ * The supplied callback owns every later database read, dynamic import, and
+ * dispatch; it must never be scheduled for a held fraud decision.
+ */
+export function scheduleP0GatedFastTrack(params: {
+  enabled: boolean;
+  fraudDecisionEligibility: FraudDecisionEligibility | null | undefined;
+  fraudDecisionSources: FraudDecisionEligibilityInput;
+  onWithheld: () => void;
+  schedule: () => void;
+}): "DISABLED" | "WITHHELD" | "SCHEDULED" {
+  if (!params.enabled) return "DISABLED";
+  if (
+    !params.fraudDecisionEligibility ||
+    !hasGoverningFraudDecisionEligibility(
+      params.fraudDecisionEligibility,
+      params.fraudDecisionSources
+    )
+  ) {
+    params.onWithheld();
+    return "WITHHELD";
+  }
+  params.schedule();
+  return "SCHEDULED";
 }
 
 /**
@@ -1999,12 +2032,30 @@ export async function triggerAiAssessment(claimId: number) {
   // Extract narrativeAnalysis from claimRecord for dedicated column storage
   const narrativeAnalysis = claimRecord?.accidentDetails?.narrativeAnalysis ?? null;
 
-  // Map fraud risk level to DB enum (FSS-2026-001)
-  // ARCH-03b fix: 'moderate' was missing — caused scores 40-60 to silently downgrade to 'low'
+  // P0-B1: a persisted fraud score/level must be bound to the live Stage 7/8
+  // sources. The current policy cannot create governing authority, so this
+  // resolves to an actionable unavailable state rather than a numeric fallback.
+  const persistedFraudSources = {
+    crushDepthDecision: physicsAnalysis?.quantitativeEvidence?.crushDepth,
+    advisoryEvidencePresent: true,
+    fallbackOrDegraded: Boolean((fraudAnalysis as any)?._fallback),
+  };
+  const persistedFraudValues = resolvePersistableFraudValues({
+    decision: fraudAnalysis?.fraudDecisionEligibility,
+    sources: persistedFraudSources,
+    candidateScore: fraudAnalysis?.fraudRiskScore,
+    candidateLevel: fraudAnalysis?.fraudRiskLevel,
+  });
+
+  // P0-B1: the current source set cannot produce a governing fraud level.
+  // Keep the historical map for a future qualified authority path, but never
+  // invent a benign/fallback level when Stage 8 is advisory or unavailable.
   const fraudLevelMap: Record<string, 'low' | 'medium' | 'moderate' | 'high' | 'critical' | 'elevated'> = {
     minimal: 'low', low: 'low', medium: 'medium', moderate: 'moderate', high: 'high', critical: 'elevated', elevated: 'elevated',
   };
-  const dbFraudLevel = fraudAnalysis ? (fraudLevelMap[fraudAnalysis.fraudRiskLevel] || 'low') : 'low';
+  const dbFraudLevel = persistedFraudValues.fraudRiskLevel
+    ? (fraudLevelMap[persistedFraudValues.fraudRiskLevel] ?? null)
+    : null;
 
   // Map structural severity to DB enum
   const severityMap: Record<string, 'none' | 'minor' | 'moderate' | 'severe' | 'catastrophic'> = {
@@ -2085,25 +2136,20 @@ export async function triggerAiAssessment(claimId: number) {
     ? JSON.stringify(fraudAnalysis.indicators.map(i => i.description))
     : '[]';
 
-  // Build fraud score breakdown JSON
+  // P0-B1: persist only reviewer-visible, nonnumeric fraud context. Do not
+  // preserve legacy nested score/probability/consistency structures that a
+  // downstream reader could reuse as an automated fraud decision input.
   const fraudScoreBreakdownJson = fraudAnalysis
     ? JSON.stringify({
-        overallScore: fraudAnalysis.fraudRiskScore,
-        level: fraudAnalysis.fraudRiskLevel,
-        indicators: fraudAnalysis.indicators,
-        damageConsistency: {
-          score: fraudAnalysis.damageConsistencyScore,
-          notes: fraudAnalysis.damageConsistencyNotes,
-        },
-        // Scenario-aware fraud detection result (null if engine was skipped)
-        scenarioFraudResult: fraudAnalysis.scenarioFraudResult ?? null,
-        crossEngineConsistency: fraudAnalysis.crossEngineConsistency ?? null,
-        confidenceAggregation: fraudAnalysis.confidenceAggregation ?? null,
-        photoForensics: fraudAnalysis.photoForensics ?? null,
-        // Phase 1: Quote similarity engine results
-        quoteSimilarity: fraudAnalysis.quoteSimilarity ?? null,
-        // Accident date cross-check (claim form vs police report vs image EXIF)
-        accidentDateCrossCheck: fraudAnalysis.accidentDateCrossCheck ?? null,
+        fraudDecisionEligibility: persistedFraudValues.eligibility,
+        overallScore: persistedFraudValues.fraudRiskScore,
+        level: persistedFraudValues.fraudRiskLevel,
+        indicators: fraudAnalysis.indicators.map(indicator => ({
+          indicator: indicator.indicator ?? indicator.description ?? "manual_review_context",
+          description: indicator.description ?? null,
+          evidence: indicator.evidence ?? [],
+          advisoryOnly: true,
+        })),
       })
     : null;
 
@@ -2397,10 +2443,9 @@ export async function triggerAiAssessment(claimId: number) {
     })(),
     fraudIndicators: fraudIndicatorsJson,
     fraudRiskLevel: dbFraudLevel,
-    // SYSTEMIC FIX: Persist fraud score and recommendation as first-class columns.
-    // Previously these were only buried in JSON blobs, causing the router to always
-    // read undefined (→ fraudScore=0, recommendation=null) and produce wrong verdicts.
-    fraudScore: safeInt(fraudAnalysis ? Math.round(fraudAnalysis.fraudRiskScore) : null),
+    // P0-B1: only a source-bound governing decision may populate this legacy
+    // sortable column; advisory/unavailable fraud must remain null, not zero.
+    fraudScore: safeInt(persistedFraudValues.fraudRiskScore),
     // Use Decision Authority recommendation (Stage 12) as the single source of truth.
     // Falls back to cost engine recommendation if Decision Authority didn't run.
     recommendation: decisionAuthority?.recommendation ?? costAnalysis?.costDecision?.recommendation ?? null,
@@ -3011,7 +3056,7 @@ export async function triggerAiAssessment(claimId: number) {
   }
 
   // Update claim status to complete + backfill vehicle info from extraction
-  const finalFraudScore = safeFloat(fraudAnalysis ? fraudAnalysis.fraudRiskScore : 0) ?? 0;
+  const finalFraudScore = safeFloat(persistedFraudValues.fraudRiskScore);
   // DRA Phase 2: Transition to ANALYSIS_COMPLETE (success terminal state).
   // This state is ONLY reachable if:
   //   1. Document Health Gate passed (mayProceed === true)
@@ -3247,21 +3292,39 @@ export async function triggerAiAssessment(claimId: number) {
   // ── Fast-Track Routing: fire-and-forget (non-blocking) ───────────────────
   // Evaluates claim against fast-track automation rules after assessment is persisted.
   // Gated by ENABLE_FAST_TRACK=true env var. Never awaited — never delays the pipeline.
-  if (process.env.ENABLE_FAST_TRACK === 'true') {
-    setImmediate(async () => {
+  const fastTrackFraudDecisionSources = {
+    crushDepthDecision: physicsAnalysis?.quantitativeEvidence?.crushDepth,
+    advisoryEvidencePresent: true,
+    fallbackOrDegraded: Boolean((fraudAnalysis as any)?._fallback),
+  };
+  scheduleP0GatedFastTrack({
+    enabled: process.env.ENABLE_FAST_TRACK === 'true',
+    fraudDecisionEligibility: persistedFraudValues.eligibility,
+    fraudDecisionSources: fastTrackFraudDecisionSources,
+    onWithheld: () => {
+      console.info(
+        `[FastTrack] Claim ${claimId}: automated routing withheld — current fraud evidence lacks qualified governing authority; obtain independently verifiable claim-linked evidence and use manual review.`
+      );
+    },
+    schedule: () => setImmediate(async () => {
       try {
         const { evaluateFastTrack } = await import('./services/fast-track-engine');
         const { executeFastTrackAction } = await import('./services/fast-track-dispatcher');
         const ftTenantRows = await db.select({ tenantId: claims.tenantId }).from(claims).where(eq(claims.id, claimId)).limit(1);
         const ftTenantId = ftTenantRows[0]?.tenantId ?? 'default';
         const ftConfidence = Math.round((safeFloat(costAnalysis?.costDecision?.confidence) ?? 0) * 100);
-        const ftFraud = Math.round((safeFloat(fraudAnalysis?.fraudRiskScore) ?? 0) * 100);
+        // P0-B1: an absent/advisory fraud score must not become a fabricated 0
+        // that clears the fast-track threshold. The engine returns an actionable
+        // MANUAL_REVIEW result and does not write a false numeric audit value.
+        const ftFraud = safeFloat(persistedFraudValues.fraudRiskScore);
         const ftClaimValue = safeInt(estimatedCostCents) ?? 0;
         const ftClaimType = (claimRecord as any)?.accidentDetails?.incidentType ?? 'collision';
         const ftEval = await evaluateFastTrack({
           claimId, tenantId: ftTenantId,
           confidenceScore: ftConfidence, claimValue: ftClaimValue,
           fraudScore: ftFraud, claimType: ftClaimType, productId: null,
+          fraudDecisionEligibility: persistedFraudValues.eligibility,
+          fraudDecisionSources: fastTrackFraudDecisionSources,
         });
         if (ftEval.eligible && ftEval.action) {
           await executeFastTrackAction(claimId, ftEval as any, 0);
@@ -3272,8 +3335,8 @@ export async function triggerAiAssessment(claimId: number) {
       } catch (ftErr: any) {
         console.warn(`[FastTrack] Claim ${claimId}: evaluation failed (non-fatal):`, ftErr?.message ?? ftErr);
       }
-    });
-  }
+    }),
+  });
 
   // ── Entity Registry: fire-and-forget (non-blocking) ──────────────────────
   // Upsert all entities and write relationship graph edges asynchronously.
@@ -3342,7 +3405,7 @@ export async function triggerAiAssessment(claimId: number) {
           structuralGapCount: (result as any).stage9Data?.structuralGapCount ?? undefined,
         },
         {
-          fraudScore: finalFraudScore,
+          fraudScore: finalFraudScore ?? undefined,
           fraudIndicators: fraudAnalysis?.indicators ?? undefined,
           physicsData: (result as any).stage5Data ? {
             deltaV: (result as any).stage5Data.deltaV ?? undefined,

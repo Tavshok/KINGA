@@ -45,6 +45,7 @@ import ClaimCurrencyHistory from "@/components/ClaimCurrencyHistory";
 import { ClaimsIntelligenceReportView, type ClaimsIntelligenceReportPrintHandle } from "@/components/ClaimsIntelligenceReportView";
 import { VehiclePassportPanel } from "@/components/VehiclePassportPanel";
 import { printActiveReportDocument } from "@/lib/reportDocumentPrinting";
+import { getP0B1FraudDecisionHold } from "@shared/p0FraudDecisionHoldPresentation";
 
 // Insurer role labels for the Push Report dialog
 // Cost Intelligence helpers extracted to InsurerComparisonView.helpers.ts for maintainability
@@ -67,38 +68,40 @@ export default function InsurerComparisonView() {
   // Get KINGA assessment — poll every 5 s while the claim is in assessment_in_progress
   // so the panel refreshes automatically after the fire-and-forget job completes.
   const [aiPollInterval, setAiPollInterval] = useState<number | false>(false);
-  const { data: aiAssessment, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery(
+  const { data: aiAssessmentResponse, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery(
     { claimId },
     {
       enabled: !!claimId,
       refetchInterval: aiPollInterval,
     }
   );
+  const assessmentFraudDecisionHold = getP0B1FraudDecisionHold(aiAssessmentResponse);
+  const aiAssessment = assessmentFraudDecisionHold ? null : (aiAssessmentResponse as any);
 
   // Start polling when the claim enters assessment_in_progress; stop once we
   // have a result (aiAssessment is populated).
   useEffect(() => {
     if (!claim) return;
     const inProgress = claim.status === "assessment_in_progress" || claim.status === "assessment_pending";
-    if (inProgress && !aiAssessment) {
+    if (inProgress && !aiAssessmentResponse) {
       setAiPollInterval(5000);
     } else {
       setAiPollInterval(false);
     }
-  }, [claim?.status, aiAssessment]);
+  }, [claim?.status, aiAssessmentResponse]);
 
   // Fire a one-shot toast the first time aiAssessment transitions from
   // undefined/null → populated. The ref ensures repeated polling ticks never
   // trigger a second notification for the same claim session.
   const assessmentToastShown = useRef(false);
   useEffect(() => {
-    if (aiAssessment && !assessmentToastShown.current) {
+    if (aiAssessmentResponse && !assessmentFraudDecisionHold && !assessmentToastShown.current) {
       assessmentToastShown.current = true;
       toast.success("KINGA assessment ready", {
         description: "The KINGA assessment for this claim is now available.",
       });
     }
-  }, [aiAssessment]);
+  }, [aiAssessmentResponse, assessmentFraudDecisionHold]);
 
   // Update browser tab title to show claim reference when data is loaded
   useEffect(() => {
@@ -207,7 +210,9 @@ export default function InsurerComparisonView() {
   });
   const { data: sharedRolesData } = trpc.aiAssessments.getSharedRoles.useQuery(
     { claimId: Number(claimId) },
-    { enabled: !!claimId && !isNaN(Number(claimId)) }
+    {
+      enabled: !!claimId && !isNaN(Number(claimId)) && Boolean(aiAssessmentResponse) && !assessmentFraudDecisionHold,
+    }
   );
   const sharedWithRoles: string[] = sharedRolesData?.sharedWithRoles ?? [];
 
@@ -437,6 +442,34 @@ export default function InsurerComparisonView() {
             </Button>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  if (assessmentFraudDecisionHold) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5 p-4">
+        <Card className="max-w-2xl border-amber-500/50 bg-amber-50/80 dark:bg-amber-950/20">
+          <CardHeader>
+            <CardTitle>Automated Fraud Decision Withheld</CardTitle>
+            <CardDescription>{assessmentFraudDecisionHold.explanation}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{assessmentFraudDecisionHold.resolver.unresolvedAction}</p>
+            <Button variant="outline" onClick={() => setLocation(INSURER_CLAIMS_LIST_PATH)}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Claims
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!claim) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }

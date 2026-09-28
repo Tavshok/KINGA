@@ -39,6 +39,10 @@ import type { ThirdPartyRecord } from "../pipeline-v2/types";
 //   Quantum (approved amount > 0)                  5 pts
 const RPS_THRESHOLD = 30; // Minimum score to create a recovery case
 
+function p0B1RecoveryAutomationPolicyActive(): boolean {
+  return true;
+}
+
 interface RPSInput {
   wrongedParty: CausalVerdict["wrongedParty"] | null;
   thirdPartyLiabilityPct: number;
@@ -89,14 +93,8 @@ export function computeRPS(input: RPSInput): number {
     score += 5;
   }
 
-  // 5. Fraud score inverse (10 pts — low fraud = more recoverable)
-  // A fraudulent claim should not be pursued for recovery
-  if (input.fraudScore !== null) {
-    const fraudPenalty = Math.round(10 * (input.fraudScore / 100));
-    score += (10 - fraudPenalty);
-  } else {
-    score += 5; // Unknown fraud = half credit
-  }
+  // P0-B1: no fraud score, level, or model-derived proxy may influence recovery
+  // case creation. Fraud authority is withheld pending qualified evidence.
 
   // 6. Quantum (5 pts — only if there is an approved amount to recover)
   if (input.approvedAmount && input.approvedAmount > 0) score += 5;
@@ -124,6 +122,12 @@ function computeRecoveryDeadline(incidentDate: string | null | undefined): strin
 // Main Trigger
 // ─────────────────────────────────────────────────────────────────────────────
 export async function triggerRecoveryEvaluation(claimId: number): Promise<void> {
+  if (p0B1RecoveryAutomationPolicyActive()) {
+    console.warn(
+      `[RecoveryTrigger] P0-B1 manual-review hold: automated recovery case creation withheld for claim ${claimId}; required evidence is claim-linked documentary liability proof and human-reviewed provenance.`
+    );
+    return;
+  }
   const db = await getDb();
   if (!db) {
     console.error("[RecoveryTrigger] Database not available");
@@ -212,7 +216,7 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
       hasPoliceReport: !!(claim.policeReportNumber),
       policeChargedThirdParty: policeChargedParty === 'third_party',
       policeInvestigationActive: policeInvestigationStatus === 'UNDER_INVESTIGATION',
-      fraudScore: assessment?.fraudScore ?? null,
+      fraudScore: null,
       approvedAmount: claim.finalApprovedAmount ? Number(claim.finalApprovedAmount) : null,
     };
 

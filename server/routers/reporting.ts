@@ -129,6 +129,7 @@ export const reportingRouter = router({
       toTs:         z.number().optional(),
       subjectId:    z.number().optional(),
       subjectType:  z.string().optional(),
+      registration: z.string().trim().min(1).max(50).optional(),
       outputFormat: z.enum(["pdf", "excel"]).default("pdf"),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -165,6 +166,7 @@ export const reportingRouter = router({
       if (input.toTs)       params.toTs       = input.toTs;
       if (input.subjectId)  params.subjectId  = input.subjectId;
       if (input.subjectType) params.subjectType = input.subjectType;
+      if (input.registration) params.registration = input.registration;
 
       const jobId = await enqueueReport({
         reportKey: input.reportKey,
@@ -499,6 +501,7 @@ export const reportingRouter = router({
       reportKey: z.string(),
       claimId:   z.number().optional(),
       tenantId:  z.string().optional(),
+      registration: z.string().trim().min(1).max(50).optional(),
     }))
     .query(async ({ ctx, input }) => {
       const role = ctx.user.role ?? "claims_processor";
@@ -512,6 +515,7 @@ export const reportingRouter = router({
       const { generateReportHtml } = await import("../reporting/reportDefinitions");
       const params: Record<string, unknown> = {};
       if (input.claimId) params.claimId = input.claimId;
+      if (input.registration) params.registration = input.registration;
       const html = await generateReportHtml(input.reportKey, params, scope.tenantId);
       await auditP0CrossTenantAccess(ctx, scope, "report_preview", input.claimId ? String(input.claimId) : input.reportKey);
       return { html };

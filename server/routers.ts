@@ -85,7 +85,7 @@ import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
 import { generateDemandLetter } from "./recovery/demandLetterGenerator";
 import { checkSingleCaseDeadline } from "./recovery/recoveryDeadlineAlerts";
-import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmitted, notifyFraudDetected } from "./notifications";
+import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmitted } from "./notifications";
 import { invokeLLM } from "./_core/llm";
 import { getAuthorizedClaimDocumentContext } from "./documents/claimDocumentAuthority";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
@@ -101,6 +101,7 @@ import { claimCompletionRouter } from "./routers/claim-completion";
 import { mlRouter } from "./routers/ml";
 import { learningRouter } from "./routers/learning";
 import { decisionRouter } from "./routers/decision";
+import { throwP0B1FraudDecisionHold } from "./evidence-governance/p0FraudDecisionHold";
 import { approvalRouter } from "./routers/approval";
 import { truthSynthesisRouter } from "./routers/truth-synthesis";
 import { marketQuotesRouter } from "./routers/market-quotes";
@@ -754,6 +755,10 @@ export const appRouter = router({
         fileData: z.string(), // base64 encoded PDF
       }))
       .mutation(async ({ input, ctx }) => {
+        void input;
+        void ctx;
+        throwP0B1FraudDecisionHold();
+        /* c8 ignore start -- P0-B1 must stop before raw/model output exists. */
         try {
           console.log(`📤 Processing external assessment: ${input.fileName}`);
           
@@ -768,6 +773,7 @@ export const appRouter = router({
           // Return a structured error response
           throw new Error(`Failed to process assessment: ${error.message || 'Unknown error'}`);
         }
+        /* c8 ignore stop */
       }),
 
     // Export assessment report as PDF
@@ -1032,7 +1038,7 @@ export const appRouter = router({
               estimatedRepairCost: Number(payload.estimatedRepairCost || 0), laborCost: payload.laborCost ? Number(payload.laborCost) : undefined,
               partsCost: payload.partsCost ? Number(payload.partsCost) : undefined, estimatedDuration: Number(payload.estimatedDuration || 0),
               damageAssessment: String(payload.damageAssessment || "Accepted assessor report"), recommendations: payload.recommendations ? String(payload.recommendations) : undefined,
-              fraudRiskLevel: (payload.fraudRiskLevel as any) || "low", status: "completed", sourceReportId: report.id, sourceReportVersion: report.versionNumber, acceptedReviewId: input.reviewId,
+              status: "completed", sourceReportId: report.id, sourceReportVersion: report.versionNumber, acceptedReviewId: input.reviewId,
             } as any,
             audit: { claimId: report.claimId, userId: ctx.user.id, action: "assessor_report_review_accepted", entityType: "assessor_report_review", changeDescription: input.decisionReason },
           });
@@ -1457,17 +1463,6 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
 
-        // Calculate discrepancies
-        let speedDiscrepancy = null;
-        if (input.reportedSpeed && claim.incidentDescription) {
-          // Try to extract speed from incident description
-          const speedMatch = claim.incidentDescription.match(/(\d+)\s*km\/h/i);
-          if (speedMatch) {
-            const claimedSpeed = parseInt(speedMatch[1]);
-            speedDiscrepancy = Math.abs(input.reportedSpeed - claimedSpeed);
-          }
-        }
-
         const reportId = await createPoliceReport({
           claimId: input.claimId,
           reportNumber: input.reportNumber,
@@ -1480,7 +1475,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           accidentLocation: input.accidentLocation,
           accidentDescription: input.accidentDescription,
           reportDocumentUrl: input.reportDocumentUrl,
-          speedDiscrepancy,
+          speedDiscrepancy: null,
           locationMismatch: input.accidentLocation && claim.incidentLocation && 
             input.accidentLocation.toLowerCase() !== claim.incidentLocation.toLowerCase() ? 1 : 0,
         });
@@ -1495,20 +1490,18 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           changeDescription: `Police report ${input.reportNumber} added`,
         });
 
-        // If there are significant discrepancies, create fraud alert
-        if (speedDiscrepancy && speedDiscrepancy > 10) {
-          await notifyFraudDetected({
-            claimId: input.claimId,
-            recipientEmail: "admin@kinga.com",
-            recipientName: "Admin",
-            claimNumber: claim.claimNumber || `CLAIM-${input.claimId}`,
-            fraudRiskScore: 85,
-            discrepancyLevel: Math.round((speedDiscrepancy / 80) * 100),
-            fraudIndicators: `Speed discrepancy: ${speedDiscrepancy} km/h between claim and police report`,
-          });
-        }
-
-        return { id: reportId, speedDiscrepancy };
+        return {
+          id: reportId,
+          reviewRequired: true,
+          status: "FRAUD_DECISION_WITHHELD" as const,
+          explanation:
+            "Documentary speed information is retained for human review but cannot create an automated fraud classification or alert.",
+          requiredEvidence: [
+            "Independently verifiable claim-linked speed evidence, such as EDR, telematics, authenticated CCTV, or a signed witness statement with provenance",
+            "Human-reviewed evidence with auditable provenance",
+            "A future owner-approved qualified automated-decision policy",
+          ],
+        };
       }),
 
     // Get police report by claim ID
@@ -1519,7 +1512,8 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "A tenant-scoped session is required" });
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
-        return await getPoliceReportByClaimId(input.claimId, tenantId);
+        const report = await getPoliceReportByClaimId(input.claimId, tenantId);
+        return report ? { ...report, speedDiscrepancy: null } : null;
       }),
 
     // Extract physics data from police report PDF using OCR
